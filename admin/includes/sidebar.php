@@ -9,6 +9,8 @@ $isStaffUser = isStaff();
 
 $navItems = [
     ['label' => 'Dashboard', 'href' => '/admin/index.php', 'icon' => 'space_dashboard'],
+    ['label' => 'AI Match Assistant', 'href' => '/admin/ai-assistant.php', 'icon' => 'smart_toy'],
+    ['label' => 'Team Workspace Chat', 'href' => '/admin/team-chat.php', 'icon' => 'forum'],
     ['label' => 'Vendor Demands', 'href' => '/admin/vendor-requests.php', 'icon' => 'storefront'],
     ['label' => 'Trainers Directory', 'href' => '/admin/trainers.php', 'icon' => 'group'],
     ['label' => 'Opportunities', 'href' => '/admin/opportunities.php', 'icon' => 'work'],

@@ -244,6 +244,33 @@ class ResumeSkillParser {
     }
 
     /**
+     * Extract skills dictionary matches from raw string / text
+     */
+    public static function extractSkillsFromText($rawText) {
+        $normalizedText = ' ' . strtolower($rawText) . ' ';
+        $extracted = [];
+
+        foreach (self::$skillDictionary as $domain => $skills) {
+            foreach ($skills as $skillName => $patterns) {
+                foreach ($patterns as $pattern) {
+                    $cleanPattern = preg_quote($pattern, '/');
+                    if (strpos($pattern, '\b') !== false) {
+                        $regex = '/' . str_replace('\b', '\b', $pattern) . '/i';
+                    } else {
+                        $regex = '/(?<=[\s,;.()\/\-]|^)' . $cleanPattern . '(?=[\s,;.()\/\-]|$)/i';
+                    }
+
+                    if (preg_match($regex, $normalizedText)) {
+                        $extracted[$domain][] = $skillName;
+                        break;
+                    }
+                }
+            }
+        }
+        return $extracted;
+    }
+
+    /**
      * Extract matching skills, estimate experience, and determine primary domain
      */
     public static function analyzeResume($filePath) {
