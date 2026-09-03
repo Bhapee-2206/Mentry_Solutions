@@ -101,21 +101,6 @@ if (!$config['maintenance_mode'] && !$isStaffOrAdmin) {
     <!-- Subtle Background Dot Grid -->
     <div class="absolute inset-0 dot-pattern opacity-40 pointer-events-none -z-10"></div>
 
-    <?php if ($isStaffOrAdmin): ?>
-        <!-- Admin Bypass Notice Banner -->
-        <div class="w-full bg-[#FE5E04] text-white py-2.5 px-4 text-xs font-bold shadow-sm relative z-50">
-            <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm bg-white/20 p-1 rounded-md">lock_open</span>
-                    <span>Work in Progress Mode is currently <strong>ACTIVE</strong> for visitors. You have Admin privileges.</span>
-                </div>
-                <a href="/admin/index.php" class="bg-white text-[#FE5E04] px-3 py-1 rounded-lg hover:bg-orange-50 transition-colors font-extrabold flex items-center gap-1 shadow-xs">
-                    Return to Ops Center →
-                </a>
-            </div>
-        </div>
-    <?php endif; ?>
-
     <!-- Top Header -->
     <header class="w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-xl px-6 py-4 sticky top-0 z-40 shadow-xs">
         <div class="max-w-6xl mx-auto flex items-center justify-between">
