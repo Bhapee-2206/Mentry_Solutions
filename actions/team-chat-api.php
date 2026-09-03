@@ -232,3 +232,95 @@ if ($action === 'ask_ai_on_message') {
         exit();
     }
 }
+
+// 4. EDIT MESSAGE
+if ($action === 'edit_message') {
+    $msgId = $_POST['messageId'] ?? '';
+    $newText = trim($_POST['text'] ?? '');
+
+    if (empty($msgId) || empty($newText)) {
+        echo json_encode(['success' => false, 'message' => 'Message ID and text are required.']);
+        exit();
+    }
+
+    $messages = getChatMessages($chatFile);
+    $found = false;
+
+    foreach ($messages as &$m) {
+        if ($m['id'] === $msgId) {
+            // Check ownership or admin
+            if ($m['senderId'] === ($currentUser['id'] ?? '') || isAdmin()) {
+                $m['text'] = $newText;
+                $m['isEdited'] = true;
+                $m['editedAt'] = date('Y-m-d H:i:s');
+                $found = true;
+                break;
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Unauthorized to edit this message.']);
+                exit();
+            }
+        }
+    }
+
+    if ($found) {
+        saveChatMessages($chatFile, $messages);
+        echo json_encode(['success' => true, 'allMessages' => $messages]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Message not found.']);
+    }
+    exit();
+}
+
+// 5. DELETE MESSAGE
+if ($action === 'delete_message') {
+    $msgId = $_POST['messageId'] ?? '';
+
+    if (empty($msgId)) {
+        echo json_encode(['success' => false, 'message' => 'Message ID required.']);
+        exit();
+    }
+
+    $messages = getChatMessages($chatFile);
+    $updated = [];
+    $found = false;
+
+    foreach ($messages as $m) {
+        if ($m['id'] === $msgId) {
+            if ($m['senderId'] === ($currentUser['id'] ?? '') || isAdmin()) {
+                $found = true;
+                continue; // Skip = Delete
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Unauthorized to delete this message.']);
+                exit();
+            }
+        }
+        $updated[] = $m;
+    }
+
+    if ($found) {
+        saveChatMessages($chatFile, $updated);
+        echo json_encode(['success' => true, 'allMessages' => $updated]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Message not found.']);
+    }
+    exit();
+}
+
+// 6. CLEAR CHAT
+if ($action === 'clear_chat') {
+    $clearedMessages = [
+        [
+            'id' => 'msg_' . uniqid(),
+            'senderId' => 'ai_assistant',
+            'senderName' => 'Zervy (AI Assistant)',
+            'senderRole' => 'AI_AGENT',
+            'text' => '🧹 *Chat history has been cleared by ' . htmlspecialchars($currentUser['name'] ?? 'Admin') . '.* The channel is fresh and ready for operations.',
+            'attachment' => null,
+            'isAI' => true,
+            'timestamp' => date('Y-m-d H:i:s')
+        ]
+    ];
+    saveChatMessages($chatFile, $clearedMessages);
+    echo json_encode(['success' => true, 'allMessages' => $clearedMessages]);
+    exit();
+}

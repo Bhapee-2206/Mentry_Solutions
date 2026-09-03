@@ -1,5 +1,5 @@
 <?php
-// admin/team-chat.php - Internal Workspace Team Chat with Zervy Agent, File Attachments & Token Tracking
+// admin/team-chat.php - Internal Workspace Team Chat with Zervy Agent, Edit, Delete, Clear Chat & File Sharing
 $pageTitle = "Internal Team Workspace Chat";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -11,6 +11,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 requireAdminOrStaff();
 $currentUser = getCurrentUser();
 $tokenMetrics = AIAgent::getTokenMetrics();
+$isAdminUser = isAdmin();
 ?>
 
 <div class="max-w-7xl mx-auto h-[calc(100vh-140px)] flex flex-col md:flex-row gap-4">
@@ -95,7 +96,7 @@ $tokenMetrics = AIAgent::getTokenMetrics();
     <!-- Center: Main Chat Thread & Input Canvas -->
     <div class="flex-1 bg-white rounded-3xl border border-slate-200/90 shadow-card flex flex-col overflow-hidden">
         
-        <!-- Chat Header Bar -->
+        <!-- Chat Header Bar with Clear Chat and Actions -->
         <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-[#FE5E04] font-black text-sm">
@@ -108,9 +109,13 @@ $tokenMetrics = AIAgent::getTokenMetrics();
             </div>
 
             <div class="flex items-center gap-2">
-                <button type="button" onclick="insertAiMention()" class="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#FE5E04] text-xs font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5">
+                <button type="button" onclick="confirmClearChat()" class="bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-600 text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer" title="Clear all messages in channel">
+                    <span class="material-symbols-outlined text-[15px]">delete_sweep</span>
+                    <span>Clear Chat</span>
+                </button>
+                <button type="button" onclick="insertAiMention()" class="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#FE5E04] text-xs font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-[15px]">smart_toy</span>
-                    <span>@Zervy Match</span>
+                    <span>@Zervy Ask</span>
                 </button>
             </div>
         </div>
@@ -129,7 +134,7 @@ $tokenMetrics = AIAgent::getTokenMetrics();
                     <span class="material-symbols-outlined text-blue-600 text-base">attach_file</span>
                     <span id="fileNameDisplay" class="font-bold text-slate-800 truncate"></span>
                 </div>
-                <button type="button" onclick="clearSelectedFile()" class="text-slate-400 hover:text-rose-600 text-xs font-bold">✕ Remove</button>
+                <button type="button" onclick="clearSelectedFile()" class="text-slate-400 hover:text-rose-600 text-xs font-bold cursor-pointer">✕ Remove</button>
             </div>
 
             <form id="chatMessageForm" onsubmit="handleSendMessage(event)" class="flex items-center gap-2">
@@ -143,7 +148,7 @@ $tokenMetrics = AIAgent::getTokenMetrics();
                 </button>
 
                 <!-- Message Input -->
-                <input type="text" id="chatTextInput" autocomplete="off" placeholder="Message operations team or type @Zervy find trainers for requirement..." class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm outline-none focus:border-[#FE5E04] focus:bg-white transition-all shadow-inner">
+                <input type="text" id="chatTextInput" autocomplete="off" placeholder="Message operations team or type @Zervy what is python training syllabus..." class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm outline-none focus:border-[#FE5E04] focus:bg-white transition-all shadow-inner">
 
                 <!-- Send Button -->
                 <button type="submit" id="sendBtn" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white px-5 py-3 rounded-2xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50">
@@ -155,9 +160,35 @@ $tokenMetrics = AIAgent::getTokenMetrics();
     </div>
 </div>
 
+<!-- EDIT MESSAGE MODAL -->
+<div id="editMessageModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-fadeIn">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#FE5E04]">edit</span>
+                <h3 class="font-extrabold text-sm text-slate-900">Edit Message</h3>
+            </div>
+            <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer">✕</button>
+        </div>
+
+        <form onsubmit="submitEditMessage(event)" class="space-y-4">
+            <input type="hidden" id="editModalMsgId">
+            <textarea id="editModalTextInput" rows="4" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs sm:text-sm outline-none focus:border-[#FE5E04] focus:bg-white transition-all shadow-inner"></textarea>
+
+            <div class="flex items-center justify-end gap-2.5 pt-2">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer">Cancel</button>
+                <button type="submit" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs px-5 py-2 rounded-xl transition-all shadow-md cursor-pointer">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 let currentUserId = '<?= $currentUser['id'] ?? '' ?>';
 let currentUserName = '<?= addslashes($currentUser['name'] ?? 'User') ?>';
+let isUserAdmin = <?= $isAdminUser ? 'true' : 'false' ?>;
 let selectedFile = null;
 
 async function loadChatMessages() {
@@ -178,12 +209,13 @@ function renderMessages(messages) {
     stream.innerHTML = messages.map(msg => {
         const isSelf = msg.senderId === currentUserId;
         const isAI = msg.isAI || msg.senderRole === 'AI_AGENT';
+        const canEdit = isSelf || isUserAdmin;
 
         if (isAI) {
             const tokenBadge = msg.tokenStats ? `<span class="inline-flex items-center gap-1 font-mono text-[9px] bg-orange-100 text-[#FE5E04] font-bold px-1.5 py-0.2 rounded">⚡ ${msg.tokenStats.totalTokens} Tokens</span>` : '';
 
             return `
-                <div class="flex items-start gap-3 max-w-2xl bg-white border border-orange-200/80 rounded-3xl p-4 shadow-xs animate-fadeIn">
+                <div class="flex items-start gap-3 max-w-2xl bg-white border border-orange-200/80 rounded-3xl p-4 shadow-xs animate-fadeIn group">
                     <div class="w-8 h-8 rounded-xl bg-[#FE5E04] text-white flex items-center justify-center shrink-0 shadow-xs">
                         <span class="material-symbols-outlined text-base">smart_toy</span>
                     </div>
@@ -191,10 +223,17 @@ function renderMessages(messages) {
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-1.5">
                                 <span class="font-extrabold text-xs text-slate-900">Zervy (AI Assistant)</span>
-                                <span class="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-orange-100 text-[#FE5E04]">AI Matching Engine</span>
+                                <span class="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-orange-100 text-[#FE5E04]">AI Engine</span>
                                 ${tokenBadge}
                             </div>
-                            <span class="text-[10px] text-slate-400">${escapeHtml(msg.timestamp.split(' ')[1] || '')}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] text-slate-400">${escapeHtml(msg.timestamp.split(' ')[1] || '')}</span>
+                                ${isUserAdmin ? `
+                                    <button type="button" onclick="deleteMessage('${escapeHtml(msg.id)}')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity text-xs" title="Delete AI message">
+                                        <span class="material-symbols-outlined text-[15px]">delete</span>
+                                    </button>
+                                ` : ''}
+                            </div>
                         </div>
                         <div class="text-xs text-slate-800 leading-relaxed whitespace-pre-line font-medium bg-slate-50/70 p-3 rounded-2xl border border-slate-100">
                             ${formatAiMessageText(msg.text)}
@@ -222,9 +261,10 @@ function renderMessages(messages) {
                         <span class="font-bold text-[11px] text-slate-700">${escapeHtml(msg.senderName)}</span>
                         <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded ${msg.senderRole === 'ADMIN' ? 'bg-orange-100 text-[#FE5E04]' : 'bg-blue-100 text-blue-700'}">${escapeHtml(msg.senderRole)}</span>
                         <span class="text-[10px] text-slate-400">${escapeHtml(msg.timestamp.split(' ')[1] || '')}</span>
+                        ${msg.isEdited ? `<span class="text-[9px] text-slate-400 italic">(edited)</span>` : ''}
                     </div>
 
-                    <div class="p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed ${isSelf ? 'bg-[#0F172A] text-white rounded-tr-xs' : 'bg-white text-slate-800 border border-slate-200/90 rounded-tl-xs shadow-xs'}">
+                    <div class="p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed relative ${isSelf ? 'bg-[#0F172A] text-white rounded-tr-xs' : 'bg-white text-slate-800 border border-slate-200/90 rounded-tl-xs shadow-xs'}">
                         ${msg.text ? `<p class="whitespace-pre-line">${escapeHtml(msg.text)}</p>` : ''}
                         
                         ${msg.attachment ? `
@@ -238,15 +278,26 @@ function renderMessages(messages) {
                         ` : ''}
                     </div>
 
-                    <!-- Explicit "Ask Zervy to Match" Action on Individual Message -->
-                    ${msg.text && !msg.text.includes('@') ? `
-                        <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 ${isSelf ? 'justify-end' : 'justify-start'}">
-                            <button type="button" onclick="askAiOnMessage('${escapeHtml(msg.id)}')" class="text-[10px] font-bold text-slate-500 hover:text-[#FE5E04] flex items-center gap-1 py-0.5 cursor-pointer">
-                                <span class="material-symbols-outlined text-[13px]">smart_toy</span>
-                                <span>Ask Zervy to Match Trainers</span>
+                    <!-- Message Actions: Edit, Delete, Ask Zervy -->
+                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2.5 ${isSelf ? 'justify-end' : 'justify-start'} text-[11px]">
+                        ${canEdit ? `
+                            <button type="button" onclick="openEditModal('${escapeHtml(msg.id)}', \`${escapeJsString(msg.text || '')}\`)" class="text-slate-400 hover:text-blue-600 flex items-center gap-1 cursor-pointer">
+                                <span class="material-symbols-outlined text-[13px]">edit</span>
+                                <span>Edit</span>
                             </button>
-                        </div>
-                    ` : ''}
+                            <button type="button" onclick="deleteMessage('${escapeHtml(msg.id)}')" class="text-slate-400 hover:text-rose-600 flex items-center gap-1 cursor-pointer">
+                                <span class="material-symbols-outlined text-[13px]">delete</span>
+                                <span>Delete</span>
+                            </button>
+                        ` : ''}
+
+                        ${msg.text && !msg.text.includes('@') ? `
+                            <button type="button" onclick="askAiOnMessage('${escapeHtml(msg.id)}')" class="font-bold text-slate-500 hover:text-[#FE5E04] flex items-center gap-1 cursor-pointer">
+                                <span class="material-symbols-outlined text-[13px]">smart_toy</span>
+                                <span>Ask Zervy</span>
+                            </button>
+                        ` : ''}
+                    </div>
                 </div>
 
                 ${isSelf ? `
@@ -277,7 +328,7 @@ function clearSelectedFile() {
 
 function insertAiMention() {
     const input = document.getElementById('chatTextInput');
-    input.value = '@Zervy find trainers for ';
+    input.value = '@Zervy ';
     input.focus();
 }
 
@@ -319,6 +370,93 @@ async function handleSendMessage(e) {
     }
 }
 
+function openEditModal(msgId, currentText) {
+    document.getElementById('editModalMsgId').value = msgId;
+    document.getElementById('editModalTextInput').value = currentText;
+    document.getElementById('editMessageModal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('editMessageModal').classList.add('hidden');
+}
+
+async function submitEditMessage(e) {
+    e.preventDefault();
+    const msgId = document.getElementById('editModalMsgId').value;
+    const newText = document.getElementById('editModalTextInput').value.trim();
+
+    if (!msgId || !newText) return;
+
+    const formData = new FormData();
+    formData.append('action', 'edit_message');
+    formData.append('messageId', msgId);
+    formData.append('text', newText);
+
+    try {
+        const response = await fetch('/actions/team-chat-api.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+        if (data.success && data.allMessages) {
+            closeEditModal();
+            renderMessages(data.allMessages);
+        } else {
+            alert(data.message || 'Failed to edit message.');
+        }
+    } catch (e) {
+        alert('Network error while editing message.');
+    }
+}
+
+async function deleteMessage(msgId) {
+    if (!confirm('Are you sure you want to delete this message?')) return;
+
+    const formData = new FormData();
+    formData.append('action', 'delete_message');
+    formData.append('messageId', msgId);
+
+    try {
+        const response = await fetch('/actions/team-chat-api.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+        if (data.success && data.allMessages) {
+            renderMessages(data.allMessages);
+        } else {
+            alert(data.message || 'Failed to delete message.');
+        }
+    } catch (e) {
+        alert('Network error while deleting message.');
+    }
+}
+
+async function confirmClearChat() {
+    if (!confirm('⚠️ Are you sure you want to clear all messages in this operations channel?')) return;
+
+    const formData = new FormData();
+    formData.append('action', 'clear_chat');
+
+    try {
+        const response = await fetch('/actions/team-chat-api.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+        if (data.success && data.allMessages) {
+            renderMessages(data.allMessages);
+        } else {
+            alert(data.message || 'Failed to clear chat.');
+        }
+    } catch (e) {
+        alert('Network error while clearing chat.');
+    }
+}
+
 async function askAiOnMessage(messageId) {
     const formData = new FormData();
     formData.append('action', 'ask_ai_on_message');
@@ -350,6 +488,11 @@ function formatAiMessageText(text) {
 function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapeJsString(str) {
+    if (!str) return '';
+    return str.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
 }
 
 // Initial load & Polling

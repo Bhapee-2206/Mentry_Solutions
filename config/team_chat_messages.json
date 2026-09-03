@@ -512,5 +512,15 @@
         "attachment": null,
         "isAI": true,
         "timestamp": "2026-09-03 10:15:31"
+    },
+    {
+        "id": "msg_6a992ecd04a53",
+        "senderId": "65e000000000000000000001",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "hello",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-03 10:24:45"
     }
 ]

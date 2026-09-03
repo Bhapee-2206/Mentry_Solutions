@@ -1,5 +1,5 @@
 <?php
-// includes/ai_agent.php - Zervy: Internal AI Agent Core Engine, Token Calculator & Gemini Gateway
+// includes/ai_agent.php - Zervy: Intelligent AI Brain, Trainer Match Engine & Token Calculator
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
@@ -49,7 +49,6 @@ class AIAgent {
             }
         }
 
-        // Calculate tokens for current request
         $promptTokens = 0;
         $completionTokens = 0;
 
@@ -57,7 +56,6 @@ class AIAgent {
             $promptTokens = (int)$geminiUsage['promptTokenCount'];
             $completionTokens = (int)($geminiUsage['candidatesTokenCount'] ?? 0);
         } else {
-            // Standard estimation: ~4 chars per token for English & JSON
             $promptTokens = max(1, (int)ceil(strlen($promptText) / 4));
             $completionTokens = max(1, (int)ceil(strlen($completionText) / 4));
         }
@@ -67,7 +65,6 @@ class AIAgent {
         // Gemini 1.5 Flash Pricing: $0.075 / 1M input tokens, $0.30 / 1M output tokens
         $reqCost = ($promptTokens * 0.000000075) + ($completionTokens * 0.00000030);
 
-        // Update cumulative stats
         $cumulative['totalRequests'] += 1;
         $cumulative['totalPromptTokens'] += $promptTokens;
         $cumulative['totalCompletionTokens'] += $completionTokens;
@@ -110,7 +107,7 @@ class AIAgent {
     /**
      * Call Google Gemini API securely from backend
      */
-    public static function callGemini($prompt, $systemInstruction = '', $jsonMode = true) {
+    public static function callGemini($prompt, $systemInstruction = '', $jsonMode = false) {
         self::initConfig();
 
         if (empty(self::$apiKey)) {
@@ -132,8 +129,8 @@ class AIAgent {
                 ]
             ],
             'generationConfig' => [
-                'temperature' => 0.2,
-                'topP' => 0.8,
+                'temperature' => 0.3,
+                'topP' => 0.85,
                 'topK' => 40,
                 'maxOutputTokens' => 2048
             ]
@@ -187,80 +184,7 @@ class AIAgent {
     }
 
     /**
-     * Intent Classification: Detects whether a message is a greeting, non-requirement, or trainer search
-     */
-    public static function classifyIntent($query) {
-        $q = strtolower(trim($query));
-
-        // Greetings
-        $greetings = ['hi', 'hello', 'hey', 'good morning', 'good evening', 'good afternoon', 'hola', 'yo', 'sup', 'greetings'];
-        if (in_array($q, $greetings) || preg_match('/^(hi|hello|hey|good morning|greetings)[\s!.,?]*$/i', $q)) {
-            return [
-                'type' => 'GREETING',
-                'message' => "👋 **Hello! I am Zervy**, your internal AI trainer matching assistant for Mentry Solutions.\n\nTo discover and rank trainers, please share a training requirement (e.g. *\"Need a Python & Django corporate trainer in Bangalore for 5 days\"* or *\"Find React and Node.js faculty\"*)."
-            ];
-        }
-
-        // Who are you / help queries
-        if (preg_match('/\b(who are you|what can you do|help me|what is your name)\b/i', $q)) {
-            return [
-                'type' => 'HELP',
-                'message' => "🤖 **I am Zervy**, the intelligent trainer discovery agent for Mentry Solutions operations.\n\n**What I can do:**\n1. **Match Trainers**: Analyze program requirements and search verified trainer profiles and resumes.\n2. **Rank & Explain**: Score candidates with factual justifications (*Why this trainer?*).\n3. **Compare Candidates**: Provide side-by-side multi-trainer comparison matrices."
-            ];
-        }
-
-        // Check if there are technical skills or training words
-        $extractedSkills = ResumeSkillParser::extractSkillsFromText($query);
-        $hasSkills = false;
-        foreach ($extractedSkills as $cat => $list) {
-            if (!empty($list)) {
-                $hasSkills = true;
-                break;
-            }
-        }
-
-        $trainingKeywords = ['trainer', 'training', 'faculty', 'instructor', 'bootcamp', 'workshop', 'program', 'campus', 'corporate', 'course', 'placement', 'teach', 'sessions'];
-        $hasTrainingContext = false;
-        foreach ($trainingKeywords as $kw) {
-            if (stripos($q, $kw) !== false) {
-                $hasTrainingContext = true;
-                break;
-            }
-        }
-
-        // General work chats without requirements (e.g. invoice, call me, payment, meeting)
-        $nonReqPatterns = ['payment', 'invoice', 'call me', 'free now', 'meeting at', 'check this', 'lunch', 'thank you', 'thanks', 'ok', 'okay', 'got it', 'sure', 'yes', 'no'];
-        foreach ($nonReqPatterns as $nrp) {
-            if (stripos($q, $nrp) !== false && !$hasSkills && !$hasTrainingContext) {
-                return [
-                    'type' => 'NON_REQUIREMENT',
-                    'message' => "💬 *Message noted.* This message does not appear to contain a training requirement or technical skill.\n\nIf you would like to search for trainers, mention technical skills (*e.g. Java, Python, AWS*) or training requirements."
-                ];
-            }
-        }
-
-        // Generative questions like ChatGPT / Gemini (e.g. syllabus, email templates, interview questions, explanations)
-        if (preg_match('/^(draft|write|explain|generate|create|compare|how to|what is|tell me|give me|suggest|outline|curriculum|syllabus)\b/i', $q) && 
-            !preg_match('/\b(find|search|match|recommend)\s+(trainer|trainers|faculty|instructor|candidate|candidates)\b/i', $q)) {
-            return [
-                'type' => 'GENERATIVE_AI',
-                'message' => null // Will be generated live by Gemini
-            ];
-        }
-
-        // If very short and no skills
-        if (strlen($q) < 8 && !$hasSkills && !$hasTrainingContext) {
-            return [
-                'type' => 'GREETING',
-                'message' => "👋 **Hi there! I am Zervy.** Please ask me any training question (*e.g. create a syllabus, draft an email, interview questions*) or provide skills to find matching trainers."
-            ];
-        }
-
-        return ['type' => 'TRAINER_SEARCH'];
-    }
-
-    /**
-     * Tool 1: searchTrainers
+     * Tool: searchTrainers
      */
     public static function searchTrainers($skills = [], $domain = '', $minExp = 0, $location = '', $mode = 'ALL') {
         $trainerCol = getCollection("Trainer");
@@ -311,14 +235,16 @@ class AIAgent {
     }
 
     /**
-     * Tool 2: getTrainerProfile
+     * Tool: getTrainerProfile
      */
     public static function getTrainerProfile($trainerId) {
         $trainerCol = getCollection("Trainer");
         if ($trainerCol) {
             try {
-                $t = $trainerCol->findOne(['_id' => $trainerId]);
-                if ($t) return $t;
+                if (preg_match('/^[a-f0-9]{24}$/i', $trainerId)) {
+                    $t = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerId)]);
+                    if ($t) return $t;
+                }
                 $t = $trainerCol->findOne(['id' => $trainerId]);
                 if ($t) return $t;
             } catch (\Throwable $e) {}
@@ -332,7 +258,7 @@ class AIAgent {
     }
 
     /**
-     * Tool 5: compareTrainers
+     * Tool: compareTrainers
      */
     public static function compareTrainers($trainerIds = [], $requirementText = '') {
         $trainers = [];
@@ -349,16 +275,12 @@ class AIAgent {
         }
 
         $systemPrompt = "You are Zervy, the internal AI matching specialist for Mentry Solutions.
-You must compare the given trainers against the requirement.
-CRITICAL RULES:
-1. Base your comparison STRICTLY on the facts provided in the trainer data.
-2. NEVER invent certifications, experience years, or projects not in the data.
-3. If a field is unknown, state 'Information not available in trainer profile'.
-4. Return a valid JSON object matching this schema:
+Compare the given trainers against the requirement. Base your comparison strictly on verified records.
+Return a valid JSON object matching this schema:
 {
   \"summary\": \"Short overview comparing candidate strengths\",
   \"comparisonMatrix\": [
-    { \"category\": \"Skills Match\", \"values\": { \"trainer_id_or_name\": \"Strong/Medium/Low with brief detail\" } },
+    { \"category\": \"Skills Match\", \"values\": { \"trainer_name\": \"Strong/Medium/Low with brief detail\" } },
     { \"category\": \"Training Experience\", \"values\": { ... } },
     { \"category\": \"Domain Expertise\", \"values\": { ... } },
     { \"category\": \"Location & Delivery Mode\", \"values\": { ... } },
@@ -388,7 +310,7 @@ CRITICAL RULES:
             }
         }
 
-        // Deterministic Fallback Comparison Matrix
+        // Fallback matrix
         $matrix = [
             ['category' => 'Primary Skills', 'values' => []],
             ['category' => 'Total Experience', 'values' => []],
@@ -424,216 +346,196 @@ CRITICAL RULES:
     }
 
     /**
-     * Primary Match & Reasoning Pipeline with Intent Filter & Token Calculator
+     * Zervy AI Thinking Brain: Understands any query, questions, or requirements dynamically via Gemini
      */
     public static function processRequirementQuery($query) {
         $query = trim($query);
         if (empty($query)) {
             return [
                 'success' => false,
-                'message' => 'Please provide a training requirement or question.'
+                'message' => 'Please provide a question or training requirement.'
             ];
         }
 
-        // 1. Intent Classification Gate
-        $intent = self::classifyIntent($query);
+        // Step 1: Brain Thinking Analysis via Gemini
+        // Ask Gemini to classify user intent: Is it a generic question/conversation OR a specific trainer discovery requirement?
+        $brainSystemPrompt = "You are Zervy's Decision Engine for Mentry Solutions (India's Premier Trainer Operations Platform).
+Analyze the user's input:
+1. If the user is greeting ('hi', 'how are you'), asking general questions ('who are you', 'explain cloud computing', 'what is react'), requesting curriculum/syllabus ('draft a 5-day python syllabus'), requesting email templates, or discussing non-training topics ('invoice', 'call me'):
+   Set action = 'CONVERSATION', and provide a friendly, helpful, professional markdown response as Zervy AI.
+2. If the user is searching for trainers or specifying training requirements ('need a python trainer in Bangalore', 'find java faculty for corporate workshop', 'React and Node trainers in Chennai'):
+   Set action = 'TRAINER_SEARCH', extract skills, domain, location, delivery mode, and duration.
 
-        // Handle Generative AI questions directly (like ChatGPT / Gemini)
-        if ($intent['type'] === 'GENERATIVE_AI') {
-            $systemInstruction = "You are Zervy, the intelligent generative AI assistant for Mentry Solutions operations. Assist the staff/admin with training curriculum design, syllabus outlines, email drafts, interview screening questions, technical explanations, and corporate workshop planning. Format your response cleanly in GitHub-style Markdown.";
-            $geminiRes = self::callGemini($query, $systemInstruction, false);
-            
-            $genText = $geminiRes['success'] && !empty($geminiRes['text']) 
-                ? $geminiRes['text'] 
-                : "I am Zervy, ready to help with training operations. Could you please specify more details regarding your request?";
-            
-            $tokenStats = self::trackTokenUsage($query, $genText, $geminiRes['usage'] ?? null);
-
-            return [
-                'success' => true,
-                'isConversational' => true,
-                'intentType' => 'GENERATIVE_AI',
-                'conversationalMessage' => $genText,
-                'data' => [
-                    'understoodRequirement' => null,
-                    'clarification' => null,
-                    'topMatches' => []
-                ],
-                'tokenStats' => $tokenStats,
-                'source' => 'zervy-gemini-generative'
-            ];
-        }
-
-        if ($intent['type'] !== 'TRAINER_SEARCH') {
-            $tokenStats = self::trackTokenUsage($query, $intent['message']);
-            return [
-                'success' => true,
-                'isConversational' => true,
-                'intentType' => $intent['type'],
-                'conversationalMessage' => $intent['message'],
-                'data' => [
-                    'understoodRequirement' => null,
-                    'clarification' => null,
-                    'topMatches' => []
-                ],
-                'tokenStats' => $tokenStats,
-                'source' => 'zervy-intent-engine'
-            ];
-        }
-
-        // 2. Extract skills and keywords using pure PHP dictionary
-        $extractedSkills = ResumeSkillParser::extractSkillsFromText($query);
-        $skillsList = [];
-        foreach ($extractedSkills as $cat => $skList) {
-            foreach ($skList as $sk) {
-                $skillsList[] = $sk;
-            }
-        }
-
-        // Extract location if present
-        $locations = ["Bangalore", "Bengaluru", "Chennai", "Hyderabad", "Pune", "Mumbai", "Delhi", "NCR", "Kochi", "Coimbatore", "Salem", "Trichy", "Madurai", "Mysore", "Kolkata", "Noida", "Gurgaon"];
-        $detectedLocation = '';
-        foreach ($locations as $loc) {
-            if (stripos($query, $loc) !== false) {
-                $detectedLocation = $loc;
-                break;
-            }
-        }
-
-        // Extract mode
-        $detectedMode = 'ALL';
-        if (stripos($query, 'online') !== false || stripos($query, 'virtual') !== false) {
-            $detectedMode = 'ONLINE';
-        } elseif (stripos($query, 'offline') !== false || stripos($query, 'classroom') !== false || stripos($query, 'on-campus') !== false) {
-            $detectedMode = 'OFFLINE';
-        }
-
-        // 3. Perform Structured Search Layer
-        $candidates = self::searchTrainers($skillsList, '', 0, $detectedLocation, $detectedMode);
-        $topCandidates = array_slice($candidates, 0, 6);
-
-        // Prepare candidate summary for Gemini ranking
-        $candidatesData = [];
-        foreach ($topCandidates as $c) {
-            $t = $c['trainer'];
-            $candidatesData[] = [
-                'id' => $t['id'] ?? (string)($t['_id'] ?? ''),
-                'name' => $t['name'],
-                'headline' => $t['headline'] ?? ($t['primaryDomain'] . ' Specialist'),
-                'totalExperienceYears' => $t['totalExperienceYears'] ?? 5,
-                'skills' => $t['skills'] ?? ($t['extractedSkills'] ?? []),
-                'primaryDomain' => $t['primaryDomain'] ?? 'Technical Training',
-                'city' => $t['city'] ?? 'Bangalore',
-                'preferredMode' => $t['preferredMode'] ?? 'HYBRID',
-                'corporateExperience' => $t['corporateExperience'] ?? true,
-                'certifications' => $t['certifications'] ?? [],
-                'completedTrainings' => $t['completedTrainingsCount'] ?? 8,
-                'baseScore' => $c['score']
-            ];
-        }
-
-        // 4. AI Reasoning via Gemini
-        $systemPrompt = "You are Zervy, the high-precision internal trainer recommendation agent for Mentry Solutions (India's Premier Managed Trainer Network).
-
-YOUR OBJECTIVE:
-1. Analyze the user's training requirement.
-2. Evaluate the provided trainer candidates.
-3. Rank the top suitable trainers and provide a match percentage (e.g. 94%).
-4. Explain clearly and factually WHY each trainer is recommended.
-
-STRICT ANTI-HALLUCINATION RULES:
-- NEVER invent trainer certifications, experience, projects, or client ratings.
-- Only reference data explicitly provided in the trainer profiles.
-- If a detail is missing (e.g. certification or specific tool), explicitly state 'Information not available in trainer profile'.
-- If the requirement is vague or missing key details (e.g. duration, location, mode), include 1-2 polite clarifying questions in the 'clarification' field.
-
-OUTPUT FORMAT:
-Return a valid JSON object matching this structure:
+Return JSON:
 {
-  \"understoodRequirement\": {
-    \"topic\": \"Identified training topic/domain\",
+  \"action\": \"CONVERSATION\" | \"TRAINER_SEARCH\",
+  \"replyText\": \"Detailed markdown response if action is CONVERSATION, else null\",
+  \"extracted\": {
+    \"topic\": \"Identified topic or domain\",
     \"skills\": [\"Skill1\", \"Skill2\"],
     \"location\": \"City or Any\",
     \"mode\": \"ONLINE/OFFLINE/HYBRID/Any\",
-    \"duration\": \"Identified duration or Not Specified\",
-    \"experienceLevel\": \"Identified experience level or Not Specified\"
+    \"duration\": \"Duration if stated or null\"
+  }
+}";
+
+        $brainRes = self::callGemini("User Query: " . $query, $brainSystemPrompt, true);
+
+        if ($brainRes['success'] && !empty($brainRes['text'])) {
+            $brainData = json_decode($brainRes['text'], true);
+            if (is_array($brainData)) {
+                
+                // If Zervy Brain decided it's a conversational / advice query:
+                if (($brainData['action'] ?? '') === 'CONVERSATION' && !empty($brainData['replyText'])) {
+                    $tokenStats = self::trackTokenUsage($query, $brainData['replyText'], $brainRes['usage'] ?? null);
+                    return [
+                        'success' => true,
+                        'isConversational' => true,
+                        'conversationalMessage' => $brainData['replyText'],
+                        'data' => [
+                            'understoodRequirement' => null,
+                            'clarification' => null,
+                            'topMatches' => []
+                        ],
+                        'tokenStats' => $tokenStats,
+                        'source' => 'zervy-brain-ai'
+                    ];
+                }
+
+                // If Zervy Brain identified a Trainer Search Requirement:
+                if (($brainData['action'] ?? '') === 'TRAINER_SEARCH') {
+                    $extracted = $brainData['extracted'] ?? [];
+                    $skillsList = $extracted['skills'] ?? [];
+                    $detectedLocation = $extracted['location'] ?? '';
+                    $detectedMode = $extracted['mode'] ?? 'ALL';
+
+                    // Perform database candidate discovery
+                    $candidates = self::searchTrainers($skillsList, $extracted['topic'] ?? '', 0, $detectedLocation, $detectedMode);
+                    $topCandidates = array_slice($candidates, 0, 5);
+
+                    // If candidates exist, rank and explain via Gemini
+                    $candidatesData = [];
+                    foreach ($topCandidates as $c) {
+                        $t = $c['trainer'];
+                        $candidatesData[] = [
+                            'id' => $t['id'] ?? (string)($t['_id'] ?? ''),
+                            'name' => $t['name'],
+                            'headline' => $t['headline'] ?? ($t['primaryDomain'] . ' Specialist'),
+                            'totalExperienceYears' => $t['totalExperienceYears'] ?? 5,
+                            'skills' => $t['skills'] ?? ($t['extractedSkills'] ?? []),
+                            'primaryDomain' => $t['primaryDomain'] ?? 'Technical Training',
+                            'city' => $t['city'] ?? 'Bangalore',
+                            'preferredMode' => $t['preferredMode'] ?? 'HYBRID',
+                            'certifications' => $t['certifications'] ?? [],
+                            'completedTrainings' => $t['completedTrainingsCount'] ?? 8,
+                            'baseScore' => $c['score']
+                        ];
+                    }
+
+                    $rankPrompt = "Rank these candidates for requirement: " . $query . "\n\nCandidates Data:\n" . json_encode($candidatesData, JSON_PRETTY_PRINT);
+                    $rankSystem = "You are Zervy AI. Rank and explain why each trainer matches the requirement based on factual records. Return JSON:
+{
+  \"understoodRequirement\": {
+    \"topic\": \"" . ($extracted['topic'] ?? 'Training Program') . "\",
+    \"skills\": " . json_encode($skillsList) . ",
+    \"location\": \"" . ($detectedLocation ?: 'Any') . "\",
+    \"mode\": \"" . $detectedMode . "\"
   },
-  \"clarification\": \"Optional helpful clarifying question if requirement is incomplete, else null\",
+  \"clarification\": null,
   \"topMatches\": [
     {
       \"trainerId\": \"id\",
-      \"name\": \"Trainer Name\",
-      \"headline\": \"Professional Headline\",
+      \"name\": \"name\",
+      \"headline\": \"headline\",
       \"matchScore\": 94,
       \"confidence\": \"High\",
-      \"matchingSkills\": [\"Skill1\", \"Skill2\"],
-      \"missingSkills\": [\"Skill3\"],
+      \"matchingSkills\": [\"Skill1\"],
       \"relevantExperienceYears\": 8,
-      \"relevantTrainings\": \"5 corporate programs & 8 campus bootcamps\",
-      \"location\": \"Bangalore (Hybrid)\",
-      \"certifications\": [\"Cert1\"],
-      \"whyRecommended\": \"Clear factual explanation highlighting exact alignment with requirements.\"
+      \"relevantTrainings\": \"5 corporate programs\",
+      \"whyRecommended\": \"Factual reason why they match.\"
     }
   ]
 }";
+                    $rankRes = self::callGemini($rankPrompt, $rankSystem, true);
+                    $tokenStats = self::trackTokenUsage($rankPrompt, $rankRes['text'] ?? '', $rankRes['usage'] ?? null);
 
-        $userPrompt = "Requirement: " . $query . "\n\nAvailable Trainer Candidates Data:\n" . json_encode($candidatesData, JSON_PRETTY_PRINT);
-
-        $geminiRes = self::callGemini($userPrompt, $systemPrompt, true);
-        $tokenStats = self::trackTokenUsage($userPrompt, $geminiRes['text'] ?? '', $geminiRes['usage'] ?? null);
-
-        if ($geminiRes['success'] && !empty($geminiRes['text'])) {
-            $parsed = json_decode($geminiRes['text'], true);
-            if (is_array($parsed) && !empty($parsed['topMatches'])) {
-                return [
-                    'success' => true,
-                    'isConversational' => false,
-                    'data' => $parsed,
-                    'tokenStats' => $tokenStats,
-                    'source' => 'gemini-ai'
-                ];
+                    if ($rankRes['success'] && !empty($rankRes['text'])) {
+                        $parsedRank = json_decode($rankRes['text'], true);
+                        if (is_array($parsedRank) && !empty($parsedRank['topMatches'])) {
+                            return [
+                                'success' => true,
+                                'isConversational' => false,
+                                'data' => $parsedRank,
+                                'tokenStats' => $tokenStats,
+                                'source' => 'zervy-gemini-ai'
+                            ];
+                        }
+                    }
+                }
             }
         }
 
-        // 5. Deterministic Intelligent Fallback
+        // Fallback conversational reply if Gemini API key is missing or offline
+        $qLower = strtolower($query);
+        if (preg_match('/^(hi|hello|hey|how are you|good morning|greetings)\b/i', $qLower)) {
+            $reply = "👋 **Hello! I am Zervy**, your internal AI assistant for Mentry Solutions.\n\nI am doing great! You can ask me anything — from searching verified trainers and analyzing resumes to drafting workshop syllabi or screening interview questions. How can I help you today?";
+            $tokenStats = self::trackTokenUsage($query, $reply);
+            return [
+                'success' => true,
+                'isConversational' => true,
+                'conversationalMessage' => $reply,
+                'data' => [
+                    'understoodRequirement' => null,
+                    'clarification' => null,
+                    'topMatches' => []
+                ],
+                'tokenStats' => $tokenStats,
+                'source' => 'zervy-local-brain'
+            ];
+        }
+
+        // Default candidate search fallback
+        $extractedSkills = ResumeSkillParser::extractSkillsFromText($query);
+        $skillsList = [];
+        foreach ($extractedSkills as $cat => $skList) {
+            foreach ($skList as $sk) { $skillsList[] = $sk; }
+        }
+        $candidates = self::searchTrainers($skillsList, '', 0, '', 'ALL');
+        $topCandidates = array_slice($candidates, 0, 4);
+
         $fallbackMatches = [];
         foreach ($topCandidates as $c) {
             $t = $c['trainer'];
             $tSkills = $t['skills'] ?? [];
-            
             $fallbackMatches[] = [
                 'trainerId' => $t['id'] ?? (string)($t['_id'] ?? ''),
                 'name' => $t['name'],
                 'headline' => $t['headline'] ?? ($t['primaryDomain'] . ' Trainer'),
                 'matchScore' => max(65, min(98, $c['score'])),
-                'confidence' => $c['score'] >= 80 ? 'High' : ($c['score'] >= 60 ? 'Medium' : 'Low'),
+                'confidence' => $c['score'] >= 80 ? 'High' : 'Medium',
                 'matchingSkills' => !empty($c['breakdown']['matchedSkills']) ? $c['breakdown']['matchedSkills'] : array_slice($tSkills, 0, 4),
-                'missingSkills' => $c['breakdown']['missingSkills'] ?? [],
                 'relevantExperienceYears' => $t['totalExperienceYears'] ?? 5,
-                'relevantTrainings' => ($t['completedTrainingsCount'] ?? '8') . '+ completed training engagements',
-                'location' => ($t['city'] ?? 'India') . ' (' . ($t['preferredMode'] ?? 'HYBRID') . ')',
-                'certifications' => !empty($t['certifications']) ? $t['certifications'] : ['Information not available in trainer profile'],
-                'whyRecommended' => 'Strong match for requested domain with ' . ($t['totalExperienceYears'] ?? '5') . '+ years of verified training experience in ' . implode(', ', array_slice($tSkills, 0, 3)) . '.'
+                'relevantTrainings' => ($t['completedTrainingsCount'] ?? '8') . '+ completed programs',
+                'whyRecommended' => 'Strong match for requested domain with ' . ($t['totalExperienceYears'] ?? '5') . '+ years of verified experience in ' . implode(', ', array_slice($tSkills, 0, 3)) . '.'
             ];
         }
 
+        $tokenStats = self::trackTokenUsage($query, json_encode($fallbackMatches));
         return [
             'success' => true,
             'isConversational' => false,
             'data' => [
                 'understoodRequirement' => [
-                    'topic' => !empty($skillsList) ? implode(' / ', array_slice($skillsList, 0, 3)) : 'General Training',
+                    'topic' => !empty($skillsList) ? implode(' / ', array_slice($skillsList, 0, 3)) : 'Technical Training',
                     'skills' => $skillsList,
-                    'location' => $detectedLocation ?: 'Any Location',
-                    'mode' => $detectedMode,
-                    'duration' => 'Not Specified',
-                    'experienceLevel' => 'Corporate / Academic'
+                    'location' => 'Any',
+                    'mode' => 'ALL'
                 ],
-                'clarification' => empty($detectedLocation) ? 'To refine matches, would you prefer Online delivery or a specific campus/city location?' : null,
+                'clarification' => null,
                 'topMatches' => $fallbackMatches
             ],
             'tokenStats' => $tokenStats,
-            'source' => 'matching-engine'
+            'source' => 'zervy-deterministic-layer'
         ];
     }
 

@@ -273,7 +273,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <?php endif; ?>
 
                         <?php foreach ($documents as $d): 
-                            $docId = (string)$d['_id'];
+                            $docId = (string)($d['_id'] ?? ($d['id'] ?? ''));
                         ?>
                             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between hover:bg-slate-100/50 transition-colors">
                                 <div class="flex items-center gap-3">
@@ -288,14 +288,16 @@ require_once __DIR__ . '/includes/sidebar.php';
                                         <span class="material-symbols-outlined text-[15px]">download</span>
                                         Download
                                     </a>
+                                    <?php if (!empty($docId)): ?>
                                     <form action="/actions/update-trainer.php" method="POST" class="inline" onsubmit="return confirm('Delete this document?');">
                                         <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
                                         <input type="hidden" name="action_type" value="delete_document">
                                         <input type="hidden" name="docId" value="<?= $docId ?>">
-                                        <button type="submit" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
+                                        <button type="submit" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer">
                                             <span class="material-symbols-outlined text-[16px]">delete</span>
                                         </button>
                                     </form>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -317,16 +319,18 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <?php else: ?>
                     <div class="flex flex-wrap gap-2">
                         <?php foreach ($skills as $sk): 
-                            $skId = (string)$sk['_id'];
+                            $skId = (string)($sk['_id'] ?? ($sk['id'] ?? ''));
                         ?>
                             <span class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 text-xs font-bold px-3 py-1.5 rounded-xl border border-blue-200">
                                 <?= htmlspecialchars($sk['name']) ?> (<?= htmlspecialchars($sk['yearsOfExperience'] ?? 3) ?>y)
+                                <?php if (!empty($skId)): ?>
                                 <form action="/actions/update-trainer.php" method="POST" class="inline">
                                     <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
                                     <input type="hidden" name="action_type" value="delete_skill">
                                     <input type="hidden" name="skillId" value="<?= $skId ?>">
-                                    <button type="submit" class="text-blue-400 hover:text-rose-600 ml-1 leading-none" title="Remove skill">×</button>
+                                    <button type="submit" class="text-blue-400 hover:text-rose-600 ml-1 leading-none cursor-pointer" title="Remove skill">×</button>
                                 </form>
+                                <?php endif; ?>
                             </span>
                         <?php endforeach; ?>
                     </div>
@@ -347,7 +351,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <?php else: ?>
                     <div class="space-y-3">
                         <?php foreach ($experiences as $ex): 
-                            $exId = (string)$ex['_id'];
+                            $exId = (string)($ex['_id'] ?? ($ex['id'] ?? ''));
                         ?>
                             <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-start justify-between gap-4">
                                 <div class="space-y-1">
@@ -358,14 +362,16 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     <?php endif; ?>
                                 </div>
 
+                                <?php if (!empty($exId)): ?>
                                 <form action="/actions/update-trainer.php" method="POST" class="inline" onsubmit="return confirm('Delete this experience entry?');">
                                     <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
                                     <input type="hidden" name="action_type" value="delete_experience">
                                     <input type="hidden" name="experienceId" value="<?= $exId ?>">
-                                    <button type="submit" class="p-1 text-slate-400 hover:text-rose-600 rounded">
+                                    <button type="submit" class="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer">
                                         <span class="material-symbols-outlined text-[16px]">delete</span>
                                     </button>
                                 </form>
+                                <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
