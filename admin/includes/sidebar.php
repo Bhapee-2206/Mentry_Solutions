@@ -187,51 +187,31 @@ $navItems = [
 </aside>
 
 <!-- Main Admin Canvas -->
-<div class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+<div class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto overflow-x-hidden">
     <!-- Top Bar -->
     <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-        <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <!-- Mobile Drawer Hamburger Toggle Button -->
             <button type="button" onclick="toggleMobileAdminNav()" class="p-2 -ml-1 rounded-xl text-slate-700 hover:bg-slate-100 md:hidden cursor-pointer" title="Open navigation menu">
                 <span class="material-symbols-outlined text-2xl">menu</span>
             </button>
 
-            <a href="/admin/index.php" class="md:hidden flex items-center gap-2">
+            <a href="/admin/index.php" class="md:hidden flex items-center gap-2 shrink-0">
                 <img src="/public/mentry.png" alt="Mentry" class="h-7 w-auto object-contain">
                 <span class="font-black text-sm text-slate-900">Mentry</span>
             </a>
-            <span class="font-bold text-slate-900 text-sm hidden sm:inline">
+            <span class="font-bold text-slate-900 text-sm hidden md:inline truncate">
                 <?= $isStaffUser ? 'Operations Staff Dashboard' : 'Admin Command Center' ?>
             </span>
         </div>
-        <div class="flex items-center gap-2 sm:gap-3">
-            <!-- 1-Click Maintenance Mode Toggle -->
-            <?php
-            require_once __DIR__ . '/../../includes/maintenance.php';
-            $maintConfig = getMaintenanceConfig();
-            $isMaintActive = !empty($maintConfig['maintenance_mode']);
-            ?>
-            <form action="/actions/toggle-maintenance.php" method="POST" class="inline" onsubmit="return confirm('<?= $isMaintActive ? "Turn OFF Maintenance Mode and make website live for everyone?" : "Turn ON Maintenance Mode? Public visitors will be redirected to the Work in Progress page." ?>');">
-                <input type="hidden" name="active" value="<?= $isMaintActive ? '0' : '1' ?>">
-                <input type="hidden" name="return_url" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '/admin/index.php') ?>">
-                <?php if ($isMaintActive): ?>
-                    <button type="submit" class="inline-flex items-center gap-1.5 bg-orange-100 hover:bg-orange-200 border border-[#FE5E04] text-[#FE5E04] text-xs font-black px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors shadow-xs cursor-pointer" title="Public visitors see Work in Progress. Click to turn off.">
-                        <span class="w-2 h-2 rounded-full bg-[#FE5E04] animate-ping"></span>
-                        <span class="hidden sm:inline">Work in Progress: </span>ACTIVE
-                    </button>
-                <?php else: ?>
-                    <button type="submit" class="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors shadow-2xs cursor-pointer" title="Website is live. Click to activate maintenance mode.">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <span class="text-xs">Site Live</span>
-                    </button>
-                <?php endif; ?>
-            </form>
 
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
             <a href="/admin/requirements.php" class="text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors hidden sm:inline">
                 College Intake
             </a>
-            <a href="/admin/opportunity-create.php" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-3 sm:px-3.5 py-1.5 rounded-lg shadow-xs transition-colors whitespace-nowrap">
-                + New Opp
+            <a href="/admin/opportunity-create.php" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-3 sm:px-3.5 py-1.5 rounded-lg shadow-xs transition-colors whitespace-nowrap flex items-center gap-1">
+                <span class="material-symbols-outlined text-[16px]">add</span>
+                <span>New Opp</span>
             </a>
         </div>
     </header>
@@ -251,4 +231,4 @@ $navItems = [
     }
     </script>
 
-    <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6">
+    <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 space-y-6 overflow-x-hidden">

@@ -24,18 +24,18 @@ $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => [
 ?>
 
 <!-- Header -->
-<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
     <div>
-        <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Good morning, <?= htmlspecialchars($adminUser['name'] ?? 'Admin') ?></h1>
+        <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Good morning, <?= htmlspecialchars($adminUser['name'] ?? 'Admin') ?></h1>
         <p class="text-xs md:text-sm text-slate-500 mt-0.5">Operational overview of Mentry's verified trainer network and college assignments.</p>
     </div>
 
-    <div class="flex items-center gap-3">
-        <a href="/admin/requirements.php" class="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-slate-50 transition-colors text-xs shadow-xs">
+    <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <a href="/admin/requirements.php" class="flex-1 sm:flex-none bg-white border border-slate-200 text-slate-700 font-bold px-3.5 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors text-xs shadow-xs">
             <span class="material-symbols-outlined text-[18px] text-blue-600">school</span>
             College Intake (<?= $inboundReqs ?>)
         </a>
-        <a href="/admin/opportunity-create.php" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md text-xs">
+        <a href="/admin/opportunity-create.php" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md text-xs">
             <span class="material-symbols-outlined text-[18px]">add</span>
             New Opportunity
         </a>
@@ -43,8 +43,8 @@ $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => [
 </div>
 
 <!-- 7-Stat Operational Grid -->
-<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4">
-    <div class="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between h-28 col-span-2 md:col-span-1">
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5 sm:gap-3 md:gap-4">
+    <div class="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between h-28 col-span-2 sm:col-span-1">
         <div class="flex items-center gap-2 text-slate-500">
             <span class="material-symbols-outlined text-blue-600 text-lg">group</span>
             <h3 class="text-[11px] font-bold uppercase tracking-wider">Total Trainers</h3>
