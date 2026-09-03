@@ -1,5 +1,5 @@
 <?php
-// admin/team-chat.php - Internal Workspace Team Chat with Zervy Agent, Edit, Delete, Clear Chat & File Sharing
+// admin/team-chat.php - Modern Internal Team Workspace Chat with Zervy, 45-Day Retention, Inbuilt UI/UX Modals & Confirmed Trainer Formatter
 $pageTitle = "Internal Team Workspace Chat";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -14,9 +14,12 @@ $tokenMetrics = AIAgent::getTokenMetrics();
 $isAdminUser = isAdmin();
 ?>
 
+<!-- TOAST NOTIFICATION CONTAINER -->
+<div id="toastContainer" class="fixed top-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
 <div class="max-w-7xl mx-auto h-[calc(100vh-140px)] flex flex-col md:flex-row gap-4">
     
-    <!-- Left Sidebar: Operations Team Members & Token Stats -->
+    <!-- Left Sidebar: Operations Team Members, Retention & Token Stats -->
     <div class="w-full md:w-72 bg-white rounded-3xl border border-slate-200/90 shadow-card p-5 flex flex-col shrink-0">
         <div class="pb-4 border-b border-slate-100 flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -25,13 +28,13 @@ $isAdminUser = isAdmin();
             </div>
             <span class="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Secure Workspace
+                Live Hub
             </span>
         </div>
 
         <div class="py-3 space-y-3">
             <div>
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Channels & Agent:</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Workspace Channels:</span>
                 
                 <div class="space-y-1.5">
                     <div class="bg-orange-50/70 border border-orange-200/80 rounded-2xl p-3 flex items-center gap-3 cursor-pointer">
@@ -43,16 +46,15 @@ $isAdminUser = isAdmin();
                             <p class="text-[10px] text-slate-500 truncate">Campus & faculty logistics</p>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <div class="p-2.5 rounded-2xl hover:bg-slate-50 transition-colors flex items-center gap-3 cursor-pointer" onclick="insertAiMention()">
-                        <div class="w-9 h-9 rounded-xl bg-slate-900 text-[#FE5E04] flex items-center justify-center font-bold text-xs">
-                            <span class="material-symbols-outlined text-sm">smart_toy</span>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <h4 class="font-bold text-xs text-slate-900 truncate">Zervy AI Bot</h4>
-                            <p class="text-[10px] text-slate-400 truncate">Type @Zervy in chat</p>
-                        </div>
-                    </div>
+            <!-- 45-Day Auto Retention Badge -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-blue-600 text-lg">auto_delete</span>
+                <div class="min-w-0 flex-1">
+                    <div class="text-[11px] font-bold text-slate-800">45-Day Auto-Clear</div>
+                    <div class="text-[10px] text-slate-400">Old messages purge automatically</div>
                 </div>
             </div>
 
@@ -96,7 +98,7 @@ $isAdminUser = isAdmin();
     <!-- Center: Main Chat Thread & Input Canvas -->
     <div class="flex-1 bg-white rounded-3xl border border-slate-200/90 shadow-card flex flex-col overflow-hidden">
         
-        <!-- Chat Header Bar with Clear Chat and Actions -->
+        <!-- Chat Header Bar -->
         <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-[#FE5E04] font-black text-sm">
@@ -104,18 +106,14 @@ $isAdminUser = isAdmin();
                 </div>
                 <div>
                     <h3 class="font-extrabold text-sm text-slate-900">#general-operations</h3>
-                    <p class="text-[11px] text-slate-500">Internal coordination for training schedules, files & Zervy AI discovery</p>
+                    <p class="text-[11px] text-slate-500">Internal operations, trainer deployments & Zervy AI queries</p>
                 </div>
             </div>
 
             <div class="flex items-center gap-2">
-                <button type="button" onclick="confirmClearChat()" class="bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-600 text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer" title="Clear all messages in channel">
+                <button type="button" onclick="confirmClearChat()" class="bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-600 text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Clear all messages in channel">
                     <span class="material-symbols-outlined text-[15px]">delete_sweep</span>
                     <span>Clear Chat</span>
-                </button>
-                <button type="button" onclick="insertAiMention()" class="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#FE5E04] text-xs font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-[15px]">smart_toy</span>
-                    <span>@Zervy Ask</span>
                 </button>
             </div>
         </div>
@@ -125,9 +123,28 @@ $isAdminUser = isAdmin();
             <div class="text-center py-6 text-xs text-slate-400">Loading workspace messages...</div>
         </div>
 
-        <!-- Chat Input & File Attachment Toolbar -->
-        <div class="p-4 border-t border-slate-200 bg-white space-y-2">
+        <!-- Chat Input Toolbar (With bottom @Zervy Ask & Confirmed Trainer Template Button) -->
+        <div class="p-4 border-t border-slate-200 bg-white space-y-2.5">
             
+            <!-- Quick Helper Actions Strip right above Input -->
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <!-- Bottom @Zervy Ask Button directly at user's fingertips -->
+                    <button type="button" onclick="insertAiMention()" class="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#FE5E04] text-xs font-extrabold px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shadow-2xs hover:scale-[1.02] cursor-pointer">
+                        <span class="material-symbols-outlined text-[15px]">smart_toy</span>
+                        <span>@Zervy Ask</span>
+                    </button>
+
+                    <!-- Active Training Assignments & Logistics Format Helper -->
+                    <button type="button" onclick="insertAssignmentLogisticsTemplate()" class="bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer">
+                        <span class="material-symbols-outlined text-[15px]">assignment_turned_in</span>
+                        <span>Assignment & Logistics Format</span>
+                    </button>
+                </div>
+
+                <span class="text-[10px] text-slate-400 font-medium hidden sm:inline">Press Enter to send</span>
+            </div>
+
             <!-- File Attachment Selected Preview Strip -->
             <div id="filePreviewStrip" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-2 px-3 flex items-center justify-between text-xs animate-fadeIn">
                 <div class="flex items-center gap-2 truncate">
@@ -143,12 +160,12 @@ $isAdminUser = isAdmin();
                 <input type="file" id="chatFileInput" onchange="handleFileSelected(this)" class="hidden">
 
                 <!-- Attachment Button -->
-                <button type="button" onclick="document.getElementById('chatFileInput').click()" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer" title="Attach file or document">
+                <button type="button" onclick="document.getElementById('chatFileInput').click()" class="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer" title="Attach file or document">
                     <span class="material-symbols-outlined text-[20px]">attach_file</span>
                 </button>
 
                 <!-- Message Input -->
-                <input type="text" id="chatTextInput" autocomplete="off" placeholder="Message operations team or type @Zervy what is python training syllabus..." class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm outline-none focus:border-[#FE5E04] focus:bg-white transition-all shadow-inner">
+                <input type="text" id="chatTextInput" autocomplete="off" placeholder="Type message or click @Zervy Ask below..." class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm outline-none focus:border-[#FE5E04] focus:bg-white transition-all shadow-inner font-medium">
 
                 <!-- Send Button -->
                 <button type="submit" id="sendBtn" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white px-5 py-3 rounded-2xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50">
@@ -160,7 +177,9 @@ $isAdminUser = isAdmin();
     </div>
 </div>
 
-<!-- EDIT MESSAGE MODAL -->
+<!-- ================= INBUILT UI MODALS ================= -->
+
+<!-- 1. EDIT MESSAGE MODAL -->
 <div id="editMessageModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-fadeIn">
         <div class="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -185,7 +204,35 @@ $isAdminUser = isAdmin();
     </div>
 </div>
 
-<!-- CLEAR CHAT CONFIRMATION MODAL -->
+<!-- 2. DELETE MESSAGE CONFIRMATION MODAL -->
+<div id="deleteMessageModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-fadeIn">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                <span class="material-symbols-outlined">delete</span>
+            </div>
+            <div>
+                <h3 class="font-extrabold text-sm text-slate-900">Delete Message</h3>
+                <p class="text-xs text-slate-500">Remove this message from the workspace</p>
+            </div>
+        </div>
+
+        <input type="hidden" id="deleteTargetMsgId">
+        <p class="text-xs text-slate-600 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 leading-relaxed">
+            Are you sure you want to delete this message? It will be removed for all team members.
+        </p>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+            <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer">Cancel</button>
+            <button type="button" id="confirmDeleteBtn" onclick="executeDeleteMessage()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-5 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
+                <span class="material-symbols-outlined text-[16px]">delete</span>
+                <span>Yes, Delete</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 3. CLEAR CHAT CONFIRMATION MODAL -->
 <div id="clearChatModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-fadeIn">
         <div class="flex items-center gap-3">
@@ -218,6 +265,40 @@ let currentUserName = '<?= addslashes($currentUser['name'] ?? 'User') ?>';
 let isUserAdmin = <?= $isAdminUser ? 'true' : 'false' ?>;
 let selectedFile = null;
 
+// Modern Inbuilt UI Toast Notifications (No Chrome browser alerts)
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    
+    const bgColors = {
+        success: 'bg-emerald-600 text-white shadow-emerald-500/30',
+        error: 'bg-rose-600 text-white shadow-rose-500/30',
+        info: 'bg-slate-900 text-white shadow-slate-900/30'
+    };
+
+    const icons = {
+        success: 'check_circle',
+        error: 'error',
+        info: 'info'
+    };
+
+    toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl text-xs font-bold transition-all duration-300 transform translate-y-2 opacity-0 ${bgColors[type] || bgColors.info}`;
+    toast.innerHTML = `
+        <span class="material-symbols-outlined text-base shrink-0">${icons[type] || 'info'}</span>
+        <span>${escapeHtml(message)}</span>
+    `;
+
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+    }, 10);
+
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
 async function loadChatMessages() {
     try {
         const res = await fetch('/actions/team-chat-api.php?action=get_messages');
@@ -241,7 +322,7 @@ function renderMessages(messages) {
                 </div>
                 <div class="space-y-1">
                     <h4 class="font-extrabold text-sm text-slate-800">#general-operations is empty</h4>
-                    <p class="text-xs text-slate-400 max-w-sm">No messages in this channel yet. Type a message below or mention @Zervy to search trainers.</p>
+                    <p class="text-xs text-slate-400 max-w-sm">No messages in this channel yet. Type a message below or click @Zervy Ask.</p>
                 </div>
                 <button type="button" onclick="insertAiMention()" class="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#FE5E04] text-xs font-bold px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-[15px]">smart_toy</span>
@@ -275,7 +356,7 @@ function renderMessages(messages) {
                             <div class="flex items-center gap-2">
                                 <span class="text-[10px] text-slate-400">${escapeHtml(msg.timestamp.split(' ')[1] || '')}</span>
                                 ${isUserAdmin ? `
-                                    <button type="button" onclick="deleteMessage('${escapeHtml(msg.id)}')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity text-xs" title="Delete AI message">
+                                    <button type="button" onclick="openDeleteModal('${escapeHtml(msg.id)}')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity text-xs cursor-pointer" title="Delete AI message">
                                         <span class="material-symbols-outlined text-[15px]">delete</span>
                                     </button>
                                 ` : ''}
@@ -307,7 +388,7 @@ function renderMessages(messages) {
                         <span class="font-bold text-[11px] text-slate-700">${escapeHtml(msg.senderName)}</span>
                         <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded ${msg.senderRole === 'ADMIN' ? 'bg-orange-100 text-[#FE5E04]' : 'bg-blue-100 text-blue-700'}">${escapeHtml(msg.senderRole)}</span>
                         <span class="text-[10px] text-slate-400">${escapeHtml(msg.timestamp.split(' ')[1] || '')}</span>
-                        ${msg.isEdited ? `<span class="text-[9px] text-slate-400 italic">(edited)</span>` : ''}
+                        ${msg.isEdited ? `<span class="text-[9px] text-slate-400 italic font-medium">(edited)</span>` : ''}
                     </div>
 
                     <div class="p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed relative ${isSelf ? 'bg-[#0F172A] text-white rounded-tr-xs' : 'bg-white text-slate-800 border border-slate-200/90 rounded-tl-xs shadow-xs'}">
@@ -331,7 +412,7 @@ function renderMessages(messages) {
                                 <span class="material-symbols-outlined text-[13px]">edit</span>
                                 <span>Edit</span>
                             </button>
-                            <button type="button" onclick="deleteMessage('${escapeHtml(msg.id)}')" class="text-slate-400 hover:text-rose-600 flex items-center gap-1 cursor-pointer">
+                            <button type="button" onclick="openDeleteModal('${escapeHtml(msg.id)}')" class="text-slate-400 hover:text-rose-600 flex items-center gap-1 cursor-pointer">
                                 <span class="material-symbols-outlined text-[13px]">delete</span>
                                 <span>Delete</span>
                             </button>
@@ -378,6 +459,12 @@ function insertAiMention() {
     input.focus();
 }
 
+function insertAssignmentLogisticsTemplate() {
+    const input = document.getElementById('chatTextInput');
+    input.value = `📋 ACTIVE TRAINING ASSIGNMENT & LOGISTICS:\n• Program Title: \n• Assigned Faculty: \n• Institute / Client: \n• Location: \n• Start Date & Duration:  (Working Days: )\n• Total Honorarium: ₹ (@ ₹/day)\n• Accommodation: Campus Guest House Reserved\n• Travel & Transit: Confirmed\n• Status: SCHEDULED`;
+    input.focus();
+}
+
 async function handleSendMessage(e) {
     e.preventDefault();
     const textInput = document.getElementById('chatTextInput');
@@ -406,16 +493,18 @@ async function handleSendMessage(e) {
             textInput.value = '';
             clearSelectedFile();
             renderMessages(data.allMessages);
+            showToast('Message sent successfully', 'success');
         } else {
-            alert(data.message || 'Failed to send message.');
+            showToast(data.message || 'Failed to send message.', 'error');
         }
     } catch (e) {
-        alert('Network error while sending message.');
+        showToast('Network error while sending message.', 'error');
     } finally {
         btn.disabled = false;
     }
 }
 
+// EDIT MODAL HANDLERS
 function openEditModal(msgId, currentText) {
     document.getElementById('editModalMsgId').value = msgId;
     document.getElementById('editModalTextInput').value = currentText;
@@ -448,16 +537,31 @@ async function submitEditMessage(e) {
         if (data.success && data.allMessages) {
             closeEditModal();
             renderMessages(data.allMessages);
+            showToast('Message updated successfully', 'success');
         } else {
-            alert(data.message || 'Failed to edit message.');
+            showToast(data.message || 'Failed to edit message.', 'error');
         }
     } catch (e) {
-        alert('Network error while editing message.');
+        showToast('Network error while editing message.', 'error');
     }
 }
 
-async function deleteMessage(msgId) {
-    if (!confirm('Are you sure you want to delete this message?')) return;
+// DELETE MODAL HANDLERS (Inbuilt UI/UX)
+function openDeleteModal(msgId) {
+    document.getElementById('deleteTargetMsgId').value = msgId;
+    document.getElementById('deleteMessageModal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteMessageModal').classList.add('hidden');
+}
+
+async function executeDeleteMessage() {
+    const msgId = document.getElementById('deleteTargetMsgId').value;
+    if (!msgId) return;
+
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true;
 
     const formData = new FormData();
     formData.append('action', 'delete_message');
@@ -471,15 +575,20 @@ async function deleteMessage(msgId) {
 
         const data = await response.json();
         if (data.success && data.allMessages) {
+            closeDeleteModal();
             renderMessages(data.allMessages);
+            showToast('Message deleted', 'info');
         } else {
-            alert(data.message || 'Failed to delete message.');
+            showToast(data.message || 'Failed to delete message.', 'error');
         }
     } catch (e) {
-        alert('Network error while deleting message.');
+        showToast('Network error while deleting message.', 'error');
+    } finally {
+        btn.disabled = false;
     }
 }
 
+// CLEAR CHAT MODAL HANDLERS
 function confirmClearChat() {
     document.getElementById('clearChatModal').classList.remove('hidden');
 }
@@ -506,11 +615,12 @@ async function executeClearChat() {
         if (data.success && data.allMessages !== undefined) {
             closeClearChatModal();
             renderMessages(data.allMessages);
+            showToast('Operations chat channel cleared', 'info');
         } else {
-            alert(data.message || 'Failed to clear chat.');
+            showToast(data.message || 'Failed to clear chat.', 'error');
         }
     } catch (e) {
-        alert('Network error while clearing chat.');
+        showToast('Network error while clearing chat.', 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">delete_sweep</span><span>Yes, Clear All</span>';
@@ -531,11 +641,12 @@ async function askAiOnMessage(messageId) {
         const data = await response.json();
         if (data.success && data.allMessages) {
             renderMessages(data.allMessages);
+            showToast('Zervy responded in chat', 'success');
         } else {
-            alert(data.message || 'Could not process with Zervy.');
+            showToast(data.message || 'Could not process with Zervy.', 'error');
         }
     } catch (e) {
-        alert('Network error while requesting Zervy AI matching.');
+        showToast('Network error while requesting Zervy AI matching.', 'error');
     }
 }
 

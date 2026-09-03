@@ -20,11 +20,28 @@ if (!isLoggedIn() || !isAdminOrStaff()) {
 $currentUser = getCurrentUser();
 $chatFile = __DIR__ . '/../config/team_chat_messages.json';
 
-// Helper to get local chat messages
+// Helper to get local chat messages with 45-day auto-clear retention policy
 function getChatMessages($file) {
+    $cutoff = strtotime('-45 days');
     if (file_exists($file)) {
         $data = @json_decode(file_get_contents($file), true);
-        if (is_array($data)) return $data;
+        if (is_array($data)) {
+            // Auto-purge messages older than 45 days
+            $filtered = [];
+            $changed = false;
+            foreach ($data as $m) {
+                $msgTime = !empty($m['timestamp']) ? strtotime($m['timestamp']) : time();
+                if ($msgTime >= $cutoff) {
+                    $filtered[] = $m;
+                } else {
+                    $changed = true;
+                }
+            }
+            if ($changed) {
+                @file_put_contents($file, json_encode(array_values($filtered), JSON_PRETTY_PRINT));
+            }
+            return array_values($filtered);
+        }
     }
     return [
         [
@@ -51,7 +68,15 @@ function getChatMessages($file) {
 }
 
 function saveChatMessages($file, $messages) {
-    @file_put_contents($file, json_encode($messages, JSON_PRETTY_PRINT));
+    $cutoff = strtotime('-45 days');
+    $filtered = [];
+    foreach ($messages as $m) {
+        $msgTime = !empty($m['timestamp']) ? strtotime($m['timestamp']) : time();
+        if ($msgTime >= $cutoff) {
+            $filtered[] = $m;
+        }
+    }
+    @file_put_contents($file, json_encode(array_values($filtered), JSON_PRETTY_PRINT));
 }
 
 $action = $_GET['action'] ?? ($_POST['action'] ?? 'get_messages');
