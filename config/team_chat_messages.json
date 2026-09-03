@@ -172,5 +172,345 @@
         "attachment": null,
         "isAI": true,
         "timestamp": "2026-09-03 10:07:50"
+    },
+    {
+        "id": "msg_6a992b3a35555",
+        "senderId": "65e000000000000000000001",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "hi",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-03 10:09:30"
+    },
+    {
+        "id": "msg_6a992b429d2ae",
+        "senderId": "ai_assistant",
+        "senderName": "Mentor AI (Assistant)",
+        "senderRole": "AI_AGENT",
+        "text": "\ud83e\udd16 **Mentor AI Extracted Requirement Analysis** from message by *Operations Director (Admin 1)*:\n\n1. **Rajesh Verma** (65% Match) \u2014 Senior DevOps & Cloud Architect | Corporate Trainer\n   *Reason:* Strong match for requested domain with 11+ years of verified training experience in Python, Docker, Kubernetes.\n2. **Dr. Priya Sharma** (65% Match) \u2014 Lead Data Scientist & Generative AI Specialist\n   *Reason:* Strong match for requested domain with 8+ years of verified training experience in Python, Machine Learning, Deep Learning.\n3. **Karthik Ramanathan** (65% Match) \u2014 Full-Stack Web Architect (MERN \/ Next.js \/ Python)\n   *Reason:* Strong match for requested domain with 9+ years of verified training experience in Python, Django, React.js.\n",
+        "aiData": {
+            "understoodRequirement": {
+                "topic": "General Training",
+                "skills": [],
+                "location": "Any Location",
+                "mode": "ALL",
+                "duration": "Not Specified",
+                "experienceLevel": "Corporate \/ Academic"
+            },
+            "clarification": "To refine matches, would you prefer Online delivery or a specific campus\/city location?",
+            "topMatches": [
+                {
+                    "trainerId": "tr_01",
+                    "name": "Rajesh Verma",
+                    "headline": "Senior DevOps & Cloud Architect | Corporate Trainer",
+                    "matchScore": 65,
+                    "confidence": "Low",
+                    "matchingSkills": [
+                        "Python",
+                        "Docker",
+                        "Kubernetes",
+                        "AWS"
+                    ],
+                    "missingSkills": [],
+                    "relevantExperienceYears": 11,
+                    "relevantTrainings": "24+ completed training engagements",
+                    "location": "Bangalore (HYBRID)",
+                    "certifications": [
+                        "AWS Certified Solutions Architect",
+                        "CKA: Certified Kubernetes Administrator"
+                    ],
+                    "whyRecommended": "Strong match for requested domain with 11+ years of verified training experience in Python, Docker, Kubernetes."
+                },
+                {
+                    "trainerId": "tr_02",
+                    "name": "Dr. Priya Sharma",
+                    "headline": "Lead Data Scientist & Generative AI Specialist",
+                    "matchScore": 65,
+                    "confidence": "Low",
+                    "matchingSkills": [
+                        "Python",
+                        "Machine Learning",
+                        "Deep Learning",
+                        "Generative AI & LLMs"
+                    ],
+                    "missingSkills": [],
+                    "relevantExperienceYears": 8,
+                    "relevantTrainings": "19+ completed training engagements",
+                    "location": "Hyderabad (HYBRID)",
+                    "certifications": [
+                        "TensorFlow Certified Developer",
+                        "DeepLearning.AI NLP Specialization"
+                    ],
+                    "whyRecommended": "Strong match for requested domain with 8+ years of verified training experience in Python, Machine Learning, Deep Learning."
+                },
+                {
+                    "trainerId": "tr_03",
+                    "name": "Karthik Ramanathan",
+                    "headline": "Full-Stack Web Architect (MERN \/ Next.js \/ Python)",
+                    "matchScore": 65,
+                    "confidence": "Low",
+                    "matchingSkills": [
+                        "Python",
+                        "Django",
+                        "React.js",
+                        "Next.js"
+                    ],
+                    "missingSkills": [],
+                    "relevantExperienceYears": 9,
+                    "relevantTrainings": "28+ completed training engagements",
+                    "location": "Chennai (HYBRID)",
+                    "certifications": [
+                        "Meta Certified Full-Stack Developer"
+                    ],
+                    "whyRecommended": "Strong match for requested domain with 9+ years of verified training experience in Python, Django, React.js."
+                },
+                {
+                    "trainerId": "tr_04",
+                    "name": "Ananya Deshmukh",
+                    "headline": "Enterprise Java & Spring Boot Specialist",
+                    "matchScore": 65,
+                    "confidence": "Low",
+                    "matchingSkills": [
+                        "Java",
+                        "Spring Boot",
+                        "Microservices",
+                        "Hibernate"
+                    ],
+                    "missingSkills": [],
+                    "relevantExperienceYears": 10,
+                    "relevantTrainings": "31+ completed training engagements",
+                    "location": "Pune (HYBRID)",
+                    "certifications": [
+                        "Oracle Certified Professional: Java SE 11 Developer"
+                    ],
+                    "whyRecommended": "Strong match for requested domain with 10+ years of verified training experience in Java, Spring Boot, Microservices."
+                },
+                {
+                    "trainerId": "tr_05",
+                    "name": "Vikramaditya Rao",
+                    "headline": "Cybersecurity & Ethical Hacking Consultant",
+                    "matchScore": 65,
+                    "confidence": "Low",
+                    "matchingSkills": [
+                        "Cybersecurity",
+                        "Ethical Hacking & VAPT",
+                        "Network Security",
+                        "Python"
+                    ],
+                    "missingSkills": [],
+                    "relevantExperienceYears": 7,
+                    "relevantTrainings": "16+ completed training engagements",
+                    "location": "Bangalore (OFFLINE)",
+                    "certifications": [
+                        "CEH (Certified Ethical Hacker)",
+                        "OSCP: Offensive Security Certified Professional"
+                    ],
+                    "whyRecommended": "Strong match for requested domain with 7+ years of verified training experience in Cybersecurity, Ethical Hacking & VAPT, Network Security."
+                }
+            ]
+        },
+        "attachment": null,
+        "isAI": true,
+        "timestamp": "2026-09-03 10:09:38"
+    },
+    {
+        "id": "msg_6a992c5ad4fc1",
+        "senderId": "65e000000000000000000001",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "hi",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-03 10:14:18"
+    },
+    {
+        "id": "msg_6a992c65ada28",
+        "senderId": "ai_assistant",
+        "senderName": "Zervy (AI Assistant)",
+        "senderRole": "AI_AGENT",
+        "text": "\ud83d\udc4b **Hello! I am Zervy**, your internal AI trainer matching assistant for Mentry Solutions.\n\nTo discover and rank trainers, please share a training requirement (e.g. *\"Need a Python & Django corporate trainer in Bangalore for 5 days\"* or *\"Find React and Node.js faculty\"*).",
+        "aiData": {
+            "understoodRequirement": null,
+            "clarification": null,
+            "topMatches": []
+        },
+        "tokenStats": {
+            "promptTokens": 1,
+            "completionTokens": 69,
+            "totalTokens": 70,
+            "requestCostUsd": "$0.000021",
+            "cumulativeTokens": 1150,
+            "totalRequests": 4,
+            "cumulativeCostUsd": "$0.0001",
+            "model": "gemini-1.5-flash"
+        },
+        "attachment": null,
+        "isAI": true,
+        "timestamp": "2026-09-03 10:14:29"
+    },
+    {
+        "id": "msg_6a992ca0a8f06",
+        "senderId": "65e000000000000000000001",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "@Zervy find trainers for React and Node in Chennai",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-03 10:15:28"
+    },
+    {
+        "id": "msg_6a992ca3eb442",
+        "senderId": "ai_assistant",
+        "senderName": "Zervy (AI Assistant)",
+        "senderRole": "AI_AGENT",
+        "text": "\ud83e\udd16 **Zervy Recommendation** for: *\"find trainers for React and Node in Chennai\"*\n\n1. **Karthik Ramanathan** (80% Match) \u2014 Full-Stack Web Architect (MERN \/ Next.js \/ Python)\n   *Why:* Strong match for requested domain with 9+ years of verified training experience in Python, Django, React.js.\n2. **Rajesh Verma** (65% Match) \u2014 Senior DevOps & Cloud Architect | Corporate Trainer\n   *Why:* Strong match for requested domain with 11+ years of verified training experience in Python, Docker, Kubernetes.\n3. **Dr. Priya Sharma** (65% Match) \u2014 Lead Data Scientist & Generative AI Specialist\n   *Why:* Strong match for requested domain with 8+ years of verified training experience in Python, Machine Learning, Deep Learning.\n",
+        "aiData": {
+            "understoodRequirement": {
+                "topic": "React.js \/ Node.js",
+                "skills": [
+                    "React.js",
+                    "Node.js"
+                ],
+                "location": "Chennai",
+                "mode": "ALL",
+                "duration": "Not Specified",
+                "experienceLevel": "Corporate \/ Academic"
+            },
+            "clarification": null,
+            "topMatches": [
+                {
+                    "trainerId": "tr_03",
+                    "name": "Karthik Ramanathan",
+                    "headline": "Full-Stack Web Architect (MERN \/ Next.js \/ Python)",
+                    "matchScore": 80,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "React.js",
+                        "Node.js"
+                    ],
+                    "missingSkills": [],
+                    "relevantExperienceYears": 9,
+                    "relevantTrainings": "28+ completed training engagements",
+                    "location": "Chennai (HYBRID)",
+                    "certifications": [
+                        "Meta Certified Full-Stack Developer"
+                    ],
+                    "whyRecommended": "Strong match for requested domain with 9+ years of verified training experience in Python, Django, React.js."
+                },
+                {
+                    "trainerId": "tr_01",
+                    "name": "Rajesh Verma",
+                    "headline": "Senior DevOps & Cloud Architect | Corporate Trainer",
+                    "matchScore": 65,
+                    "confidence": "Low",
+                    "matchingSkills": [
+                        "Python",
+                        "Docker",
+                        "Kubernetes",
+                        "AWS"
+                    ],
+                    "missingSkills": [
+                        "React.js",
+                        "Node.js"
+                    ],
+                    "relevantExperienceYears": 11,
+                    "relevantTrainings": "24+ completed training engagements",
+                    "location": "Bangalore (HYBRID)",
+                    "certifications": [
+                        "AWS Certified Solutions Architect",
+                        "CKA: Certified Kubernetes Administrator"
+                    ],
+                    "whyRecommended": "Strong match for requested domain with 11+ years of verified training experience in Python, Docker, Kubernetes."
+                },
+                {
+                    "trainerId": "tr_02",
+                    "name": "Dr. Priya Sharma",
+                    "headline": "Lead Data Scientist & Generative AI Specialist",
+                    "matchScore": 65,
+                    "confidence": "Low",
+                    "matchingSkills": [
+                        "Python",
+                        "Machine Learning",
+                        "Deep Learning",
+                        "Generative AI & LLMs"
+                    ],
+                    "missingSkills": [
+                        "React.js",
+                        "Node.js"
+                    ],
+                    "relevantExperienceYears": 8,
+                    "relevantTrainings": "19+ completed training engagements",
+                    "location": "Hyderabad (HYBRID)",
+                    "certifications": [
+                        "TensorFlow Certified Developer",
+                        "DeepLearning.AI NLP Specialization"
+                    ],
+                    "whyRecommended": "Strong match for requested domain with 8+ years of verified training experience in Python, Machine Learning, Deep Learning."
+                },
+                {
+                    "trainerId": "tr_04",
+                    "name": "Ananya Deshmukh",
+                    "headline": "Enterprise Java & Spring Boot Specialist",
+                    "matchScore": 65,
+                    "confidence": "Low",
+                    "matchingSkills": [
+                        "Java",
+                        "Spring Boot",
+                        "Microservices",
+                        "Hibernate"
+                    ],
+                    "missingSkills": [
+                        "React.js",
+                        "Node.js"
+                    ],
+                    "relevantExperienceYears": 10,
+                    "relevantTrainings": "31+ completed training engagements",
+                    "location": "Pune (HYBRID)",
+                    "certifications": [
+                        "Oracle Certified Professional: Java SE 11 Developer"
+                    ],
+                    "whyRecommended": "Strong match for requested domain with 10+ years of verified training experience in Java, Spring Boot, Microservices."
+                },
+                {
+                    "trainerId": "tr_05",
+                    "name": "Vikramaditya Rao",
+                    "headline": "Cybersecurity & Ethical Hacking Consultant",
+                    "matchScore": 65,
+                    "confidence": "Low",
+                    "matchingSkills": [
+                        "Cybersecurity",
+                        "Ethical Hacking & VAPT",
+                        "Network Security",
+                        "Python"
+                    ],
+                    "missingSkills": [
+                        "React.js",
+                        "Node.js"
+                    ],
+                    "relevantExperienceYears": 7,
+                    "relevantTrainings": "16+ completed training engagements",
+                    "location": "Bangalore (OFFLINE)",
+                    "certifications": [
+                        "CEH (Certified Ethical Hacker)",
+                        "OSCP: Offensive Security Certified Professional"
+                    ],
+                    "whyRecommended": "Strong match for requested domain with 7+ years of verified training experience in Cybersecurity, Ethical Hacking & VAPT, Network Security."
+                }
+            ]
+        },
+        "tokenStats": {
+            "promptTokens": 944,
+            "completionTokens": 1,
+            "totalTokens": 945,
+            "requestCostUsd": "$0.000071",
+            "cumulativeTokens": 2095,
+            "totalRequests": 5,
+            "cumulativeCostUsd": "$0.0002",
+            "model": "gemini-1.5-flash"
+        },
+        "attachment": null,
+        "isAI": true,
+        "timestamp": "2026-09-03 10:15:31"
     }
 ]

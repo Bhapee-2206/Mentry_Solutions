@@ -1,19 +1,21 @@
 <?php
-// admin/team-chat.php - Internal Workspace Team Chat for Admin & Staff (with File Attachments & Explicit AI Extraction)
+// admin/team-chat.php - Internal Workspace Team Chat with Zervy Agent, File Attachments & Token Tracking
 $pageTitle = "Internal Team Workspace Chat";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/ai_agent.php';
 require_once __DIR__ . '/includes/sidebar.php';
 
 // Strict backend role enforcement
 requireAdminOrStaff();
 $currentUser = getCurrentUser();
+$tokenMetrics = AIAgent::getTokenMetrics();
 ?>
 
 <div class="max-w-7xl mx-auto h-[calc(100vh-140px)] flex flex-col md:flex-row gap-4">
     
-    <!-- Left Sidebar: Operations Team Members -->
+    <!-- Left Sidebar: Operations Team Members & Token Stats -->
     <div class="w-full md:w-72 bg-white rounded-3xl border border-slate-200/90 shadow-card p-5 flex flex-col shrink-0">
         <div class="pb-4 border-b border-slate-100 flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -26,28 +28,42 @@ $currentUser = getCurrentUser();
             </span>
         </div>
 
-        <div class="py-3">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Team Members & Channels:</span>
-            
-            <div class="space-y-1.5">
-                <div class="bg-orange-50/70 border border-orange-200/80 rounded-2xl p-3 flex items-center gap-3 cursor-pointer">
-                    <div class="w-9 h-9 rounded-xl bg-[#FE5E04] text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                        #
+        <div class="py-3 space-y-3">
+            <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Channels & Agent:</span>
+                
+                <div class="space-y-1.5">
+                    <div class="bg-orange-50/70 border border-orange-200/80 rounded-2xl p-3 flex items-center gap-3 cursor-pointer">
+                        <div class="w-9 h-9 rounded-xl bg-[#FE5E04] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                            #
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="font-bold text-xs text-slate-900 truncate">#general-operations</h4>
+                            <p class="text-[10px] text-slate-500 truncate">Campus & faculty logistics</p>
+                        </div>
                     </div>
-                    <div class="min-w-0 flex-1">
-                        <h4 class="font-bold text-xs text-slate-900 truncate">#general-operations</h4>
-                        <p class="text-[10px] text-slate-500 truncate">Campus & faculty logistics</p>
+
+                    <div class="p-2.5 rounded-2xl hover:bg-slate-50 transition-colors flex items-center gap-3 cursor-pointer" onclick="insertAiMention()">
+                        <div class="w-9 h-9 rounded-xl bg-slate-900 text-[#FE5E04] flex items-center justify-center font-bold text-xs">
+                            <span class="material-symbols-outlined text-sm">smart_toy</span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="font-bold text-xs text-slate-900 truncate">Zervy AI Bot</h4>
+                            <p class="text-[10px] text-slate-400 truncate">Type @Zervy in chat</p>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="p-2.5 rounded-2xl hover:bg-slate-50 transition-colors flex items-center gap-3 cursor-pointer" onclick="insertAiMention()">
-                    <div class="w-9 h-9 rounded-xl bg-slate-900 text-[#FE5E04] flex items-center justify-center font-bold text-xs">
-                        <span class="material-symbols-outlined text-sm">smart_toy</span>
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <h4 class="font-bold text-xs text-slate-900 truncate">Mentor AI Bot</h4>
-                        <p class="text-[10px] text-slate-400 truncate">Type @AI in chat to match</p>
-                    </div>
+            <!-- Token Stats Mini Widget in Chat -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-1">
+                <div class="flex items-center justify-between text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                    <span>Zervy Tokens</span>
+                    <span class="text-[#FE5E04] font-mono">⚡ LIVE</span>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <span id="chatTokensCounter" class="text-xs font-black text-slate-900"><?= number_format($tokenMetrics['grandTotalTokens'] ?? 0) ?> Tokens</span>
+                    <span class="text-[10px] text-emerald-600 font-bold">$<?= number_format($tokenMetrics['estimatedCostUsd'] ?? 0.0, 4) ?></span>
                 </div>
             </div>
         </div>
@@ -87,14 +103,14 @@ $currentUser = getCurrentUser();
                 </div>
                 <div>
                     <h3 class="font-extrabold text-sm text-slate-900">#general-operations</h3>
-                    <p class="text-[11px] text-slate-500">Internal coordination for training schedules, files & AI requirement discovery</p>
+                    <p class="text-[11px] text-slate-500">Internal coordination for training schedules, files & Zervy AI discovery</p>
                 </div>
             </div>
 
             <div class="flex items-center gap-2">
                 <button type="button" onclick="insertAiMention()" class="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#FE5E04] text-xs font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[15px]">smart_toy</span>
-                    <span>@AI Match</span>
+                    <span>@Zervy Match</span>
                 </button>
             </div>
         </div>
@@ -127,7 +143,7 @@ $currentUser = getCurrentUser();
                 </button>
 
                 <!-- Message Input -->
-                <input type="text" id="chatTextInput" autocomplete="off" placeholder="Message operations team or type @AI find trainers for requirement..." class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm outline-none focus:border-[#FE5E04] focus:bg-white transition-all shadow-inner">
+                <input type="text" id="chatTextInput" autocomplete="off" placeholder="Message operations team or type @Zervy find trainers for requirement..." class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm outline-none focus:border-[#FE5E04] focus:bg-white transition-all shadow-inner">
 
                 <!-- Send Button -->
                 <button type="submit" id="sendBtn" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white px-5 py-3 rounded-2xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50">
@@ -164,6 +180,8 @@ function renderMessages(messages) {
         const isAI = msg.isAI || msg.senderRole === 'AI_AGENT';
 
         if (isAI) {
+            const tokenBadge = msg.tokenStats ? `<span class="inline-flex items-center gap-1 font-mono text-[9px] bg-orange-100 text-[#FE5E04] font-bold px-1.5 py-0.2 rounded">⚡ ${msg.tokenStats.totalTokens} Tokens</span>` : '';
+
             return `
                 <div class="flex items-start gap-3 max-w-2xl bg-white border border-orange-200/80 rounded-3xl p-4 shadow-xs animate-fadeIn">
                     <div class="w-8 h-8 rounded-xl bg-[#FE5E04] text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -172,8 +190,9 @@ function renderMessages(messages) {
                     <div class="space-y-1.5 flex-1 min-w-0">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-1.5">
-                                <span class="font-extrabold text-xs text-slate-900">Mentor AI Assistant</span>
+                                <span class="font-extrabold text-xs text-slate-900">Zervy (AI Assistant)</span>
                                 <span class="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-orange-100 text-[#FE5E04]">AI Matching Engine</span>
+                                ${tokenBadge}
                             </div>
                             <span class="text-[10px] text-slate-400">${escapeHtml(msg.timestamp.split(' ')[1] || '')}</span>
                         </div>
@@ -182,7 +201,7 @@ function renderMessages(messages) {
                         </div>
                         <div class="pt-1 flex items-center gap-2">
                             <a href="/admin/ai-assistant.php" class="text-[11px] font-bold text-[#FE5E04] hover:underline flex items-center gap-1">
-                                Open in AI Discovery Center →
+                                Open in Zervy AI Center →
                             </a>
                         </div>
                     </div>
@@ -219,12 +238,12 @@ function renderMessages(messages) {
                         ` : ''}
                     </div>
 
-                    <!-- Explicit "Ask AI to Match" Action on Individual Message -->
-                    ${msg.text && !msg.text.includes('@AI') ? `
+                    <!-- Explicit "Ask Zervy to Match" Action on Individual Message -->
+                    ${msg.text && !msg.text.includes('@') ? `
                         <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 ${isSelf ? 'justify-end' : 'justify-start'}">
                             <button type="button" onclick="askAiOnMessage('${escapeHtml(msg.id)}')" class="text-[10px] font-bold text-slate-500 hover:text-[#FE5E04] flex items-center gap-1 py-0.5 cursor-pointer">
                                 <span class="material-symbols-outlined text-[13px]">smart_toy</span>
-                                <span>Ask AI to Match Trainers</span>
+                                <span>Ask Zervy to Match Trainers</span>
                             </button>
                         </div>
                     ` : ''}
@@ -258,7 +277,7 @@ function clearSelectedFile() {
 
 function insertAiMention() {
     const input = document.getElementById('chatTextInput');
-    input.value = '@AI find trainers for ';
+    input.value = '@Zervy find trainers for ';
     input.focus();
 }
 
@@ -315,10 +334,10 @@ async function askAiOnMessage(messageId) {
         if (data.success && data.allMessages) {
             renderMessages(data.allMessages);
         } else {
-            alert(data.message || 'Failed to extract AI requirement.');
+            alert(data.message || 'Could not process with Zervy.');
         }
     } catch (e) {
-        alert('Network error while requesting AI matching.');
+        alert('Network error while requesting Zervy AI matching.');
     }
 }
 

@@ -119,16 +119,18 @@ if ($action === 'send_message') {
     $messages[] = $userMsg;
     $aiResponseMsg = null;
 
-    // Check for explicit @AI mention in text
-    if (preg_match('/@ai\b/i', $text)) {
-        $aiQuery = preg_replace('/@ai\b/i', '', $text);
+    // Check for explicit @AI or @Zervy mention in text
+    if (preg_match('/@(ai|zervy)\b/i', $text)) {
+        $aiQuery = preg_replace('/@(ai|zervy)\b/i', '', $text);
         $aiQuery = trim($aiQuery);
         
-        if (!empty($aiQuery)) {
-            $aiMatch = AIAgent::processRequirementQuery($aiQuery);
-            if ($aiMatch['success']) {
+        $aiMatch = AIAgent::processRequirementQuery(!empty($aiQuery) ? $aiQuery : $text);
+        if ($aiMatch['success']) {
+            if (!empty($aiMatch['isConversational'])) {
+                $aiSummary = $aiMatch['conversationalMessage'];
+            } else {
                 $topMatches = $aiMatch['data']['topMatches'] ?? [];
-                $aiSummary = "🤖 **Mentor AI Recommendation** for requirement: *\"{$aiQuery}\"*\n\n";
+                $aiSummary = "🤖 **Zervy Recommendation** for: *\"{$aiQuery}\"*\n\n";
                 if (!empty($topMatches)) {
                     foreach (array_slice($topMatches, 0, 3) as $i => $m) {
                         $aiSummary .= ($i + 1) . ". **{$m['name']}** ({$m['matchScore']}% Match) — {$m['headline']}\n   *Why:* {$m['whyRecommended']}\n";
@@ -136,21 +138,23 @@ if ($action === 'send_message') {
                 } else {
                     $aiSummary .= "No immediate strong matches found in active database. Try broadening skill constraints.";
                 }
-
-                $aiMsg = [
-                    'id' => 'msg_' . uniqid(),
-                    'senderId' => 'ai_assistant',
-                    'senderName' => 'Mentor AI (Assistant)',
-                    'senderRole' => 'AI_AGENT',
-                    'text' => $aiSummary,
-                    'aiData' => $aiMatch['data'],
-                    'attachment' => null,
-                    'isAI' => true,
-                    'timestamp' => date('Y-m-d H:i:s')
-                ];
-                $messages[] = $aiMsg;
-                $aiResponseMsg = $aiMsg;
             }
+
+            $tokenStats = $aiMatch['tokenStats'] ?? null;
+            $aiMsg = [
+                'id' => 'msg_' . uniqid(),
+                'senderId' => 'ai_assistant',
+                'senderName' => 'Zervy (AI Assistant)',
+                'senderRole' => 'AI_AGENT',
+                'text' => $aiSummary,
+                'aiData' => $aiMatch['data'] ?? null,
+                'tokenStats' => $tokenStats,
+                'attachment' => null,
+                'isAI' => true,
+                'timestamp' => date('Y-m-d H:i:s')
+            ];
+            $messages[] = $aiMsg;
+            $aiResponseMsg = $aiMsg;
         }
     }
 
@@ -186,24 +190,30 @@ if ($action === 'ask_ai_on_message') {
     $aiMatch = AIAgent::processRequirementQuery($targetMsg['text']);
     
     if ($aiMatch['success']) {
-        $topMatches = $aiMatch['data']['topMatches'] ?? [];
-        $aiSummary = "🤖 **Mentor AI Extracted Requirement Analysis** from message by *{$targetMsg['senderName']}*:\n\n";
-        
-        if (!empty($topMatches)) {
-            foreach (array_slice($topMatches, 0, 3) as $i => $m) {
-                $aiSummary .= ($i + 1) . ". **{$m['name']}** ({$m['matchScore']}% Match) — {$m['headline']}\n   *Reason:* {$m['whyRecommended']}\n";
-            }
+        if (!empty($aiMatch['isConversational'])) {
+            $aiSummary = $aiMatch['conversationalMessage'];
         } else {
-            $aiSummary .= "No direct matching trainers found in repository.";
+            $topMatches = $aiMatch['data']['topMatches'] ?? [];
+            $aiSummary = "🤖 **Zervy Requirement Analysis** from message by *{$targetMsg['senderName']}*:\n\n";
+            
+            if (!empty($topMatches)) {
+                foreach (array_slice($topMatches, 0, 3) as $i => $m) {
+                    $aiSummary .= ($i + 1) . ". **{$m['name']}** ({$m['matchScore']}% Match) — {$m['headline']}\n   *Reason:* {$m['whyRecommended']}\n";
+                }
+            } else {
+                $aiSummary .= "No direct matching trainers found in repository.";
+            }
         }
 
+        $tokenStats = $aiMatch['tokenStats'] ?? null;
         $aiMsg = [
             'id' => 'msg_' . uniqid(),
             'senderId' => 'ai_assistant',
-            'senderName' => 'Mentor AI (Assistant)',
+            'senderName' => 'Zervy (AI Assistant)',
             'senderRole' => 'AI_AGENT',
             'text' => $aiSummary,
-            'aiData' => $aiMatch['data'],
+            'aiData' => $aiMatch['data'] ?? null,
+            'tokenStats' => $tokenStats,
             'attachment' => null,
             'isAI' => true,
             'timestamp' => date('Y-m-d H:i:s')
@@ -218,7 +228,7 @@ if ($action === 'ask_ai_on_message') {
         ]);
         exit();
     } else {
-        echo json_encode(['success' => false, 'message' => 'Could not extract requirement.']);
+        echo json_encode(['success' => false, 'message' => 'Could not process message with Zervy.']);
         exit();
     }
 }

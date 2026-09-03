@@ -1,5 +1,5 @@
 <?php
-// includes/ai_agent.php - Internal AI Agent Core Engine & Gemini Gateway for Mentry Solutions
+// includes/ai_agent.php - Zervy: Internal AI Agent Core Engine, Token Calculator & Gemini Gateway
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
@@ -27,6 +27,84 @@ class AIAgent {
         if (empty(self::$apiKey)) {
             self::$apiKey = getenv('GEMINI_API_KEY') ?: '';
         }
+    }
+
+    /**
+     * Token Calculator: Tracks and computes token usage & costs
+     */
+    public static function trackTokenUsage($promptText, $completionText, $geminiUsage = null) {
+        $usageFile = __DIR__ . '/../config/token_usage.json';
+        $cumulative = [
+            'totalRequests' => 0,
+            'totalPromptTokens' => 0,
+            'totalCompletionTokens' => 0,
+            'grandTotalTokens' => 0,
+            'estimatedCostUsd' => 0.0
+        ];
+
+        if (file_exists($usageFile)) {
+            $existing = @json_decode(file_get_contents($usageFile), true);
+            if (is_array($existing)) {
+                $cumulative = array_merge($cumulative, $existing);
+            }
+        }
+
+        // Calculate tokens for current request
+        $promptTokens = 0;
+        $completionTokens = 0;
+
+        if ($geminiUsage && isset($geminiUsage['promptTokenCount'])) {
+            $promptTokens = (int)$geminiUsage['promptTokenCount'];
+            $completionTokens = (int)($geminiUsage['candidatesTokenCount'] ?? 0);
+        } else {
+            // Standard estimation: ~4 chars per token for English & JSON
+            $promptTokens = max(1, (int)ceil(strlen($promptText) / 4));
+            $completionTokens = max(1, (int)ceil(strlen($completionText) / 4));
+        }
+
+        $totalTokens = $promptTokens + $completionTokens;
+
+        // Gemini 1.5 Flash Pricing: $0.075 / 1M input tokens, $0.30 / 1M output tokens
+        $reqCost = ($promptTokens * 0.000000075) + ($completionTokens * 0.00000030);
+
+        // Update cumulative stats
+        $cumulative['totalRequests'] += 1;
+        $cumulative['totalPromptTokens'] += $promptTokens;
+        $cumulative['totalCompletionTokens'] += $completionTokens;
+        $cumulative['grandTotalTokens'] += $totalTokens;
+        $cumulative['estimatedCostUsd'] = round($cumulative['estimatedCostUsd'] + $reqCost, 6);
+        $cumulative['lastUpdated'] = date('Y-m-d H:i:s');
+
+        @file_put_contents($usageFile, json_encode($cumulative, JSON_PRETTY_PRINT));
+
+        return [
+            'promptTokens' => $promptTokens,
+            'completionTokens' => $completionTokens,
+            'totalTokens' => $totalTokens,
+            'requestCostUsd' => '$' . number_format($reqCost, 6),
+            'cumulativeTokens' => $cumulative['grandTotalTokens'],
+            'totalRequests' => $cumulative['totalRequests'],
+            'cumulativeCostUsd' => '$' . number_format($cumulative['estimatedCostUsd'], 4),
+            'model' => self::$model
+        ];
+    }
+
+    /**
+     * Get aggregate Token usage metrics
+     */
+    public static function getTokenMetrics() {
+        $usageFile = __DIR__ . '/../config/token_usage.json';
+        if (file_exists($usageFile)) {
+            $data = @json_decode(file_get_contents($usageFile), true);
+            if (is_array($data)) return $data;
+        }
+        return [
+            'totalRequests' => 0,
+            'totalPromptTokens' => 0,
+            'totalCompletionTokens' => 0,
+            'grandTotalTokens' => 0,
+            'estimatedCostUsd' => 0.0
+        ];
     }
 
     /**
@@ -98,17 +176,82 @@ class AIAgent {
 
         $data = json_decode($response, true);
         $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        $usage = $data['usageMetadata'] ?? null;
 
         return [
             'success' => true,
             'text' => $text,
+            'usage' => $usage,
             'raw' => $data
         ];
     }
 
     /**
+     * Intent Classification: Detects whether a message is a greeting, non-requirement, or trainer search
+     */
+    public static function classifyIntent($query) {
+        $q = strtolower(trim($query));
+
+        // Greetings
+        $greetings = ['hi', 'hello', 'hey', 'good morning', 'good evening', 'good afternoon', 'hola', 'yo', 'sup', 'greetings'];
+        if (in_array($q, $greetings) || preg_match('/^(hi|hello|hey|good morning|greetings)[\s!.,?]*$/i', $q)) {
+            return [
+                'type' => 'GREETING',
+                'message' => "👋 **Hello! I am Zervy**, your internal AI trainer matching assistant for Mentry Solutions.\n\nTo discover and rank trainers, please share a training requirement (e.g. *\"Need a Python & Django corporate trainer in Bangalore for 5 days\"* or *\"Find React and Node.js faculty\"*)."
+            ];
+        }
+
+        // Who are you / help queries
+        if (preg_match('/\b(who are you|what can you do|help me|what is your name)\b/i', $q)) {
+            return [
+                'type' => 'HELP',
+                'message' => "🤖 **I am Zervy**, the intelligent trainer discovery agent for Mentry Solutions operations.\n\n**What I can do:**\n1. **Match Trainers**: Analyze program requirements and search verified trainer profiles and resumes.\n2. **Rank & Explain**: Score candidates with factual justifications (*Why this trainer?*).\n3. **Compare Candidates**: Provide side-by-side multi-trainer comparison matrices."
+            ];
+        }
+
+        // Check if there are technical skills or training words
+        $extractedSkills = ResumeSkillParser::extractSkillsFromText($query);
+        $hasSkills = false;
+        foreach ($extractedSkills as $cat => $list) {
+            if (!empty($list)) {
+                $hasSkills = true;
+                break;
+            }
+        }
+
+        $trainingKeywords = ['trainer', 'training', 'faculty', 'instructor', 'bootcamp', 'workshop', 'program', 'campus', 'corporate', 'course', 'placement', 'teach', 'sessions'];
+        $hasTrainingContext = false;
+        foreach ($trainingKeywords as $kw) {
+            if (stripos($q, $kw) !== false) {
+                $hasTrainingContext = true;
+                break;
+            }
+        }
+
+        // General work chats without requirements (e.g. invoice, call me, payment, meeting)
+        $nonReqPatterns = ['payment', 'invoice', 'call me', 'free now', 'meeting at', 'check this', 'lunch', 'thank you', 'thanks', 'ok', 'okay', 'got it', 'sure', 'yes', 'no'];
+        foreach ($nonReqPatterns as $nrp) {
+            if (stripos($q, $nrp) !== false && !$hasSkills && !$hasTrainingContext) {
+                return [
+                    'type' => 'NON_REQUIREMENT',
+                    'message' => "💬 *Message noted.* This message does not appear to contain a training requirement or technical skill.\n\nIf you would like to search for trainers, mention technical skills (*e.g. Java, Python, AWS*) or training requirements."
+                ];
+            }
+        }
+
+        // If very short and no skills
+        if (strlen($q) < 8 && !$hasSkills && !$hasTrainingContext) {
+            return [
+                'type' => 'GREETING',
+                'message' => "👋 **Hi there! I am Zervy.** Please provide specific training topics or required skills to find suitable trainers."
+            ];
+        }
+
+        return ['type' => 'TRAINER_SEARCH'];
+    }
+
+    /**
      * Tool 1: searchTrainers
-     * Retrieves trainers matching skills/domain/experience/location from DB + fallback pool
      */
     public static function searchTrainers($skills = [], $domain = '', $minExp = 0, $location = '', $mode = 'ALL') {
         $trainerCol = getCollection("Trainer");
@@ -127,12 +270,10 @@ class AIAgent {
             error_log("AIAgent DB Error: " . $e->getMessage());
         }
 
-        // Fallback robust trainer pool if DB is empty / offline
         if (empty($trainers)) {
             $trainers = self::getDefaultTrainersPool();
         }
 
-        // Evaluate matches
         $mockOpp = [
             'domain' => $domain,
             'skillsRequired' => $skills,
@@ -153,7 +294,6 @@ class AIAgent {
             ];
         }
 
-        // Sort descending by score
         usort($results, function($a, $b) {
             return $b['score'] <=> $a['score'];
         });
@@ -183,46 +323,6 @@ class AIAgent {
     }
 
     /**
-     * Tool 3: getTrainerTrainingHistory
-     */
-    public static function getTrainerTrainingHistory($trainerId) {
-        $trainer = self::getTrainerProfile($trainerId);
-        if (!$trainer) return [];
-
-        return $trainer['pastAssignments'] ?? [
-            [
-                'title' => ($trainer['primaryDomain'] ?? 'Technical') . ' Workshop Series',
-                'client' => 'Tier-1 Engineering College',
-                'duration' => '5 Days',
-                'mode' => 'OFFLINE',
-                'rating' => 4.9
-            ],
-            [
-                'title' => 'Corporate Sprints on ' . implode(', ', array_slice($trainer['skills'] ?? ['Core Tech'], 0, 3)),
-                'client' => 'Enterprise IT Client',
-                'duration' => '3 Days',
-                'mode' => 'HYBRID',
-                'rating' => 4.8
-            ]
-        ];
-    }
-
-    /**
-     * Tool 4: getTrainerProjects
-     */
-    public static function getTrainerProjects($trainerId) {
-        $trainer = self::getTrainerProfile($trainerId);
-        if (!$trainer) return [];
-        return $trainer['projects'] ?? [
-            [
-                'name' => 'High-Throughput Enterprise Pipeline',
-                'tech' => implode(', ', array_slice($trainer['skills'] ?? ['Architecture'], 0, 4)),
-                'role' => 'Lead Architect / Trainer'
-            ]
-        ];
-    }
-
-    /**
      * Tool 5: compareTrainers
      */
     public static function compareTrainers($trainerIds = [], $requirementText = '') {
@@ -239,7 +339,7 @@ class AIAgent {
             ];
         }
 
-        $systemPrompt = "You are Mentor AI, the internal AI matching specialist for Mentry Solutions.
+        $systemPrompt = "You are Zervy, the internal AI matching specialist for Mentry Solutions.
 You must compare the given trainers against the requirement.
 CRITICAL RULES:
 1. Base your comparison STRICTLY on the facts provided in the trainer data.
@@ -265,11 +365,17 @@ CRITICAL RULES:
         $userPrompt = "Requirement: " . $requirementText . "\n\nTrainers Data:\n" . json_encode($trainers, JSON_PRETTY_PRINT);
         
         $aiRes = self::callGemini($userPrompt, $systemPrompt, true);
+        $tokenStats = self::trackTokenUsage($userPrompt, $aiRes['text'] ?? '', $aiRes['usage'] ?? null);
 
         if ($aiRes['success'] && !empty($aiRes['text'])) {
             $decoded = json_decode($aiRes['text'], true);
             if (is_array($decoded)) {
-                return ['success' => true, 'comparison' => $decoded, 'trainers' => $trainers];
+                return [
+                    'success' => true,
+                    'comparison' => $decoded,
+                    'trainers' => $trainers,
+                    'tokenStats' => $tokenStats
+                ];
             }
         }
 
@@ -303,12 +409,13 @@ CRITICAL RULES:
                     'reason' => 'Highest combined alignment with verified skills (' . implode(', ', array_slice($topTrainer['skills'] ?? [], 0, 3)) . ') and ' . ($topTrainer['totalExperienceYears'] ?? '5') . '+ years of subject-matter experience.'
                 ]
             ],
-            'trainers' => $trainers
+            'trainers' => $trainers,
+            'tokenStats' => $tokenStats
         ];
     }
 
     /**
-     * Primary Match & Reasoning Pipeline
+     * Primary Match & Reasoning Pipeline with Intent Filter & Token Calculator
      */
     public static function processRequirementQuery($query) {
         $query = trim($query);
@@ -319,7 +426,26 @@ CRITICAL RULES:
             ];
         }
 
-        // 1. Extract potential skills and keywords using pure PHP dictionary
+        // 1. Intent Classification Gate (Prevents false positive recommendations on "hi", "payment", etc.)
+        $intent = self::classifyIntent($query);
+        if ($intent['type'] !== 'TRAINER_SEARCH') {
+            $tokenStats = self::trackTokenUsage($query, $intent['message']);
+            return [
+                'success' => true,
+                'isConversational' => true,
+                'intentType' => $intent['type'],
+                'conversationalMessage' => $intent['message'],
+                'data' => [
+                    'understoodRequirement' => null,
+                    'clarification' => null,
+                    'topMatches' => []
+                ],
+                'tokenStats' => $tokenStats,
+                'source' => 'zervy-intent-engine'
+            ];
+        }
+
+        // 2. Extract skills and keywords using pure PHP dictionary
         $extractedSkills = ResumeSkillParser::extractSkillsFromText($query);
         $skillsList = [];
         foreach ($extractedSkills as $cat => $skList) {
@@ -346,7 +472,7 @@ CRITICAL RULES:
             $detectedMode = 'OFFLINE';
         }
 
-        // 2. Perform Structured Search Layer
+        // 3. Perform Structured Search Layer
         $candidates = self::searchTrainers($skillsList, '', 0, $detectedLocation, $detectedMode);
         $topCandidates = array_slice($candidates, 0, 6);
 
@@ -370,8 +496,8 @@ CRITICAL RULES:
             ];
         }
 
-        // 3. AI Reasoning via Gemini
-        $systemPrompt = "You are Mentor AI, the high-precision internal trainer recommendation engine for Mentry Solutions (India's Premier Managed Trainer Network).
+        // 4. AI Reasoning via Gemini
+        $systemPrompt = "You are Zervy, the high-precision internal trainer recommendation agent for Mentry Solutions (India's Premier Managed Trainer Network).
 
 YOUR OBJECTIVE:
 1. Analyze the user's training requirement.
@@ -418,24 +544,26 @@ Return a valid JSON object matching this structure:
         $userPrompt = "Requirement: " . $query . "\n\nAvailable Trainer Candidates Data:\n" . json_encode($candidatesData, JSON_PRETTY_PRINT);
 
         $geminiRes = self::callGemini($userPrompt, $systemPrompt, true);
+        $tokenStats = self::trackTokenUsage($userPrompt, $geminiRes['text'] ?? '', $geminiRes['usage'] ?? null);
 
         if ($geminiRes['success'] && !empty($geminiRes['text'])) {
             $parsed = json_decode($geminiRes['text'], true);
             if (is_array($parsed) && !empty($parsed['topMatches'])) {
                 return [
                     'success' => true,
+                    'isConversational' => false,
                     'data' => $parsed,
+                    'tokenStats' => $tokenStats,
                     'source' => 'gemini-ai'
                 ];
             }
         }
 
-        // 4. Deterministic Intelligent Fallback
+        // 5. Deterministic Intelligent Fallback
         $fallbackMatches = [];
         foreach ($topCandidates as $c) {
             $t = $c['trainer'];
             $tSkills = $t['skills'] ?? [];
-            $matched = array_intersect(array_map('strtolower', $skillsList), array_map('strtolower', $tSkills));
             
             $fallbackMatches[] = [
                 'trainerId' => $t['id'] ?? (string)($t['_id'] ?? ''),
@@ -455,6 +583,7 @@ Return a valid JSON object matching this structure:
 
         return [
             'success' => true,
+            'isConversational' => false,
             'data' => [
                 'understoodRequirement' => [
                     'topic' => !empty($skillsList) ? implode(' / ', array_slice($skillsList, 0, 3)) : 'General Training',
@@ -467,12 +596,13 @@ Return a valid JSON object matching this structure:
                 'clarification' => empty($detectedLocation) ? 'To refine matches, would you prefer Online delivery or a specific campus/city location?' : null,
                 'topMatches' => $fallbackMatches
             ],
+            'tokenStats' => $tokenStats,
             'source' => 'matching-engine'
         ];
     }
 
     /**
-     * Default Verified Trainer Pool (Realistic structured records)
+     * Default Verified Trainer Pool
      */
     public static function getDefaultTrainersPool() {
         return [

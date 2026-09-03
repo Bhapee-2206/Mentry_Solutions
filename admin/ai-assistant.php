@@ -1,39 +1,60 @@
 <?php
-// admin/ai-assistant.php - Dedicated AI Trainer Match Assistant (Admin & Staff Only)
-$pageTitle = "Mentor AI — Smart Trainer Discovery";
+// admin/ai-assistant.php - Zervy: Dedicated AI Trainer Match Assistant & Token Calculator (Admin & Staff Only)
+$pageTitle = "Zervy — Smart Trainer Discovery";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/ai_agent.php';
 require_once __DIR__ . '/includes/sidebar.php';
 
 // Strict backend role enforcement
 requireAdminOrStaff();
 $user = getCurrentUser();
+$tokenMetrics = AIAgent::getTokenMetrics();
 ?>
 
 <div class="max-w-7xl mx-auto space-y-6">
     
-    <!-- Top Header Banner -->
-    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+    <!-- Top Header Banner with Live Token Calculator -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative overflow-hidden">
         <div class="relative z-10 space-y-2 max-w-2xl">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FE5E04]/20 border border-[#FE5E04]/40 text-[#FE5E04] text-xs font-black tracking-wide">
                 <span class="material-symbols-outlined text-sm animate-spin" style="animation-duration: 8s;">smart_toy</span>
-                <span>INTERNAL AI AGENT & RECOMMENDATION ENGINE</span>
+                <span>ZERVY AI AGENT & TOKEN ENGINE</span>
             </div>
-            <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-white">Mentor AI Assistant</h1>
+            <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-white">Zervy AI Assistant</h1>
             <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Analyze natural-language training requirements, search verified trainer resumes, and receive ranked, factually-grounded recommendations with explainable match scores.
+                Analyze natural-language training requirements, search verified trainer resumes, and receive ranked, factually-grounded recommendations with real-time token tracking.
             </p>
         </div>
 
-        <div class="relative z-10 flex flex-wrap items-center gap-2.5">
-            <button type="button" onclick="openStructuredRequirementModal()" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-orange-500/20 flex items-center gap-2 cursor-pointer">
+        <!-- Token Calculator & Action Controls -->
+        <div class="relative z-10 flex flex-wrap items-center gap-3">
+            
+            <!-- Real-Time Token Calculator Pill -->
+            <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-3 px-4 flex items-center gap-3.5 shadow-inner">
+                <div class="w-9 h-9 rounded-xl bg-[#FE5E04]/20 text-[#FE5E04] flex items-center justify-center">
+                    <span class="material-symbols-outlined text-lg">bolt</span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Token Calculator</span>
+                        <span id="tokenModelBadge" class="text-[9px] font-black px-1.5 py-0.2 rounded bg-slate-700 text-slate-300">Gemini 1.5</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span id="grandTotalTokensDisplay" class="text-sm font-black text-white"><?= number_format($tokenMetrics['grandTotalTokens'] ?? 0) ?></span>
+                        <span class="text-[10px] text-emerald-400 font-bold" id="grandTotalCostDisplay">$<?= number_format($tokenMetrics['estimatedCostUsd'] ?? 0.0, 4) ?> est.</span>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" onclick="openStructuredRequirementModal()" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-4 py-3 rounded-2xl transition-all shadow-md shadow-orange-500/20 flex items-center gap-2 cursor-pointer">
                 <span class="material-symbols-outlined text-base">tune</span>
-                Structured Requirement
+                Structured Matcher
             </button>
-            <a href="/admin/team-chat.php" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-700 transition-all flex items-center gap-2">
+            <a href="/admin/team-chat.php" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-4 py-3 rounded-2xl border border-slate-700 transition-all flex items-center gap-2">
                 <span class="material-symbols-outlined text-base">forum</span>
-                Team Workspace Chat
+                Team Chat
             </a>
         </div>
 
@@ -46,9 +67,11 @@ $user = getCurrentUser();
         <div class="flex items-center justify-between">
             <label for="aiQueryInput" class="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
                 <span class="material-symbols-outlined text-[#FE5E04] text-lg">search_spark</span>
-                Describe Program or Training Requirement
+                Ask Zervy / Describe Training Requirement
             </label>
-            <span class="text-[11px] text-slate-400 font-medium">Powered by Gemini + Mentry Matching Engine</span>
+            <div id="liveQueryTokensBadge" class="hidden text-[11px] bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-0.5 rounded-full font-bold">
+                Last Query: <span id="lastQueryTokensCount" class="text-[#FE5E04]">0</span> tokens
+            </div>
         </div>
 
         <div class="relative">
@@ -57,7 +80,7 @@ $user = getCurrentUser();
             <div class="absolute right-3 bottom-3 flex items-center gap-2">
                 <button type="button" id="searchAiBtn" onclick="runAiTrainerSearch()" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50">
                     <span class="material-symbols-outlined text-base">psychology</span>
-                    <span>Find Trainers</span>
+                    <span>Ask Zervy</span>
                 </button>
             </div>
         </div>
@@ -82,8 +105,8 @@ $user = getCurrentUser();
         </div>
     </div>
 
-    <!-- Active Requirement Breakdown & Clarification Alert Container -->
-    <div id="aiRequirementContainer" class="hidden space-y-4"></div>
+    <!-- Active Requirement Breakdown & Token Stats Strip -->
+    <div id="aiRequirementContainer" class="hidden space-y-3"></div>
 
     <!-- Comparison Toolbar (Floats when 2+ trainers are selected) -->
     <div id="compareToolbar" class="hidden sticky top-20 z-20 bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-xl flex items-center justify-between border border-slate-700 animate-fadeIn">
@@ -111,9 +134,9 @@ $user = getCurrentUser();
                 <span class="material-symbols-outlined text-3xl">smart_toy</span>
             </div>
             <div class="space-y-1 max-w-md mx-auto">
-                <h3 class="font-extrabold text-base text-slate-900">How can I help you discover the right trainer?</h3>
+                <h3 class="font-extrabold text-base text-slate-900">How can Zervy help you discover the right trainer?</h3>
                 <p class="text-xs text-slate-500 leading-relaxed">
-                    Enter training parameters above or click any starter prompt. Mentor AI analyzes verified profile skills, parsed resumes, and past campus workshop delivery.
+                    Enter training parameters above or click any starter prompt. Zervy analyzes verified profile skills, parsed resumes, and past campus workshop delivery.
                 </p>
             </div>
         </div>
@@ -121,7 +144,7 @@ $user = getCurrentUser();
         <!-- Loading State -->
         <div id="loadingState" class="hidden bg-white rounded-3xl border border-slate-200/90 p-12 text-center space-y-4 shadow-card">
             <div class="w-12 h-12 rounded-full border-4 border-slate-200 border-t-[#FE5E04] animate-spin mx-auto"></div>
-            <p class="text-xs font-bold text-slate-700">Analyzing requirement & evaluating candidate database...</p>
+            <p class="text-xs font-bold text-slate-700">Zervy is analyzing requirement & evaluating candidate database...</p>
         </div>
 
         <!-- Dynamic Results Grid -->
@@ -213,7 +236,7 @@ $user = getCurrentUser();
                 <span class="material-symbols-outlined text-[#FE5E04] text-2xl">compare_arrows</span>
                 <div>
                     <h3 class="font-extrabold text-base text-slate-900">Side-by-Side Trainer Comparison</h3>
-                    <p class="text-[11px] text-slate-500">AI-generated factual breakdown against active requirement</p>
+                    <p class="text-[11px] text-slate-500">Zervy AI factual breakdown against active requirement</p>
                 </div>
             </div>
             <button type="button" onclick="closeCompareModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none cursor-pointer">✕</button>
@@ -237,7 +260,7 @@ function setQueryAndRun(text) {
 async function runAiTrainerSearch() {
     const query = document.getElementById('aiQueryInput').value.trim();
     if (!query) {
-        alert('Please enter a requirement or question.');
+        alert('Please enter a requirement or question for Zervy.');
         return;
     }
 
@@ -258,9 +281,18 @@ async function runAiTrainerSearch() {
         const res = await response.json();
         document.getElementById('loadingState').classList.add('hidden');
 
-        if (res.success && res.data) {
-            lastSearchResult = res.data;
-            renderAiResults(res.data, res.source);
+        if (res.success) {
+            // Update Token Calculator stats
+            if (res.tokenStats) {
+                updateTokenUI(res.tokenStats);
+            }
+
+            if (res.isConversational) {
+                renderConversationalResult(res.conversationalMessage);
+            } else if (res.data) {
+                lastSearchResult = res.data;
+                renderAiResults(res.data, res.source, res.tokenStats);
+            }
         } else {
             alert(res.message || res.error || 'Failed to process AI search.');
             document.getElementById('emptyState').classList.remove('hidden');
@@ -268,15 +300,46 @@ async function runAiTrainerSearch() {
     } catch (e) {
         document.getElementById('loadingState').classList.add('hidden');
         document.getElementById('emptyState').classList.remove('hidden');
-        alert('Network error while contacting AI Assistant.');
+        alert('Network error while contacting Zervy AI Assistant.');
     } finally {
         btn.disabled = false;
     }
 }
 
-function renderAiResults(data, source) {
+function updateTokenUI(tokens) {
+    if (!tokens) return;
+    document.getElementById('liveQueryTokensBadge').classList.remove('hidden');
+    document.getElementById('lastQueryTokensCount').innerText = tokens.totalTokens;
+    if (tokens.cumulativeTokens) {
+        document.getElementById('grandTotalTokensDisplay').innerText = Number(tokens.cumulativeTokens).toLocaleString();
+    }
+    if (tokens.cumulativeCostUsd) {
+        document.getElementById('grandTotalCostDisplay').innerText = tokens.cumulativeCostUsd + ' est.';
+    }
+}
+
+function renderConversationalResult(message) {
+    const reqContainer = document.getElementById('aiRequirementContainer');
+    reqContainer.innerHTML = `
+        <div class="bg-orange-50 border border-orange-200/90 rounded-2xl p-4 flex items-start gap-3 text-xs animate-fadeIn">
+            <div class="w-8 h-8 rounded-xl bg-[#FE5E04] text-white flex items-center justify-center shrink-0 shadow-xs">
+                <span class="material-symbols-outlined text-base">smart_toy</span>
+            </div>
+            <div class="space-y-1 flex-1">
+                <span class="font-extrabold text-slate-900 block">Zervy Assistant</span>
+                <p class="text-slate-700 leading-relaxed whitespace-pre-line font-medium">${formatAiMessageText(message)}</p>
+            </div>
+        </div>
+    `;
+    reqContainer.classList.remove('hidden');
+    document.getElementById('resultsGrid').classList.add('hidden');
+}
+
+function renderAiResults(data, source, tokenStats) {
     const reqContainer = document.getElementById('aiRequirementContainer');
     const req = data.understoodRequirement || {};
+
+    let tokenPill = tokenStats ? `<span class="inline-flex items-center gap-1 font-mono text-[10px] bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded font-bold">⚡ ${tokenStats.totalTokens} Tokens (${tokenStats.promptTokens} in / ${tokenStats.completionTokens} out)</span>` : '';
 
     let reqHtml = `
         <div class="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -287,7 +350,10 @@ function renderAiResults(data, source) {
                 ${req.location ? `<span class="bg-white border border-slate-200 px-2 py-0.5 rounded-md font-bold text-slate-700">${escapeHtml(req.location)}</span>` : ''}
                 ${req.mode ? `<span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md font-bold">${escapeHtml(req.mode)}</span>` : ''}
             </div>
-            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Engine: ${source === 'gemini-ai' ? 'Google Gemini 1.5' : 'Deterministic Match Layer'}</span>
+            <div class="flex items-center gap-2">
+                ${tokenPill}
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">${source === 'gemini-ai' ? 'Google Gemini 1.5' : 'Deterministic Match Layer'}</span>
+            </div>
         </div>
     `;
 
@@ -423,7 +489,7 @@ async function runTrainerComparison() {
 
     document.getElementById('compareModal').classList.remove('hidden');
     const content = document.getElementById('compareContent');
-    content.innerHTML = '<div class="p-12 text-center text-xs text-slate-500"><div class="w-8 h-8 rounded-full border-2 border-slate-300 border-t-[#FE5E04] animate-spin mx-auto mb-2"></div>Generating AI factual comparison matrix...</div>';
+    content.innerHTML = '<div class="p-12 text-center text-xs text-slate-500"><div class="w-8 h-8 rounded-full border-2 border-slate-300 border-t-[#FE5E04] animate-spin mx-auto mb-2"></div>Generating Zervy AI factual comparison matrix...</div>';
 
     try {
         const response = await fetch('/actions/compare-trainers-api.php', {
@@ -434,6 +500,10 @@ async function runTrainerComparison() {
 
         const res = await response.json();
         if (res.success && res.comparison) {
+            if (res.tokenStats) {
+                updateTokenUI(res.tokenStats);
+            }
+
             const cmp = res.comparison;
             const matrix = cmp.comparisonMatrix || [];
             const trainers = res.trainers || [];
@@ -472,7 +542,7 @@ async function runTrainerComparison() {
                     <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
                         <span class="material-symbols-outlined text-emerald-600 text-xl">recommend</span>
                         <div class="space-y-0.5">
-                            <span class="text-[11px] font-black uppercase text-emerald-800">AI Recommended Choice: ${escapeHtml(cmp.recommendedChoice.trainerName || '')}</span>
+                            <span class="text-[11px] font-black uppercase text-emerald-800">Zervy Recommended Choice: ${escapeHtml(cmp.recommendedChoice.trainerName || '')}</span>
                             <p class="text-xs text-slate-700 leading-relaxed font-medium">${escapeHtml(cmp.recommendedChoice.reason || '')}</p>
                         </div>
                     </div>
@@ -514,6 +584,12 @@ function submitStructuredRequirement(e) {
 
     closeStructuredRequirementModal();
     setQueryAndRun(formattedQuery);
+}
+
+function formatAiMessageText(text) {
+    if (!text) return '';
+    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+               .replace(/\*(.*?)\*/g, '<em>$1</em>');
 }
 
 function escapeHtml(str) {

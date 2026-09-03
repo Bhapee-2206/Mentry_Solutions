@@ -104,17 +104,17 @@ $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => [
     </div>
 </div>
 
-<!-- Compact Mentor AI Quick Matcher Widget -->
+<!-- Compact Zervy AI Quick Matcher Widget -->
 <div class="bg-gradient-to-r from-slate-900 via-[#0F172A] to-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-800 shadow-xl text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative overflow-hidden">
     <div class="relative z-10 space-y-1.5 max-w-xl">
         <div class="flex items-center gap-2">
             <span class="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#FE5E04]/20 border border-[#FE5E04]/40 text-[#FE5E04]">
                 <span class="material-symbols-outlined text-[14px]">smart_toy</span>
-                Mentor AI Engine
+                Zervy AI Engine
             </span>
-            <span class="text-[11px] text-slate-400">Gemini-Powered Smart Matcher</span>
+            <span class="text-[11px] text-slate-400">Gemini-Powered Smart Matcher & Token Tracker</span>
         </div>
-        <h3 class="font-extrabold text-base sm:text-lg text-white">Find matching trainers for any program in seconds</h3>
+        <h3 class="font-extrabold text-base sm:text-lg text-white">Find matching trainers for any program in seconds with Zervy</h3>
         <p class="text-xs text-slate-300 leading-relaxed">
             Enter required skills, domain, or location to analyze resumes and get ranked trainer matches with match reasoning.
         </p>
@@ -123,7 +123,7 @@ $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => [
     <div class="relative z-10 flex items-center gap-2.5 w-full md:w-auto">
         <a href="/admin/ai-assistant.php" class="flex-1 md:flex-none bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-5 py-3 rounded-xl transition-all shadow-md shadow-orange-500/20 flex items-center justify-center gap-2">
             <span class="material-symbols-outlined text-[18px]">psychology</span>
-            Open AI Assistant
+            Ask Zervy AI
         </a>
         <a href="/admin/team-chat.php" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-4 py-3 rounded-xl border border-slate-700 transition-all flex items-center justify-center gap-2">
             <span class="material-symbols-outlined text-[18px]">forum</span>
