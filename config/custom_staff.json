@@ -1,0 +1,38 @@
+[
+    {
+        "id": "admin_1",
+        "name": "Operations Director (Admin 1)",
+        "email": "admin@mentry.test",
+        "role": "ADMIN",
+        "phone": "+91 98450 00001",
+        "status": "ACTIVE",
+        "avatar": "https:\/\/avatar.vercel.sh\/Operations%20Director.png"
+    },
+    {
+        "id": "admin_2",
+        "name": "Lead Administrator (Admin 2)",
+        "email": "admin2@mentry.test",
+        "role": "ADMIN",
+        "phone": "+91 98450 00002",
+        "status": "ACTIVE",
+        "avatar": "https:\/\/avatar.vercel.sh\/Lead%20Administrator.png"
+    },
+    {
+        "id": "staff_1",
+        "name": "Operations Coordinator (Staff 1)",
+        "email": "staff1@mentry.test",
+        "role": "STAFF",
+        "phone": "+91 98450 00003",
+        "status": "ACTIVE",
+        "avatar": "https:\/\/avatar.vercel.sh\/Operations%20Coordinator.png"
+    },
+    {
+        "id": "staff_2",
+        "name": "Talent Sourcing Specialist (Staff 2)",
+        "email": "staff2@mentry.test",
+        "role": "STAFF",
+        "phone": "+91 98450 00004",
+        "status": "ACTIVE",
+        "avatar": "https:\/\/avatar.vercel.sh\/Talent%20Sourcing.png"
+    }
+]
