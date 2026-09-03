@@ -2,28 +2,42 @@
 // api/index.php - Vercel Serverless Entrypoint & Front Controller
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
-// 1. Static asset bypass
-if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf)$/i', $uri)) {
-    $filePath = __DIR__ . '/..' . $uri;
-    if (file_exists($filePath)) {
-        $mimeTypes = [
-            'png' => 'image/png',
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'gif' => 'image/gif',
-            'svg' => 'image/svg+xml',
-            'ico' => 'image/x-icon',
-            'css' => 'text/css',
-            'js' => 'application/javascript',
-            'pdf' => 'application/pdf',
-            'woff' => 'font/woff',
-            'woff2' => 'font/woff2',
-            'ttf' => 'font/ttf'
-        ];
-        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
-        readfile($filePath);
-        exit();
+// 1. Static asset bypass (images, icons, styles, fonts)
+if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp)$/i', $uri)) {
+    $cleanUri = ltrim($uri, '/');
+    $basename = basename($cleanUri);
+
+    $candidates = [
+        __DIR__ . '/../' . $cleanUri,
+        __DIR__ . '/../public/' . $basename,
+        __DIR__ . '/../public/' . $cleanUri,
+        __DIR__ . '/../' . $basename
+    ];
+
+    foreach ($candidates as $filePath) {
+        if (file_exists($filePath) && is_file($filePath)) {
+            $mimeTypes = [
+                'png' => 'image/png',
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'gif' => 'image/gif',
+                'svg' => 'image/svg+xml',
+                'ico' => 'image/x-icon',
+                'css' => 'text/css',
+                'js' => 'application/javascript',
+                'pdf' => 'application/pdf',
+                'webp' => 'image/webp',
+                'woff' => 'font/woff',
+                'woff2' => 'font/woff2',
+                'ttf' => 'font/ttf'
+            ];
+            $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+            header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
+            header('Cache-Control: public, max-age=86400');
+            header('Content-Length: ' . filesize($filePath));
+            readfile($filePath);
+            exit();
+        }
     }
 }
 

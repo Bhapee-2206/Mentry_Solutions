@@ -30,6 +30,11 @@ if ($currentUser) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Mentry Solutions - Managed Trainer Network</title>
     
+    <!-- Favicon & Brand Icons -->
+    <link rel="icon" type="image/png" href="/public/mentry.png">
+    <link rel="shortcut icon" type="image/png" href="/public/mentry.png">
+    <link rel="apple-touch-icon" href="/public/mentry.png">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
