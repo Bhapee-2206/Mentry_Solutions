@@ -308,19 +308,8 @@ if ($action === 'delete_message') {
 
 // 6. CLEAR CHAT
 if ($action === 'clear_chat') {
-    $clearedMessages = [
-        [
-            'id' => 'msg_' . uniqid(),
-            'senderId' => 'ai_assistant',
-            'senderName' => 'Zervy (AI Assistant)',
-            'senderRole' => 'AI_AGENT',
-            'text' => '🧹 *Chat history has been cleared by ' . htmlspecialchars($currentUser['name'] ?? 'Admin') . '.* The channel is fresh and ready for operations.',
-            'attachment' => null,
-            'isAI' => true,
-            'timestamp' => date('Y-m-d H:i:s')
-        ]
-    ];
+    $clearedMessages = [];
     saveChatMessages($chatFile, $clearedMessages);
-    echo json_encode(['success' => true, 'allMessages' => $clearedMessages]);
+    echo json_encode(['success' => true, 'allMessages' => []]);
     exit();
 }

@@ -185,6 +185,33 @@ $isAdminUser = isAdmin();
     </div>
 </div>
 
+<!-- CLEAR CHAT CONFIRMATION MODAL -->
+<div id="clearChatModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-fadeIn">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                <span class="material-symbols-outlined">delete_sweep</span>
+            </div>
+            <div>
+                <h3 class="font-extrabold text-sm text-slate-900">Clear Operations Chat</h3>
+                <p class="text-xs text-slate-500">Permanently delete messages in #general-operations</p>
+            </div>
+        </div>
+
+        <p class="text-xs text-slate-600 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 leading-relaxed">
+            Are you sure you want to clear this workspace chat channel? All team discussions and uploaded file references will be wiped for a fresh start.
+        </p>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+            <button type="button" onclick="closeClearChatModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer">Cancel</button>
+            <button type="button" id="confirmClearBtn" onclick="executeClearChat()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-5 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
+                <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+                <span>Yes, Clear All</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 let currentUserId = '<?= $currentUser['id'] ?? '' ?>';
 let currentUserName = '<?= addslashes($currentUser['name'] ?? 'User') ?>';
@@ -206,6 +233,25 @@ async function loadChatMessages() {
 function renderMessages(messages) {
     const stream = document.getElementById('chatMessageStream');
     
+    if (!messages || messages.length === 0) {
+        stream.innerHTML = `
+            <div class="h-full flex flex-col items-center justify-center text-center p-8 space-y-3 py-16 animate-fadeIn">
+                <div class="w-14 h-14 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-3xl text-slate-400">forum</span>
+                </div>
+                <div class="space-y-1">
+                    <h4 class="font-extrabold text-sm text-slate-800">#general-operations is empty</h4>
+                    <p class="text-xs text-slate-400 max-w-sm">No messages in this channel yet. Type a message below or mention @Zervy to search trainers.</p>
+                </div>
+                <button type="button" onclick="insertAiMention()" class="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#FE5E04] text-xs font-bold px-4 py-2 rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-[15px]">smart_toy</span>
+                    <span>Ask Zervy a Question</span>
+                </button>
+            </div>
+        `;
+        return;
+    }
+
     stream.innerHTML = messages.map(msg => {
         const isSelf = msg.senderId === currentUserId;
         const isAI = msg.isAI || msg.senderRole === 'AI_AGENT';
@@ -434,8 +480,18 @@ async function deleteMessage(msgId) {
     }
 }
 
-async function confirmClearChat() {
-    if (!confirm('⚠️ Are you sure you want to clear all messages in this operations channel?')) return;
+function confirmClearChat() {
+    document.getElementById('clearChatModal').classList.remove('hidden');
+}
+
+function closeClearChatModal() {
+    document.getElementById('clearChatModal').classList.add('hidden');
+}
+
+async function executeClearChat() {
+    const btn = document.getElementById('confirmClearBtn');
+    btn.disabled = true;
+    btn.innerText = 'Clearing...';
 
     const formData = new FormData();
     formData.append('action', 'clear_chat');
@@ -447,13 +503,17 @@ async function confirmClearChat() {
         });
 
         const data = await response.json();
-        if (data.success && data.allMessages) {
+        if (data.success && data.allMessages !== undefined) {
+            closeClearChatModal();
             renderMessages(data.allMessages);
         } else {
             alert(data.message || 'Failed to clear chat.');
         }
     } catch (e) {
         alert('Network error while clearing chat.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">delete_sweep</span><span>Yes, Clear All</span>';
     }
 }
 
