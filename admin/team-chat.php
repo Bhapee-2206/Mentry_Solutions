@@ -17,10 +17,10 @@ $isAdminUser = isAdmin();
 <!-- TOAST NOTIFICATION CONTAINER -->
 <div id="toastContainer" class="fixed top-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none"></div>
 
-<div class="max-w-7xl mx-auto h-[calc(100vh-140px)] flex flex-col md:flex-row gap-4">
+<div class="max-w-7xl mx-auto h-[calc(100vh-115px)] sm:h-[calc(100vh-130px)] md:h-[calc(100vh-140px)] flex flex-col md:flex-row gap-4">
     
-    <!-- Left Sidebar: Operations Team Members, Retention & Token Stats -->
-    <div class="w-full md:w-72 bg-white rounded-3xl border border-slate-200/90 shadow-card p-5 flex flex-col shrink-0">
+    <!-- Left Sidebar: Operations Team Members, Retention & Token Stats (Desktop & collapsible on mobile) -->
+    <div id="chatOperationsSidebar" class="hidden md:flex w-full md:w-72 bg-white rounded-3xl border border-slate-200/90 shadow-card p-5 flex-col shrink-0">
         <div class="pb-4 border-b border-slate-100 flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[#FE5E04]">forum</span>
@@ -96,24 +96,24 @@ $isAdminUser = isAdmin();
     </div>
 
     <!-- Center: Main Chat Thread & Input Canvas -->
-    <div class="flex-1 bg-white rounded-3xl border border-slate-200/90 shadow-card flex flex-col overflow-hidden">
+    <div class="flex-1 bg-white rounded-3xl border border-slate-200/90 shadow-card flex flex-col overflow-hidden min-w-0">
         
         <!-- Chat Header Bar -->
-        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-[#FE5E04] font-black text-sm">
+        <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
+            <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-[#FE5E04] font-black text-sm shrink-0">
                     #
                 </div>
-                <div>
-                    <h3 class="font-extrabold text-sm text-slate-900">#general-operations</h3>
-                    <p class="text-[11px] text-slate-500">Internal operations, trainer deployments & Zervy AI queries</p>
+                <div class="min-w-0">
+                    <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 truncate">#general-operations</h3>
+                    <p class="text-[10px] sm:text-[11px] text-slate-500 truncate">Internal operations, deployments & Zervy AI</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
-                <button type="button" onclick="confirmClearChat()" class="bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-600 text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Clear all messages in channel">
+            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <button type="button" onclick="confirmClearChat()" class="bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-600 text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-2xs" title="Clear all messages in channel">
                     <span class="material-symbols-outlined text-[15px]">delete_sweep</span>
-                    <span>Clear Chat</span>
+                    <span class="hidden sm:inline">Clear Chat</span>
                 </button>
             </div>
         </div>
