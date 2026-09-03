@@ -239,11 +239,20 @@ class AIAgent {
             }
         }
 
+        // Generative questions like ChatGPT / Gemini (e.g. syllabus, email templates, interview questions, explanations)
+        if (preg_match('/^(draft|write|explain|generate|create|compare|how to|what is|tell me|give me|suggest|outline|curriculum|syllabus)\b/i', $q) && 
+            !preg_match('/\b(find|search|match|recommend)\s+(trainer|trainers|faculty|instructor|candidate|candidates)\b/i', $q)) {
+            return [
+                'type' => 'GENERATIVE_AI',
+                'message' => null // Will be generated live by Gemini
+            ];
+        }
+
         // If very short and no skills
         if (strlen($q) < 8 && !$hasSkills && !$hasTrainingContext) {
             return [
                 'type' => 'GREETING',
-                'message' => "👋 **Hi there! I am Zervy.** Please provide specific training topics or required skills to find suitable trainers."
+                'message' => "👋 **Hi there! I am Zervy.** Please ask me any training question (*e.g. create a syllabus, draft an email, interview questions*) or provide skills to find matching trainers."
             ];
         }
 
@@ -426,8 +435,35 @@ CRITICAL RULES:
             ];
         }
 
-        // 1. Intent Classification Gate (Prevents false positive recommendations on "hi", "payment", etc.)
+        // 1. Intent Classification Gate
         $intent = self::classifyIntent($query);
+
+        // Handle Generative AI questions directly (like ChatGPT / Gemini)
+        if ($intent['type'] === 'GENERATIVE_AI') {
+            $systemInstruction = "You are Zervy, the intelligent generative AI assistant for Mentry Solutions operations. Assist the staff/admin with training curriculum design, syllabus outlines, email drafts, interview screening questions, technical explanations, and corporate workshop planning. Format your response cleanly in GitHub-style Markdown.";
+            $geminiRes = self::callGemini($query, $systemInstruction, false);
+            
+            $genText = $geminiRes['success'] && !empty($geminiRes['text']) 
+                ? $geminiRes['text'] 
+                : "I am Zervy, ready to help with training operations. Could you please specify more details regarding your request?";
+            
+            $tokenStats = self::trackTokenUsage($query, $genText, $geminiRes['usage'] ?? null);
+
+            return [
+                'success' => true,
+                'isConversational' => true,
+                'intentType' => 'GENERATIVE_AI',
+                'conversationalMessage' => $genText,
+                'data' => [
+                    'understoodRequirement' => null,
+                    'clarification' => null,
+                    'topMatches' => []
+                ],
+                'tokenStats' => $tokenStats,
+                'source' => 'zervy-gemini-generative'
+            ];
+        }
+
         if ($intent['type'] !== 'TRAINER_SEARCH') {
             $tokenStats = self::trackTokenUsage($query, $intent['message']);
             return [

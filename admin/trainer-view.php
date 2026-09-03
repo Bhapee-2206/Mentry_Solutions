@@ -1,8 +1,12 @@
 <?php
 // admin/trainer-view.php - Trainer Dossier & Resume Manager
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
-require_once __DIR__ . '/includes/sidebar.php';
+require_once __DIR__ . '/../includes/ai_agent.php';
+
+// Strict backend role enforcement
+requireAdminOrStaff();
 
 $id = $_GET['id'] ?? '';
 $trainerCol = getCollection("Trainer");
@@ -16,8 +20,19 @@ $appCol = getCollection("Application");
 $trainer = null;
 if (!empty($id)) {
     try {
-        $trainer = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($id)]);
-    } catch (Exception $e) {}
+        if (preg_match('/^[a-f0-9]{24}$/i', $id)) {
+            $trainer = $trainerCol ? $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($id)]) : null;
+        } else {
+            $trainer = $trainerCol ? $trainerCol->findOne(['id' => $id]) : null;
+        }
+    } catch (\Throwable $e) {}
+}
+
+if (!$trainer) {
+    $fallbackTrainer = AIAgent::getTrainerProfile($id);
+    if ($fallbackTrainer) {
+        $trainer = $fallbackTrainer;
+    }
 }
 
 if (!$trainer) {
@@ -25,19 +40,35 @@ if (!$trainer) {
     exit();
 }
 
-$trainerId = (string)$trainer['_id'];
+$trainerId = (string)($trainer['_id'] ?? ($trainer['id'] ?? $id));
 
 $u = null;
 if (!empty($trainer['userId'])) {
-    try { $u = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$trainer['userId'])]); } catch (Exception $e) {}
+    try { 
+        $u = $userCol ? $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$trainer['userId'])]) : null; 
+    } catch (\Throwable $e) {}
+}
+if (!$u) {
+    $u = [
+        'name' => $trainer['name'] ?? 'Trainer',
+        'email' => $trainer['email'] ?? 'trainer@mentry.test',
+        'phone' => $trainer['phone'] ?? '+91 98450 00000',
+        'avatar' => $trainer['avatar'] ?? null
+    ];
 }
 
 $skills = $skillCol ? $skillCol->find(['trainerId' => $trainerId])->toArray() : [];
+if (empty($skills) && !empty($trainer['skills'])) {
+    foreach ($trainer['skills'] as $sk) {
+        $skills[] = ['name' => $sk, 'proficiency' => 'EXPERT', 'experienceYears' => $trainer['totalExperienceYears'] ?? 5];
+    }
+}
 $experiences = $expCol ? $expCol->find(['trainerId' => $trainerId])->toArray() : [];
 $documents = $docCol ? $docCol->find(['trainerId' => $trainerId], ['sort' => ['uploadedAt' => -1]])->toArray() : [];
 $assignments = $asgCol ? $asgCol->find(['trainerId' => $trainerId], ['sort' => ['createdAt' => -1]])->toArray() : [];
 
 $pageTitle = ($u['name'] ?? 'Trainer') . " Dossier";
+require_once __DIR__ . '/includes/sidebar.php';
 ?>
 
 <div class="max-w-6xl mx-auto space-y-6">
