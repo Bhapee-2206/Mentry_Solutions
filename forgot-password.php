@@ -115,14 +115,15 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Attempt SMTP dispatch
             $mailResult = sendPasswordResetEmail($user['email'], $user['name'] ?? 'User', $code, $resetLink);
 
-            if (empty($mailResult['success'])) {
-                $smtpDeliveryFailed = true;
-                $devFallbackCode = $code;
+            if (!empty($mailResult['success'])) {
+                $step = 2;
+            } else {
+                $error = "Failed to send verification email to " . htmlspecialchars($email) . ". " . 
+                         (isset($mailResult['error']) ? htmlspecialchars($mailResult['error']) : 'Please check SMTP settings in .env.');
+                $step = 1;
             }
-
-            $step = 2;
         } else {
-            // Non-existent email: still show step 2 to prevent email enumeration or show friendly note
+            // Non-existent email
             $error = "No account found matching this email address. Please verify your email or register.";
             $step = 1;
         }
@@ -226,32 +227,13 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- STEP 2: ENTER OTP & NEW PASSWORD -->
         <?php elseif ($step === 2): ?>
 
-            <!-- Notification banner regarding code dispatch -->
-            <?php if (!empty($devFallbackCode)): ?>
-                <div class="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl text-xs space-y-2">
-                    <div class="flex items-center gap-1.5 font-bold text-amber-950">
-                        <span class="material-symbols-outlined text-amber-600 text-base">info</span>
-                        <span>Verification Notice</span>
-                    </div>
-                    <p class="text-amber-800 text-[11px] leading-relaxed">
-                        External Google mailer authentication is pending app password renewal. For your immediate access, your verification code is ready below:
-                    </p>
-                    <div class="flex items-center justify-between bg-white border border-amber-300 p-2.5 rounded-xl">
-                        <span class="font-mono text-base font-black text-[#FE5E04] tracking-widest"><?= htmlspecialchars($devFallbackCode) ?></span>
-                        <button type="button" onclick="document.getElementById('otpInput').value='<?= htmlspecialchars($devFallbackCode) ?>';" class="text-xs font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-lg transition-colors">
-                            Insert Code
-                        </button>
-                    </div>
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl text-xs flex items-center gap-3">
+                <span class="material-symbols-outlined text-emerald-600 text-2xl shrink-0">mark_email_read</span>
+                <div>
+                    <span class="font-bold text-emerald-950 text-sm block">Verification Code Sent</span>
+                    <span class="text-xs text-emerald-800">We have sent a 6-digit verification code to <strong><?= htmlspecialchars($emailTarget) ?></strong>. Please check your inbox and spam folder.</span>
                 </div>
-            <?php else: ?>
-                <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3.5 rounded-2xl text-xs flex items-center gap-2.5">
-                    <span class="material-symbols-outlined text-emerald-600 text-xl">mark_email_read</span>
-                    <div>
-                        <span class="font-bold block">Verification Code Dispatched</span>
-                        <span class="text-[11px] text-emerald-700">Code sent to <strong><?= htmlspecialchars($emailTarget) ?></strong>. Check your inbox and spam.</span>
-                    </div>
-                </div>
-            <?php endif; ?>
+            </div>
 
             <form method="POST" action="/forgot-password.php" class="space-y-4" autocomplete="off">
                 <input type="hidden" name="action" value="reset_password">
@@ -312,9 +294,6 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </a>
                     <a href="/vendor-login.php?email=<?= urlencode($emailTarget) ?>" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs py-2.5 rounded-xl transition-colors border border-indigo-200/80">
                         Sign In as College / Vendor Partner
-                    </a>
-                    <a href="/admin-login.php?email=<?= urlencode($emailTarget) ?>" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2.5 rounded-xl transition-colors border border-slate-200">
-                        Sign In to Operations Console
                     </a>
                 </div>
             </div>

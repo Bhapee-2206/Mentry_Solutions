@@ -80,7 +80,71 @@ class PersistentDocumentStore {
 
     private function writeDocuments(array $docs): bool {
         $raw = json_encode($docs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        return @file_put_contents($this->filePath, $raw, LOCK_EX) !== false;
+        $saved = @file_put_contents($this->filePath, $raw, LOCK_EX) !== false;
+        $this->syncToSupabaseBatch($docs);
+        return $saved;
+    }
+
+    private function syncToSupabaseBatch(array $docs): void {
+        static $supabase = null;
+        if ($supabase === null) {
+            $url = getenv('SUPABASE_URL') ?: '';
+            $key = getenv('SUPABASE_KEY') ?: '';
+            $envPath = __DIR__ . '/../.env';
+            if (file_exists($envPath)) {
+                $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                if ($lines !== false) {
+                    foreach ($lines as $l) {
+                        $l = trim($l);
+                        if (empty($l) || $l[0] === '#') continue;
+                        if (strpos($l, '=') !== false) {
+                            list($k, $v) = explode('=', $l, 2);
+                            $k = trim($k);
+                            $v = trim(trim($v), '"\'');
+                            if ($k === 'SUPABASE_URL' && !empty($v)) $url = $v;
+                            if ($k === 'SUPABASE_KEY' && !empty($v)) $key = $v;
+                        }
+                    }
+                }
+            }
+            $supabase = ['url' => rtrim($url, '/'), 'key' => $key];
+        }
+
+        if (empty($supabase['url']) || empty($supabase['key']) || empty($docs)) {
+            return;
+        }
+
+        try {
+            $payload = [];
+            foreach ($docs as $doc) {
+                $docId = (string)($doc['_id'] ?? ($doc['id'] ?? ''));
+                if (empty($docId)) continue;
+                $payload[] = [
+                    'collection' => $this->name,
+                    'id' => $docId,
+                    'data' => $doc,
+                    'updated_at' => date('c')
+                ];
+            }
+            if (empty($payload)) return;
+
+            $ch = curl_init($supabase['url'] . '/rest/v1/mentry_documents?on_conflict=collection,id');
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'apikey: ' . $supabase['key'],
+                'Authorization: Bearer ' . $supabase['key'],
+                'Content-Type: application/json',
+                'Prefer: resolution=merge-duplicates,return=minimal'
+            ]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT_MS, 1500);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            @curl_exec($ch);
+            @curl_close($ch);
+        } catch (\Throwable $e) {
+            // Non-blocking fail-safe
+        }
     }
 
     private function matchesDoc(array $doc, array $filter): bool {
@@ -532,26 +596,28 @@ class Database {
             }
         }
 
-        try {
-            if (class_exists('MongoDB\Client') && !empty($uri)) {
-                $driverOpts = [
-                    'serverSelectionTimeoutMS' => 3000,
+        if (class_exists('MongoDB\Client') && !empty($uri)) {
+            try {
+                $uriOptions = [
+                    'serverSelectionTimeoutMS' => 5000,
                     'tls' => true,
                     'tlsAllowInvalidCertificates' => true
                 ];
+                $driverOpts = [];
                 $caFile = __DIR__ . '/cacert.pem';
                 if (file_exists($caFile)) {
-                    $driverOpts['tlsCAFile'] = realpath($caFile);
+                    $uriOptions['tlsCAFile'] = realpath($caFile);
+                    $driverOpts['ca_file'] = realpath($caFile);
                 }
-                $client = new MongoDB\Client($uri, [], $driverOpts);
+                $client = new MongoDB\Client($uri, $uriOptions, $driverOpts);
                 $cmd = new MongoDB\Driver\Command(['ping' => 1]);
                 $client->getManager()->executeCommand($dbName, $cmd);
                 $this->client = $client;
                 $this->db = $this->client->selectDatabase($dbName);
+            } catch (\Throwable $e) {
+                $this->client = null;
+                $this->db = null;
             }
-        } catch (\Throwable $e) {
-            $this->client = null;
-            $this->db = null;
         }
     }
 

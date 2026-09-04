@@ -132,9 +132,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <a href="/vendor-login.php<?= !empty($prefilledEmail) ? '?email=' . urlencode($prefilledEmail) : '' ?>" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs py-2.5 rounded-xl transition-colors border border-indigo-200/80">
                         Sign In as College / Vendor Partner
                     </a>
-                    <a href="/admin-login.php" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2.5 rounded-xl transition-colors border border-slate-200">
-                        Sign In to Operations Console
-                    </a>
                 </div>
             </div>
         <?php else: ?>

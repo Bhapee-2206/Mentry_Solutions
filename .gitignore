@@ -21,6 +21,7 @@ Thumbs.db
 
 # Scratch and temporary scripts
 scratch/
+scripts/test_*.php
 *.tmp
 *.bak
 *.docx

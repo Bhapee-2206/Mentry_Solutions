@@ -138,21 +138,23 @@ class MentryMailer {
                 throw new Exception("DATA command rejected: " . $dataRes);
             }
 
-            $msgId = sprintf("<%s.%s@%s>", bin2hex(random_bytes(12)), time(), 'mentry.solutions');
+            $senderDomain = (strpos($this->host, 'gmail.com') !== false) ? 'gmail.com' : (substr(strrchr($this->fromEmail, "@"), 1) ?: 'mentry.solutions');
+            $msgId = sprintf("<%s.%s@%s>", bin2hex(random_bytes(10)), time(), $senderDomain);
             $boundary = "b1_" . md5(uniqid((string)time(), true));
             
             $headers = [];
             $headers[] = "Message-ID: " . $msgId;
             $headers[] = "Date: " . date('r');
             $headers[] = "From: =?UTF-8?B?" . base64_encode($this->fromName) . "?= <" . $this->fromEmail . ">";
-            $headers[] = "Reply-To: <" . $this->fromEmail . ">";
+            $headers[] = "Reply-To: =?UTF-8?B?" . base64_encode($this->fromName) . "?= <" . $this->fromEmail . ">";
             $headers[] = "To: =?UTF-8?B?" . base64_encode($toName) . "?= <" . $toEmail . ">";
             $headers[] = "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=";
             $headers[] = "MIME-Version: 1.0";
             $headers[] = "Content-Type: multipart/alternative; boundary=\"" . $boundary . "\"";
-            $headers[] = "X-Mailer: Mentry-Network/2.0";
+            $headers[] = "X-Priority: 3";
+            $headers[] = "Importance: Normal";
             $headers[] = "Auto-Submitted: auto-generated";
-            $headers[] = "List-Unsubscribe: <mailto:" . $this->fromEmail . "?subject=Unsubscribe>";
+            $headers[] = "Precedence: bulk";
 
             $body = "--" . $boundary . "\r\n";
             $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
@@ -206,7 +208,16 @@ function sendMentryEmail($toEmail, $toName, $subject, $htmlBody, $plainText = ''
 }
 
 function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
-    $subject = "Mentry Solutions: Verification Code";
+    $subject = "Your Mentry Verification Code: " . $code;
+    $plainText = "Hello " . $toName . ",\n\n" .
+                 "A password recovery request was received for your Mentry account.\n\n" .
+                 "Your 6-digit verification code is: " . $code . "\n\n" .
+                 "This verification code is valid for 30 minutes.\n\n" .
+                 "Alternatively, you can reset your password using the link below:\n" .
+                 $resetLink . "\n\n" .
+                 "If you did not request this code, no further action is required. Your account remains secure.\n\n" .
+                 "---\nMentry Solutions • Managed Trainer Network\nBangalore, Karnataka, India\nContact: mentry.training@gmail.com\n";
+
     $html = '
     <!DOCTYPE html>
     <html lang="en">
@@ -256,7 +267,7 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
     </body>
     </html>
     ';
-    return sendMentryEmail($toEmail, $toName, $subject, $html, '', ['code' => $code, 'type' => 'PASSWORD_RESET']);
+    return sendMentryEmail($toEmail, $toName, $subject, $html, $plainText, ['code' => $code, 'type' => 'PASSWORD_RESET']);
 }
 
 function sendOpportunityMatchEmail($toEmail, $toName, $opp) {
