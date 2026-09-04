@@ -343,8 +343,8 @@ function uploadFileToCloudOrLocal($tmpFilePath, $desiredFilename, $folder = 'doc
     }
 
     // 1. Try Supabase Cloud Storage (Ideal for Vercel/Serverless & persistent storage)
-    $supabaseUrl = getenv('SUPABASE_URL') ?: '';
-    $supabaseKey = getenv('SUPABASE_KEY') ?: '';
+    $supabaseUrl = getenv('SUPABASE_URL') ?: ($_ENV['SUPABASE_URL'] ?? ($_SERVER['SUPABASE_URL'] ?? ''));
+    $supabaseKey = getenv('SUPABASE_KEY') ?: ($_ENV['SUPABASE_KEY'] ?? ($_SERVER['SUPABASE_KEY'] ?? (getenv('SUPABASE_SERVICE_ROLE_KEY') ?: ($_ENV['SUPABASE_SERVICE_ROLE_KEY'] ?? ''))));
 
     if (empty($supabaseUrl) || empty($supabaseKey)) {
         $envPath = __DIR__ . '/../.env';
@@ -357,8 +357,8 @@ function uploadFileToCloudOrLocal($tmpFilePath, $desiredFilename, $folder = 'doc
                         list($k, $v) = explode('=', $l, 2);
                         $k = trim($k);
                         $v = trim(trim($v), '"\'');
-                        if ($k === 'SUPABASE_URL') $supabaseUrl = $v;
-                        if ($k === 'SUPABASE_KEY') $supabaseKey = $v;
+                        if (($k === 'SUPABASE_URL' || $k === 'NEXT_PUBLIC_SUPABASE_URL') && empty($supabaseUrl)) $supabaseUrl = $v;
+                        if (($k === 'SUPABASE_KEY' || $k === 'SUPABASE_SERVICE_ROLE_KEY' || $k === 'SUPABASE_ANON_KEY') && empty($supabaseKey)) $supabaseKey = $v;
                     }
                 }
             }
