@@ -452,5 +452,172 @@
         "attachment": null,
         "isAI": true,
         "timestamp": "2026-09-04 16:39:55"
+    },
+    {
+        "id": "msg_6a9adb8468f99",
+        "senderId": "6a99b577f1624b69330f55b3",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "@Zervy Find a profile for PyTorch & TensorFlow",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-04 16:53:56"
+    },
+    {
+        "id": "msg_6a9adb846ae33",
+        "senderId": "ai_assistant",
+        "senderName": "Zervy (AI Assistant)",
+        "senderRole": "AI_AGENT",
+        "text": "\ud83e\udd16 **Zervy Recommendation** for: *\"Find a profile for PyTorch & TensorFlow\"*\n\n1. **Karthik Rajan** (65% Match) \u2014 Programming Trainer\n   *Why:* Strong match for requested domain with 8+ years of verified experience in Python, Django, React.js.\n2. **Priya Sundaram** (65% Match) \u2014 Cloud Trainer\n   *Why:* Strong match for requested domain with 10+ years of verified experience in AWS, Docker & Kubernetes, Terraform.\n3. **Sneha Patil** (65% Match) \u2014 Soft Skills Trainer\n   *Why:* Strong match for requested domain with 7+ years of verified experience in Business Communication, GD & Personal Interview Coaching, Corporate Etiquette.\n",
+        "aiData": {
+            "understoodRequirement": {
+                "topic": "TensorFlow & PyTorch",
+                "skills": [
+                    "TensorFlow & PyTorch"
+                ],
+                "location": "Any",
+                "mode": "ALL"
+            },
+            "clarification": null,
+            "topMatches": [
+                {
+                    "trainerId": "6a99b578f1624b69330f55bb",
+                    "name": "Karthik Rajan",
+                    "headline": "Programming Trainer",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "Python",
+                        "Django",
+                        "React.js",
+                        "PostgreSQL"
+                    ],
+                    "relevantExperienceYears": 8,
+                    "relevantTrainings": "8+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 8+ years of verified experience in Python, Django, React.js."
+                },
+                {
+                    "trainerId": "6a99b578f1624b69330f55c6",
+                    "name": "Priya Sundaram",
+                    "headline": "Cloud Trainer",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "AWS",
+                        "Docker & Kubernetes",
+                        "Terraform",
+                        "CI\/CD Pipelines"
+                    ],
+                    "relevantExperienceYears": 10,
+                    "relevantTrainings": "8+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 10+ years of verified experience in AWS, Docker & Kubernetes, Terraform."
+                },
+                {
+                    "trainerId": "6a99b579f1624b69330f55dc",
+                    "name": "Sneha Patil",
+                    "headline": "Soft Skills Trainer",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "Business Communication",
+                        "GD & Personal Interview Coaching",
+                        "Corporate Etiquette",
+                        "Resume & LinkedIn Optimization"
+                    ],
+                    "relevantExperienceYears": 7,
+                    "relevantTrainings": "8+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 7+ years of verified experience in Business Communication, GD & Personal Interview Coaching, Corporate Etiquette."
+                },
+                {
+                    "trainerId": "6a99b57af1624b69330f55e5",
+                    "name": "Arun Kumar",
+                    "headline": "VLSI Trainer",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "Embedded C",
+                        "ARM Cortex-M",
+                        "FreeRTOS",
+                        "IoT Protocols (MQTT\/BLE)"
+                    ],
+                    "relevantExperienceYears": 9,
+                    "relevantTrainings": "8+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 9+ years of verified experience in Embedded C, ARM Cortex-M, FreeRTOS."
+                }
+            ]
+        },
+        "tokenStats": {
+            "promptTokens": 10,
+            "completionTokens": 431,
+            "totalTokens": 441,
+            "requestCostUsd": "$0.000130",
+            "cumulativeTokens": 10709,
+            "totalRequests": 26,
+            "cumulativeCostUsd": "$0.0019",
+            "model": "gemini-1.5-flash"
+        },
+        "attachment": null,
+        "isAI": true,
+        "timestamp": "2026-09-04 16:53:56"
+    },
+    {
+        "id": "msg_6a9ade1e1842f",
+        "senderId": "6a99b577f1624b69330f55b3",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "@Zervy Find a profile for PyTorch & TensorFlow",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-04 17:05:02"
+    },
+    {
+        "id": "msg_6a9ade2632f99",
+        "senderId": "ai_assistant",
+        "senderName": "Zervy (AI Assistant)",
+        "senderRole": "AI_AGENT",
+        "text": "\ud83e\udd16 **Zervy Recommendation** for: *\"Find a profile for PyTorch & TensorFlow\"*\n\n1. **Dr. Priya Sharma** (98% Match) \u2014 Lead Data Scientist & Generative AI Specialist\n   *Why:* Dr. Priya Sharma explicitly lists 'TensorFlow & PyTorch' in her skills, directly matching the requirement. She also has a 'TensorFlow Certified Developer' certification and her primary domain is 'Data Science & AI', indicating deep expertise in the required area. Her experience in Deep Learning, Generative AI, and NLP further reinforces her suitability.\n",
+        "aiData": {
+            "understoodRequirement": {
+                "topic": "Deep Learning",
+                "skills": [
+                    "PyTorch",
+                    "TensorFlow",
+                    "PyTorch & TensorFlow"
+                ],
+                "location": "Any",
+                "mode": "Any"
+            },
+            "clarification": null,
+            "topMatches": [
+                {
+                    "trainerId": "tr_02",
+                    "trainerCode": "MEN-TRN-1002",
+                    "name": "Dr. Priya Sharma",
+                    "headline": "Lead Data Scientist & Generative AI Specialist",
+                    "matchScore": 98,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "TensorFlow & PyTorch",
+                        "Deep Learning"
+                    ],
+                    "relevantExperienceYears": 8,
+                    "relevantTrainings": "19 corporate programs",
+                    "whyRecommended": "Dr. Priya Sharma explicitly lists 'TensorFlow & PyTorch' in her skills, directly matching the requirement. She also has a 'TensorFlow Certified Developer' certification and her primary domain is 'Data Science & AI', indicating deep expertise in the required area. Her experience in Deep Learning, Generative AI, and NLP further reinforces her suitability."
+                }
+            ]
+        },
+        "tokenStats": {
+            "promptTokens": 1254,
+            "completionTokens": 288,
+            "totalTokens": 1542,
+            "requestCostUsd": "$0.000180",
+            "cumulativeTokens": 14203,
+            "totalRequests": 29,
+            "cumulativeCostUsd": "$0.0024",
+            "model": "gemini-2.5-flash"
+        },
+        "attachment": null,
+        "isAI": true,
+        "timestamp": "2026-09-04 17:05:10"
     }
 ]

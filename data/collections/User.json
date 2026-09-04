@@ -193,15 +193,16 @@
     {
         "name": "Bharath Bharath",
         "email": "balakrishnanbharath546@gmail.com",
-        "password": "$2y$10$0b9Ckp5UQoOcS0oHNBMLI.9Qbd.s4rdFfCTWJmXXxmjgx6YPFLcUC",
+        "password": "$2y$10$i7K5/yOulg2jy43AY3igX.G/ru5rRJR6AqFGpi6NJnTSr9C4uRNb.",
         "phone": "+919345999260",
         "role": "TRAINER",
         "createdAt": "1788458426324",
-        "updatedAt": "1788521027622",
+        "updatedAt": "1788533497714",
         "_id": "6a99b5baf1624b69330f560e",
         "avatar": null,
         "trainerCode": "MEN-TRN-1007",
-        "mentryId": "MEN-TRN-1007"
+        "mentryId": "MEN-TRN-1007",
+        "lastLoginAt": "2026-09-04T16:51:37+02:00"
     },
     {
         "name": "Bhavani",
