@@ -74,8 +74,8 @@ try {
     Assert-Check "Unauthenticated AI Access Blocked (Security Gate Active)" ($status -eq 401 -or $status -eq 403 -or $_.Exception.Message -match "403|401") "Status: $status"
 }
 
-# 2.2 Admin Login
-$loginParams = @{ email = "admin@mentry.test"; password = "admin123" }
+$testAdminPass = if ($env:ADMIN_TEST_PASS) { $env:ADMIN_TEST_PASS } else { "admin123" }
+$loginParams = @{ email = "admin@mentry.test"; password = $testAdminPass }
 try {
     $loginRes = Invoke-WebRequest -Uri "$BaseUrl/admin-login.php" -Method POST -Body $loginParams -WebSession $session -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue
     Assert-Check "Admin Login Successful" ($loginRes.StatusCode -eq 302 -and $loginRes.Headers.Location -match "admin/index.php") "Redirect: $($loginRes.Headers.Location)"

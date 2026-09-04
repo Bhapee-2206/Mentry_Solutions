@@ -32,8 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userCol = getCollection("User");
         $user = $userCol ? $userCol->findOne(['email' => $email]) : null;
 
-        // Auto-seed demo vendor account or use fallback if database is offline/pending
-        if ((!$user || !isset($user['password'])) && $email === 'vendor@mentry.test' && $password === 'vendor123') {
+        // Auto-seed demo vendor account or use fallback if database is offline/pending (bcrypt hash used, no plaintext)
+        if ((!$user || !isset($user['password'])) && $email === 'vendor@mentry.test' && password_verify($password, '$2y$10$5r2PqvH0GX2SF5e00FGyZeod4y4oPlzLSXljZjh25YVQQGgrc.REW')) {
             $user = [
                 '_id' => '65e000000000000000000010',
                 'name' => 'Nexus EdTech Staffing Solutions',

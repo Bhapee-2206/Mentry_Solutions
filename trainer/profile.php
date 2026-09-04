@@ -16,7 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $currentState = trim($_POST['currentState'] ?? '');
     $dailyRateINR = (float)($_POST['dailyRateINR'] ?? 6000);
     $travelPreference = trim($_POST['travelPreference'] ?? 'PAN_INDIA');
-    $bio = trim($_POST['bio'] ?? '');
 
     if ($trainerCol) {
         $trainerCode = $trainer['trainerCode'] ?? ($trainer['mentryId'] ?? ($user['trainerCode'] ?? ''));
@@ -34,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'currentState' => $currentState,
             'dailyRateINR' => $dailyRateINR,
             'travelPreference' => $travelPreference,
-            'bio' => $bio,
             'status' => $trainer['status'] ?? 'PENDING_APPROVAL',
             'updatedAt' => new MongoDB\BSON\UTCDateTime()
         ];
@@ -79,7 +77,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $avatarSuccess = $_SESSION['avatar_success'] ?? null;
 $avatarError = $_SESSION['avatar_error'] ?? null;
-unset($_SESSION['avatar_success'], $_SESSION['avatar_error']);
+$resumeExtractedCount = $_SESSION['resume_skills_extracted'] ?? null;
+$uploadError = $_SESSION['upload_error'] ?? null;
+unset($_SESSION['avatar_success'], $_SESSION['avatar_error'], $_SESSION['resume_skills_extracted'], $_SESSION['extracted_skills_list'], $_SESSION['upload_error']);
+
+// Fetch latest resume document
+$docCol = getCollection("Document");
+$resumeDoc = null;
+if (!empty($trainer['_id'])) {
+    $resumeDoc = $docCol ? $docCol->findOne([
+        'trainerId' => (string)$trainer['_id'],
+        'type' => 'RESUME'
+    ], ['sort' => ['uploadedAt' => -1]]) : null;
+}
+$resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
 ?>
 
 <div class="max-w-4xl mx-auto space-y-6">
@@ -114,6 +125,22 @@ unset($_SESSION['avatar_success'], $_SESSION['avatar_error']);
         </div>
     <?php endif; ?>
 
+    <?php if ($resumeExtractedCount): ?>
+        <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between">
+            <span class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-base text-emerald-600">check_circle</span>
+                Resume uploaded successfully! Extracted <?= (int)$resumeExtractedCount ?> verified skills automatically.
+            </span>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($uploadError): ?>
+        <div class="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-base text-rose-600">error</span>
+            <?= htmlspecialchars($uploadError) ?>
+        </div>
+    <?php endif; ?>
+
     <!-- Profile Photo Upload Card -->
     <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-card">
         <div class="flex flex-col sm:flex-row items-center gap-6">
@@ -139,6 +166,88 @@ unset($_SESSION['avatar_success'], $_SESSION['avatar_error']);
                 </form>
             </div>
         </div>
+    </div>
+
+    <!-- Trainer Resume & Document Management Card -->
+    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-2xl">description</span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-bold text-sm text-slate-900">Trainer Resume / CV</h3>
+                        <span class="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-blue-200">
+                            Auto Skill Sync
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">Upload your updated resume (PDF or DOCX). Admin reviews your document directly in-system.</p>
+                </div>
+            </div>
+
+            <?php if (!empty($resumeUrl)): 
+                $cleanTrainerName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($user['name'] ?? 'Trainer'));
+                $cleanTrainerCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim(getMentryCode('TRAINER', $trainer ?? $user)));
+                $trainerDocPrefix = $cleanTrainerName . '_' . $cleanTrainerCode;
+                $primaryResumeExt = strtolower(pathinfo($resumeUrl ?? '', PATHINFO_EXTENSION)) ?: 'pdf';
+                $trainerResumeDownloadName = $trainerDocPrefix . '_Resume.' . $primaryResumeExt;
+                $trainerResumeDownloadUrl = '/actions/download-document.php?url=' . urlencode($resumeUrl ?? '') . '&filename=' . urlencode($trainerResumeDownloadName);
+            ?>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="openDocumentPreview('<?= htmlspecialchars($resumeUrl) ?>', '<?= htmlspecialchars(addslashes($resumeDoc['title'] ?? 'Technical Trainer Resume')) ?>', '<?= htmlspecialchars(addslashes($trainerResumeDownloadName)) ?>')" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer">
+                        <span class="material-symbols-outlined text-[16px]">visibility</span>
+                        Preview Document
+                    </button>
+                    <a href="<?= htmlspecialchars($trainerResumeDownloadUrl) ?>" download="<?= htmlspecialchars($trainerResumeDownloadName) ?>" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs p-2.5 rounded-xl transition-colors shrink-0" title="Download <?= htmlspecialchars($trainerResumeDownloadName) ?>">
+                        <span class="material-symbols-outlined text-[16px]">download</span>
+                    </a>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <?php if (!empty($resumeUrl)): ?>
+            <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-rose-500 text-3xl">picture_as_pdf</span>
+                    <div>
+                        <p class="font-bold text-xs text-slate-900"><?= htmlspecialchars($resumeDoc['originalName'] ?? basename($resumeUrl)) ?></p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">
+                            Uploaded <?= formatDate($resumeDoc['uploadedAt'] ?? null) ?> • 
+                            <span class="text-emerald-700 font-bold">Active in College Dossier</span>
+                        </p>
+                    </div>
+                </div>
+                <button type="button" onclick="openDocumentPreview('<?= htmlspecialchars($resumeUrl) ?>', '<?= htmlspecialchars(addslashes($resumeDoc['title'] ?? 'Technical Trainer Resume')) ?>', '<?= htmlspecialchars(addslashes($trainerResumeDownloadName)) ?>')" class="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 self-start sm:self-auto cursor-pointer">
+                    <span class="material-symbols-outlined text-[15px]">open_in_new</span>
+                    View Fullscreen Preview
+                </button>
+            </div>
+        <?php else: ?>
+            <div class="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-900 text-xs font-medium flex items-center gap-2">
+                <span class="material-symbols-outlined text-amber-600 text-lg">warning</span>
+                <span>No resume uploaded yet. Upload your CV now to enable automatic skill parsing and admin review.</span>
+            </div>
+        <?php endif; ?>
+
+        <!-- Upload Form -->
+        <form action="/actions/upload-document.php" method="POST" enctype="multipart/form-data" class="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-3">
+            <input type="hidden" name="trainerId" value="<?= (string)($trainer['_id'] ?? '') ?>">
+            <input type="hidden" name="type" value="RESUME">
+            <input type="hidden" name="title" value="Technical Trainer Resume - <?= htmlspecialchars($user['name']) ?>">
+
+            <div class="w-full flex-1">
+                <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                    <?= !empty($resumeUrl) ? 'Replace / Upload Updated Resume (PDF or DOCX, Max 5MB)' : 'Select Resume File (PDF or DOCX, Max 5MB)' ?>
+                </label>
+                <input type="file" name="document" required accept=".pdf,.docx,.doc,.txt" class="w-full text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-2 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+            </div>
+
+            <button type="submit" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 shrink-0 self-end">
+                <span class="material-symbols-outlined text-[16px]">upload_file</span>
+                <?= !empty($resumeUrl) ? 'Update Resume Document' : 'Upload Resume Document' ?>
+            </button>
+        </form>
     </div>
 
     <form method="POST" action="/trainer/profile.php" class="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-6">
@@ -188,11 +297,6 @@ unset($_SESSION['avatar_success'], $_SESSION['avatar_error']);
             </div>
         </div>
 
-        <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Professional Bio</label>
-            <textarea name="bio" rows="4" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none"><?= htmlspecialchars($trainer['bio'] ?? '') ?></textarea>
-        </div>
-
         <div class="pt-2 flex justify-end">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-8 py-3 rounded-xl shadow-md transition-all">
                 Save Profile Changes
@@ -200,6 +304,59 @@ unset($_SESSION['avatar_success'], $_SESSION['avatar_error']);
         </div>
     </form>
 </div>
+
+<!-- In-Browser Document Preview Modal (No Download Required) -->
+<div id="documentPreviewModal" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+            <div class="flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-[#FE5E04] text-2xl">description</span>
+                <div>
+                    <h3 id="previewDocTitle" class="font-bold text-sm text-slate-900">Document Preview</h3>
+                    <p class="text-[11px] text-slate-500">In-browser document viewer</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <a id="previewDocDownloadLink" href="#" target="_blank" download class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[15px]">download</span>
+                    Download
+                </a>
+                <button type="button" onclick="closeDocumentPreview()" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+        </div>
+        <div class="flex-1 bg-slate-100 p-2 overflow-hidden relative">
+            <iframe id="previewDocIframe" src="" class="w-full h-full rounded-2xl border-0 bg-white"></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+function openDocumentPreview(url, title, downloadFilename) {
+    const modal = document.getElementById('documentPreviewModal');
+    const iframe = document.getElementById('previewDocIframe');
+    const titleEl = document.getElementById('previewDocTitle');
+    const downloadEl = document.getElementById('previewDocDownloadLink');
+    if (titleEl) titleEl.textContent = title || 'Document Preview';
+    if (downloadEl) {
+        const dlName = downloadFilename || 'document';
+        downloadEl.href = '/actions/download-document.php?url=' + encodeURIComponent(url) + '&filename=' + encodeURIComponent(dlName);
+        downloadEl.setAttribute('download', dlName);
+        downloadEl.setAttribute('title', 'Download ' + dlName);
+    }
+    const previewUrl = '/actions/preview-doc.php?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(title || 'Document');
+    if (iframe) iframe.src = previewUrl;
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeDocumentPreview() {
+    const modal = document.getElementById('documentPreviewModal');
+    const iframe = document.getElementById('previewDocIframe');
+    if (iframe) iframe.src = 'about:blank';
+    if (modal) modal.classList.add('hidden');
+}
+</script>
 
 </main>
 </div>

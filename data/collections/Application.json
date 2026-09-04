@@ -26,5 +26,19 @@
         "_id": "6a9a4fa7f1624b69330f561c",
         "adminNotes": "",
         "reviewedAt": "1788497883046"
+    },
+    {
+        "trainerId": "6a9ab2ecf1624b69330f5679",
+        "opportunityId": "6a9a55fff1624b69330f561d",
+        "proposedDailyRate": 5000,
+        "message": "",
+        "matchScore": 95,
+        "status": "ACCEPTED",
+        "appliedAt": "1788523991511",
+        "createdAt": "1788523991511",
+        "updatedAt": "1788524087170",
+        "_id": "6a9ab5d7f1624b69330f5683",
+        "adminNotes": "",
+        "reviewedAt": "1788524087167"
     }
 ]

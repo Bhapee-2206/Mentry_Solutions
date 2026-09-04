@@ -47,7 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $collegeExperienceYears = (int)($_POST['collegeExperienceYears'] ?? 0);
             $dailyRateINR = (float)($_POST['dailyRateINR'] ?? 0);
             $travelPreference = trim($_POST['travelPreference'] ?? 'PAN_INDIA');
-            $bio = trim($_POST['bio'] ?? '');
             $adminNotes = trim($_POST['adminNotes'] ?? '');
             $adminRating = (float)($_POST['adminRating'] ?? 5.0);
             $status = trim($_POST['status'] ?? ($trainer['status'] ?? 'APPROVED'));
@@ -83,7 +82,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'collegeExperienceYears' => $collegeExperienceYears,
                 'dailyRateINR' => $dailyRateINR,
                 'travelPreference' => $travelPreference,
-                'bio' => $bio,
                 'adminNotes' => $adminNotes,
                 'adminRating' => $adminRating,
                 'status' => $status,

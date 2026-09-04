@@ -168,7 +168,7 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
                                         <?= htmlspecialchars($op['title']) ?>
                                     </a>
                                     <div class="flex items-center gap-2 mt-1">
-                                        <span class="font-mono text-[10px] font-bold text-[#FE5E04] bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md">
+                                        <span class="font-mono text-[10px] font-bold text-[#FE5E04] bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md whitespace-nowrap shrink-0 inline-flex items-center">
                                             <?= htmlspecialchars(getMentryCode('OPPORTUNITY', $op)) ?>
                                         </span>
                                         <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold"><?= htmlspecialchars($op['domain'] ?? 'General') ?></span>

@@ -35,16 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userCol = getCollection("User");
         $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
 
-        // Built-in demo trainer credentials fallback
+        // Built-in demo trainer credentials fallback using secure bcrypt hashes (no plaintext passwords in code)
         $demoTrainerAccounts = [
-            'trainer@mentry.test' => ['pass' => 'trainer123', 'name' => 'Rajesh Verma (Senior DevOps Architect)', 'trainerId' => '65e000000000000000000021'],
-            'rajesh.verma@example.com' => ['pass' => 'trainer123', 'name' => 'Rajesh Verma', 'trainerId' => '65e000000000000000000021'],
-            'priya.sharma@example.com' => ['pass' => 'trainer123', 'name' => 'Dr. Priya Sharma', 'trainerId' => '65e000000000000000000022'],
+            'trainer@mentry.test' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Rajesh Verma (Senior DevOps Architect)', 'trainerId' => '65e000000000000000000021'],
+            'rajesh.verma@example.com' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Rajesh Verma', 'trainerId' => '65e000000000000000000021'],
+            'priya.sharma@example.com' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Dr. Priya Sharma', 'trainerId' => '65e000000000000000000022'],
         ];
 
         if ((!$user || !isset($user['password'])) && isset($demoTrainerAccounts[$email])) {
             $demo = $demoTrainerAccounts[$email];
-            if ($password === $demo['pass']) {
+            if (password_verify($password, $demo['hash'])) {
                 $user = [
                     '_id' => '65e000000000000000000020',
                     'email' => $email,

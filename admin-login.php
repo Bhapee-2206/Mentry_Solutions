@@ -27,17 +27,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $user = $userCol ? $userCol->findOne(['email' => $email]) : null;
 
-        // Built-in demo credentials fallback (ensures immediate access online and offline)
+        // Built-in demo credentials fallback using secure bcrypt hashes (no plaintext passwords in code)
         $demoAdminAccounts = [
-            'admin@mentry.test' => ['pass' => 'admin123', 'name' => 'Operations Director (Admin 1)', 'role' => 'ADMIN', 'id' => '65e000000000000000000001'],
-            'admin2@mentry.test' => ['pass' => 'admin123', 'name' => 'Lead Administrator (Admin 2)', 'role' => 'ADMIN', 'id' => '65e000000000000000000002'],
-            'staff1@mentry.test' => ['pass' => 'staff123', 'name' => 'Operations Coordinator (Staff 1)', 'role' => 'STAFF', 'id' => '65e000000000000000000003'],
-            'staff2@mentry.test' => ['pass' => 'staff123', 'name' => 'Talent Sourcing Specialist (Staff 2)', 'role' => 'STAFF', 'id' => '65e000000000000000000004'],
+            'admin@mentry.test' => ['hash' => '$2y$10$uuj71c/RpLiWaZiOx.XnF.7RgogZOg2fPHjb8.gFdtqNIwVq3j8E6', 'name' => 'Operations Director (Admin 1)', 'role' => 'ADMIN', 'id' => '65e000000000000000000001'],
+            'admin2@mentry.test' => ['hash' => '$2y$10$KVX1kXyHKDY2ShUb.Wi5n.Bxip8ARejEvuQd0fguzFXRdKJoz3//i', 'name' => 'Lead Administrator (Admin 2)', 'role' => 'ADMIN', 'id' => '65e000000000000000000002'],
+            'staff1@mentry.test' => ['hash' => '$2y$10$iSNsuLaM6cq6krZRUr4nBO/v/JBzZ263Kxn4RYLTNeHRGnLyWc/CK', 'name' => 'Operations Coordinator (Staff 1)', 'role' => 'STAFF', 'id' => '65e000000000000000000003'],
+            'staff2@mentry.test' => ['hash' => '$2y$10$rB72f1iV.WvGqT.1Ocv.8eK864y9lH048f0oV9z8y7vQ62tLgC52m', 'name' => 'Talent Sourcing Specialist (Staff 2)', 'role' => 'STAFF', 'id' => '65e000000000000000000004'],
         ];
 
         if ((!$user || !isset($user['password'])) && isset($demoAdminAccounts[$email])) {
             $demo = $demoAdminAccounts[$email];
-            if ($password === $demo['pass']) {
+            if (password_verify($password, $demo['hash'])) {
                 $user = [
                     '_id' => $demo['id'],
                     'email' => $email,

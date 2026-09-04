@@ -104,16 +104,12 @@ require_once __DIR__ . '/includes/sidebar.php';
                             Photo
                         </a>
                     <?php endif; ?>
-                    <button type="button" onclick="document.getElementById('uploadTrainerPhotoModal').classList.remove('hidden')" class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors cursor-pointer" title="Upload New Profile Photo">
-                        <span class="material-symbols-outlined text-[13px]">photo_camera</span>
-                        Change
-                    </button>
                 </div>
             </div>
             <div class="space-y-1">
                 <div class="flex flex-wrap items-center gap-2">
                     <h1 class="text-2xl font-black text-slate-900"><?= htmlspecialchars($u['name'] ?? 'Trainer') ?></h1>
-                    <span class="font-mono text-xs font-black text-[#FE5E04] bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg shadow-2xs">
+                    <span class="font-mono text-xs font-black text-[#FE5E04] bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg shadow-2xs whitespace-nowrap shrink-0 inline-flex items-center">
                         <?= htmlspecialchars(getMentryCode('TRAINER', $trainer)) ?>
                     </span>
                     <?= getStatusBadge($trainer['status'] ?? 'PENDING_APPROVAL') ?>
@@ -252,12 +248,6 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <span class="font-bold text-slate-900"><?= htmlspecialchars(str_replace('_', ' ', $trainer['travelPreference'] ?? 'PAN_INDIA')) ?></span>
                     </div>
                 </div>
-            </div>
-
-            <!-- Bio Statement -->
-            <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-2">
-                <h3 class="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">Professional Biography</h3>
-                <p class="text-xs text-slate-600 leading-relaxed"><?= nl2br(htmlspecialchars($trainer['bio'] ?? 'No bio statement submitted.')) ?></p>
             </div>
 
             <!-- Internal Admin Notes -->
@@ -405,7 +395,16 @@ require_once __DIR__ . '/includes/sidebar.php';
                     </div>
                 <?php else: ?>
                     <div class="space-y-2.5">
-                        <?php if (!empty($trainer['resumeUrl'])): ?>
+                        <?php 
+                        $cleanTrainerName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($u['name'] ?? 'Trainer'));
+                        $cleanTrainerCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim(getMentryCode('TRAINER', $trainer)));
+                        $trainerDocPrefix = $cleanTrainerName . '_' . $cleanTrainerCode;
+
+                        if (!empty($trainer['resumeUrl'])): 
+                            $primaryResumeExt = strtolower(pathinfo($trainer['resumeUrl'] ?? '', PATHINFO_EXTENSION)) ?: 'pdf';
+                            $primaryResumeDownloadName = $trainerDocPrefix . '_Resume.' . $primaryResumeExt;
+                            $primaryResumeDownloadUrl = '/actions/download-document.php?url=' . urlencode($trainer['resumeUrl'] ?? '') . '&filename=' . urlencode($primaryResumeDownloadName);
+                        ?>
                             <div class="p-3.5 rounded-2xl bg-blue-50/50 border border-blue-200/70 flex items-center justify-between">
                                 <div class="flex items-center gap-3">
                                     <span class="material-symbols-outlined text-blue-600 text-2xl">description</span>
@@ -415,9 +414,12 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <a href="<?= htmlspecialchars($trainer['resumeUrl']) ?>" target="_blank" download class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1">
+                                    <button type="button" onclick="openAdminDocViewer('<?= htmlspecialchars($trainer['resumeUrl']) ?>', 'Primary Candidate Resume - <?= htmlspecialchars(addslashes($u['name'] ?? 'Trainer')) ?>', '<?= htmlspecialchars(addslashes($primaryResumeDownloadName)) ?>')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                                        <span class="material-symbols-outlined text-[15px]">visibility</span>
+                                        Preview Document
+                                    </button>
+                                    <a href="<?= htmlspecialchars($primaryResumeDownloadUrl) ?>" download="<?= htmlspecialchars($primaryResumeDownloadName) ?>" class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold p-1.5 rounded-xl transition-all" title="Download <?= htmlspecialchars($primaryResumeDownloadName) ?>">
                                         <span class="material-symbols-outlined text-[15px]">download</span>
-                                        Download
                                     </a>
                                 </div>
                             </div>
@@ -425,6 +427,10 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                         <?php foreach ($documents as $d): 
                             $docId = (string)($d['_id'] ?? ($d['id'] ?? ''));
+                            $docExt = strtolower(pathinfo($d['fileUrl'] ?? '', PATHINFO_EXTENSION)) ?: 'pdf';
+                            $cleanDocTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($d['title'] ?? 'Document'));
+                            $docDownloadName = $trainerDocPrefix . '_' . $cleanDocTitle . '.' . $docExt;
+                            $docDownloadUrl = '/actions/download-document.php?url=' . urlencode($d['fileUrl'] ?? '') . '&filename=' . urlencode($docDownloadName);
                         ?>
                             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between hover:bg-slate-100/50 transition-colors">
                                 <div class="flex items-center gap-3">
@@ -435,16 +441,19 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <a href="<?= htmlspecialchars($d['fileUrl'] ?? '#') ?>" target="_blank" download class="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1">
+                                    <button type="button" onclick="openAdminDocViewer('<?= htmlspecialchars($d['fileUrl'] ?? '#') ?>', '<?= htmlspecialchars(addslashes($d['title'] ?? 'Trainer Document')) ?>', '<?= htmlspecialchars(addslashes($docDownloadName)) ?>')" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                                        <span class="material-symbols-outlined text-[15px]">visibility</span>
+                                        Preview Document
+                                    </button>
+                                    <a href="<?= htmlspecialchars($docDownloadUrl) ?>" download="<?= htmlspecialchars($docDownloadName) ?>" class="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold p-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1" title="Download <?= htmlspecialchars($docDownloadName) ?>">
                                         <span class="material-symbols-outlined text-[15px]">download</span>
-                                        Download
                                     </a>
                                     <?php if (!empty($docId)): ?>
                                     <form action="/actions/update-trainer.php" method="POST" class="inline" onsubmit="return confirm('Delete this document?');">
                                         <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
                                         <input type="hidden" name="action_type" value="delete_document">
                                         <input type="hidden" name="docId" value="<?= $docId ?>">
-                                        <button type="submit" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer">
+                                        <button type="submit" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Delete record">
                                             <span class="material-symbols-outlined text-[16px]">delete</span>
                                         </button>
                                     </form>
@@ -456,45 +465,39 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <?php endif; ?>
             </div>
 
-            <!-- Skills Stack with Add/Delete Capability -->
+            <!-- Skills Stack (Maintained by Trainer) -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
                 <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <h3 class="font-bold text-sm text-slate-900">Verified Technical Skills Stack (<?= count($skills) ?>)</h3>
-                    <button onclick="document.getElementById('addSkillModal').classList.remove('hidden')" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[15px]">add</span> Add Skill
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-bold text-sm text-slate-900">Verified Technical Skills Stack (<?= count($skills) ?>)</h3>
+                        <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200">
+                            Maintained by Trainer
+                        </span>
+                    </div>
                 </div>
 
                 <?php if (empty($skills)): ?>
                     <p class="text-xs text-slate-400">No skills listed yet.</p>
                 <?php else: ?>
                     <div class="flex flex-wrap gap-2">
-                        <?php foreach ($skills as $sk): 
-                            $skId = (string)($sk['_id'] ?? ($sk['id'] ?? ''));
-                        ?>
+                        <?php foreach ($skills as $sk): ?>
                             <span class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 text-xs font-bold px-3 py-1.5 rounded-xl border border-blue-200">
                                 <?= htmlspecialchars($sk['name']) ?> (<?= htmlspecialchars($sk['yearsOfExperience'] ?? 3) ?>y)
-                                <?php if (!empty($skId)): ?>
-                                <form action="/actions/update-trainer.php" method="POST" class="inline">
-                                    <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
-                                    <input type="hidden" name="action_type" value="delete_skill">
-                                    <input type="hidden" name="skillId" value="<?= $skId ?>">
-                                    <button type="submit" class="text-blue-400 hover:text-rose-600 ml-1 leading-none cursor-pointer" title="Remove skill">×</button>
-                                </form>
-                                <?php endif; ?>
                             </span>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
             </div>
 
-            <!-- Training History & College Engagements -->
+            <!-- Training History & College Engagements (Maintained by Trainer) -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
                 <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <h3 class="font-bold text-sm text-slate-900">Campus Training Engagements (<?= count($experiences) ?>)</h3>
-                    <button onclick="document.getElementById('addExpModal').classList.remove('hidden')" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[15px]">add</span> Add College Experience
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-bold text-sm text-slate-900">Campus Training Engagements (<?= count($experiences) ?>)</h3>
+                        <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200">
+                            Maintained by Trainer
+                        </span>
+                    </div>
                 </div>
 
                 <?php if (empty($experiences)): ?>
@@ -502,7 +505,6 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <?php else: ?>
                     <div class="space-y-3">
                         <?php foreach ($experiences as $ex): 
-                            $exId = (string)($ex['_id'] ?? ($ex['id'] ?? ''));
                             $orgName = $ex['organization'] ?? ($ex['company'] ?? ($ex['institution'] ?? ($ex['college'] ?? '')));
                         ?>
                             <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-start justify-between gap-4">
@@ -513,17 +515,6 @@ require_once __DIR__ . '/includes/sidebar.php';
                                         <p class="text-[11px] text-slate-500 italic mt-1"><?= nl2br(htmlspecialchars($ex['description'])) ?></p>
                                     <?php endif; ?>
                                 </div>
-
-                                <?php if (!empty($exId)): ?>
-                                <form action="/actions/update-trainer.php" method="POST" class="inline" onsubmit="return confirm('Delete this experience entry?');">
-                                    <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
-                                    <input type="hidden" name="action_type" value="delete_experience">
-                                    <input type="hidden" name="experienceId" value="<?= $exId ?>">
-                                    <button type="submit" class="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer">
-                                        <span class="material-symbols-outlined text-[16px]">delete</span>
-                                    </button>
-                                </form>
-                                <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -631,11 +622,6 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </div>
 
                 <div class="sm:col-span-2">
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Professional Bio</label>
-                    <textarea name="bio" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white"><?= htmlspecialchars($trainer['bio'] ?? '') ?></textarea>
-                </div>
-
-                <div class="sm:col-span-2">
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Admin Internal Audit Notes</label>
                     <textarea name="adminNotes" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white"><?= htmlspecialchars($trainer['adminNotes'] ?? '') ?></textarea>
                 </div>
@@ -647,89 +633,6 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </button>
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-xs transition-colors">
                     Save Changes
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- ================= MODAL: ADD SKILL ================= -->
-<div id="addSkillModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 class="text-base font-black text-slate-900">Add Technical Skill</h3>
-            <button onclick="document.getElementById('addSkillModal').classList.add('hidden')" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
-                <span class="material-symbols-outlined">close</span>
-            </button>
-        </div>
-
-        <form action="/actions/update-trainer.php" method="POST" class="space-y-4">
-            <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
-            <input type="hidden" name="action_type" value="add_skill">
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Skill / Technology Name *</label>
-                <input type="text" name="skillName" required placeholder="e.g. Python, AWS DevOps, Spring Boot" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Years of Hands-on Experience</label>
-                <input type="number" name="yearsOfExperience" value="3" min="1" max="40" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
-            </div>
-
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="document.getElementById('addSkillModal').classList.add('hidden')" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
-                    Cancel
-                </button>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2 rounded-xl shadow-xs">
-                    Add Skill
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- ================= MODAL: ADD EXPERIENCE ================= -->
-<div id="addExpModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 class="text-base font-black text-slate-900">Add Campus Training Experience</h3>
-            <button onclick="document.getElementById('addExpModal').classList.add('hidden')" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
-                <span class="material-symbols-outlined">close</span>
-            </button>
-        </div>
-
-        <form action="/actions/update-trainer.php" method="POST" class="space-y-4">
-            <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
-            <input type="hidden" name="action_type" value="add_experience">
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Institution / College / Client *</label>
-                <input type="text" name="organization" required placeholder="e.g. BMS College of Engineering" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Role / Module Delivered *</label>
-                    <input type="text" name="role" required placeholder="e.g. Lead Full Stack Trainer" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Students Trained</label>
-                    <input type="number" name="studentsTrained" value="120" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Engagement Highlights & Syllabus</label>
-                <textarea name="description" rows="2" placeholder="Topics covered, student ratings, coding hackathons..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white"></textarea>
-            </div>
-
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="document.getElementById('addExpModal').classList.add('hidden')" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
-                    Cancel
-                </button>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2 rounded-xl shadow-xs">
-                    Save Record
                 </button>
             </div>
         </form>
@@ -822,12 +725,6 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </div>
             </div>
 
-            <!-- Summary -->
-            <div class="space-y-2">
-                <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-1">Executive Summary</h3>
-                <p class="text-xs text-slate-700 leading-relaxed"><?= nl2br(htmlspecialchars($trainer['bio'] ?? 'Dedicated technical trainer specializing in campus bootcamps, corporate upskilling, and hands-on coding pedagogy with strong feedback records across premier institutions.')) ?></p>
-            </div>
-
             <!-- Core Skills Matrix -->
             <div class="space-y-3">
                 <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-200 pb-1">Core Technical Competencies</h3>
@@ -914,54 +811,64 @@ require_once __DIR__ . '/includes/sidebar.php';
     </div>
 </div>
 
-<!-- ================= MODAL: UPLOAD TRAINER PROFILE PHOTO ================= -->
-<div id="uploadTrainerPhotoModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+<!-- ================= MODAL: IN-BROWSER DOCUMENT / RESUME VIEWER (NO DOWNLOAD) ================= -->
+<div id="documentViewerModal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-2xl">visibility</span>
+                </div>
+                <div>
+                    <h3 id="adminDocViewerTitle" class="font-bold text-sm text-slate-900">Document Preview</h3>
+                    <p class="text-[11px] text-slate-500">Live In-Browser Document Viewer &bull; No download required</p>
+                </div>
+            </div>
             <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-blue-600">photo_camera</span>
-                <h3 class="text-base font-black text-slate-900">Update Profile Photo</h3>
+                <a id="adminDocViewerDownload" href="#" target="_blank" download class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[15px]">download</span>
+                    Download
+                </a>
+                <button type="button" onclick="closeAdminDocViewer()" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
             </div>
-            <button onclick="document.getElementById('uploadTrainerPhotoModal').classList.add('hidden')" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
-                <span class="material-symbols-outlined">close</span>
-            </button>
         </div>
-
-        <form action="/actions/upload-avatar.php" method="POST" enctype="multipart/form-data" class="space-y-4">
-            <input type="hidden" name="targetUserId" value="<?= (string)$u['_id'] ?>">
-
-            <div class="flex justify-center pb-2">
-                <img src="<?= htmlspecialchars(getUserAvatar($u, 160)) ?>" class="w-20 h-20 rounded-3xl object-cover border-2 border-slate-200 shadow-sm">
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Upload Photo File (Max 2MB)</label>
-                <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp" class="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-2 w-full file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-                <p class="text-[11px] text-slate-400 mt-1">Accepted: JPG, PNG, WebP.</p>
-            </div>
-
-            <div class="relative flex py-1 items-center">
-                <div class="flex-grow border-t border-slate-200"></div>
-                <span class="flex-shrink mx-3 text-slate-400 text-[11px] font-bold uppercase">OR</span>
-                <div class="flex-grow border-t border-slate-200"></div>
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Direct Image URL</label>
-                <input type="url" name="avatarUrl" placeholder="https://images.unsplash.com/... or https://..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
-            </div>
-
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="document.getElementById('uploadTrainerPhotoModal').classList.add('hidden')" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
-                    Cancel
-                </button>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs">
-                    Save Profile Photo
-                </button>
-            </div>
-        </form>
+        <div class="flex-1 bg-slate-100 p-2 overflow-hidden relative">
+            <iframe id="adminDocViewerIframe" src="" class="w-full h-full rounded-2xl border-0 bg-white"></iframe>
+        </div>
     </div>
 </div>
+
+<script>
+function openAdminDocViewer(url, title, downloadFilename) {
+    const modal = document.getElementById('documentViewerModal');
+    const iframe = document.getElementById('adminDocViewerIframe');
+    const titleEl = document.getElementById('adminDocViewerTitle');
+    const downloadEl = document.getElementById('adminDocViewerDownload');
+    
+    if (titleEl) titleEl.textContent = title || 'Document Preview';
+    
+    if (downloadEl) {
+        const dlName = downloadFilename || 'document';
+        downloadEl.href = '/actions/download-document.php?url=' + encodeURIComponent(url) + '&filename=' + encodeURIComponent(dlName);
+        downloadEl.setAttribute('download', dlName);
+        downloadEl.setAttribute('title', 'Download ' + dlName);
+    }
+
+    // Load through /actions/preview-doc.php so DOCX files render as formatted HTML and PDFs render inline without auto-download!
+    const previewUrl = '/actions/preview-doc.php?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(title || 'Document');
+    if (iframe) iframe.src = previewUrl;
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeAdminDocViewer() {
+    const modal = document.getElementById('documentViewerModal');
+    const iframe = document.getElementById('adminDocViewerIframe');
+    if (iframe) iframe.src = 'about:blank';
+    if (modal) modal.classList.add('hidden');
+}
+</script>
 
 </main>
 </div>

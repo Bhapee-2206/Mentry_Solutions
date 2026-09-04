@@ -43,14 +43,14 @@ $skillCol = getCollection("Skill");
 $docCol = getCollection("Document");
 $expCol = getCollection("Experience");
 
-$hasBio = !empty($trainer['bio']);
+$hasTitle = !empty($trainer['professionalTitle']);
 $hasSkills = $skillCol ? ($skillCol->countDocuments(['trainerId' => $trainerId]) > 0) : false;
 $hasDoc = $docCol ? ($docCol->countDocuments(['trainerId' => $trainerId]) > 0) : false;
 $hasExp = $expCol ? ($expCol->countDocuments(['trainerId' => $trainerId]) > 0) : false;
 $hasPhoto = !empty($user['avatar']) && strpos($user['avatar'], 'avatar.vercel.sh') === false;
 
 $completedSteps = 1; // Basic account info
-if ($hasBio) $completedSteps++;
+if ($hasTitle) $completedSteps++;
 if ($hasSkills) $completedSteps++;
 if ($hasDoc) $completedSteps++;
 if ($hasExp) $completedSteps++;
@@ -121,11 +121,6 @@ $isNewSignup = isset($_GET['new_signup']);
             </p>
         </div>
         <div class="flex items-center gap-2.5">
-            <button type="button" onclick="openAvailabilityModal()" class="bg-white border-2 border-emerald-500 text-emerald-700 hover:bg-emerald-50 font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Update My Availability</span>
-            </button>
-
             <a href="/trainer/opportunities.php" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-base">search</span>
                 Explore Assignments
@@ -417,14 +412,14 @@ $isNewSignup = isset($_GET['new_signup']);
         <div class="space-y-2">
             <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Pending Profile Steps:</h4>
             
-            <div class="flex items-center justify-between p-3 rounded-xl <?= $hasBio ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
+            <div class="flex items-center justify-between p-3 rounded-xl <?= $hasTitle ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
                 <div class="flex items-center gap-2.5">
-                    <span class="material-symbols-outlined text-base <?= $hasBio ? 'text-emerald-600' : 'text-slate-400' ?>">
-                        <?= $hasBio ? 'check_circle' : 'radio_button_unchecked' ?>
+                    <span class="material-symbols-outlined text-base <?= $hasTitle ? 'text-emerald-600' : 'text-slate-400' ?>">
+                        <?= $hasTitle ? 'check_circle' : 'radio_button_unchecked' ?>
                     </span>
-                    <span class="text-xs font-semibold <?= $hasBio ? 'text-emerald-950' : 'text-slate-700' ?>">Teaching Bio & Professional Title</span>
+                    <span class="text-xs font-semibold <?= $hasTitle ? 'text-emerald-950' : 'text-slate-700' ?>">Professional Title & Domain</span>
                 </div>
-                <span class="text-[11px] font-bold <?= $hasBio ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasBio ? 'Done' : '+15%' ?></span>
+                <span class="text-[11px] font-bold <?= $hasTitle ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasTitle ? 'Done' : '+15%' ?></span>
             </div>
 
             <div class="flex items-center justify-between p-3 rounded-xl <?= $hasSkills ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">

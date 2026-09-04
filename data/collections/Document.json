@@ -166,5 +166,35 @@
         "_id": "6a9a82baf1624b69330f5634",
         "createdAt": "1788510906858",
         "updatedAt": "1788510906858"
+    },
+    {
+        "trainerId": "6a9ab2ecf1624b69330f5679",
+        "title": "Technical Trainer Resume - Bhavani",
+        "type": "RESUME",
+        "fileUrl": "/public/uploads/documents/doc_6a9ab2ecf1624b69330f5679_1788523407_350.docx",
+        "originalName": "AMohamedAslam_Resume.docx",
+        "fileSize": 11363,
+        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "status": "VERIFIED",
+        "uploadedAt": "1788523407847",
+        "uploadedBy": "6a9ab2ebf1624b69330f5678",
+        "_id": "6a9ab38ff1624b69330f567a",
+        "createdAt": "1788523407851",
+        "updatedAt": "1788523407851"
+    },
+    {
+        "trainerId": "6a9ab2ecf1624b69330f5679",
+        "title": "Technical Trainer Resume - Bhavani",
+        "type": "RESUME",
+        "fileUrl": "/public/uploads/documents/doc_6a9ab2ecf1624b69330f5679_1788526959_407.pdf",
+        "originalName": "Jeevanantham.pdf",
+        "fileSize": 729072,
+        "mimeType": "application/pdf",
+        "status": "VERIFIED",
+        "uploadedAt": "1788526959390",
+        "uploadedBy": "6a9ab2ebf1624b69330f5678",
+        "_id": "6a9ac16ff1624b69330f5687",
+        "createdAt": "1788526959391",
+        "updatedAt": "1788526959391"
     }
 ]

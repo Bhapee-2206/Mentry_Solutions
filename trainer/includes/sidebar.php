@@ -29,6 +29,12 @@ $navItems = [
     <link rel="shortcut icon" type="image/png" href="/public/mentry.png">
     <link rel="apple-touch-icon" href="/public/mentry.png">
 
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    <link rel="dns-prefetch" href="//cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
@@ -39,6 +45,7 @@ $navItems = [
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex antialiased">
+<?php require_once __DIR__ . '/../../includes/loading_screen.php'; ?>
 
 <!-- Desktop Sticky Sidebar -->
 <aside class="bg-[#0B1526] text-slate-300 h-screen w-64 shadow-xl flex-col shrink-0 hidden md:flex sticky top-0 z-40 border-r border-slate-800/80 py-6 select-none">

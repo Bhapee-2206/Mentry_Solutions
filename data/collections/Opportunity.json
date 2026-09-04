@@ -307,11 +307,12 @@
         "travelCovered": true,
         "accommodationCovered": true,
         "diningCovered": true,
-        "status": "PUBLISHED",
+        "status": "MATCHED",
         "createdAt": "1788499455067",
-        "updatedAt": "1788508529256",
+        "updatedAt": "1788524087965",
         "_id": "6a9a55fff1624b69330f561d",
-        "mentryId": "MEN-PRO-443"
+        "mentryId": "MEN-PRO-443",
+        "assignedTrainerId": "6a9ab2ecf1624b69330f5679"
     },
     {
         "jobId": "MEN-PRO-311",

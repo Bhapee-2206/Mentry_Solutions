@@ -68,19 +68,35 @@ class PersistentDocumentStore {
         $this->filePath = $dataDir . '/' . $name . '.json';
     }
 
+    private static array $memoryCache = [];
+    private static array $fileMtimes = [];
+
     private function readDocuments(): array {
         if (!file_exists($this->filePath)) {
             return [];
         }
+        $mtime = @filemtime($this->filePath);
+        if (isset(self::$memoryCache[$this->name]) && ($mtime === false || (isset(self::$fileMtimes[$this->name]) && self::$fileMtimes[$this->name] === $mtime))) {
+            return self::$memoryCache[$this->name];
+        }
         $raw = @file_get_contents($this->filePath);
         if (!$raw) return [];
         $decoded = @json_decode($raw, true);
-        return is_array($decoded) ? $decoded : [];
+        $docs = is_array($decoded) ? $decoded : [];
+        self::$memoryCache[$this->name] = $docs;
+        if ($mtime !== false) {
+            self::$fileMtimes[$this->name] = $mtime;
+        }
+        return $docs;
     }
 
     private function writeDocuments(array $docs): bool {
+        self::$memoryCache[$this->name] = $docs;
         $raw = json_encode($docs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $saved = @file_put_contents($this->filePath, $raw, LOCK_EX) !== false;
+        if ($saved) {
+            self::$fileMtimes[$this->name] = @filemtime($this->filePath);
+        }
         $this->syncToSupabaseBatch($docs);
         return $saved;
     }
@@ -138,7 +154,7 @@ class PersistentDocumentStore {
                 'Prefer: resolution=merge-duplicates,return=minimal'
             ]);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT_MS, 1500);
+            curl_setopt($ch, CURLOPT_TIMEOUT_MS, 350);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             @curl_exec($ch);
             @curl_close($ch);
@@ -596,10 +612,20 @@ class Database {
             }
         }
 
-        if (class_exists('MongoDB\Client') && !empty($uri)) {
+        // Check circuit breaker for remote Atlas down
+        $statusFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mentry_atlas_status.json';
+        $skipRemote = false;
+        if (file_exists($statusFile)) {
+            $status = @json_decode(@file_get_contents($statusFile), true);
+            if (is_array($status) && isset($status['fail_until']) && time() < $status['fail_until']) {
+                $skipRemote = true;
+            }
+        }
+
+        if (!$skipRemote && class_exists('MongoDB\Client') && !empty($uri)) {
             try {
                 $uriOptions = [
-                    'serverSelectionTimeoutMS' => 5000,
+                    'serverSelectionTimeoutMS' => 1200,
                     'tls' => true,
                     'tlsAllowInvalidCertificates' => true
                 ];
@@ -614,7 +640,12 @@ class Database {
                 $client->getManager()->executeCommand($dbName, $cmd);
                 $this->client = $client;
                 $this->db = $this->client->selectDatabase($dbName);
+                if (file_exists($statusFile)) {
+                    @unlink($statusFile);
+                }
             } catch (\Throwable $e) {
+                // Trip circuit breaker for 60 seconds so future page requests load instantly without blocking
+                @file_put_contents($statusFile, json_encode(['fail_until' => time() + 60, 'error' => $e->getMessage()]));
                 $this->client = null;
                 $this->db = null;
             }

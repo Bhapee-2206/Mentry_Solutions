@@ -132,7 +132,11 @@ unset($_SESSION['upload_error']);
             <div class="p-6 text-center text-xs text-slate-400">
                 No documents uploaded yet. Upload your resume to expedite verified college matching.
             </div>
-        <?php else: ?>
+        <?php else: 
+            $cleanTrainerName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($user['name'] ?? 'Trainer'));
+            $cleanTrainerCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim(getMentryCode('TRAINER', $trainer ?? $user)));
+            $trainerDocPrefix = $cleanTrainerName . '_' . $cleanTrainerCode;
+        ?>
             <div class="space-y-2">
                 <?php foreach ($documents as $d): ?>
                     <div class="p-4 rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-between">
@@ -147,8 +151,17 @@ unset($_SESSION['upload_error']);
                             <span class="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">
                                 Verified
                             </span>
-                            <?php if (!empty($d['fileUrl'])): ?>
-                                <a href="<?= htmlspecialchars($d['fileUrl']) ?>" target="_blank" download class="p-1.5 text-slate-600 hover:text-[#FE5E04] hover:bg-orange-50 rounded-lg transition-colors">
+                            <?php if (!empty($d['fileUrl'])): 
+                                $docExt = strtolower(pathinfo($d['fileUrl'] ?? '', PATHINFO_EXTENSION)) ?: 'pdf';
+                                $cleanDocTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($d['title'] ?? 'Document'));
+                                $docDownloadName = $trainerDocPrefix . '_' . $cleanDocTitle . '.' . $docExt;
+                                $docDownloadUrl = '/actions/download-document.php?url=' . urlencode($d['fileUrl'] ?? '') . '&filename=' . urlencode($docDownloadName);
+                            ?>
+                                <button type="button" onclick="openDocumentPreview('<?= htmlspecialchars($d['fileUrl']) ?>', '<?= htmlspecialchars(addslashes($d['title'] ?? 'Document')) ?>', '<?= htmlspecialchars(addslashes($docDownloadName)) ?>')" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer">
+                                    <span class="material-symbols-outlined text-[15px]">visibility</span>
+                                    Preview
+                                </button>
+                                <a href="<?= htmlspecialchars($docDownloadUrl) ?>" download="<?= htmlspecialchars($docDownloadName) ?>" class="p-1.5 text-slate-600 hover:text-[#FE5E04] hover:bg-orange-50 rounded-lg transition-colors" title="Download <?= htmlspecialchars($docDownloadName) ?>">
                                     <span class="material-symbols-outlined text-[18px]">download</span>
                                 </a>
                             <?php endif; ?>
@@ -159,6 +172,59 @@ unset($_SESSION['upload_error']);
         <?php endif; ?>
     </div>
 </div>
+
+<!-- In-Browser Document Preview Modal (No Download Required) -->
+<div id="documentPreviewModal" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+            <div class="flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-[#FE5E04] text-2xl">description</span>
+                <div>
+                    <h3 id="previewDocTitle" class="font-bold text-sm text-slate-900">Document Preview</h3>
+                    <p class="text-[11px] text-slate-500">In-browser document viewer</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <a id="previewDocDownloadLink" href="#" target="_blank" download class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[15px]">download</span>
+                    Download
+                </a>
+                <button type="button" onclick="closeDocumentPreview()" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+        </div>
+        <div class="flex-1 bg-slate-100 p-2 overflow-hidden relative">
+            <iframe id="previewDocIframe" src="" class="w-full h-full rounded-2xl border-0 bg-white"></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+function openDocumentPreview(url, title, downloadFilename) {
+    const modal = document.getElementById('documentPreviewModal');
+    const iframe = document.getElementById('previewDocIframe');
+    const titleEl = document.getElementById('previewDocTitle');
+    const downloadEl = document.getElementById('previewDocDownloadLink');
+    if (titleEl) titleEl.textContent = title || 'Document Preview';
+    if (downloadEl) {
+        const dlName = downloadFilename || 'document';
+        downloadEl.href = '/actions/download-document.php?url=' + encodeURIComponent(url) + '&filename=' + encodeURIComponent(dlName);
+        downloadEl.setAttribute('download', dlName);
+        downloadEl.setAttribute('title', 'Download ' + dlName);
+    }
+    const previewUrl = '/actions/preview-doc.php?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(title || 'Document');
+    if (iframe) iframe.src = previewUrl;
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeDocumentPreview() {
+    const modal = document.getElementById('documentPreviewModal');
+    const iframe = document.getElementById('previewDocIframe');
+    if (iframe) iframe.src = 'about:blank';
+    if (modal) modal.classList.add('hidden');
+}
+</script>
 
 </main>
 </div>

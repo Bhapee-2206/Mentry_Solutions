@@ -34,6 +34,12 @@ $navItems = [
     <link rel="shortcut icon" type="image/png" href="/public/mentry.png">
     <link rel="apple-touch-icon" href="/public/mentry.png">
 
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    <link rel="dns-prefetch" href="//cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -59,6 +65,7 @@ $navItems = [
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex antialiased">
+<?php require_once __DIR__ . '/../../includes/loading_screen.php'; ?>
 
 <!-- Desktop Sticky Sidebar -->
 <aside class="bg-[#070D18] text-slate-300 h-screen w-64 shadow-xl flex-col shrink-0 hidden md:flex sticky top-0 z-40 border-r border-slate-800/90 py-6 select-none">

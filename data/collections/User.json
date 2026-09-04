@@ -202,5 +202,18 @@
         "avatar": null,
         "trainerCode": "MEN-TRN-1007",
         "mentryId": "MEN-TRN-1007"
+    },
+    {
+        "name": "Bhavani",
+        "email": "bhavanibalakrishnan0322@gmail.com",
+        "password": "$2y$10$kKdH.R4oRLeSpwvJL710uuAW9fCfHr7T6truYURp3.84YCmCl0bji",
+        "phone": "9345999260",
+        "role": "TRAINER",
+        "trainerCode": "MEN-TRN-1558",
+        "mentryId": "MEN-TRN-1558",
+        "createdAt": "1788523243425",
+        "updatedAt": "1788523375913",
+        "_id": "6a9ab2ebf1624b69330f5678",
+        "avatar": "/public/uploads/avatars/avatar_6a9ab2ebf1624b69330f5678_1788523370.png"
     }
 ]

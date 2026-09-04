@@ -105,7 +105,7 @@ $approvedCount = $reqCol ? $reqCol->countDocuments(['status' => 'APPROVED_PUBLIS
                                         <?= htmlspecialchars($rq['title']) ?>
                                     </a>
                                     <div class="flex items-center gap-2 mt-1">
-                                        <span class="font-mono text-[10px] font-bold text-[#FE5E04] bg-orange-50 border border-orange-200 px-1.5 py-0.2 rounded">
+                                        <span class="font-mono text-[10px] font-bold text-[#FE5E04] bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center">
                                             <?= htmlspecialchars(getMentryCode('VENDOR', $rq)) ?>
                                         </span>
                                         <span class="text-[10px] text-slate-500">
