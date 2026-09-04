@@ -116,15 +116,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" action="/vendor-login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" autocomplete="off" class="space-y-4">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Official Work Email ID</label>
-                <input type="email" id="emailInput" name="email" required placeholder="name@company.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-900 font-medium">
+                <input type="email" id="emailInput" name="email" required placeholder="name@company.com" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-900 font-medium">
             </div>
 
             <div>
                 <div class="flex items-center justify-between mb-1.5">
                     <label class="block text-xs font-bold text-slate-700 uppercase">Password</label>
-                    <a href="/forgot-password.php" class="text-xs text-indigo-600 hover:underline font-semibold">Forgot?</a>
+                    <a href="/forgot-password.php<?= !empty($_GET['email']) ? '?email=' . urlencode($_GET['email']) : '' ?>" class="text-xs text-indigo-600 hover:underline font-semibold">Forgot?</a>
                 </div>
-                <input type="password" id="passInput" name="password" required placeholder="••••••••" autocomplete="current-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-900">
+                <div class="relative">
+                    <input type="password" id="passInput" name="password" required placeholder="••••••••" autocomplete="current-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pr-11 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-900">
+                    <button type="button" onclick="togglePasswordVisibility('passInput', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1" aria-label="Toggle password visibility">
+                        <span class="material-symbols-outlined text-[20px] select-none">visibility</span>
+                    </button>
+                </div>
             </div>
 
             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
@@ -146,6 +151,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script>
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const icon = btn.querySelector('.material-symbols-outlined');
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) icon.textContent = 'visibility_off';
+        } else {
+            input.type = 'password';
+            if (icon) icon.textContent = 'visibility';
+        }
+    }
+
     // Prevent browser bfcache redo / restoring stale form states on Alt + Left Arrow
     window.addEventListener('pageshow', function(event) {
         if (event.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {

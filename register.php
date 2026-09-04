@@ -35,7 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $existing = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
 
         if ($existing) {
-            $error = "An account with this email address already exists. Each email can only create one account. Please <a href='/login.php' class='underline font-bold'>sign in</a>.";
+            $error = "An account with this email address already exists. Each email can only create one account.";
+            $errorExistingEmail = $email;
         } else {
             $trainerCode = getNextSequentialMentryId('TRAINER');
 
@@ -130,8 +131,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <?php if ($error): ?>
-            <div class="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-bold">
-                <?= htmlspecialchars($error) ?>
+            <div class="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl text-xs space-y-2.5">
+                <div class="flex items-center gap-2 font-bold text-rose-900">
+                    <span class="material-symbols-outlined text-rose-600 text-lg">info</span>
+                    <span>Account Notice</span>
+                </div>
+                <p class="text-rose-700 leading-relaxed font-medium">
+                    <?= htmlspecialchars($error) ?>
+                </p>
+                <?php if (!empty($errorExistingEmail)): ?>
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                        <a href="/login.php?email=<?= urlencode($errorExistingEmail) ?>" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-1.5 rounded-xl shadow-xs transition-all inline-flex items-center gap-1">
+                            <span>Sign In to Your Account</span>
+                            <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                        </a>
+                        <a href="/forgot-password.php?email=<?= urlencode($errorExistingEmail) ?>" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold px-3 py-1.5 rounded-xl transition-all">
+                            Reset Password
+                        </a>
+                    </div>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
 
@@ -154,7 +172,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Create Password *</label>
-                <input type="password" name="password" required placeholder="••••••••" autocomplete="new-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <div class="relative">
+                    <input type="password" id="registerPassword" name="password" required placeholder="••••••••" autocomplete="new-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pr-11 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                    <button type="button" onclick="togglePasswordVisibility('registerPassword', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1" aria-label="Toggle password visibility">
+                        <span class="material-symbols-outlined text-[18px] select-none">visibility</span>
+                    </button>
+                </div>
             </div>
 
             <div class="grid sm:grid-cols-2 gap-3">
@@ -190,6 +213,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script>
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const icon = btn.querySelector('.material-symbols-outlined');
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) icon.textContent = 'visibility_off';
+        } else {
+            input.type = 'password';
+            if (icon) icon.textContent = 'visibility';
+        }
+    }
+
     // Prevent browser bfcache redo / restoring stale form states on Alt + Left Arrow
     window.addEventListener('pageshow', function(event) {
         if (event.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {
