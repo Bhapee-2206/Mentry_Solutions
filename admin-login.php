@@ -2,7 +2,6 @@
 // admin-login.php - Admin & Staff Command Center Login
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/scratch/seed_initial_accounts.php';
 
 sendAntiCacheHeaders();
 
