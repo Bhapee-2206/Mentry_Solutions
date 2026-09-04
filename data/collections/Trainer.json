@@ -304,7 +304,7 @@
         "profileCompletion": 50,
         "joinedAt": "1788523244656",
         "createdAt": "1788523244656",
-        "updatedAt": "1788526962703",
+        "updatedAt": "1788532477081",
         "_id": "6a9ab2ecf1624b69330f5679",
         "avatar": "/public/uploads/avatars/avatar_6a9ab2ebf1624b69330f5678_1788523370.png",
         "extractedSkills": [
@@ -319,7 +319,7 @@
         "resumeParsedAt": "1788526960120",
         "resumeUrl": "/public/uploads/documents/doc_6a9ab2ecf1624b69330f5679_1788526959_407.pdf",
         "availabilityNotes": "Delivering: Python DSA",
-        "availableFromDate": "1789250400000",
-        "availabilityUpdatedAt": "1788524088798"
+        "availableFromDate": "1788472800000",
+        "availabilityUpdatedAt": "1788532477079"
     }
 ]

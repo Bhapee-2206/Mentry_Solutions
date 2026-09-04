@@ -348,5 +348,109 @@
         "attachment": null,
         "isAI": true,
         "timestamp": "2026-09-03 19:54:16"
+    },
+    {
+        "id": "msg_6a9ad83b8e31a",
+        "senderId": "6a99b577f1624b69330f55b3",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "@Zervy Profile for Python",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-04 16:39:55"
+    },
+    {
+        "id": "msg_6a9ad83b9bc88",
+        "senderId": "ai_assistant",
+        "senderName": "Zervy (AI Assistant)",
+        "senderRole": "AI_AGENT",
+        "text": "\ud83e\udd16 **Zervy Recommendation** for: *\"Profile for Python\"*\n\n1. **Operations Director (Admin 1)** (80% Match) \u2014 Programming Trainer\n   *Why:* Strong match for requested domain with 6+ years of verified experience in Java, Python, Cloud Architecture.\n2. **Karthik Rajan** (65% Match) \u2014 Programming Trainer\n   *Why:* Strong match for requested domain with 8+ years of verified experience in Python, Django, React.js.\n3. **Priya Sundaram** (65% Match) \u2014 Cloud Trainer\n   *Why:* Strong match for requested domain with 10+ years of verified experience in AWS, Docker & Kubernetes, Terraform.\n",
+        "aiData": {
+            "understoodRequirement": {
+                "topic": "Python",
+                "skills": [
+                    "Python"
+                ],
+                "location": "Any",
+                "mode": "ALL"
+            },
+            "clarification": null,
+            "topMatches": [
+                {
+                    "trainerId": "6a9a7971f1624b69330f562d",
+                    "name": "Operations Director (Admin 1)",
+                    "headline": "Programming Trainer",
+                    "matchScore": 80,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "Python"
+                    ],
+                    "relevantExperienceYears": 6,
+                    "relevantTrainings": "8+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 6+ years of verified experience in Java, Python, Cloud Architecture."
+                },
+                {
+                    "trainerId": "6a99b578f1624b69330f55bb",
+                    "name": "Karthik Rajan",
+                    "headline": "Programming Trainer",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "Python",
+                        "Django",
+                        "React.js",
+                        "PostgreSQL"
+                    ],
+                    "relevantExperienceYears": 8,
+                    "relevantTrainings": "8+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 8+ years of verified experience in Python, Django, React.js."
+                },
+                {
+                    "trainerId": "6a99b578f1624b69330f55c6",
+                    "name": "Priya Sundaram",
+                    "headline": "Cloud Trainer",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "AWS",
+                        "Docker & Kubernetes",
+                        "Terraform",
+                        "CI\/CD Pipelines"
+                    ],
+                    "relevantExperienceYears": 10,
+                    "relevantTrainings": "8+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 10+ years of verified experience in AWS, Docker & Kubernetes, Terraform."
+                },
+                {
+                    "trainerId": "6a99b579f1624b69330f55dc",
+                    "name": "Sneha Patil",
+                    "headline": "Soft Skills Trainer",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "Business Communication",
+                        "GD & Personal Interview Coaching",
+                        "Corporate Etiquette",
+                        "Resume & LinkedIn Optimization"
+                    ],
+                    "relevantExperienceYears": 7,
+                    "relevantTrainings": "8+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 7+ years of verified experience in Business Communication, GD & Personal Interview Coaching, Corporate Etiquette."
+                }
+            ]
+        },
+        "tokenStats": {
+            "promptTokens": 5,
+            "completionTokens": 422,
+            "totalTokens": 427,
+            "requestCostUsd": "$0.000127",
+            "cumulativeTokens": 10268,
+            "totalRequests": 25,
+            "cumulativeCostUsd": "$0.0018",
+            "model": "gemini-1.5-flash"
+        },
+        "attachment": null,
+        "isAI": true,
+        "timestamp": "2026-09-04 16:39:55"
     }
 ]

@@ -10,6 +10,7 @@ $userCol = getCollection("User");
 $docCol = getCollection("Document");
 $oppCol = getCollection("Opportunity");
 $asgCol = getCollection("Assignment");
+$appCol = getCollection("Application");
 
 $domainFilter   = $_GET['domain'] ?? 'ALL';
 $availFilter    = $_GET['avail'] ?? 'ALL';
@@ -111,7 +112,7 @@ $availableNowCount = $trainerCol ? $trainerCol->countDocuments([
 $activeWorkshopsCount = 12;
 if ($oppCol) {
     try {
-        $oppCount = $oppCol->countDocuments(['status' => ['$in' => ['PUBLISHED', 'ASSIGNED', 'IN_PROGRESS']]]);
+        $oppCount = $oppCol->countDocuments(['status' => ['$in' => ['PUBLISHED', 'ASSIGNED', 'IN_PROGRESS', 'OPEN', 'SCHEDULED']]]);
         if ($oppCount > 0) $activeWorkshopsCount = $oppCount;
     } catch (\Throwable $e) {}
 }
@@ -165,86 +166,204 @@ if ($docCol && (!empty($trainerIds) || !empty($userMapIds))) {
     } catch (\Throwable $e) {}
 }
 
-// Upcoming workshops data (real or demo fallback)
-$upcomingWorkshops = [
-    [
-        'month' => 'SEP',
-        'day' => '12',
-        'title' => 'Web Development Basics',
-        'location' => 'Chengalpattu, India',
-        'meta' => '1 Trainer · 25 Participants',
-        'status' => 'Ongoing',
-        'statusColor' => 'emerald'
-    ],
-    [
-        'month' => 'SEP',
-        'day' => '15',
-        'title' => 'Python for Beginners',
-        'location' => 'Bangalore, Karnataka',
-        'meta' => '2 Trainers · 30 Participants',
-        'status' => 'Upcoming',
-        'statusColor' => 'blue'
-    ],
-    [
-        'month' => 'SEP',
-        'day' => '20',
-        'title' => 'Cloud Architecture',
-        'location' => 'Online',
-        'meta' => '1 Trainer · 40 Participants',
-        'status' => 'Upcoming',
-        'statusColor' => 'blue'
-    ],
-    [
-        'month' => 'SEP',
-        'day' => '25',
-        'title' => 'IoT Fundamentals',
-        'location' => 'Chennai, India',
-        'meta' => '2 Trainers · 20 Participants',
-        'status' => 'Upcoming',
-        'statusColor' => 'blue'
-    ],
-];
+// ================= FETCH REAL UPCOMING WORKSHOPS FROM DATABASE =================
+$upcomingWorkshops = [];
+if ($oppCol) {
+    try {
+        $realOpps = $oppCol->find(
+            ['status' => ['$in' => ['PUBLISHED', 'ASSIGNED', 'IN_PROGRESS', 'SCHEDULED', 'OPEN']]],
+            ['sort' => ['startDate' => 1, 'createdAt' => -1], 'limit' => 5]
+        )->toArray();
 
-// Recent activity items
-$recentActivities = [
-    [
-        'icon' => 'person',
-        'iconBg' => 'bg-emerald-100 text-emerald-600',
-        'title' => 'Admin User is now available',
-        'time' => '2 hours ago'
-    ],
-    [
-        'icon' => 'calendar_month',
-        'iconBg' => 'bg-blue-100 text-blue-600',
-        'title' => 'Workshop updated',
-        'subtitle' => 'Web Development Basics',
-        'time' => '4 hours ago'
-    ],
-    [
-        'icon' => 'person_add',
-        'iconBg' => 'bg-blue-100 text-blue-600',
-        'title' => 'New trainer registered',
-        'subtitle' => 'Rajesh Sharma',
-        'time' => '6 hours ago'
-    ],
-    [
-        'icon' => 'description',
-        'iconBg' => 'bg-orange-100 text-orange-600',
-        'title' => 'Application received',
-        'subtitle' => 'For Python Workshop',
-        'time' => '1 day ago'
-    ],
-    [
-        'icon' => 'settings',
-        'iconBg' => 'bg-purple-100 text-purple-600',
-        'title' => 'Settings updated',
-        'subtitle' => 'Trainer preferences',
-        'time' => '1 day ago'
-    ]
-];
+        foreach ($realOpps as $opp) {
+            $rawStart = $opp['startDate'] ?? '';
+            $rawEnd = $opp['endDate'] ?? '';
+
+            $month = 'SEP';
+            $day = '15';
+            $isOngoing = false;
+
+            $startTs = null;
+            if (!empty($rawStart)) {
+                if (is_numeric($rawStart)) {
+                    $startTs = (float)$rawStart > 20000000000 ? round((float)$rawStart / 1000) : (int)$rawStart;
+                } else {
+                    $p = strtotime((string)$rawStart);
+                    if ($p !== false && $p > 946684800) $startTs = $p;
+                }
+            }
+
+            if ($startTs) {
+                $month = strtoupper(date('M', $startTs));
+                $day = date('d', $startTs);
+
+                $endTs = null;
+                if (!empty($rawEnd)) {
+                    if (is_numeric($rawEnd)) {
+                        $endTs = (float)$rawEnd > 20000000000 ? round((float)$rawEnd / 1000) : (int)$rawEnd;
+                    } else {
+                        $p2 = strtotime((string)$rawEnd);
+                        if ($p2 !== false && $p2 > 946684800) $endTs = $p2;
+                    }
+                }
+
+                $now = time();
+                if ($startTs <= $now && ($endTs === null || $endTs >= $now)) {
+                    $isOngoing = true;
+                }
+            }
+
+            $loc = trim(($opp['city'] ?? '') . (!empty($opp['state']) ? ', ' . $opp['state'] : ''));
+            if (empty($loc)) $loc = $opp['mode'] ?? 'Campus / Online';
+
+            $dur = !empty($opp['durationDays']) ? $opp['durationDays'] . ' Days' : '10 Days';
+            $type = !empty($opp['trainingType']) ? $opp['trainingType'] : 'Workshop';
+            $meta = "{$dur} · {$type}";
+            if (!empty($opp['collegeName'])) {
+                $meta .= ' · ' . $opp['collegeName'];
+            }
+
+            $upcomingWorkshops[] = [
+                'id' => (string)$opp['_id'],
+                'month' => $month,
+                'day' => $day,
+                'title' => $opp['title'] ?? 'Technical Workshop',
+                'location' => $loc,
+                'meta' => $meta,
+                'status' => $isOngoing ? 'Ongoing' : 'Upcoming',
+                'statusColor' => $isOngoing ? 'emerald' : 'blue'
+            ];
+        }
+    } catch (\Throwable $e) {}
+}
+
+// Fallback only if database is completely empty
+if (empty($upcomingWorkshops)) {
+    $upcomingWorkshops = [
+        [
+            'month' => 'SEP',
+            'day' => '12',
+            'title' => 'Web Development Basics',
+            'location' => 'Chengalpattu, India',
+            'meta' => '1 Trainer · 25 Participants',
+            'status' => 'Ongoing',
+            'statusColor' => 'emerald'
+        ],
+        [
+            'month' => 'SEP',
+            'day' => '15',
+            'title' => 'Python for Beginners',
+            'location' => 'Bangalore, Karnataka',
+            'meta' => '2 Trainers · 30 Participants',
+            'status' => 'Upcoming',
+            'statusColor' => 'blue'
+        ]
+    ];
+}
+
+// ================= FETCH REAL RECENT ACTIVITY FROM DATABASE =================
+$recentActivities = [];
+
+// Helper to safely extract numeric millisecond timestamp for sorting
+$getActivityTs = function($val) {
+    if (!$val) return 0;
+    if ($val instanceof MongoDB\BSON\UTCDateTime) {
+        return (float)((string)$val);
+    }
+    if (is_array($val)) {
+        if (isset($val['$date']['$numberLong'])) return (float)$val['$date']['$numberLong'];
+        if (isset($val['$date'])) return (float)$val['$date'];
+    }
+    if (is_numeric($val)) return (float)$val;
+    $p = strtotime((string)$val);
+    return $p !== false ? (float)($p * 1000) : 0;
+};
+
+if ($trainerCol) {
+    try {
+        $recentTrainers = $trainerCol->find([], ['sort' => ['createdAt' => -1], 'limit' => 2])->toArray();
+        foreach ($recentTrainers as $rt) {
+            $tName = $rt['name'] ?? 'Faculty Member';
+            $timeStr = !empty($rt['createdAt']) ? formatRelativeTime($rt['createdAt']) : 'recently';
+            $recentActivities[] = [
+                'icon' => 'person_add',
+                'iconBg' => 'bg-blue-100 text-blue-600',
+                'title' => 'New trainer registered',
+                'subtitle' => $tName,
+                'time' => $timeStr,
+                'ts' => $getActivityTs($rt['createdAt'] ?? null)
+            ];
+        }
+    } catch (\Throwable $e) {}
+}
+
+if ($oppCol) {
+    try {
+        $recentOpps = $oppCol->find([], ['sort' => ['createdAt' => -1], 'limit' => 2])->toArray();
+        foreach ($recentOpps as $ro) {
+            $timeStr = !empty($ro['createdAt']) ? formatRelativeTime($ro['createdAt']) : 'recently';
+            $recentActivities[] = [
+                'icon' => 'calendar_month',
+                'iconBg' => 'bg-emerald-100 text-emerald-600',
+                'title' => 'Workshop created',
+                'subtitle' => $ro['title'] ?? 'New Workshop',
+                'time' => $timeStr,
+                'ts' => $getActivityTs($ro['createdAt'] ?? null)
+            ];
+        }
+    } catch (\Throwable $e) {}
+}
+
+if ($appCol) {
+    try {
+        $recentApps = $appCol->find([], ['sort' => ['createdAt' => -1], 'limit' => 2])->toArray();
+        foreach ($recentApps as $ra) {
+            $timeStr = !empty($ra['createdAt']) ? formatRelativeTime($ra['createdAt']) : 'recently';
+            $recentActivities[] = [
+                'icon' => 'description',
+                'iconBg' => 'bg-orange-100 text-orange-600',
+                'title' => 'Application received',
+                'subtitle' => 'For campus training batch',
+                'time' => $timeStr,
+                'ts' => $getActivityTs($ra['createdAt'] ?? null)
+            ];
+        }
+    } catch (\Throwable $e) {}
+}
+
+if (!empty($recentActivities)) {
+    usort($recentActivities, function($a, $b) {
+        return ($b['ts'] ?? 0) <=> ($a['ts'] ?? 0);
+    });
+    $recentActivities = array_slice($recentActivities, 0, 5);
+} else {
+    $recentActivities = [
+        [
+            'icon' => 'person',
+            'iconBg' => 'bg-emerald-100 text-emerald-600',
+            'title' => 'Admin User is now available',
+            'subtitle' => '',
+            'time' => '2 hours ago'
+        ],
+        [
+            'icon' => 'calendar_month',
+            'iconBg' => 'bg-blue-100 text-blue-600',
+            'title' => 'Workshop updated',
+            'subtitle' => 'Web Development Basics',
+            'time' => '4 hours ago'
+        ]
+    ];
+}
 ?>
 
-<div class="space-y-6 max-w-[1550px] mx-auto pb-12">
+<style>
+/* Custom slim scrollbar for sticky right sidebar */
+.custom-sticky-sidebar::-webkit-scrollbar { width: 4px; }
+.custom-sticky-sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.custom-sticky-sidebar::-webkit-scrollbar-track { background: transparent; }
+</style>
+
+<div class="space-y-6 max-w-[1600px] mx-auto pb-12">
     <!-- TOP HEADER BAR: TITLE, SEARCH, AND USER PROFILE -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <!-- Title & Subtitle -->
@@ -348,10 +467,10 @@ $recentActivities = [
         </div>
     </div>
 
-    <!-- MAIN DASHBOARD CONTENT: 2-COLUMN GRID -->
+    <!-- MAIN DASHBOARD CONTENT: 2-COLUMN GRID (WITH STICKY SIDEBAR) -->
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         
-        <!-- LEFT / CENTER: TRAINERS DIRECTORY SECTION (8-9 cols) -->
+        <!-- LEFT / CENTER: TRAINERS DIRECTORY TABLE (8-9 cols) -->
         <div class="xl:col-span-8 2xl:col-span-9 space-y-4">
             <!-- Trainers Section Title & Add Trainer Button -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
@@ -469,7 +588,34 @@ $recentActivities = [
                                     $trainerName = $u['name'] ?? ($t['name'] ?? 'Trainer');
                                     $trainerEmail = $u['email'] ?? ($t['email'] ?? 'trainer@mentry.test');
                                     $avail = $t['availabilityStatus'] ?? 'AVAILABLE_NOW';
-                                    $availUntil = !empty($t['availableFromDate']) ? date('M d, Y', strtotime($t['availableFromDate'])) : 'Sep 12, 2026';
+                                    
+                                    // Bulletproof date formatting: eliminates "Jan 01, 1970"
+                                    $availUntil = '';
+                                    if (!empty($t['availableFromDate'])) {
+                                        $rawDate = $t['availableFromDate'];
+                                        if ($rawDate instanceof MongoDB\BSON\UTCDateTime) {
+                                            $availUntil = $rawDate->toDateTime()->format('M d, Y');
+                                        } elseif (is_numeric($rawDate)) {
+                                            $ts = (float)$rawDate;
+                                            if ($ts > 20000000000) $ts = round($ts / 1000);
+                                            if ($ts > 946684800) { // Year 2000 or later
+                                                $availUntil = date('M d, Y', (int)$ts);
+                                            }
+                                        } elseif (is_string($rawDate)) {
+                                            if (is_numeric($rawDate)) {
+                                                $ts = (float)$rawDate;
+                                                if ($ts > 20000000000) $ts = round($ts / 1000);
+                                                if ($ts > 946684800) {
+                                                    $availUntil = date('M d, Y', (int)$ts);
+                                                }
+                                            } else {
+                                                $parsed = strtotime($rawDate);
+                                                if ($parsed !== false && $parsed > 946684800) {
+                                                    $availUntil = date('M d, Y', $parsed);
+                                                }
+                                            }
+                                        }
+                                    }
                                     
                                     $city = $t['currentCity'] ?? 'Chengalpattu';
                                     $state = $t['currentState'] ?? 'India';
@@ -521,16 +667,16 @@ $recentActivities = [
                                                             <?= htmlspecialchars($trainerName) ?>
                                                         </a>
 
-                                                        <!-- Availability Pill -->
+                                                        <!-- Availability Pill: No 1970 Bug! -->
                                                         <?php if ($avail === 'BUSY_ON_ASSIGNMENT' || $avail === 'DELIVERING'): ?>
                                                             <span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200/80 text-[10px] font-bold px-2 py-0.5 rounded-md">
                                                                 <span class="material-symbols-outlined text-[12px]">calendar_today</span>
-                                                                Delivering Workshop (until <?= htmlspecialchars($availUntil) ?>)
+                                                                Delivering Workshop<?= !empty($availUntil) ? " (until {$availUntil})" : "" ?>
                                                             </span>
                                                         <?php elseif ($avail === 'FREE_FROM_DATE'): ?>
                                                             <span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
                                                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                                                Free after <?= htmlspecialchars($availUntil) ?>
+                                                                Free after <?= !empty($availUntil) ? $availUntil : "Date" ?>
                                                             </span>
                                                         <?php else: ?>
                                                             <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
@@ -652,10 +798,10 @@ $recentActivities = [
             </div>
         </div>
 
-        <!-- RIGHT SIDEBAR WIDGETS: UPCOMING WORKSHOPS & RECENT ACTIVITY (3-4 cols) -->
-        <div class="xl:col-span-4 2xl:col-span-3 space-y-6">
+        <!-- RIGHT SIDEBAR: STICKY AS YOU SCROLL & REAL DATABASE DATA (3-4 cols) -->
+        <div class="xl:col-span-4 2xl:col-span-3 space-y-5 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto pr-1 custom-sticky-sidebar">
             
-            <!-- Widget 1: Upcoming Workshops -->
+            <!-- Widget 1: Upcoming Workshops (REAL DATA FROM DATABASE) -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="font-extrabold text-sm text-slate-900">Upcoming Workshops</h3>
@@ -673,14 +819,16 @@ $recentActivities = [
 
                             <!-- Workshop Info -->
                             <div class="min-w-0 flex-1">
-                                <h4 class="font-bold text-xs text-slate-900 truncate hover:text-blue-600 cursor-pointer">
-                                    <?= htmlspecialchars($ws['title']) ?>
+                                <h4 class="font-bold text-xs text-slate-900 truncate hover:text-blue-600 cursor-pointer" title="<?= htmlspecialchars($ws['title']) ?>">
+                                    <a href="/admin/opportunities.php">
+                                        <?= htmlspecialchars($ws['title']) ?>
+                                    </a>
                                 </h4>
                                 <p class="text-[11px] text-slate-500 flex items-center gap-0.5 mt-0.5 truncate">
                                     <span class="material-symbols-outlined text-[13px] text-slate-400">location_on</span>
                                     <span class="truncate"><?= htmlspecialchars($ws['location']) ?></span>
                                 </p>
-                                <p class="text-[10px] text-slate-400 mt-0.5">
+                                <p class="text-[10px] text-slate-400 mt-0.5 truncate">
                                     <?= htmlspecialchars($ws['meta']) ?>
                                 </p>
                             </div>
@@ -694,7 +842,7 @@ $recentActivities = [
                 </div>
             </div>
 
-            <!-- Widget 2: Recent Activity -->
+            <!-- Widget 2: Recent Activity (REAL DATA FROM DATABASE) -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="font-extrabold text-sm text-slate-900">Recent Activity</h3>
@@ -704,7 +852,7 @@ $recentActivities = [
                 <div class="space-y-4">
                     <?php foreach ($recentActivities as $act): ?>
                         <div class="flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-full <?= $act['iconBg'] ?> flex items-center justify-center shrink-0">
+                            <div class="w-8 h-8 rounded-full <?= $act['iconBg'] ?> flex items-center justify-center shrink-0 shadow-2xs">
                                 <span class="material-symbols-outlined text-[16px]"><?= $act['icon'] ?></span>
                             </div>
                             <div class="min-w-0 flex-1">
@@ -712,7 +860,7 @@ $recentActivities = [
                                     <?= htmlspecialchars($act['title']) ?>
                                 </p>
                                 <?php if (!empty($act['subtitle'])): ?>
-                                    <p class="text-[11px] text-slate-500 leading-tight">
+                                    <p class="text-[11px] text-slate-500 leading-tight truncate">
                                         <?= htmlspecialchars($act['subtitle']) ?>
                                     </p>
                                 <?php endif; ?>
@@ -726,7 +874,7 @@ $recentActivities = [
             </div>
 
             <!-- Widget 3: Sidebar Motivational Banner -->
-            <div class="bg-gradient-to-br from-blue-50 to-indigo-50/50 p-5 rounded-2xl border border-blue-100 flex items-center gap-3">
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50/50 p-5 rounded-2xl border border-blue-100 flex items-center gap-3 shadow-2xs">
                 <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                     <span class="material-symbols-outlined text-xl">school</span>
                 </div>
