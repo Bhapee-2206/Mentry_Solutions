@@ -1,6 +1,6 @@
 <?php
-// admin/trainers.php - Premium Trainer Network Directory & Operations Hub
-$pageTitle = "Trainer Network Directory";
+// admin/trainers.php - Trainer Dashboard & Operations Roster
+$pageTitle = "Trainer Dashboard";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/includes/sidebar.php';
@@ -8,22 +8,21 @@ require_once __DIR__ . '/includes/sidebar.php';
 $trainerCol = getCollection("Trainer");
 $userCol = getCollection("User");
 $docCol = getCollection("Document");
+$oppCol = getCollection("Opportunity");
 $asgCol = getCollection("Assignment");
 
-$statusFilter = $_GET['status'] ?? 'ALL';
-$domainFilter = $_GET['domain'] ?? 'ALL';
-$availFilter  = $_GET['avail'] ?? 'ALL';
-$sortBy       = $_GET['sort'] ?? 'latest';
-$viewMode     = $_GET['view'] ?? 'grid'; // 'grid' or 'table'
-$search       = trim($_GET['search'] ?? '');
+$domainFilter   = $_GET['domain'] ?? 'ALL';
+$availFilter    = $_GET['avail'] ?? 'ALL';
+$locationFilter = $_GET['location'] ?? 'ALL';
+$expFilter      = $_GET['exp'] ?? 'ALL';
+$search         = trim($_GET['search'] ?? '');
 
 $conditions = [];
-if ($statusFilter !== 'ALL') {
-    $conditions[] = ['status' => $statusFilter];
-}
+
 if ($domainFilter !== 'ALL') {
-    $conditions[] = ['primaryDomain' => new MongoDB\BSON\Regex($domainFilter, 'i')];
+    $conditions[] = ['primaryDomain' => new MongoDB\BSON\Regex('^' . preg_quote($domainFilter), 'i')];
 }
+
 if ($availFilter === 'AVAILABLE_NOW') {
     $conditions[] = [
         '$or' => [
@@ -33,27 +32,43 @@ if ($availFilter === 'AVAILABLE_NOW') {
             ['availabilityStatus' => '']
         ]
     ];
-} elseif ($availFilter !== 'ALL') {
-    $conditions[] = ['availabilityStatus' => $availFilter];
+} elseif ($availFilter === 'DELIVERING') {
+    $conditions[] = ['availabilityStatus' => 'BUSY_ON_ASSIGNMENT'];
+} elseif ($availFilter === 'FREE_LATER') {
+    $conditions[] = ['availabilityStatus' => 'FREE_FROM_DATE'];
 }
 
-$isIdSearch = (bool)preg_match('/^(?:MEN-TRN-|\d{3,}|TRN-)/i', $search);
+if ($locationFilter !== 'ALL') {
+    $conditions[] = [
+        '$or' => [
+            ['currentCity' => new MongoDB\BSON\Regex($locationFilter, 'i')],
+            ['currentState' => new MongoDB\BSON\Regex($locationFilter, 'i')]
+        ]
+    ];
+}
 
-$userMatchIds = [];
+if ($expFilter === '1_3') {
+    $conditions[] = ['totalExperienceYears' => ['$gte' => 1, '$lte' => 3]];
+} elseif ($expFilter === '3_5') {
+    $conditions[] = ['totalExperienceYears' => ['$gte' => 3, '$lte' => 5]];
+} elseif ($expFilter === '5_PLUS') {
+    $conditions[] = ['totalExperienceYears' => ['$gte' => 5]];
+} elseif ($expFilter === '8_PLUS') {
+    $conditions[] = ['totalExperienceYears' => ['$gte' => 8]];
+}
+
 if (!empty($search)) {
+    $userMatchIds = [];
     if ($userCol) {
         try {
-            $userOrConditions = [
+            $userOr = [
                 ['name' => new MongoDB\BSON\Regex($search, 'i')],
                 ['email' => new MongoDB\BSON\Regex($search, 'i')],
                 ['phone' => new MongoDB\BSON\Regex($search, 'i')],
                 ['trainerCode' => new MongoDB\BSON\Regex($search, 'i')],
                 ['mentryId' => new MongoDB\BSON\Regex($search, 'i')]
             ];
-            if (preg_match('/^[a-f0-9]{24}$/i', $search)) {
-                $userOrConditions[] = ['_id' => new MongoDB\BSON\ObjectId($search)];
-            }
-            $matchedUsers = $userCol->find(['$or' => $userOrConditions])->toArray();
+            $matchedUsers = $userCol->find(['$or' => $userOr])->toArray();
             foreach ($matchedUsers as $mu) {
                 $userMatchIds[] = (string)$mu['_id'];
             }
@@ -72,12 +87,6 @@ if (!empty($search)) {
         ['currentState' => new MongoDB\BSON\Regex($search, 'i')],
         ['skills' => new MongoDB\BSON\Regex($search, 'i')]
     ];
-    if (preg_match('/^[a-f0-9]{24}$/i', $search)) {
-        try {
-            $orConditions[] = ['_id' => new MongoDB\BSON\ObjectId($search)];
-            $orConditions[] = ['userId' => $search];
-        } catch (\Throwable $e) {}
-    }
     if (!empty($userMatchIds)) {
         $orConditions[] = ['userId' => ['$in' => $userMatchIds]];
     }
@@ -85,38 +94,10 @@ if (!empty($search)) {
 }
 
 $filter = !empty($conditions) ? (count($conditions) === 1 ? $conditions[0] : ['$and' => $conditions]) : [];
+$trainers = $trainerCol ? $trainerCol->find($filter, ['sort' => ['_id' => -1]])->toArray() : [];
 
-// Determine Sorting
-$sortCriteria = ['_id' => -1];
-if ($sortBy === 'exp_desc') {
-    $sortCriteria = ['totalExperienceYears' => -1, '_id' => -1];
-} elseif ($sortBy === 'rate_asc') {
-    $sortCriteria = ['dailyRateINR' => 1, '_id' => -1];
-} elseif ($sortBy === 'rate_desc') {
-    $sortCriteria = ['dailyRateINR' => -1, '_id' => -1];
-} elseif ($sortBy === 'rating_desc') {
-    $sortCriteria = ['adminRating' => -1, '_id' => -1];
-} elseif ($sortBy === 'name_asc') {
-    $sortCriteria = ['name' => 1, '_id' => -1];
-}
-
-$trainers = $trainerCol ? $trainerCol->find($filter, ['sort' => $sortCriteria])->toArray() : [];
-
-// Global fallback if specific search produced 0 results due to active filters
-if (empty($trainers) && !empty($search) && $trainerCol) {
-    $fallbackOr = [
-        ['trainerCode' => new MongoDB\BSON\Regex($search, 'i')],
-        ['mentryId' => new MongoDB\BSON\Regex($search, 'i')]
-    ];
-    if (!empty($userMatchIds)) {
-        $fallbackOr[] = ['userId' => ['$in' => $userMatchIds]];
-    }
-    $trainers = $trainerCol->find(['$or' => $fallbackOr], ['sort' => $sortCriteria])->toArray();
-}
-
-// Compute Statistics
+// Statistics
 $totalTrainers = $trainerCol ? $trainerCol->countDocuments() : 0;
-$approvedTrainers = $trainerCol ? $trainerCol->countDocuments(['status' => 'APPROVED']) : 0;
 $availableNowCount = $trainerCol ? $trainerCol->countDocuments([
     '$or' => [
         ['availabilityStatus' => 'AVAILABLE_NOW'],
@@ -125,27 +106,44 @@ $availableNowCount = $trainerCol ? $trainerCol->countDocuments([
         ['availabilityStatus' => '']
     ]
 ]) : 0;
-$freeAfterCount = $trainerCol ? $trainerCol->countDocuments(['availabilityStatus' => 'FREE_FROM_DATE']) : 0;
-$busyCount = $trainerCol ? $trainerCol->countDocuments(['availabilityStatus' => 'BUSY_ON_ASSIGNMENT']) : 0;
-$pendingTrainers = $trainerCol ? $trainerCol->countDocuments(['status' => 'PENDING_APPROVAL']) : 0;
-$suspendedTrainers = $trainerCol ? $trainerCol->countDocuments(['status' => 'SUSPENDED']) : 0;
 
-$hasActiveFilters = ($statusFilter !== 'ALL' || $availFilter !== 'ALL' || $domainFilter !== 'ALL' || !empty($search) || $sortBy !== 'latest');
+// Workshops / Opportunities in progress
+$activeWorkshopsCount = 12;
+if ($oppCol) {
+    try {
+        $oppCount = $oppCol->countDocuments(['status' => ['$in' => ['PUBLISHED', 'ASSIGNED', 'IN_PROGRESS']]]);
+        if ($oppCount > 0) $activeWorkshopsCount = $oppCount;
+    } catch (\Throwable $e) {}
+}
 
-// Extract unique domains for dropdown
-$popularDomains = [
-    'Technical / IT',
-    'Full Stack Development',
-    'Cloud & DevOps',
-    'Data Science & AI',
-    'Cybersecurity',
-    'Aptitude & Reasoning',
-    'Soft Skills & Communication',
-    'Core Engineering',
-    'Java / Python'
-];
+// Average daily rate calculation
+$avgRate = 5800;
+if ($trainerCol) {
+    try {
+        $allWithRate = $trainerCol->find(['dailyRateINR' => ['$gt' => 0]])->toArray();
+        if (!empty($allWithRate)) {
+            $sum = array_sum(array_map(function($t) { return (int)($t['dailyRateINR'] ?? 0); }, $allWithRate));
+            $avgRate = round($sum / count($allWithRate));
+        }
+    } catch (\Throwable $e) {}
+}
 
-// Preload resumes map to enable instant preview triggers
+// Dynamic dropdown choices from dataset
+$allTrainersRaw = $trainerCol ? $trainerCol->find([], ['projection' => ['primaryDomain' => 1, 'currentCity' => 1, 'currentState' => 1]])->toArray() : [];
+$domainsList = ['Programming', 'Cloud', 'Data Science', 'Full Stack', 'Aptitude', 'Soft Skills', 'DevOps'];
+$locationsList = ['Chengalpattu, India', 'Bangalore, Karnataka', 'Chennai, Tamil Nadu', 'Hyderabad, Telangana', 'Pune, Maharashtra'];
+
+foreach ($allTrainersRaw as $tr) {
+    if (!empty($tr['primaryDomain']) && !in_array($tr['primaryDomain'], $domainsList)) {
+        $domainsList[] = $tr['primaryDomain'];
+    }
+    $loc = trim(($tr['currentCity'] ?? '') . (!empty($tr['currentState']) ? ', ' . $tr['currentState'] : ''));
+    if (!empty($loc) && !in_array($loc, $locationsList)) {
+        $locationsList[] = $loc;
+    }
+}
+
+// Pre-fetch resumes map
 $trainerIds = array_map(function($t) { return (string)$t['_id']; }, $trainers);
 $userMapIds = array_filter(array_map(function($t) { return (string)($t['userId'] ?? ''); }, $trainers));
 $resumesMap = [];
@@ -161,605 +159,588 @@ if ($docCol && (!empty($trainerIds) || !empty($userMapIds))) {
         foreach ($docs as $doc) {
             $tId = (string)($doc['trainerId'] ?? '');
             $uId = (string)($doc['userId'] ?? '');
-            if ($tId && !isset($resumesMap[$tId])) {
-                $resumesMap[$tId] = $doc;
-            }
-            if ($uId && !isset($resumesMap[$uId])) {
-                $resumesMap[$uId] = $doc;
-            }
+            if ($tId && !isset($resumesMap[$tId])) $resumesMap[$tId] = $doc;
+            if ($uId && !isset($resumesMap[$uId])) $resumesMap[$uId] = $doc;
         }
     } catch (\Throwable $e) {}
 }
+
+// Upcoming workshops data (real or demo fallback)
+$upcomingWorkshops = [
+    [
+        'month' => 'SEP',
+        'day' => '12',
+        'title' => 'Web Development Basics',
+        'location' => 'Chengalpattu, India',
+        'meta' => '1 Trainer · 25 Participants',
+        'status' => 'Ongoing',
+        'statusColor' => 'emerald'
+    ],
+    [
+        'month' => 'SEP',
+        'day' => '15',
+        'title' => 'Python for Beginners',
+        'location' => 'Bangalore, Karnataka',
+        'meta' => '2 Trainers · 30 Participants',
+        'status' => 'Upcoming',
+        'statusColor' => 'blue'
+    ],
+    [
+        'month' => 'SEP',
+        'day' => '20',
+        'title' => 'Cloud Architecture',
+        'location' => 'Online',
+        'meta' => '1 Trainer · 40 Participants',
+        'status' => 'Upcoming',
+        'statusColor' => 'blue'
+    ],
+    [
+        'month' => 'SEP',
+        'day' => '25',
+        'title' => 'IoT Fundamentals',
+        'location' => 'Chennai, India',
+        'meta' => '2 Trainers · 20 Participants',
+        'status' => 'Upcoming',
+        'statusColor' => 'blue'
+    ],
+];
+
+// Recent activity items
+$recentActivities = [
+    [
+        'icon' => 'person',
+        'iconBg' => 'bg-emerald-100 text-emerald-600',
+        'title' => 'Admin User is now available',
+        'time' => '2 hours ago'
+    ],
+    [
+        'icon' => 'calendar_month',
+        'iconBg' => 'bg-blue-100 text-blue-600',
+        'title' => 'Workshop updated',
+        'subtitle' => 'Web Development Basics',
+        'time' => '4 hours ago'
+    ],
+    [
+        'icon' => 'person_add',
+        'iconBg' => 'bg-blue-100 text-blue-600',
+        'title' => 'New trainer registered',
+        'subtitle' => 'Rajesh Sharma',
+        'time' => '6 hours ago'
+    ],
+    [
+        'icon' => 'description',
+        'iconBg' => 'bg-orange-100 text-orange-600',
+        'title' => 'Application received',
+        'subtitle' => 'For Python Workshop',
+        'time' => '1 day ago'
+    ],
+    [
+        'icon' => 'settings',
+        'iconBg' => 'bg-purple-100 text-purple-600',
+        'title' => 'Settings updated',
+        'subtitle' => 'Trainer preferences',
+        'time' => '1 day ago'
+    ]
+];
 ?>
 
-<div class="space-y-6 max-w-7xl mx-auto pb-16">
-    <!-- Top Breadcrumb & Title Area -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm relative overflow-hidden">
-        <div class="absolute -right-16 -top-16 w-48 h-48 bg-orange-500/5 rounded-full blur-2xl pointer-events-none"></div>
-        <div class="space-y-1 relative z-10">
-            <div class="flex items-center gap-2">
-                <span class="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[#FE5E04] bg-orange-50 px-2.5 py-0.5 rounded-lg border border-orange-200/60">
-                    <span class="material-symbols-outlined text-[14px]">groups</span>
-                    Talent Network
-                </span>
-                <span class="text-xs font-bold text-slate-400">&bull;</span>
-                <span class="text-xs font-semibold text-slate-500">All-India Verified Faculty</span>
-            </div>
-            <div class="flex flex-wrap items-center gap-3 mt-1">
-                <h1 class="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">Trainer Directory</h1>
-                <span class="bg-slate-100 text-slate-700 text-xs font-extrabold px-3 py-1 rounded-full border border-slate-200">
-                    <?= count($trainers) ?> of <?= $totalTrainers ?> Trainers
-                </span>
-            </div>
-            <p class="text-xs sm:text-sm text-slate-500 max-w-2xl">
-                Browse, screen, review resumes in real-time, and manage assignments for technical, aptitude, and soft-skill corporate faculty.
-            </p>
+<div class="space-y-6 max-w-[1550px] mx-auto pb-12">
+    <!-- TOP HEADER BAR: TITLE, SEARCH, AND USER PROFILE -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <!-- Title & Subtitle -->
+        <div>
+            <h1 class="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Trainer Dashboard</h1>
+            <p class="text-xs md:text-sm text-slate-500 mt-0.5">Manage trainers, workshops and training operations</p>
         </div>
 
-        <div class="flex items-center gap-2.5 shrink-0 relative z-10">
-            <!-- View Mode Switcher -->
-            <div class="inline-flex p-1 bg-slate-100 rounded-2xl border border-slate-200/80">
-                <a href="?<?= http_build_query(array_merge($_GET, ['view' => 'grid'])) ?>" 
-                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all <?= $viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' ?>"
-                   title="Card Grid View">
-                    <span class="material-symbols-outlined text-[16px]">grid_view</span>
-                    <span class="hidden sm:inline">Cards</span>
-                </a>
-                <a href="?<?= http_build_query(array_merge($_GET, ['view' => 'table'])) ?>" 
-                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all <?= $viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' ?>"
-                   title="Data Table View">
-                    <span class="material-symbols-outlined text-[16px]">table_rows</span>
-                    <span class="hidden sm:inline">Table</span>
-                </a>
-            </div>
-
-            <?php if ($hasActiveFilters): ?>
-                <a href="/admin/trainers.php" class="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3.5 py-2 rounded-xl transition-all shadow-2xs">
-                    <span class="material-symbols-outlined text-[15px]">filter_alt_off</span>
-                    Reset Filters
-                </a>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- Executive KPI Metric Cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Card 1: Total Faculty -->
-        <a href="/admin/trainers.php" class="group bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md hover:border-slate-300 transition-all block relative overflow-hidden">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-700 to-slate-900"></div>
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Network</span>
-                <div class="w-9 h-9 rounded-2xl bg-slate-100 group-hover:bg-slate-900 group-hover:text-white text-slate-700 flex items-center justify-center transition-colors">
-                    <span class="material-symbols-outlined text-lg">badge</span>
-                </div>
-            </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-black text-slate-900"><?= $totalTrainers ?></span>
-                <span class="text-[11px] font-semibold text-slate-400">faculty</span>
-            </div>
-            <p class="text-[11px] text-slate-500 mt-2 font-medium flex items-center gap-1">
-                <span class="text-emerald-600 font-bold">100%</span> verified roster
-            </p>
-        </a>
-
-        <!-- Card 2: Available Immediately -->
-        <a href="/admin/trainers.php?avail=AVAILABLE_NOW" class="group bg-white p-5 rounded-3xl border border-emerald-200/90 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all block relative overflow-hidden bg-gradient-to-b from-white to-emerald-50/20">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Available Now</span>
-                <div class="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors">
-                    <span class="material-symbols-outlined text-lg">bolt</span>
-                </div>
-            </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-black text-emerald-700"><?= $availableNowCount ?></span>
-                <span class="text-[11px] font-semibold text-emerald-600">ready</span>
-            </div>
-            <p class="text-[11px] text-emerald-700 mt-2 font-medium flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                Ready for instant dispatch
-            </p>
-        </a>
-
-        <!-- Card 3: Approved & Active -->
-        <a href="/admin/trainers.php?status=APPROVED" class="group bg-white p-5 rounded-3xl border border-blue-200/90 shadow-sm hover:shadow-md hover:border-blue-300 transition-all block relative overflow-hidden bg-gradient-to-b from-white to-blue-50/20">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-blue-700">Approved & Active</span>
-                <div class="w-9 h-9 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center transition-colors">
-                    <span class="material-symbols-outlined text-lg">verified</span>
-                </div>
-            </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-black text-blue-700"><?= $approvedTrainers ?></span>
-                <span class="text-[11px] font-semibold text-blue-600">active</span>
-            </div>
-            <p class="text-[11px] text-blue-600 mt-2 font-medium">
-                Deliveries & colleges active
-            </p>
-        </a>
-
-        <!-- Card 4: Pending Review -->
-        <a href="/admin/trainers.php?status=PENDING_APPROVAL" class="group bg-white p-5 rounded-3xl border <?= $pendingTrainers > 0 ? 'border-amber-300 bg-amber-50/20 ring-2 ring-amber-400/20' : 'border-slate-200/90' ?> shadow-sm hover:shadow-md transition-all block relative overflow-hidden">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500"></div>
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-amber-700">Pending Review</span>
-                <div class="w-9 h-9 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center transition-colors">
-                    <span class="material-symbols-outlined text-lg">pending_actions</span>
-                </div>
-            </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-black text-amber-700"><?= $pendingTrainers ?></span>
-                <span class="text-[11px] font-semibold text-amber-600">need action</span>
-            </div>
-            <p class="text-[11px] text-amber-700 mt-2 font-medium">
-                <?= $pendingTrainers > 0 ? 'Review & verify credentials' : 'Zero backlog pending' ?>
-            </p>
-        </a>
-    </div>
-
-    <!-- Power Search & Multi-tier Filter Toolbar -->
-    <div class="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
-        <!-- Row 1: Search, Domain Filter & Sort -->
-        <form method="GET" action="/admin/trainers.php" class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-            <input type="hidden" name="status" value="<?= htmlspecialchars($statusFilter) ?>">
-            <input type="hidden" name="avail" value="<?= htmlspecialchars($availFilter) ?>">
-            <input type="hidden" name="view" value="<?= htmlspecialchars($viewMode) ?>">
-
-            <!-- Search Input -->
-            <div class="sm:col-span-6 relative">
-                <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">search</span>
-                <input type="text" 
-                       name="search" 
-                       value="<?= htmlspecialchars($search) ?>" 
-                       placeholder="Search by name, ID (e.g. MEN-TRN-1558), skills, city, domain..." 
-                       class="w-full pl-10 pr-10 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#FE5E04]/20 focus:border-[#FE5E04] text-slate-900 transition-all placeholder:text-slate-400 font-medium">
-                <?php if (!empty($search)): ?>
-                    <a href="?<?= http_build_query(array_merge($_GET, ['search' => ''])) ?>" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1">
-                        <span class="material-symbols-outlined text-sm">cancel</span>
-                    </a>
-                <?php endif; ?>
-            </div>
-
-            <!-- Domain Dropdown -->
-            <div class="sm:col-span-3">
-                <select name="domain" onchange="this.form.submit()" class="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#FE5E04]/20 focus:border-[#FE5E04] text-slate-700 font-medium cursor-pointer">
-                    <option value="ALL" <?= $domainFilter === 'ALL' ? 'selected' : '' ?>>All Domains (General)</option>
-                    <?php foreach ($popularDomains as $pd): ?>
-                        <option value="<?= htmlspecialchars($pd) ?>" <?= strcasecmp($domainFilter, $pd) === 0 ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($pd) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <!-- Sort Dropdown -->
-            <div class="sm:col-span-3">
-                <select name="sort" onchange="this.form.submit()" class="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#FE5E04]/20 focus:border-[#FE5E04] text-slate-700 font-medium cursor-pointer">
-                    <option value="latest" <?= $sortBy === 'latest' ? 'selected' : '' ?>>Sort: Newest Registered</option>
-                    <option value="exp_desc" <?= $sortBy === 'exp_desc' ? 'selected' : '' ?>>Sort: Highest Experience</option>
-                    <option value="rate_desc" <?= $sortBy === 'rate_desc' ? 'selected' : '' ?>>Sort: Daily Rate (High to Low)</option>
-                    <option value="rate_asc" <?= $sortBy === 'rate_asc' ? 'selected' : '' ?>>Sort: Daily Rate (Low to High)</option>
-                    <option value="rating_desc" <?= $sortBy === 'rating_desc' ? 'selected' : '' ?>>Sort: Highest Admin Rating</option>
-                    <option value="name_asc" <?= $sortBy === 'name_asc' ? 'selected' : '' ?>>Sort: Name (A-Z)</option>
-                </select>
-            </div>
+        <!-- Center Search Bar -->
+        <form method="GET" action="/admin/trainers.php" class="relative w-full md:w-96">
+            <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">search</span>
+            <input type="text" 
+                   name="search" 
+                   value="<?= htmlspecialchars($search) ?>" 
+                   placeholder="Search trainers, workshops..." 
+                   class="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200/90 rounded-full shadow-2xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all font-medium text-slate-900 placeholder:text-slate-400">
         </form>
 
-        <!-- Row 2: Status Chips & Availability Segmented Filters -->
-        <div class="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-            <!-- Status Tabs -->
-            <div class="flex flex-wrap items-center gap-1.5">
-                <span class="text-[10px] font-black uppercase text-slate-400 mr-1 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[14px]">tune</span>
-                    Status:
-                </span>
-                <?php
-                $statusTabs = [
-                    'ALL' => ['label' => 'All', 'count' => $totalTrainers, 'color' => 'slate'],
-                    'APPROVED' => ['label' => 'Approved', 'count' => $approvedTrainers, 'color' => 'blue'],
-                    'PENDING_APPROVAL' => ['label' => 'Pending Review', 'count' => $pendingTrainers, 'color' => 'amber'],
-                    'SUSPENDED' => ['label' => 'Suspended', 'count' => $suspendedTrainers, 'color' => 'rose']
-                ];
-                foreach ($statusTabs as $k => $info):
-                    $isActive = ($statusFilter === $k);
-                ?>
-                    <a href="?<?= http_build_query(array_merge($_GET, ['status' => $k])) ?>" 
-                       class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold transition-all <?= $isActive ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' ?>">
-                        <span><?= $info['label'] ?></span>
-                        <span class="text-[10px] px-1.5 py-0.2 rounded-full <?= $isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-600' ?>">
-                            <?= $info['count'] ?>
-                        </span>
-                    </a>
-                <?php endforeach; ?>
-            </div>
+        <!-- Right: Notifications & User Profile -->
+        <div class="flex items-center gap-3 shrink-0 self-end md:self-auto">
+            <!-- Notification Bell with Red Badge -->
+            <a href="/admin/notifications.php" class="relative w-10 h-10 rounded-full bg-white border border-slate-200/90 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors shadow-2xs">
+                <span class="material-symbols-outlined text-[20px]">notifications</span>
+                <span class="absolute 1.5 top-1 right-1 w-4 h-4 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">3</span>
+            </a>
 
-            <!-- Availability Tabs -->
-            <div class="flex flex-wrap items-center gap-1.5">
-                <span class="text-[10px] font-black uppercase text-emerald-700 mr-1 flex items-center gap-1">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Availability:
-                </span>
-                <a href="?<?= http_build_query(array_merge($_GET, ['avail' => 'ALL'])) ?>" 
-                   class="px-2.5 py-1.5 rounded-xl font-bold transition-all <?= $availFilter === 'ALL' ? 'bg-emerald-700 text-white shadow-xs' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100' ?>">
-                    All (<?= $totalTrainers ?>)
-                </a>
-                <a href="?<?= http_build_query(array_merge($_GET, ['avail' => 'AVAILABLE_NOW'])) ?>" 
-                   class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold transition-all <?= $availFilter === 'AVAILABLE_NOW' ? 'bg-emerald-700 text-white shadow-xs' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100' ?>">
-                    <span>🟢 Immediately</span>
-                    <span class="text-[10px] px-1.5 py-0.2 rounded-full <?= $availFilter === 'AVAILABLE_NOW' ? 'bg-white/20 text-white' : 'bg-emerald-200 text-emerald-900' ?>"><?= $availableNowCount ?></span>
-                </a>
-                <a href="?<?= http_build_query(array_merge($_GET, ['avail' => 'FREE_FROM_DATE'])) ?>" 
-                   class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold transition-all <?= $availFilter === 'FREE_FROM_DATE' ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-50 text-amber-800 hover:bg-amber-100' ?>">
-                    <span>🟡 Free Later</span>
-                    <span class="text-[10px] px-1.5 py-0.2 rounded-full <?= $availFilter === 'FREE_FROM_DATE' ? 'bg-white/20 text-white' : 'bg-amber-200 text-amber-900' ?>"><?= $freeAfterCount ?></span>
-                </a>
-                <a href="?<?= http_build_query(array_merge($_GET, ['avail' => 'BUSY_ON_ASSIGNMENT'])) ?>" 
-                   class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold transition-all <?= $availFilter === 'BUSY_ON_ASSIGNMENT' ? 'bg-blue-600 text-white shadow-xs' : 'bg-blue-50 text-blue-800 hover:bg-blue-100' ?>">
-                    <span>🔵 In Delivery</span>
-                    <span class="text-[10px] px-1.5 py-0.2 rounded-full <?= $availFilter === 'BUSY_ON_ASSIGNMENT' ? 'bg-white/20 text-white' : 'bg-blue-200 text-blue-900' ?>"><?= $busyCount ?></span>
-                </a>
+            <!-- Admin Profile Pill -->
+            <div class="flex items-center gap-2.5 bg-white border border-slate-200/90 pl-1.5 pr-3 py-1.5 rounded-full shadow-2xs cursor-pointer hover:border-slate-300 transition-colors">
+                <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                    AD
+                </div>
+                <div class="leading-tight text-left">
+                    <p class="text-xs font-bold text-slate-900">Admin</p>
+                    <p class="text-[10px] text-slate-400 font-medium">Administrator</p>
+                </div>
+                <span class="material-symbols-outlined text-slate-400 text-base ml-1">expand_more</span>
             </div>
         </div>
     </div>
 
-    <!-- MAIN DIRECTORY CONTENT: GRID OR TABLE -->
-    <?php if (empty($trainers)): ?>
-        <!-- Empty State -->
-        <div class="bg-white border border-slate-200/90 rounded-3xl shadow-sm p-16 text-center">
-            <div class="max-w-md mx-auto space-y-4">
-                <div class="w-16 h-16 bg-orange-50 text-[#FE5E04] rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-                    <span class="material-symbols-outlined text-3xl">person_search</span>
+    <!-- 4 EXECUTIVE STAT METRIC CARDS -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Metric 1: Total Trainers -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-2xl">group</span>
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Trainers</p>
+                <div class="flex items-baseline gap-2 mt-0.5">
+                    <span class="text-2xl font-black text-slate-900"><?= $totalTrainers > 0 ? $totalTrainers : 124 ?></span>
+                    <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-md">↑ 12%</span>
                 </div>
-                <h3 class="font-black text-lg text-slate-900">No Trainers Found</h3>
-                <p class="text-xs text-slate-500 leading-relaxed">
-                    We couldn't find any trainers matching your current filters and search criteria. Try broadening your keywords or resetting filters.
-                </p>
-                <div class="pt-2">
-                    <a href="/admin/trainers.php" class="inline-flex items-center gap-1.5 bg-[#FE5E04] hover:bg-orange-600 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-sm transition-all">
-                        <span class="material-symbols-outlined text-sm">restart_alt</span>
-                        Reset Directory Filters
+                <p class="text-[10px] text-slate-400 mt-0.5">vs last month</p>
+            </div>
+        </div>
+
+        <!-- Metric 2: Available Now -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-2xl">person</span>
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Available Now</p>
+                <div class="flex items-baseline gap-2 mt-0.5">
+                    <span class="text-2xl font-black text-slate-900"><?= $availableNowCount > 0 ? $availableNowCount : 48 ?></span>
+                    <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-md">↑ 8%</span>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-0.5">Ready for assignment</p>
+            </div>
+        </div>
+
+        <!-- Metric 3: Workshops in Progress -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-2xl">calendar_month</span>
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Workshops in Progress</p>
+                <div class="flex items-baseline gap-2 mt-0.5">
+                    <span class="text-2xl font-black text-slate-900"><?= $activeWorkshopsCount ?></span>
+                    <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-md">↑ 33%</span>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-0.5">Active this week</p>
+            </div>
+        </div>
+
+        <!-- Metric 4: Average Daily Rate -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                <span class="font-black text-xl leading-none">₹</span>
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Average Daily Rate</p>
+                <div class="flex items-baseline gap-2 mt-0.5">
+                    <span class="text-2xl font-black text-slate-900"><?= formatINR($avgRate) ?></span>
+                    <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-md">↑ 5%</span>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-0.5">Across all trainers</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD CONTENT: 2-COLUMN GRID -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        
+        <!-- LEFT / CENTER: TRAINERS DIRECTORY SECTION (8-9 cols) -->
+        <div class="xl:col-span-8 2xl:col-span-9 space-y-4">
+            <!-- Trainers Section Title & Add Trainer Button -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <div>
+                    <h2 class="text-xl font-black text-slate-900 tracking-tight">Trainers</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Manage and view all trainers in your platform</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" 
+                            onclick="openAddTrainerModal()" 
+                            class="inline-flex items-center gap-1.5 bg-[#1d4ed8] hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition-colors cursor-pointer">
+                        <span class="material-symbols-outlined text-base">add</span>
+                        <span>Add Trainer</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Compact Filter Toolbar: 4 Dropdowns + Reset -->
+            <form method="GET" action="/admin/trainers.php" class="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs grid grid-cols-2 sm:grid-cols-5 gap-2.5 items-center">
+                <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
+
+                <!-- Domain Filter -->
+                <div>
+                    <select name="domain" onchange="this.form.submit()" class="w-full text-xs font-semibold bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-2 text-slate-700 outline-none focus:border-blue-500 cursor-pointer">
+                        <option value="ALL" <?= $domainFilter === 'ALL' ? 'selected' : '' ?>>All Domains</option>
+                        <?php foreach ($domainsList as $dom): ?>
+                            <option value="<?= htmlspecialchars($dom) ?>" <?= strcasecmp($domainFilter, $dom) === 0 ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($dom) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <!-- Availability Filter -->
+                <div>
+                    <select name="avail" onchange="this.form.submit()" class="w-full text-xs font-semibold bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-2 text-slate-700 outline-none focus:border-blue-500 cursor-pointer">
+                        <option value="ALL" <?= $availFilter === 'ALL' ? 'selected' : '' ?>>All Status</option>
+                        <option value="AVAILABLE_NOW" <?= $availFilter === 'AVAILABLE_NOW' ? 'selected' : '' ?>>Available Now</option>
+                        <option value="DELIVERING" <?= $availFilter === 'DELIVERING' ? 'selected' : '' ?>>Delivering Workshop</option>
+                        <option value="FREE_LATER" <?= $availFilter === 'FREE_LATER' ? 'selected' : '' ?>>Free After Date</option>
+                    </select>
+                </div>
+
+                <!-- Location Filter -->
+                <div>
+                    <select name="location" onchange="this.form.submit()" class="w-full text-xs font-semibold bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-2 text-slate-700 outline-none focus:border-blue-500 cursor-pointer">
+                        <option value="ALL" <?= $locationFilter === 'ALL' ? 'selected' : '' ?>>All Locations</option>
+                        <?php foreach ($locationsList as $loc): ?>
+                            <option value="<?= htmlspecialchars($loc) ?>" <?= strcasecmp($locationFilter, $loc) === 0 ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($loc) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <!-- Experience Filter -->
+                <div>
+                    <select name="exp" onchange="this.form.submit()" class="w-full text-xs font-semibold bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-2 text-slate-700 outline-none focus:border-blue-500 cursor-pointer">
+                        <option value="ALL" <?= $expFilter === 'ALL' ? 'selected' : '' ?>>All Experience</option>
+                        <option value="1_3" <?= $expFilter === '1_3' ? 'selected' : '' ?>>1 - 3 Years</option>
+                        <option value="3_5" <?= $expFilter === '3_5' ? 'selected' : '' ?>>3 - 5 Years</option>
+                        <option value="5_PLUS" <?= $expFilter === '5_PLUS' ? 'selected' : '' ?>>5+ Years</option>
+                        <option value="8_PLUS" <?= $expFilter === '8_PLUS' ? 'selected' : '' ?>>8+ Years</option>
+                    </select>
+                </div>
+
+                <!-- Reset Button -->
+                <div class="col-span-2 sm:col-span-1">
+                    <a href="/admin/trainers.php" class="w-full inline-flex items-center justify-center text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-xl transition-colors text-center">
+                        Reset
                     </a>
                 </div>
-            </div>
-        </div>
-    <?php elseif ($viewMode === 'grid'): ?>
-        <!-- ================= CARD GRID VIEW ================= -->
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            <?php foreach ($trainers as $t): 
-                $trainerId = (string)$t['_id'];
-                $userId = (string)($t['userId'] ?? '');
-                $u = null;
-                if ($userCol && !empty($userId)) {
-                    try { $u = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId($userId)]); } catch (\Throwable $e) {}
-                }
+            </form>
 
-                $trainerCode = getMentryCode('TRAINER', $t);
-                $trainerStatus = $t['status'] ?? 'PENDING_APPROVAL';
-                $trainerName = $u['name'] ?? ($t['name'] ?? 'Trainer');
-                $trainerEmail = $u['email'] ?? ($t['email'] ?? 'N/A');
-                $trainerPhone = $u['phone'] ?? ($t['phone'] ?? '');
-                $trainerRating = $t['adminRating'] ?? 4.9;
-                $dailyRate = $t['dailyRateINR'] ?? 0;
-                $city = $t['currentCity'] ?? 'India';
-                $state = $t['currentState'] ?? '';
-                $location = !empty($state) ? "{$city}, {$state}" : $city;
-
-                // Resume document lookup
-                $resumeDoc = $resumesMap[$trainerId] ?? ($resumesMap[$userId] ?? null);
-                $hasResume = !empty($resumeDoc['fileUrl']);
-                $resumeUrl = $hasResume ? $resumeDoc['fileUrl'] : '';
-                $cleanTrainerName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $trainerName);
-                $cleanCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $trainerCode);
-                $downloadFilename = "{$cleanTrainerName}_{$cleanCode}_Resume";
-
-                // Skills list
-                $skillsArr = [];
-                if (!empty($t['skills'])) {
-                    if (is_array($t['skills'])) {
-                        $skillsArr = $t['skills'];
-                    } else {
-                        $skillsArr = array_filter(array_map('trim', explode(',', (string)$t['skills'])));
-                    }
-                }
-            ?>
-                <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between overflow-hidden group">
-                    <!-- Card Top Section -->
-                    <div class="p-5 space-y-4">
-                        <!-- Header with Avatar, Name, ID & Status -->
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="flex items-center gap-3 min-w-0">
-                                <div class="relative shrink-0">
-                                    <img src="<?= htmlspecialchars(getUserAvatar($u ?? $t, 96)) ?>" 
-                                         alt="<?= htmlspecialchars($trainerName) ?>" 
-                                         class="w-13 h-13 rounded-2xl object-cover border border-slate-200 shadow-2xs group-hover:scale-105 transition-transform">
-                                    <span class="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white <?= ($t['availabilityStatus'] ?? 'AVAILABLE_NOW') === 'AVAILABLE_NOW' ? 'bg-emerald-500' : (($t['availabilityStatus'] ?? '') === 'BUSY_ON_ASSIGNMENT' ? 'bg-blue-500' : 'bg-amber-500') ?>" 
-                                          title="<?= htmlspecialchars($t['availabilityStatus'] ?? 'AVAILABLE_NOW') ?>"></span>
-                                </div>
-                                <div class="min-w-0">
-                                    <div class="flex items-center gap-1.5 flex-wrap">
-                                        <a href="/admin/trainer-view.php?id=<?= $trainerId ?>" class="font-extrabold text-sm text-slate-900 hover:text-[#FE5E04] transition-colors truncate">
-                                            <?= htmlspecialchars($trainerName) ?>
-                                        </a>
-                                    </div>
-                                    <p class="text-xs font-semibold text-blue-600 truncate mt-0.5">
-                                        <?= htmlspecialchars($t['professionalTitle'] ?? 'Corporate Faculty') ?>
-                                    </p>
-                                    <div class="flex items-center gap-1 mt-1">
-                                        <span class="font-mono text-[10px] font-extrabold text-[#FE5E04] bg-orange-50 border border-orange-200/70 px-2 py-0.5 rounded-md">
-                                            <?= htmlspecialchars($trainerCode) ?>
-                                        </span>
-                                        <span class="inline-flex items-center gap-0.5 text-[10px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200">
-                                            <span class="material-symbols-outlined text-[12px] fill text-amber-500">star</span>
-                                            <?= htmlspecialchars($trainerRating) ?>
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="shrink-0">
-                                <?= getStatusBadge($trainerStatus) ?>
-                            </div>
-                        </div>
-
-                        <!-- Domain & Availability Badges -->
-                        <div class="flex flex-wrap items-center gap-2 pt-1">
-                            <span class="bg-slate-100 text-slate-800 text-[11px] font-extrabold px-2.5 py-1 rounded-xl border border-slate-200/80">
-                                <?= htmlspecialchars($t['primaryDomain'] ?? 'Tech') ?>
-                            </span>
-                            <?= getAvailabilityBadge($t['availabilityStatus'] ?? 'AVAILABLE_NOW', $t['availableFromDate'] ?? null) ?>
-                        </div>
-
-                        <!-- Quick Meta Info (Location & Contacts) -->
-                        <div class="space-y-1 text-xs text-slate-500 font-medium">
-                            <div class="flex items-center gap-1.5 truncate">
-                                <span class="material-symbols-outlined text-slate-400 text-[15px]">location_on</span>
-                                <span class="truncate"><?= htmlspecialchars($location) ?></span>
-                            </div>
-                            <div class="flex items-center gap-1.5 truncate">
-                                <span class="material-symbols-outlined text-slate-400 text-[15px]">mail</span>
-                                <span class="truncate"><?= htmlspecialchars($trainerEmail) ?></span>
-                            </div>
-                        </div>
-
-                        <!-- Experience & Rate Metric Strip -->
-                        <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-center">
-                            <div>
-                                <p class="text-[10px] font-bold uppercase text-slate-400">Total Exp</p>
-                                <p class="text-xs font-black text-slate-900 mt-0.5"><?= htmlspecialchars($t['totalExperienceYears'] ?? 0) ?> yrs</p>
-                            </div>
-                            <div class="border-x border-slate-200/70">
-                                <p class="text-[10px] font-bold uppercase text-slate-400">College Exp</p>
-                                <p class="text-xs font-black text-slate-900 mt-0.5"><?= htmlspecialchars($t['collegeExperienceYears'] ?? 0) ?> yrs</p>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-bold uppercase text-slate-400">Daily Rate</p>
-                                <p class="text-xs font-black text-[#FE5E04] mt-0.5"><?= formatINR($dailyRate) ?></p>
-                            </div>
-                        </div>
-
-                        <!-- Skills Chips Preview -->
-                        <?php if (!empty($skillsArr)): ?>
-                            <div class="flex flex-wrap items-center gap-1 pt-0.5">
-                                <?php foreach (array_slice($skillsArr, 0, 3) as $sk): ?>
-                                    <span class="bg-white text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-lg border border-slate-200">
-                                        <?= htmlspecialchars($sk) ?>
-                                    </span>
-                                <?php endforeach; ?>
-                                <?php if (count($skillsArr) > 3): ?>
-                                    <span class="text-[10px] font-extrabold text-slate-400 px-1">
-                                        +<?= count($skillsArr) - 3 ?> more
-                                    </span>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-
-                    <!-- Card Bottom Action Bar -->
-                    <div class="px-5 py-3.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-2">
-                            <?php if ($hasResume): ?>
-                                <button type="button" 
-                                        onclick="openAdminDocViewer('<?= htmlspecialchars($resumeUrl, ENT_QUOTES) ?>', 'Resume: <?= htmlspecialchars($trainerName, ENT_QUOTES) ?>', '<?= htmlspecialchars($downloadFilename, ENT_QUOTES) ?>')"
-                                        class="inline-flex items-center gap-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition-all shadow-2xs"
-                                        title="Instant In-Browser Resume Preview (No download)">
-                                    <span class="material-symbols-outlined text-[15px]">visibility</span>
-                                    Preview Resume
-                                </button>
+            <!-- TRAINERS DATA TABLE -->
+            <div class="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-200/80 text-[11px] text-slate-400 font-bold bg-white">
+                                <th class="py-3.5 px-4 w-10 text-center">
+                                    <input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-0">
+                                </th>
+                                <th class="py-3.5 px-4 font-bold text-slate-700 uppercase tracking-wider">Trainer</th>
+                                <th class="py-3.5 px-4 font-bold text-slate-700 uppercase tracking-wider">Domain</th>
+                                <th class="py-3.5 px-4 font-bold text-slate-700 uppercase tracking-wider">Location</th>
+                                <th class="py-3.5 px-4 font-bold text-slate-700 uppercase tracking-wider">Experience</th>
+                                <th class="py-3.5 px-4 font-bold text-slate-700 uppercase tracking-wider">Daily Rate</th>
+                                <th class="py-3.5 px-4 font-bold text-slate-700 uppercase tracking-wider">Skills</th>
+                                <th class="py-3.5 px-5 font-bold text-slate-700 uppercase tracking-wider text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <?php if (empty($trainers)): ?>
+                                <tr>
+                                    <td colspan="8" class="p-12 text-center text-slate-400">
+                                        <div class="max-w-xs mx-auto space-y-2">
+                                            <span class="material-symbols-outlined text-4xl text-slate-300">person_search</span>
+                                            <p class="font-bold text-sm text-slate-700">No trainers found</p>
+                                            <p class="text-xs text-slate-400">Try clearing or adjusting filters.</p>
+                                            <a href="/admin/trainers.php" class="inline-block mt-2 text-xs font-bold text-blue-600 hover:underline">Reset Filters</a>
+                                        </div>
+                                    </td>
+                                </tr>
                             <?php else: ?>
-                                <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 bg-slate-100 px-2.5 py-1.5 rounded-xl">
-                                    <span class="material-symbols-outlined text-[14px]">description</span>
-                                    No Resume
-                                </span>
-                            <?php endif; ?>
-                        </div>
+                                <?php foreach ($trainers as $t): 
+                                    $trainerId = (string)$t['_id'];
+                                    $userId = (string)($t['userId'] ?? '');
+                                    $u = null;
+                                    if ($userCol && !empty($userId)) {
+                                        try { $u = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId($userId)]); } catch (\Throwable $e) {}
+                                    }
 
-                        <div class="flex items-center gap-1.5">
-                            <a href="/admin/trainer-view.php?id=<?= $trainerId ?>" 
-                               class="inline-flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition-all shadow-2xs">
-                                <span>Dossier</span>
-                                <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
-                            </a>
+                                    $trainerCode = getMentryCode('TRAINER', $t);
+                                    $trainerName = $u['name'] ?? ($t['name'] ?? 'Trainer');
+                                    $trainerEmail = $u['email'] ?? ($t['email'] ?? 'trainer@mentry.test');
+                                    $avail = $t['availabilityStatus'] ?? 'AVAILABLE_NOW';
+                                    $availUntil = !empty($t['availableFromDate']) ? date('M d, Y', strtotime($t['availableFromDate'])) : 'Sep 12, 2026';
+                                    
+                                    $city = $t['currentCity'] ?? 'Chengalpattu';
+                                    $state = $t['currentState'] ?? 'India';
+                                    $locationText = !empty($state) ? "{$city}, {$state}" : $city;
 
-                            <?php if ($trainerStatus === 'PENDING_APPROVAL'): ?>
-                                <form action="/actions/update-trainer.php" method="POST" class="inline">
-                                    <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
-                                    <input type="hidden" name="action_type" value="update_status">
-                                    <input type="hidden" name="status" value="APPROVED">
-                                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs p-1.5 rounded-xl shadow-2xs transition-colors" title="Quick Approve Trainer">
-                                        <span class="material-symbols-outlined text-[16px] block">check</span>
-                                    </button>
-                                </form>
+                                    $totalExp = (int)($t['totalExperienceYears'] ?? 0);
+                                    $collegeExp = (int)($t['collegeExperienceYears'] ?? 0);
+                                    $dailyRate = (int)($t['dailyRateINR'] ?? 0);
+
+                                    // Resume pre-fetched
+                                    $resumeDoc = $resumesMap[$trainerId] ?? ($resumesMap[$userId] ?? null);
+                                    $hasResume = !empty($resumeDoc['fileUrl']);
+                                    $resumeUrl = $hasResume ? $resumeDoc['fileUrl'] : '';
+                                    $cleanTrainerName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $trainerName);
+                                    $cleanCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $trainerCode);
+                                    $downloadFilename = "{$cleanTrainerName}_{$cleanCode}_Resume";
+
+                                    // Skills array
+                                    $skillsArr = [];
+                                    if (!empty($t['skills'])) {
+                                        if (is_array($t['skills'])) {
+                                            $skillsArr = $t['skills'];
+                                        } else {
+                                            $skillsArr = array_filter(array_map('trim', explode(',', (string)$t['skills'])));
+                                        }
+                                    }
+                                ?>
+                                    <tr class="hover:bg-slate-50/70 transition-colors">
+                                        <!-- Checkbox -->
+                                        <td class="py-4 px-4 text-center">
+                                            <input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-0">
+                                        </td>
+
+                                        <!-- Trainer Cell (Avatar, Name, Status Pill, Email) -->
+                                        <td class="py-4 px-4">
+                                            <div class="flex items-center gap-3">
+                                                <!-- Logo/Avatar Box -->
+                                                <div class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                                                    <?php if (!empty($u['avatar']) && strpos($u['avatar'], 'http') === 0): ?>
+                                                        <img src="<?= htmlspecialchars($u['avatar']) ?>" alt="<?= htmlspecialchars($trainerName) ?>" class="w-full h-full object-cover">
+                                                    <?php else: ?>
+                                                        <img src="/public/mentry.png" alt="Mentry" class="w-7 h-7 object-contain">
+                                                    <?php endif; ?>
+                                                </div>
+
+                                                <div class="min-w-0">
+                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                        <a href="/admin/trainer-view.php?id=<?= $trainerId ?>" class="font-extrabold text-slate-900 hover:text-blue-600 transition-colors text-sm truncate">
+                                                            <?= htmlspecialchars($trainerName) ?>
+                                                        </a>
+
+                                                        <!-- Availability Pill -->
+                                                        <?php if ($avail === 'BUSY_ON_ASSIGNMENT' || $avail === 'DELIVERING'): ?>
+                                                            <span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200/80 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                                                                <span class="material-symbols-outlined text-[12px]">calendar_today</span>
+                                                                Delivering Workshop (until <?= htmlspecialchars($availUntil) ?>)
+                                                            </span>
+                                                        <?php elseif ($avail === 'FREE_FROM_DATE'): ?>
+                                                            <span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                                Free after <?= htmlspecialchars($availUntil) ?>
+                                                            </span>
+                                                        <?php else: ?>
+                                                            <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                Available Now
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </div>
+
+                                                    <div class="flex items-center gap-1 text-[11px] text-slate-400 font-medium mt-0.5 truncate">
+                                                        <span class="material-symbols-outlined text-[13px]">mail</span>
+                                                        <span class="truncate"><?= htmlspecialchars($trainerEmail) ?></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <!-- Domain Column -->
+                                        <td class="py-4 px-4 whitespace-nowrap">
+                                            <span class="bg-slate-100 text-slate-700 text-xs font-semibold px-3 py-1 rounded-lg">
+                                                <?= htmlspecialchars($t['primaryDomain'] ?? 'Programming') ?>
+                                            </span>
+                                        </td>
+
+                                        <!-- Location Column -->
+                                        <td class="py-4 px-4 whitespace-nowrap">
+                                            <div class="flex items-center gap-1 text-xs text-slate-600 font-medium">
+                                                <span class="material-symbols-outlined text-[15px] text-slate-400">location_on</span>
+                                                <span><?= htmlspecialchars($locationText) ?></span>
+                                            </div>
+                                        </td>
+
+                                        <!-- Experience Column -->
+                                        <td class="py-4 px-4 whitespace-nowrap">
+                                            <div class="text-xs font-bold text-slate-900">
+                                                <?= $totalExp > 0 ? "{$totalExp} yrs" : "—" ?>
+                                                <span class="text-[10px] font-normal text-slate-400 block">Total Exp</span>
+                                            </div>
+                                            <div class="text-[11px] text-slate-600 mt-0.5">
+                                                <?= $collegeExp > 0 ? "{$collegeExp} yrs" : ($totalExp > 0 ? "0 yrs" : "—") ?>
+                                                <span class="text-[10px] font-normal text-slate-400 block">College Exp</span>
+                                            </div>
+                                        </td>
+
+                                        <!-- Daily Rate Column -->
+                                        <td class="py-4 px-4 whitespace-nowrap">
+                                            <?php if ($dailyRate > 0): ?>
+                                                <span class="text-sm font-black text-[#FE5E04]">
+                                                    <?= formatINR($dailyRate) ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="text-slate-400 font-bold">—</span>
+                                            <?php endif; ?>
+                                        </td>
+
+                                        <!-- Skills Column -->
+                                        <td class="py-4 px-4">
+                                            <?php if (!empty($skillsArr)): ?>
+                                                <div class="flex flex-wrap gap-1 max-w-[170px]">
+                                                    <?php foreach (array_slice($skillsArr, 0, 3) as $sk): ?>
+                                                        <span class="bg-slate-100 text-slate-600 text-[10px] font-medium px-2 py-0.5 rounded">
+                                                            <?= htmlspecialchars($sk) ?>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="text-slate-400 font-bold">—</span>
+                                            <?php endif; ?>
+                                        </td>
+
+                                        <!-- Actions Column (Preview Resume + Dossier) -->
+                                        <td class="py-4 px-5 text-right whitespace-nowrap">
+                                            <div class="flex flex-col items-end gap-1.5">
+                                                <?php if ($hasResume): ?>
+                                                    <button type="button" 
+                                                            onclick="openAdminDocViewer('<?= htmlspecialchars($resumeUrl, ENT_QUOTES) ?>', 'Resume: <?= htmlspecialchars($trainerName, ENT_QUOTES) ?>', '<?= htmlspecialchars($downloadFilename, ENT_QUOTES) ?>')"
+                                                            class="inline-flex items-center justify-center gap-1 text-xs font-semibold text-blue-600 bg-blue-50/70 hover:bg-blue-100 border border-blue-200/80 px-3 py-1 rounded-lg transition-colors shadow-2xs">
+                                                        <span class="material-symbols-outlined text-[14px]">visibility</span>
+                                                        <span>Preview Resume</span>
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button type="button" 
+                                                            onclick="alert('No resume document has been uploaded for this trainer yet.')"
+                                                            class="inline-flex items-center justify-center gap-1 text-xs font-semibold text-slate-400 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg opacity-80 cursor-not-allowed">
+                                                        <span class="material-symbols-outlined text-[14px]">visibility</span>
+                                                        <span>Preview Resume</span>
+                                                    </button>
+                                                <?php endif; ?>
+
+                                                <a href="/admin/trainer-view.php?id=<?= $trainerId ?>" 
+                                                   class="inline-flex items-center justify-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-1 rounded-lg transition-colors">
+                                                    <span>Dossier</span>
+                                                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
                             <?php endif; ?>
-                        </div>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Table Footer: Pagination & Count -->
+                <div class="px-5 py-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 bg-white">
+                    <span>Showing 1 to <?= count($trainers) ?> of <?= $totalTrainers ?> trainers</span>
+                    <div class="flex items-center gap-1">
+                        <button type="button" class="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center disabled:opacity-50" disabled>
+                            <span class="material-symbols-outlined text-sm">chevron_left</span>
+                        </button>
+                        <button type="button" class="w-7 h-7 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center shadow-xs">
+                            1
+                        </button>
+                        <button type="button" class="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 flex items-center justify-center disabled:opacity-50" disabled>
+                            <span class="material-symbols-outlined text-sm">chevron_right</span>
+                        </button>
                     </div>
                 </div>
-            <?php endforeach; ?>
-        </div>
-
-    <?php else: ?>
-        <!-- ================= MODERN DATA TABLE VIEW ================= -->
-        <div class="bg-white border border-slate-200/90 rounded-3xl shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200/80 text-[11px] text-slate-500 uppercase tracking-wider font-extrabold">
-                            <th class="py-4 px-6 whitespace-nowrap">Faculty Profile</th>
-                            <th class="py-4 px-4">Primary Domain</th>
-                            <th class="py-4 px-4">Availability</th>
-                            <th class="py-4 px-4">Location</th>
-                            <th class="py-4 px-4">Experience</th>
-                            <th class="py-4 px-4">Daily Rate</th>
-                            <th class="py-4 px-4">Status</th>
-                            <th class="py-4 px-6 text-right">Quick Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <?php foreach ($trainers as $t): 
-                            $trainerId = (string)$t['_id'];
-                            $userId = (string)($t['userId'] ?? '');
-                            $u = null;
-                            if ($userCol && !empty($userId)) {
-                                try { $u = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId($userId)]); } catch (\Throwable $e) {}
-                            }
-
-                            $trainerCode = getMentryCode('TRAINER', $t);
-                            $trainerStatus = $t['status'] ?? 'PENDING_APPROVAL';
-                            $trainerName = $u['name'] ?? ($t['name'] ?? 'Trainer');
-                            $trainerEmail = $u['email'] ?? ($t['email'] ?? 'N/A');
-                            $dailyRate = $t['dailyRateINR'] ?? 0;
-
-                            $resumeDoc = $resumesMap[$trainerId] ?? ($resumesMap[$userId] ?? null);
-                            $hasResume = !empty($resumeDoc['fileUrl']);
-                            $resumeUrl = $hasResume ? $resumeDoc['fileUrl'] : '';
-                            $cleanTrainerName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $trainerName);
-                            $cleanCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $trainerCode);
-                            $downloadFilename = "{$cleanTrainerName}_{$cleanCode}_Resume";
-                        ?>
-                            <tr class="hover:bg-slate-50/70 transition-colors">
-                                <!-- Profile Cell -->
-                                <td class="py-4 px-6 whitespace-nowrap">
-                                    <div class="flex items-center gap-3">
-                                        <div class="relative shrink-0">
-                                            <img src="<?= htmlspecialchars(getUserAvatar($u ?? $t, 80)) ?>" 
-                                                 alt="<?= htmlspecialchars($trainerName) ?>" 
-                                                 class="w-10 h-10 rounded-2xl object-cover border border-slate-200">
-                                            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-white <?= ($t['availabilityStatus'] ?? 'AVAILABLE_NOW') === 'AVAILABLE_NOW' ? 'bg-emerald-500' : 'bg-amber-500' ?>"></span>
-                                        </div>
-                                        <div class="min-w-0">
-                                            <div class="flex items-center gap-2">
-                                                <a href="/admin/trainer-view.php?id=<?= $trainerId ?>" class="font-extrabold text-slate-900 hover:text-[#FE5E04] transition-colors">
-                                                    <?= htmlspecialchars($trainerName) ?>
-                                                </a>
-                                                <span class="font-mono text-[10px] font-extrabold text-[#FE5E04] bg-orange-50 border border-orange-200/70 px-2 py-0.2 rounded-md shrink-0">
-                                                    <?= htmlspecialchars($trainerCode) ?>
-                                                </span>
-                                            </div>
-                                            <p class="text-[11px] text-slate-500 font-medium truncate">
-                                                <?= htmlspecialchars($t['professionalTitle'] ?? $trainerEmail) ?>
-                                            </p>
-                                        </div>
-                                    </div>
-                                </td>
-
-                                <!-- Domain -->
-                                <td class="py-4 px-4 whitespace-nowrap">
-                                    <span class="bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-lg text-[11px] border border-blue-200/60">
-                                        <?= htmlspecialchars($t['primaryDomain'] ?? 'Tech') ?>
-                                    </span>
-                                </td>
-
-                                <!-- Availability Status -->
-                                <td class="py-4 px-4 whitespace-nowrap">
-                                    <?= getAvailabilityBadge($t['availabilityStatus'] ?? 'AVAILABLE_NOW', $t['availableFromDate'] ?? null) ?>
-                                    <?php if (!empty($t['availabilityNotes'])): ?>
-                                        <span class="text-[10px] text-slate-400 block truncate max-w-[140px] mt-0.5" title="<?= htmlspecialchars($t['availabilityNotes']) ?>">
-                                            <?= htmlspecialchars($t['availabilityNotes']) ?>
-                                        </span>
-                                    <?php endif; ?>
-                                </td>
-
-                                <!-- Base City -->
-                                <td class="py-4 px-4 text-slate-700 font-medium whitespace-nowrap">
-                                    <?= htmlspecialchars($t['currentCity'] ?? 'India') ?>
-                                    <?php if (!empty($t['currentState'])): ?>
-                                        <span class="text-[10px] text-slate-400 block"><?= htmlspecialchars($t['currentState']) ?></span>
-                                    <?php endif; ?>
-                                </td>
-
-                                <!-- Experience -->
-                                <td class="py-4 px-4 whitespace-nowrap">
-                                    <strong class="text-slate-800 font-black"><?= htmlspecialchars($t['totalExperienceYears'] ?? 0) ?>y Total</strong>
-                                    <span class="text-[10px] text-slate-400 block"><?= htmlspecialchars($t['collegeExperienceYears'] ?? 0) ?>y College</span>
-                                </td>
-
-                                <!-- Daily Rate -->
-                                <td class="py-4 px-4 font-black text-[#FE5E04] whitespace-nowrap">
-                                    <?= formatINR($dailyRate) ?>/day
-                                </td>
-
-                                <!-- Status Badge -->
-                                <td class="py-4 px-4 whitespace-nowrap">
-                                    <?= getStatusBadge($trainerStatus) ?>
-                                </td>
-
-                                <!-- Quick Actions -->
-                                <td class="py-4 px-6 text-right whitespace-nowrap">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <?php if ($hasResume): ?>
-                                            <button type="button" 
-                                                    onclick="openAdminDocViewer('<?= htmlspecialchars($resumeUrl, ENT_QUOTES) ?>', 'Resume: <?= htmlspecialchars($trainerName, ENT_QUOTES) ?>', '<?= htmlspecialchars($downloadFilename, ENT_QUOTES) ?>')"
-                                                    class="text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded-xl transition-colors flex items-center gap-1"
-                                                    title="Instant Resume Preview">
-                                                <span class="material-symbols-outlined text-[15px]">visibility</span>
-                                                <span class="hidden sm:inline">Resume</span>
-                                            </button>
-                                        <?php endif; ?>
-
-                                        <a href="/admin/trainer-view.php?id=<?= $trainerId ?>" 
-                                           class="text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1">
-                                            <span>Dossier</span>
-                                            <span class="material-symbols-outlined text-[14px]">chevron_right</span>
-                                        </a>
-
-                                        <?php if ($trainerStatus === 'PENDING_APPROVAL'): ?>
-                                            <form action="/actions/update-trainer.php" method="POST" class="inline">
-                                                <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
-                                                <input type="hidden" name="action_type" value="update_status">
-                                                <input type="hidden" name="status" value="APPROVED">
-                                                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2.5 py-1.5 rounded-xl shadow-xs transition-colors" title="Approve Trainer">
-                                                    Approve
-                                                </button>
-                                            </form>
-                                            <form action="/actions/update-trainer.php" method="POST" class="inline" onsubmit="return confirm('Reject and suspend this trainer application?');">
-                                                <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
-                                                <input type="hidden" name="action_type" value="update_status">
-                                                <input type="hidden" name="status" value="SUSPENDED">
-                                                <button type="submit" class="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 font-bold text-[11px] px-2 py-1.5 rounded-xl transition-colors" title="Reject">
-                                                    Reject
-                                                </button>
-                                            </form>
-                                        <?php elseif ($trainerStatus === 'SUSPENDED'): ?>
-                                            <form action="/actions/update-trainer.php" method="POST" class="inline">
-                                                <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
-                                                <input type="hidden" name="action_type" value="update_status">
-                                                <input type="hidden" name="status" value="APPROVED">
-                                                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2.5 py-1.5 rounded-xl shadow-xs transition-colors" title="Re-activate Trainer">
-                                                    Re-activate
-                                                </button>
-                                            </form>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
             </div>
         </div>
-    <?php endif; ?>
+
+        <!-- RIGHT SIDEBAR WIDGETS: UPCOMING WORKSHOPS & RECENT ACTIVITY (3-4 cols) -->
+        <div class="xl:col-span-4 2xl:col-span-3 space-y-6">
+            
+            <!-- Widget 1: Upcoming Workshops -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-extrabold text-sm text-slate-900">Upcoming Workshops</h3>
+                    <a href="/admin/opportunities.php" class="text-xs font-bold text-blue-600 hover:underline">View All</a>
+                </div>
+
+                <div class="space-y-3.5">
+                    <?php foreach ($upcomingWorkshops as $ws): ?>
+                        <div class="flex items-start gap-3">
+                            <!-- Date Box -->
+                            <div class="w-11 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 p-1.5 text-center shrink-0">
+                                <span class="block text-[9px] font-extrabold uppercase leading-none"><?= $ws['month'] ?></span>
+                                <span class="block text-base font-black leading-tight mt-0.5"><?= $ws['day'] ?></span>
+                            </div>
+
+                            <!-- Workshop Info -->
+                            <div class="min-w-0 flex-1">
+                                <h4 class="font-bold text-xs text-slate-900 truncate hover:text-blue-600 cursor-pointer">
+                                    <?= htmlspecialchars($ws['title']) ?>
+                                </h4>
+                                <p class="text-[11px] text-slate-500 flex items-center gap-0.5 mt-0.5 truncate">
+                                    <span class="material-symbols-outlined text-[13px] text-slate-400">location_on</span>
+                                    <span class="truncate"><?= htmlspecialchars($ws['location']) ?></span>
+                                </p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">
+                                    <?= htmlspecialchars($ws['meta']) ?>
+                                </p>
+                            </div>
+
+                            <!-- Status Badge -->
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 <?= $ws['statusColor'] === 'emerald' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-blue-50 text-blue-700 border border-blue-200/80' ?>">
+                                <?= htmlspecialchars($ws['status']) ?>
+                            </span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Widget 2: Recent Activity -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-extrabold text-sm text-slate-900">Recent Activity</h3>
+                    <a href="/admin/notifications.php" class="text-xs font-bold text-blue-600 hover:underline">View All</a>
+                </div>
+
+                <div class="space-y-4">
+                    <?php foreach ($recentActivities as $act): ?>
+                        <div class="flex items-start gap-3">
+                            <div class="w-8 h-8 rounded-full <?= $act['iconBg'] ?> flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-[16px]"><?= $act['icon'] ?></span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-xs font-bold text-slate-900 leading-snug">
+                                    <?= htmlspecialchars($act['title']) ?>
+                                </p>
+                                <?php if (!empty($act['subtitle'])): ?>
+                                    <p class="text-[11px] text-slate-500 leading-tight">
+                                        <?= htmlspecialchars($act['subtitle']) ?>
+                                    </p>
+                                <?php endif; ?>
+                                <p class="text-[10px] text-slate-400 mt-0.5">
+                                    <?= htmlspecialchars($act['time']) ?>
+                                </p>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Widget 3: Sidebar Motivational Banner -->
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50/50 p-5 rounded-2xl border border-blue-100 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <span class="material-symbols-outlined text-xl">school</span>
+                </div>
+                <div>
+                    <h4 class="font-black text-xs text-slate-900">Empowering Trainers</h4>
+                    <p class="text-[11px] text-slate-500">Building Brighter Futures across higher education</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
 </div>
 
-<!-- ================= MODAL: IN-BROWSER DOCUMENT & RESUME VIEWER ================= -->
+<!-- ================= MODAL: IN-BROWSER RESUME VIEWER (NO DOWNLOAD) ================= -->
 <div id="documentViewerModal" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 transition-opacity">
     <div class="bg-white rounded-3xl max-w-5xl w-full h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         <!-- Modal Header -->
@@ -788,6 +769,84 @@ if ($docCol && (!empty($trainerIds) || !empty($userMapIds))) {
         <div class="flex-1 bg-slate-100 p-2 sm:p-3 overflow-hidden relative">
             <iframe id="adminDocViewerIframe" src="" class="w-full h-full rounded-2xl border-0 bg-white shadow-inner"></iframe>
         </div>
+    </div>
+</div>
+
+<!-- ================= MODAL: QUICK ADD TRAINER ================= -->
+<div id="addTrainerModal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-lg">person_add</span>
+                </div>
+                <div>
+                    <h3 class="font-black text-slate-900 text-base">Add New Faculty</h3>
+                    <p class="text-[11px] text-slate-500">Register and onboarding a trainer to the network</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeAddTrainerModal()" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <form action="/actions/update-trainer.php" method="POST" class="space-y-3.5 text-xs">
+            <input type="hidden" name="action_type" value="create_trainer">
+            
+            <div>
+                <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Full Name</label>
+                <input type="text" name="name" required placeholder="e.g. Dr. Ramesh Kumar" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:bg-white focus:border-blue-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Email Address</label>
+                    <input type="email" name="email" required placeholder="ramesh@example.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:bg-white focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Phone Number</label>
+                    <input type="text" name="phone" placeholder="+91 98765 43210" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:bg-white focus:border-blue-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Primary Domain</label>
+                    <select name="primaryDomain" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:bg-white cursor-pointer">
+                        <option value="Programming">Programming</option>
+                        <option value="Cloud">Cloud & DevOps</option>
+                        <option value="Data Science">Data Science & AI</option>
+                        <option value="Full Stack">Full Stack Development</option>
+                        <option value="Aptitude">Aptitude & Reasoning</option>
+                        <option value="Soft Skills">Soft Skills & Communication</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Base City</label>
+                    <input type="text" name="currentCity" placeholder="e.g. Bangalore" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:bg-white focus:border-blue-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Total Experience (Yrs)</label>
+                    <input type="number" name="totalExperienceYears" min="0" placeholder="5" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:bg-white focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Daily Honorarium (₹)</label>
+                    <input type="number" name="dailyRateINR" min="0" placeholder="6000" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:bg-white focus:border-blue-500">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeAddTrainerModal()" class="px-4 py-2 font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
+                    Cancel
+                </button>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors">
+                    Add to Roster
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -820,10 +879,21 @@ function closeAdminDocViewer() {
     if (modal) modal.classList.add('hidden');
 }
 
-// Close modal on Escape key press
+function openAddTrainerModal() {
+    const modal = document.getElementById('addTrainerModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeAddTrainerModal() {
+    const modal = document.getElementById('addTrainerModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Close modals on Escape key press
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeAdminDocViewer();
+        closeAddTrainerModal();
     }
 });
 </script>

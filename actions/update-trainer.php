@@ -163,6 +163,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } catch (Exception $e) {}
             }
         }
+    } elseif ($actionType === 'create_trainer') {
+        $trainerCol = getCollection("Trainer");
+        $userCol = getCollection("User");
+
+        $name = trim($_POST['name'] ?? '');
+        $email = strtolower(trim($_POST['email'] ?? ''));
+        $phone = trim($_POST['phone'] ?? '');
+        $primaryDomain = trim($_POST['primaryDomain'] ?? 'Programming');
+        $currentCity = trim($_POST['currentCity'] ?? 'India');
+        $totalExp = (int)($_POST['totalExperienceYears'] ?? 0);
+        $dailyRate = (float)($_POST['dailyRateINR'] ?? 0);
+
+        if (!empty($name) && !empty($email) && $userCol && $trainerCol) {
+            $existingUser = $userCol->findOne(['email' => $email]);
+            $userId = null;
+            if ($existingUser) {
+                $userId = (string)$existingUser['_id'];
+            } else {
+                $userResult = $userCol->insertOne([
+                    'name' => $name,
+                    'email' => $email,
+                    'phone' => $phone,
+                    'role' => 'TRAINER',
+                    'status' => 'ACTIVE',
+                    'avatar' => 'https://avatar.vercel.sh/' . urlencode($name) . '.png',
+                    'createdAt' => new MongoDB\BSON\UTCDateTime(),
+                    'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                ]);
+                $userId = (string)$userResult->getInsertedId();
+            }
+
+            // Generate new trainer code e.g. MEN-TRN-100X
+            $trainerCount = $trainerCol->countDocuments();
+            $newCode = 'MEN-TRN-' . str_pad($trainerCount + 1001, 4, '0', STR_PAD_LEFT);
+
+            $trainerCol->insertOne([
+                'userId' => $userId,
+                'trainerCode' => $newCode,
+                'mentryId' => $newCode,
+                'name' => $name,
+                'email' => $email,
+                'phone' => $phone,
+                'professionalTitle' => 'Corporate Technical Trainer',
+                'primaryDomain' => $primaryDomain,
+                'currentCity' => $currentCity,
+                'currentState' => 'India',
+                'totalExperienceYears' => $totalExp,
+                'collegeExperienceYears' => max(0, $totalExp - 2),
+                'dailyRateINR' => $dailyRate,
+                'status' => 'APPROVED',
+                'availabilityStatus' => 'AVAILABLE_NOW',
+                'verified' => true,
+                'adminRating' => 5.0,
+                'skills' => [$primaryDomain],
+                'createdAt' => new MongoDB\BSON\UTCDateTime(),
+                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+            ]);
+        }
     }
 }
 
