@@ -1,7 +1,9 @@
 <?php
 // actions/upload-document.php
+ob_start();
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 // Check if user is logged in
 $currentUser = getCurrentUser();
@@ -40,25 +42,35 @@ if (!empty($trainerId) && isset($_FILES['document'])) {
             $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
 
             if (in_array($extension, $allowedExtensions)) {
-                $uploadDir = __DIR__ . '/../public/uploads/documents/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0777, true);
+                $fileName = 'doc_' . $trainerId . '_' . time() . '_' . rand(100, 999) . '.' . $extension;
+
+                // Run resume parser on the temporary file before moving it (temporary file is always readable in /tmp)
+                $parseResult = [];
+                if ($docType === 'RESUME') {
+                    require_once __DIR__ . '/../includes/resume_parser.php';
+                    try {
+                        $parseResult = ResumeSkillParser::processAndSaveTrainerResume($trainerId, $file['tmp_name']);
+                    } catch (\Throwable $e) {
+                        error_log("Resume parsing warning: " . $e->getMessage());
+                    }
                 }
 
-                $fileName = 'doc_' . $trainerId . '_' . time() . '_' . rand(100, 999) . '.' . $extension;
-                $targetPath = $uploadDir . $fileName;
+                // Universal Cloud/Local storage upload (works across read-only Vercel/serverless and local XAMPP)
+                $uploadRes = uploadFileToCloudOrLocal($file['tmp_name'], $fileName, 'documents', $file['type'] ?? 'application/pdf');
 
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+                if ($uploadRes['success']) {
+                    $finalFileUrl = $uploadRes['url'];
+
                     $docCol = getCollection("Document");
                     if ($docCol) {
                         $docCol->insertOne([
                             'trainerId' => $trainerId,
                             'title' => $title,
                             'type' => $docType,
-                            'fileUrl' => '/public/uploads/documents/' . $fileName,
+                            'fileUrl' => $finalFileUrl,
                             'originalName' => $file['name'],
                             'fileSize' => $file['size'],
-                            'mimeType' => $file['type'],
+                            'mimeType' => $file['type'] ?? 'application/pdf',
                             'status' => 'VERIFIED',
                             'uploadedAt' => new MongoDB\BSON\UTCDateTime(),
                             'uploadedBy' => $currentUser['id']
@@ -67,13 +79,10 @@ if (!empty($trainerId) && isset($_FILES['document'])) {
 
                     // Also update trainer's resumeUrl if type is RESUME and run AI/heuristic Skill Extraction
                     if ($docType === 'RESUME' && $trainerCol) {
-                        require_once __DIR__ . '/../includes/resume_parser.php';
-                        $parseResult = ResumeSkillParser::processAndSaveTrainerResume($trainerId, $targetPath);
-
                         $trainerCol->updateOne(
                             ['_id' => new MongoDB\BSON\ObjectId($trainerId)],
                             ['$set' => [
-                                'resumeUrl' => '/public/uploads/documents/' . $fileName,
+                                'resumeUrl' => $finalFileUrl,
                                 'updatedAt' => new MongoDB\BSON\UTCDateTime()
                             ]]
                         );
@@ -84,7 +93,7 @@ if (!empty($trainerId) && isset($_FILES['document'])) {
                         }
                     }
                 } else {
-                    $_SESSION['upload_error'] = "Failed to move uploaded document to storage.";
+                    $_SESSION['upload_error'] = $uploadRes['error'] ?? "Failed to save uploaded document to storage.";
                 }
             } else {
                 $_SESSION['upload_error'] = "Invalid file type. Allowed formats: PDF, DOC, DOCX, PNG, JPG, JPEG.";
@@ -94,5 +103,7 @@ if (!empty($trainerId) && isset($_FILES['document'])) {
 }
 
 $redirectUrl = $_SERVER['HTTP_REFERER'] ?? ($isAdminOrStaff ? '/admin/trainer-view.php?id=' . $trainerId : '/trainer/documents.php');
+while (ob_get_level()) { ob_end_clean(); }
 header("Location: " . $redirectUrl);
 exit();
+

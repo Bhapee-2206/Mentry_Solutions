@@ -4,6 +4,7 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/ai_agent.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 header('Content-Type: application/json');
 
@@ -103,20 +104,16 @@ if ($action === 'send_message') {
 
     // Handle file attachment if present
     if (!empty($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = __DIR__ . '/../public/uploads/chat/';
-        if (!is_dir($uploadDir)) {
-            @mkdir($uploadDir, 0777, true);
-        }
-
         $fileName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $_FILES['file']['name']);
         $uniqueName = time() . '_' . $fileName;
-        $targetPath = $uploadDir . $uniqueName;
+        $mimeType = $_FILES['file']['type'] ?? 'application/octet-stream';
 
-        if (move_uploaded_file($_FILES['file']['tmp_name'], $targetPath)) {
+        $uploadRes = uploadFileToCloudOrLocal($_FILES['file']['tmp_name'], $uniqueName, 'chat', $mimeType);
+        if ($uploadRes && !empty($uploadRes['success'])) {
             $attachment = [
                 'name' => $fileName,
-                'url' => '/public/uploads/chat/' . $uniqueName,
-                'type' => $_FILES['file']['type'],
+                'url' => $uploadRes['url'],
+                'type' => $mimeType,
                 'size' => round($_FILES['file']['size'] / 1024, 1) . ' KB'
             ];
         }

@@ -328,3 +328,113 @@ function getUserAvatar($userOrName, $size = 128) {
     return "https://ui-avatars.com/api/?name=" . urlencode($cleanName) . "&background=2563EB&color=ffffff&bold=true&size=" . (int)$size . "&font-size=0.42";
 }
 
+/**
+ * Universal Storage Handler: Supports Supabase Cloud Storage (primary for Serverless/Vercel/Read-Only systems)
+ * with graceful fallback to local filesystem (for local XAMPP/Apache).
+ */
+function uploadFileToCloudOrLocal($tmpFilePath, $desiredFilename, $folder = 'documents', $mimeType = '') {
+    if (empty($tmpFilePath) || !file_exists($tmpFilePath) || !is_readable($tmpFilePath)) {
+        return ['success' => false, 'error' => 'Temporary uploaded file not found or is unreadable.'];
+    }
+
+    $fileContent = @file_get_contents($tmpFilePath);
+    if ($fileContent === false) {
+        return ['success' => false, 'error' => 'Failed to read uploaded file contents.'];
+    }
+
+    // 1. Try Supabase Cloud Storage (Ideal for Vercel/Serverless & persistent storage)
+    $supabaseUrl = getenv('SUPABASE_URL') ?: '';
+    $supabaseKey = getenv('SUPABASE_KEY') ?: '';
+
+    if (empty($supabaseUrl) || empty($supabaseKey)) {
+        $envPath = __DIR__ . '/../.env';
+        if (file_exists($envPath)) {
+            $lines = @file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if ($lines !== false) {
+                foreach ($lines as $l) {
+                    $l = trim($l);
+                    if (strpos($l, '=') !== false && !empty($l) && $l[0] !== '#') {
+                        list($k, $v) = explode('=', $l, 2);
+                        $k = trim($k);
+                        $v = trim(trim($v), '"\'');
+                        if ($k === 'SUPABASE_URL') $supabaseUrl = $v;
+                        if ($k === 'SUPABASE_KEY') $supabaseKey = $v;
+                    }
+                }
+            }
+        }
+    }
+
+    if (!empty($supabaseUrl) && !empty($supabaseKey)) {
+        $bucket = 'documents';
+        $objectPath = trim($folder, '/') . '/' . $desiredFilename;
+        $uploadEndpoint = rtrim($supabaseUrl, '/') . '/storage/v1/object/' . $bucket . '/' . $objectPath;
+
+        $headers = [
+            'apikey: ' . $supabaseKey,
+            'Authorization: Bearer ' . $supabaseKey,
+            'x-upsert: true'
+        ];
+        if (!empty($mimeType)) {
+            $headers[] = 'Content-Type: ' . $mimeType;
+        }
+
+        $ch = curl_init($uploadEndpoint);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $fileContent);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+        $res = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode >= 200 && $httpCode < 300) {
+            $publicUrl = rtrim($supabaseUrl, '/') . '/storage/v1/object/public/' . $bucket . '/' . $objectPath;
+            return [
+                'success' => true,
+                'url' => $publicUrl,
+                'storage' => 'supabase',
+                'filename' => $desiredFilename
+            ];
+        }
+    }
+
+    // 2. Local Filesystem Fallback (if local directory is writable, e.g. on XAMPP)
+    $uploadDir = __DIR__ . '/../public/uploads/' . trim($folder, '/') . '/';
+    $isWritable = false;
+    if (is_dir($uploadDir)) {
+        $isWritable = is_writable($uploadDir);
+    } else {
+        $isWritable = @mkdir($uploadDir, 0777, true);
+    }
+
+    if ($isWritable) {
+        $targetPath = $uploadDir . $desiredFilename;
+        $moved = @move_uploaded_file($tmpFilePath, $targetPath) || @copy($tmpFilePath, $targetPath);
+        if ($moved) {
+            return [
+                'success' => true,
+                'url' => '/public/uploads/' . trim($folder, '/') . '/' . $desiredFilename,
+                'storage' => 'local',
+                'filename' => $desiredFilename
+            ];
+        }
+    }
+
+    // 3. Serverless temp fallback (when local filesystem is strictly read-only like Vercel)
+    $tmpDir = rtrim(sys_get_temp_dir(), '/\\') . '/mentry_uploads/' . trim($folder, '/') . '/';
+    @mkdir($tmpDir, 0777, true);
+    $tmpTargetPath = $tmpDir . $desiredFilename;
+    @copy($tmpFilePath, $tmpTargetPath);
+
+    return [
+        'success' => true,
+        'url' => '/actions/preview-doc.php?tmp_file=' . urlencode(trim($folder, '/') . '/' . $desiredFilename) . '&ext=' . urlencode(pathinfo($desiredFilename, PATHINFO_EXTENSION)),
+        'storage' => 'temp',
+        'filename' => $desiredFilename
+    ];
+}
+

@@ -40,5 +40,29 @@
         "_id": "6a9ab5d7f1624b69330f5683",
         "adminNotes": "",
         "reviewedAt": "1788524087167"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "opportunityId": "6a9a5711f1624b69330f5621",
+        "proposedDailyRate": 5000,
+        "message": "",
+        "matchScore": 95,
+        "status": "PENDING",
+        "appliedAt": "1788537989977",
+        "createdAt": "1788537989977",
+        "updatedAt": "1788537989977",
+        "_id": "6a9aec85f1624b69330f568f"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "opportunityId": "6a99b57bf1624b69330f55fe",
+        "proposedDailyRate": 5000,
+        "message": "",
+        "matchScore": 95,
+        "status": "PENDING",
+        "appliedAt": "1788538066516",
+        "createdAt": "1788538066516",
+        "updatedAt": "1788538066516",
+        "_id": "6a9aecd2f1624b69330f5690"
     }
 ]

@@ -1,7 +1,9 @@
 <?php
 // actions/upload-avatar.php - Upload Profile Photo with Strict 2MB Limit
+ob_start();
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 requireAuth();
 
@@ -38,15 +40,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['avatar_success'] = "Profile photo updated successfully!";
             }
         } else {
-            $_SESSION['avatar_error'] = "Invalid photo URL format.";
+            $_SESSION['avatar_error'] = "Please provide a valid image URL (starting with http:// or https://).";
         }
     }
-    // 2. File upload
-    elseif (isset($_FILES['avatar']) && $_FILES['avatar']['error'] !== UPLOAD_ERR_NO_FILE) {
+    // 2. Direct File Upload
+    elseif (isset($_FILES['avatar'])) {
         $file = $_FILES['avatar'];
 
         if ($file['error'] !== UPLOAD_ERR_OK) {
-            $_SESSION['avatar_error'] = "Upload failed with error code: " . $file['error'];
+            if ($file['error'] !== UPLOAD_ERR_NO_FILE) {
+                $_SESSION['avatar_error'] = "File upload failed with error code: " . $file['error'];
+            }
         } elseif ($file['size'] > $MAX_PHOTO_SIZE) {
             $_SESSION['avatar_error'] = "File size exceeds limit. Profile photos must be 2MB or smaller (Your file: " . round($file['size'] / (1024 * 1024), 2) . "MB).";
         } else {
@@ -58,16 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!in_array($ext, $allowedExts) || $imageInfo === false) {
                 $_SESSION['avatar_error'] = "Invalid image file format. Only JPG, PNG, and WebP images are permitted.";
             } else {
-                $uploadDir = __DIR__ . '/../public/uploads/avatars/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0777, true);
-                }
-
                 $fileName = 'avatar_' . $userId . '_' . time() . '.' . $ext;
-                $targetPath = $uploadDir . $fileName;
+                $mimeType = $imageInfo['mime'] ?? ('image/' . $ext);
+                $uploadRes = uploadFileToCloudOrLocal($file['tmp_name'], $fileName, 'avatars', $mimeType);
 
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                    $avatarUrl = '/public/uploads/avatars/' . $fileName;
+                if ($uploadRes['success']) {
+                    $avatarUrl = $uploadRes['url'];
 
                     $userCol = getCollection("User");
                     if ($userCol) {
@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['avatar_success'] = "Profile photo updated successfully!";
                     }
                 } else {
-                    $_SESSION['avatar_error'] = "Failed to save the image to server storage.";
+                    $_SESSION['avatar_error'] = $uploadRes['error'] ?? "Failed to save the image to storage.";
                 }
             }
         }
@@ -107,5 +107,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $redirect = $_SERVER['HTTP_REFERER'] ?? '/trainer/profile.php';
+while (ob_get_level()) { ob_end_clean(); }
 header("Location: " . $redirect);
 exit();

@@ -17,44 +17,93 @@ if (empty($url)) {
     die("Document URL is required.");
 }
 
-// Clean relative URL and prevent path traversal
-$urlPath = parse_url($url, PHP_URL_PATH);
-$urlPath = ltrim($urlPath, '/\\');
+$isRemote = preg_match('/^https?:\/\//i', $url);
+$fullPath = null;
+$ext = '';
 
-$baseDir = realpath(__DIR__ . '/../');
-$fullPath = realpath($baseDir . '/' . $urlPath);
+if ($isRemote) {
+    $urlPath = parse_url($url, PHP_URL_PATH);
+    $ext = strtolower(pathinfo($urlPath, PATHINFO_EXTENSION));
+    
+    // For images & PDFs, we can download to temp or redirect
+    $tempFile = tempnam(sys_get_temp_dir(), 'prev_');
+    $fetched = false;
 
-if (!$fullPath || !file_exists($fullPath) || strpos($fullPath, $baseDir) !== 0) {
-    http_response_code(404);
-    ?>
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <script src="https://cdn.tailwindcss.com"></script>
-    </head>
-    <body class="bg-slate-50 flex items-center justify-center min-h-screen p-6 text-center">
-        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm max-w-md">
-            <h3 class="font-bold text-slate-800 text-base">Document File Not Found</h3>
-            <p class="text-xs text-slate-500 mt-2">The requested document file could not be located on the server.</p>
-        </div>
-    </body>
-    </html>
-    <?php
-    exit();
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        $data = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($code >= 200 && $code < 300 && $data !== false) {
+            file_put_contents($tempFile, $data);
+            $fetched = true;
+        }
+    }
+
+    if (!$fetched) {
+        $data = @file_get_contents($url);
+        if ($data !== false) {
+            file_put_contents($tempFile, $data);
+            $fetched = true;
+        }
+    }
+
+    if ($fetched) {
+        $fullPath = $tempFile;
+    } else {
+        // Fallback: direct redirect to cloud URL
+        header("Location: " . $url);
+        exit();
+    }
+} else {
+    // Clean relative URL and prevent path traversal
+    $urlPath = parse_url($url, PHP_URL_PATH);
+    $urlPath = ltrim($urlPath, '/\\');
+
+    $baseDir = realpath(__DIR__ . '/../');
+    $fullPath = realpath($baseDir . '/' . $urlPath);
+
+    if (!$fullPath || !file_exists($fullPath) || strpos($fullPath, $baseDir) !== 0) {
+        http_response_code(404);
+        ?>
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <script src="https://cdn.tailwindcss.com"></script>
+        </head>
+        <body class="bg-slate-50 flex items-center justify-center min-h-screen p-6 text-center">
+            <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm max-w-md">
+                <h3 class="font-bold text-slate-800 text-base">Document File Not Found</h3>
+                <p class="text-xs text-slate-500 mt-2">The requested document file could not be located on the server.</p>
+            </div>
+        </body>
+        </html>
+        <?php
+        exit();
+    }
+
+    $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
 }
 
-$ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-
 // 1. PDF Documents: Stream directly with inline disposition so browser PDF viewer handles it
+$downloadName = !empty($urlPath) ? basename($urlPath) : basename($fullPath);
+
 if ($ext === 'pdf') {
     while (ob_get_level()) { ob_end_clean(); }
     header('Content-Type: application/pdf');
-    header('Content-Disposition: inline; filename="' . basename($fullPath) . '"');
+    header('Content-Disposition: inline; filename="' . $downloadName . '"');
     header('Content-Length: ' . filesize($fullPath));
     header('Cache-Control: private, max-age=0, must-revalidate');
     header('Pragma: public');
     readfile($fullPath);
+    if ($isRemote && file_exists($fullPath)) {
+        @unlink($fullPath);
+    }
     exit();
 }
 
@@ -63,9 +112,12 @@ if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'])) {
     while (ob_get_level()) { ob_end_clean(); }
     $mime = ($ext === 'jpg' || $ext === 'jpeg') ? 'image/jpeg' : 'image/' . $ext;
     header('Content-Type: ' . $mime);
-    header('Content-Disposition: inline; filename="' . basename($fullPath) . '"');
+    header('Content-Disposition: inline; filename="' . $downloadName . '"');
     header('Content-Length: ' . filesize($fullPath));
     readfile($fullPath);
+    if ($isRemote && file_exists($fullPath)) {
+        @unlink($fullPath);
+    }
     exit();
 }
 
