@@ -97,7 +97,6 @@ if ($currentUser) {
     </style>
 </head>
 <body class="min-h-screen flex flex-col bg-white text-slate-900">
-<?php require_once __DIR__ . '/loading_screen.php'; ?>
 
 <!-- Navigation Header -->
 <header class="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs transition-all">

@@ -45,7 +45,6 @@ $navItems = [
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex antialiased">
-<?php require_once __DIR__ . '/../../includes/loading_screen.php'; ?>
 
 <!-- Desktop Sticky Sidebar -->
 <aside class="bg-[#0B1526] text-slate-300 h-screen w-64 shadow-xl flex-col shrink-0 hidden md:flex sticky top-0 z-40 border-r border-slate-800/80 py-6 select-none">

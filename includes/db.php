@@ -612,10 +612,17 @@ class Database {
             }
         }
 
-        // Check circuit breaker for remote Atlas down
+        // Check circuit breaker or local mode configuration for instant loading
         $statusFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mentry_atlas_status.json';
         $skipRemote = false;
-        if (file_exists($statusFile)) {
+        if (
+            getenv('DB_DRIVER') === 'local' ||
+            getenv('FORCE_LOCAL_DB') === '1' ||
+            (isset($env['DB_DRIVER']) && $env['DB_DRIVER'] === 'local') ||
+            (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1']) && (empty(getenv('FORCE_REMOTE_ATLAS')) && empty($env['FORCE_REMOTE_ATLAS'])))
+        ) {
+            $skipRemote = true;
+        } elseif (file_exists($statusFile)) {
             $status = @json_decode(@file_get_contents($statusFile), true);
             if (is_array($status) && isset($status['fail_until']) && time() < $status['fail_until']) {
                 $skipRemote = true;
