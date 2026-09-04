@@ -1,0 +1,74 @@
+[
+    {
+        "name": "Programming",
+        "icon": "code",
+        "order": 1,
+        "active": true,
+        "createdAt": "1788458363156",
+        "_id": "6a99b57bf1624b69330f5603",
+        "updatedAt": "1788458363156"
+    },
+    {
+        "name": "Data Science",
+        "icon": "psychology",
+        "order": 2,
+        "active": true,
+        "createdAt": "1788458363158",
+        "_id": "6a99b57bf1624b69330f5604",
+        "updatedAt": "1788458363192"
+    },
+    {
+        "name": "Cloud",
+        "icon": "cloud",
+        "order": 3,
+        "active": true,
+        "createdAt": "1788458363195",
+        "_id": "6a99b57bf1624b69330f5605",
+        "updatedAt": "1788458363216"
+    },
+    {
+        "name": "VLSI",
+        "icon": "memory",
+        "order": 4,
+        "active": true,
+        "createdAt": "1788458363220",
+        "_id": "6a99b57bf1624b69330f5606",
+        "updatedAt": "1788458363256"
+    },
+    {
+        "name": "Cybersecurity",
+        "icon": "security",
+        "order": 5,
+        "active": true,
+        "createdAt": "1788458363259",
+        "_id": "6a99b57bf1624b69330f5607",
+        "updatedAt": "1788458363301"
+    },
+    {
+        "name": "Aptitude",
+        "icon": "calculate",
+        "order": 6,
+        "active": true,
+        "createdAt": "1788458363302",
+        "_id": "6a99b57bf1624b69330f5608",
+        "updatedAt": "1788458363328"
+    },
+    {
+        "name": "Soft Skills",
+        "icon": "groups",
+        "order": 7,
+        "active": true,
+        "createdAt": "1788458363330",
+        "_id": "6a99b57bf1624b69330f5609",
+        "updatedAt": "1788458363370"
+    },
+    {
+        "name": "Management",
+        "icon": "workspaces",
+        "order": 8,
+        "active": true,
+        "createdAt": "1788458363372",
+        "_id": "6a99b57bf1624b69330f560a",
+        "updatedAt": "1788458363404"
+    }
+]

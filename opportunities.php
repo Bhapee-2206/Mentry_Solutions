@@ -13,33 +13,40 @@ $selectedType = $_GET['type'] ?? 'ALL';
 
 $opportunityCol = getCollection("Opportunity");
 
-$filter = ['status' => 'PUBLISHED'];
+$conditions = [['status' => 'PUBLISHED']];
 
 if ($selectedMode !== 'ALL') {
-    $filter['mode'] = $selectedMode;
+    $conditions[] = ['mode' => $selectedMode];
 }
 if ($selectedType !== 'ALL') {
-    $filter['trainingType'] = $selectedType;
+    $conditions[] = ['trainingType' => $selectedType];
 }
 if ($selectedLocation !== 'ALL') {
-    $filter['city'] = new MongoDB\BSON\Regex($selectedLocation, 'i');
+    $conditions[] = ['city' => new MongoDB\BSON\Regex($selectedLocation, 'i')];
 }
 if ($selectedDomain !== 'ALL') {
-    $filter['$or'] = [
-        ['domain' => new MongoDB\BSON\Regex($selectedDomain, 'i')],
-        ['title' => new MongoDB\BSON\Regex($selectedDomain, 'i')],
-        ['skillsRequired' => new MongoDB\BSON\Regex($selectedDomain, 'i')]
+    $domainRegex = new MongoDB\BSON\Regex($selectedDomain, 'i');
+    $conditions[] = [
+        '$or' => [
+            ['domain' => $domainRegex],
+            ['title' => $domainRegex],
+            ['skillsRequired' => $domainRegex]
+        ]
     ];
 }
 if (!empty($search)) {
     $searchRegex = new MongoDB\BSON\Regex($search, 'i');
-    $filter['$or'] = [
-        ['title' => $searchRegex],
-        ['city' => $searchRegex],
-        ['skillsRequired' => $searchRegex],
-        ['jobId' => $searchRegex]
+    $conditions[] = [
+        '$or' => [
+            ['title' => $searchRegex],
+            ['city' => $searchRegex],
+            ['skillsRequired' => $searchRegex],
+            ['jobId' => $searchRegex]
+        ]
     ];
 }
+
+$filter = count($conditions) === 1 ? $conditions[0] : ['$and' => $conditions];
 
 $opportunities = $opportunityCol ? $opportunityCol->find($filter, ['sort' => ['createdAt' => -1]])->toArray() : [];
 $totalCount = count($opportunities);
@@ -172,8 +179,8 @@ require_once __DIR__ . '/includes/header.php';
                                             <span class="bg-slate-100 text-slate-700 font-semibold text-[11px] px-2.5 py-1 rounded-full uppercase">
                                                 <?= htmlspecialchars(str_replace('_', ' ', $opp['trainingType'] ?? 'COLLEGE')) ?>
                                             </span>
-                                            <span class="text-[11px] font-mono font-medium text-slate-400">
-                                                ID: <?= htmlspecialchars($opp['jobId'] ?? $oppId) ?>
+                                            <span class="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md shadow-2xs">
+                                                ID: <?= htmlspecialchars(getMentryCode('OPPORTUNITY', $opp)) ?>
                                             </span>
                                             <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                                                 Active Opening

@@ -24,7 +24,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userCol = getCollection("User");
 
         $query = ['used' => false];
-        if (!empty($postToken)) {
+        if (!empty($postToken) && !empty($code)) {
+            $query['$or'] = [
+                ['token' => $postToken],
+                ['email' => $email, 'code' => $code]
+            ];
+        } elseif (!empty($postToken)) {
             $query['token'] = $postToken;
         } else {
             $query['email'] = $email;

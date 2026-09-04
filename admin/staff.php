@@ -92,6 +92,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['createStaff'])) {
             }
         }
 
+        if (!$exists && $userCol) {
+            $existingUser = $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]);
+            if ($existingUser) {
+                $exists = true;
+            }
+        }
+
         if ($exists) {
             $errorMsg = "An account with this email address already exists in directory.";
         } else {

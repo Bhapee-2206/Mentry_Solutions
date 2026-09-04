@@ -1,10 +1,31 @@
 <?php
 // contact.php
-$pageTitle = "Contact Support & Inquiries";
+require_once __DIR__ . '/includes/db.php';
 
 $sent = false;
+$error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $sent = true;
+    $name = trim($_POST['name'] ?? '');
+    $email = strtolower(trim($_POST['email'] ?? ''));
+    $subject = trim($_POST['subject'] ?? '');
+    $message = trim($_POST['message'] ?? '');
+
+    if (!empty($name) && !empty($email) && !empty($message)) {
+        $inquiryCol = getCollection("ContactInquiry");
+        if ($inquiryCol) {
+            $inquiryCol->insertOne([
+                'name' => $name,
+                'email' => $email,
+                'subject' => $subject ?: 'General Inquiry',
+                'message' => $message,
+                'status' => 'NEW',
+                'createdAt' => new MongoDB\BSON\UTCDateTime()
+            ]);
+        }
+        $sent = true;
+    } else {
+        $error = "Please fill in your name, email, and message.";
+    }
 }
 
 require_once __DIR__ . '/includes/header.php';

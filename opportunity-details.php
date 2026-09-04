@@ -27,6 +27,31 @@ if (!$skills) $skills = explode(',', (string)$opp['skillsRequired']);
 
 $user = getCurrentUser();
 
+$existingApp = null;
+if ($user) {
+    $trainerCol = getCollection("Trainer");
+    $appCol = getCollection("Application");
+    $trainer = null;
+    if ($trainerCol) {
+        try {
+            $trainer = $trainerCol->findOne([
+                '$or' => [
+                    ['userId' => $user['id']],
+                    ['userId' => new MongoDB\BSON\ObjectId($user['id'])]
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            $trainer = $trainerCol->findOne(['userId' => $user['id']]);
+        }
+    }
+    if ($trainer && $appCol) {
+        $existingApp = $appCol->findOne([
+            'trainerId' => (string)$trainer['_id'],
+            'opportunityId' => (string)$opp['_id']
+        ]);
+    }
+}
+
 require_once __DIR__ . '/includes/header.php';
 ?>
 
@@ -50,8 +75,8 @@ require_once __DIR__ . '/includes/header.php';
                         <span class="bg-slate-100 text-slate-700 font-semibold text-xs px-3 py-1 rounded-full uppercase">
                             <?= htmlspecialchars(str_replace('_', ' ', $opp['trainingType'] ?? 'COLLEGE')) ?>
                         </span>
-                        <span class="text-xs font-mono text-slate-400">
-                            ID: <?= htmlspecialchars($opp['jobId'] ?? (string)$opp['_id']) ?>
+                        <span class="text-xs font-mono font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full shadow-2xs">
+                            ID: <?= htmlspecialchars(getMentryCode('OPPORTUNITY', $opp)) ?>
                         </span>
                     </div>
                     <h1 class="text-2xl md:text-3xl font-extrabold text-slate-950 leading-tight">
@@ -116,23 +141,51 @@ require_once __DIR__ . '/includes/header.php';
             <div class="space-y-3">
                 <h3 class="text-lg font-bold text-slate-900">Campus Logistics</h3>
                 <div class="flex flex-wrap gap-3 text-xs font-medium text-slate-700">
-                    <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Travel Logistics Covered</span>
-                    <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ On-Campus Accommodation</span>
-                    <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Guest House Dining</span>
+                    <?php if (($opp['mode'] ?? 'OFFLINE') === 'ONLINE'): ?>
+                        <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Virtual Live Delivery</span>
+                        <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Digital Lab Environment</span>
+                        <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Zero Travel Required</span>
+                    <?php else: ?>
+                        <?php if ($opp['travelCovered'] ?? true): ?>
+                            <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Travel Logistics Covered</span>
+                        <?php endif; ?>
+                        <?php if ($opp['accommodationCovered'] ?? true): ?>
+                            <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ On-Campus Accommodation</span>
+                        <?php endif; ?>
+                        <?php if ($opp['diningCovered'] ?? true): ?>
+                            <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Guest House Dining</span>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
             </div>
 
             <!-- Apply CTA Strip -->
             <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
-                    <h4 class="font-bold text-slate-900 text-sm">Interested in taking this assignment?</h4>
-                    <p class="text-xs text-slate-500">Mentry will review your profile and coordinate schedule & logistics.</p>
+                    <h4 class="font-bold text-slate-900 text-sm">
+                        <?= $existingApp ? 'Your application has been received' : 'Interested in taking this assignment?' ?>
+                    </h4>
+                    <p class="text-xs text-slate-500">
+                        <?= $existingApp ? 'Mentry academic operations will review and coordinate campus schedule.' : 'Mentry will review your profile and coordinate schedule & logistics.' ?>
+                    </p>
                 </div>
 
-                <button onclick="document.getElementById('applyModal').classList.remove('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-8 py-3.5 rounded-xl transition-all shadow-md flex items-center gap-2 hover:-translate-y-0.5 w-full sm:w-auto justify-center">
-                    Apply for this Assignment
-                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-                </button>
+                <?php if ($existingApp): ?>
+                    <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
+                        <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 font-bold text-xs px-4 py-2.5 rounded-xl border border-emerald-200 shadow-2xs">
+                            <span class="material-symbols-outlined text-[18px]">verified</span>
+                            Application <?= htmlspecialchars(strtoupper($existingApp['status'] ?? 'PENDING')) ?>
+                        </span>
+                        <a href="/trainer/applications.php" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all shadow-xs text-center">
+                            Track in Portal →
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <button onclick="document.getElementById('applyModal').classList.remove('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-8 py-3.5 rounded-xl transition-all shadow-md flex items-center gap-2 hover:-translate-y-0.5 w-full sm:w-auto justify-center">
+                        Apply for this Assignment
+                        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                    </button>
+                <?php endif; ?>
             </div>
         </div>
     </div>

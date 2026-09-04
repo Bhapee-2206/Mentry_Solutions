@@ -4,6 +4,8 @@ require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/scratch/seed_initial_accounts.php';
 
+sendAntiCacheHeaders();
+
 $userCol = getCollection("User");
 
 if (isLoggedIn() && isAdminOrStaff()) {
@@ -122,49 +124,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
 
-        <!-- Quick 1-Click Fill Credentials for 2 Admin & 2 Staff -->
-        <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 space-y-2.5">
-            <div class="flex items-center justify-between">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[14px] text-[#FE5E04]">bolt</span>
-                    Quick Initial Start Accounts
-                </span>
-                <span class="text-[10px] text-slate-500">Click to autofill</span>
-            </div>
-            <div class="grid grid-cols-2 gap-2 text-left">
-                <button type="button" onclick="fillCreds('admin@mentry.test', 'admin123')" class="p-2 bg-slate-900/90 hover:bg-[#FE5E04]/20 border border-slate-700 hover:border-[#FE5E04]/40 rounded-xl text-left transition-all group">
-                    <span class="text-[10px] font-extrabold text-[#FE5E04] block">ADMIN 1</span>
-                    <span class="text-xs font-semibold text-white block truncate">admin@mentry.test</span>
-                    <span class="text-[10px] text-slate-400">Pass: admin123</span>
-                </button>
-                <button type="button" onclick="fillCreds('admin2@mentry.test', 'admin123')" class="p-2 bg-slate-900/90 hover:bg-[#FE5E04]/20 border border-slate-700 hover:border-[#FE5E04]/40 rounded-xl text-left transition-all group">
-                    <span class="text-[10px] font-extrabold text-[#FE5E04] block">ADMIN 2</span>
-                    <span class="text-xs font-semibold text-white block truncate">admin2@mentry.test</span>
-                    <span class="text-[10px] text-slate-400">Pass: admin123</span>
-                </button>
-                <button type="button" onclick="fillCreds('staff1@mentry.test', 'staff123')" class="p-2 bg-slate-900/90 hover:bg-blue-500/20 border border-slate-700 hover:border-blue-500/40 rounded-xl text-left transition-all group">
-                    <span class="text-[10px] font-extrabold text-blue-400 block">STAFF 1</span>
-                    <span class="text-xs font-semibold text-white block truncate">staff1@mentry.test</span>
-                    <span class="text-[10px] text-slate-400">Pass: staff123</span>
-                </button>
-                <button type="button" onclick="fillCreds('staff2@mentry.test', 'staff123')" class="p-2 bg-slate-900/90 hover:bg-blue-500/20 border border-slate-700 hover:border-blue-500/40 rounded-xl text-left transition-all group">
-                    <span class="text-[10px] font-extrabold text-blue-400 block">STAFF 2</span>
-                    <span class="text-xs font-semibold text-white block truncate">staff2@mentry.test</span>
-                    <span class="text-[10px] text-slate-400">Pass: staff123</span>
-                </button>
-            </div>
-        </div>
-
         <?php if ($error): ?>
             <div class="bg-rose-950/80 border border-rose-800 text-rose-300 px-4 py-3 rounded-2xl text-xs font-medium leading-relaxed">
                 <?= $error ?>
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="/admin-login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" class="space-y-4">
+        <form method="POST" action="/admin-login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" autocomplete="off" class="space-y-4">
             <div>
                 <label class="block text-xs font-bold text-slate-300 uppercase mb-1.5">Official Email ID</label>
-                <input type="email" id="emailInput" name="email" required placeholder="admin@mentry.test" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl p-3 text-sm focus:bg-slate-800 focus:border-[#FE5E04] focus:ring-2 focus:ring-[#FE5E04]/20 outline-none text-white font-medium transition-all">
+                <input type="email" id="emailInput" name="email" required placeholder="operations@mentry.in" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl p-3 text-sm focus:bg-slate-800 focus:border-[#FE5E04] focus:ring-2 focus:ring-[#FE5E04]/20 outline-none text-white font-medium transition-all">
             </div>
 
             <div>
@@ -172,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label class="text-xs font-bold text-slate-300 uppercase">Security Password</label>
                     <a href="/forgot-password.php" class="text-[11px] text-[#FE5E04] hover:underline">Forgot password?</a>
                 </div>
-                <input type="password" id="passInput" name="password" required placeholder="••••••••" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl p-3 text-sm focus:bg-slate-800 focus:border-[#FE5E04] focus:ring-2 focus:ring-[#FE5E04]/20 outline-none text-white transition-all">
+                <input type="password" id="passInput" name="password" required placeholder="••••••••" autocomplete="current-password" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl p-3 text-sm focus:bg-slate-800 focus:border-[#FE5E04] focus:ring-2 focus:ring-[#FE5E04]/20 outline-none text-white transition-all">
             </div>
 
             <button type="submit" class="w-full bg-[#FE5E04] hover:bg-[#E04E00] text-white font-black text-sm py-3.5 rounded-xl transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2">
@@ -193,10 +162,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script>
-        function fillCreds(email, pass) {
-            document.getElementById('emailInput').value = email;
-            document.getElementById('passInput').value = pass;
-        }
+        // Prevent browser bfcache redo / restoring stale form states on Alt + Left Arrow
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {
+                window.location.replace(window.location.href);
+            }
+        });
     </script>
 </body>
 </html>

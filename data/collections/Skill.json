@@ -1,0 +1,434 @@
+[
+    {
+        "trainerId": "6a99b578f1624b69330f55bb",
+        "name": "Python",
+        "proficiency": "EXPERT",
+        "experienceYears": 8,
+        "createdAt": "1788458360412",
+        "_id": "6a99b578f1624b69330f55bc",
+        "updatedAt": "1788458360417"
+    },
+    {
+        "trainerId": "6a99b578f1624b69330f55bb",
+        "name": "Django",
+        "proficiency": "EXPERT",
+        "experienceYears": 7,
+        "createdAt": "1788458360420",
+        "_id": "6a99b578f1624b69330f55bd",
+        "updatedAt": "1788458360462"
+    },
+    {
+        "trainerId": "6a99b578f1624b69330f55bb",
+        "name": "React.js",
+        "proficiency": "ADVANCED",
+        "experienceYears": 6,
+        "createdAt": "1788458360471",
+        "_id": "6a99b578f1624b69330f55be",
+        "updatedAt": "1788458360501"
+    },
+    {
+        "trainerId": "6a99b578f1624b69330f55bb",
+        "name": "PostgreSQL",
+        "proficiency": "ADVANCED",
+        "experienceYears": 7,
+        "createdAt": "1788458360506",
+        "_id": "6a99b578f1624b69330f55bf",
+        "updatedAt": "1788458360534"
+    },
+    {
+        "trainerId": "6a99b578f1624b69330f55bb",
+        "name": "REST APIs",
+        "proficiency": "EXPERT",
+        "experienceYears": 8,
+        "createdAt": "1788458360537",
+        "_id": "6a99b578f1624b69330f55c0",
+        "updatedAt": "1788458360589"
+    },
+    {
+        "trainerId": "6a99b578f1624b69330f55c6",
+        "name": "AWS",
+        "proficiency": "EXPERT",
+        "experienceYears": 10,
+        "createdAt": "1788458360883",
+        "_id": "6a99b578f1624b69330f55c7",
+        "updatedAt": "1788458360884"
+    },
+    {
+        "trainerId": "6a99b578f1624b69330f55c6",
+        "name": "Docker & Kubernetes",
+        "proficiency": "EXPERT",
+        "experienceYears": 8,
+        "createdAt": "1788458360885",
+        "_id": "6a99b578f1624b69330f55c8",
+        "updatedAt": "1788458360923"
+    },
+    {
+        "trainerId": "6a99b578f1624b69330f55c6",
+        "name": "Terraform",
+        "proficiency": "ADVANCED",
+        "experienceYears": 6,
+        "createdAt": "1788458360928",
+        "_id": "6a99b578f1624b69330f55c9",
+        "updatedAt": "1788458360955"
+    },
+    {
+        "trainerId": "6a99b578f1624b69330f55c6",
+        "name": "CI/CD Pipelines",
+        "proficiency": "EXPERT",
+        "experienceYears": 8,
+        "createdAt": "1788458360961",
+        "_id": "6a99b579f1624b69330f55ca",
+        "updatedAt": "1788458361004"
+    },
+    {
+        "trainerId": "6a99b578f1624b69330f55c6",
+        "name": "Linux Administration",
+        "proficiency": "ADVANCED",
+        "experienceYears": 10,
+        "createdAt": "1788458361005",
+        "_id": "6a99b579f1624b69330f55cb",
+        "updatedAt": "1788458361027"
+    },
+    {
+        "trainerId": "6a99b579f1624b69330f55d1",
+        "name": "PyTorch & TensorFlow",
+        "proficiency": "EXPERT",
+        "experienceYears": 10,
+        "createdAt": "1788458361355",
+        "_id": "6a99b579f1624b69330f55d2",
+        "updatedAt": "1788458361356"
+    },
+    {
+        "trainerId": "6a99b579f1624b69330f55d1",
+        "name": "Generative AI & LLMs",
+        "proficiency": "EXPERT",
+        "experienceYears": 5,
+        "createdAt": "1788458361359",
+        "_id": "6a99b579f1624b69330f55d3",
+        "updatedAt": "1788458361389"
+    },
+    {
+        "trainerId": "6a99b579f1624b69330f55d1",
+        "name": "Computer Vision",
+        "proficiency": "EXPERT",
+        "experienceYears": 9,
+        "createdAt": "1788458361391",
+        "_id": "6a99b579f1624b69330f55d4",
+        "updatedAt": "1788458361413"
+    },
+    {
+        "trainerId": "6a99b579f1624b69330f55d1",
+        "name": "NLP & LangChain",
+        "proficiency": "EXPERT",
+        "experienceYears": 6,
+        "createdAt": "1788458361416",
+        "_id": "6a99b579f1624b69330f55d5",
+        "updatedAt": "1788458361446"
+    },
+    {
+        "trainerId": "6a99b579f1624b69330f55d1",
+        "name": "Data Engineering",
+        "proficiency": "ADVANCED",
+        "experienceYears": 8,
+        "createdAt": "1788458361451",
+        "_id": "6a99b579f1624b69330f55d6",
+        "updatedAt": "1788458361480"
+    },
+    {
+        "trainerId": "6a99b579f1624b69330f55dc",
+        "name": "Business Communication",
+        "proficiency": "EXPERT",
+        "experienceYears": 7,
+        "createdAt": "1788458361760",
+        "_id": "6a99b579f1624b69330f55dd",
+        "updatedAt": "1788458361762"
+    },
+    {
+        "trainerId": "6a99b579f1624b69330f55dc",
+        "name": "GD & Personal Interview Coaching",
+        "proficiency": "EXPERT",
+        "experienceYears": 7,
+        "createdAt": "1788458361766",
+        "_id": "6a99b579f1624b69330f55de",
+        "updatedAt": "1788458361794"
+    },
+    {
+        "trainerId": "6a99b579f1624b69330f55dc",
+        "name": "Corporate Etiquette",
+        "proficiency": "EXPERT",
+        "experienceYears": 6,
+        "createdAt": "1788458361797",
+        "_id": "6a99b579f1624b69330f55df",
+        "updatedAt": "1788458361828"
+    },
+    {
+        "trainerId": "6a99b579f1624b69330f55dc",
+        "name": "Resume & LinkedIn Optimization",
+        "proficiency": "ADVANCED",
+        "experienceYears": 5,
+        "createdAt": "1788458361829",
+        "_id": "6a99b579f1624b69330f55e0",
+        "updatedAt": "1788458361860"
+    },
+    {
+        "trainerId": "6a99b57af1624b69330f55e5",
+        "name": "Embedded C",
+        "proficiency": "EXPERT",
+        "experienceYears": 9,
+        "createdAt": "1788458362101",
+        "_id": "6a99b57af1624b69330f55e6",
+        "updatedAt": "1788458362102"
+    },
+    {
+        "trainerId": "6a99b57af1624b69330f55e5",
+        "name": "ARM Cortex-M",
+        "proficiency": "EXPERT",
+        "experienceYears": 8,
+        "createdAt": "1788458362105",
+        "_id": "6a99b57af1624b69330f55e7",
+        "updatedAt": "1788458362142"
+    },
+    {
+        "trainerId": "6a99b57af1624b69330f55e5",
+        "name": "FreeRTOS",
+        "proficiency": "ADVANCED",
+        "experienceYears": 6,
+        "createdAt": "1788458362146",
+        "_id": "6a99b57af1624b69330f55e8",
+        "updatedAt": "1788458362178"
+    },
+    {
+        "trainerId": "6a99b57af1624b69330f55e5",
+        "name": "IoT Protocols (MQTT/BLE)",
+        "proficiency": "ADVANCED",
+        "experienceYears": 7,
+        "createdAt": "1788458362180",
+        "_id": "6a99b57af1624b69330f55e9",
+        "updatedAt": "1788458362204"
+    },
+    {
+        "trainerId": "6a99b57af1624b69330f55e5",
+        "name": "Verilog HDL",
+        "proficiency": "INTERMEDIATE",
+        "experienceYears": 4,
+        "createdAt": "1788458362209",
+        "_id": "6a99b57af1624b69330f55ea",
+        "updatedAt": "1788458362243"
+    },
+    {
+        "trainerId": "6a99b57af1624b69330f55ef",
+        "name": "Quantitative Aptitude",
+        "proficiency": "EXPERT",
+        "experienceYears": 6,
+        "createdAt": "1788458362527",
+        "_id": "6a99b57af1624b69330f55f0",
+        "updatedAt": "1788458362528"
+    },
+    {
+        "trainerId": "6a99b57af1624b69330f55ef",
+        "name": "Logical Reasoning",
+        "proficiency": "EXPERT",
+        "experienceYears": 6,
+        "createdAt": "1788458362531",
+        "_id": "6a99b57af1624b69330f55f1",
+        "updatedAt": "1788458362575"
+    },
+    {
+        "trainerId": "6a99b57af1624b69330f55ef",
+        "name": "Speed Mathematics",
+        "proficiency": "EXPERT",
+        "experienceYears": 6,
+        "createdAt": "1788458362577",
+        "_id": "6a99b57af1624b69330f55f2",
+        "updatedAt": "1788458362623"
+    },
+    {
+        "trainerId": "6a99b57af1624b69330f55ef",
+        "name": "Data Interpretation",
+        "proficiency": "ADVANCED",
+        "experienceYears": 5,
+        "createdAt": "1788458362626",
+        "_id": "6a99b57af1624b69330f55f3",
+        "updatedAt": "1788458362650"
+    },
+    {
+        "trainerId": "6a99b619f1624b69330f5610",
+        "name": "C Programming",
+        "category": "Programming",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 2,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788459584090",
+        "updatedAt": "1788459584090",
+        "_id": "6a99ba40f1624b69330f5613"
+    },
+    {
+        "trainerId": "6a99b619f1624b69330f5610",
+        "name": "Go / Golang",
+        "category": "Programming",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 2,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788459584093",
+        "updatedAt": "1788459584093",
+        "_id": "6a99ba40f1624b69330f5614"
+    },
+    {
+        "trainerId": "6a99b619f1624b69330f5610",
+        "name": "R Programming",
+        "category": "Programming",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 2,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788459584133",
+        "updatedAt": "1788459584133",
+        "_id": "6a99ba40f1624b69330f5615"
+    },
+    {
+        "trainerId": "6a99b619f1624b69330f5610",
+        "name": "Artificial Intelligence",
+        "category": "Data Science & AI",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 2,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788459584164",
+        "updatedAt": "1788459584164",
+        "_id": "6a99ba40f1624b69330f5616"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "C Programming",
+        "category": "Programming",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 2,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788509201874",
+        "updatedAt": "1788509201874",
+        "_id": "6a9a7c11f1624b69330f5630"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "Go / Golang",
+        "category": "Programming",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 2,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788509201884",
+        "updatedAt": "1788509201884",
+        "_id": "6a9a7c11f1624b69330f5631"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "R Programming",
+        "category": "Programming",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 2,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788509201936",
+        "updatedAt": "1788509201936",
+        "_id": "6a9a7c11f1624b69330f5632"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "Artificial Intelligence",
+        "category": "Data Science & AI",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 2,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788509201966",
+        "updatedAt": "1788509201966",
+        "_id": "6a9a7c11f1624b69330f5633"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "Python",
+        "category": "Programming",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 6,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788510906880",
+        "updatedAt": "1788510906880",
+        "_id": "6a9a82baf1624b69330f5635"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "Data Structures & Algorithms",
+        "category": "Programming",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 6,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788510906881",
+        "updatedAt": "1788510906881",
+        "_id": "6a9a82baf1624b69330f5636"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "AWS",
+        "category": "Cloud & DevOps",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 6,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788510906897",
+        "updatedAt": "1788510906897",
+        "_id": "6a9a82baf1624b69330f5637"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "Linux / Shell",
+        "category": "Cloud & DevOps",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 6,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788510906907",
+        "updatedAt": "1788510906907",
+        "_id": "6a9a82baf1624b69330f5638"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "Embedded Systems",
+        "category": "VLSI & Embedded",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 6,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788510906923",
+        "updatedAt": "1788510906923",
+        "_id": "6a9a82baf1624b69330f5639"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "Microcontrollers & IoT",
+        "category": "VLSI & Embedded",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 6,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788510906932",
+        "updatedAt": "1788510906932",
+        "_id": "6a9a82baf1624b69330f563a"
+    },
+    {
+        "trainerId": "6a9a7971f1624b69330f562d",
+        "name": "Quantitative Aptitude",
+        "category": "Aptitude & Soft Skills",
+        "proficiencyLevel": "ADVANCED",
+        "yearsOfExperience": 6,
+        "verified": true,
+        "source": "RESUME_EXTRACTED",
+        "createdAt": "1788510906945",
+        "updatedAt": "1788510906945",
+        "_id": "6a9a82baf1624b69330f563b"
+    }
+]

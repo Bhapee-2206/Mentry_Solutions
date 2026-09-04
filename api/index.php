@@ -1,5 +1,10 @@
 <?php
 // api/index.php - Vercel Serverless Entrypoint & Front Controller
+
+if (file_exists(__DIR__ . '/../includes/mongo_polyfill.php')) {
+    require_once __DIR__ . '/../includes/mongo_polyfill.php';
+}
+
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
 // 1. Static asset bypass (images, icons, styles, fonts)

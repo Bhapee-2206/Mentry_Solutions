@@ -43,7 +43,12 @@ $requirements = $reqCol ? $reqCol->find([], ['sort' => ['createdAt' => -1]])->to
                 <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
                         <div>
-                            <span class="text-[10px] font-bold uppercase text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200"><?= htmlspecialchars($rq['mode'] ?? 'OFFLINE') ?></span>
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-[10px] font-bold text-[#FE5E04] bg-orange-50 border border-orange-200 px-2 py-0.5 rounded">
+                                    <?= htmlspecialchars(getMentryCode('REQUIREMENT', $rq)) ?>
+                                </span>
+                                <span class="text-[10px] font-bold uppercase text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200"><?= htmlspecialchars($rq['mode'] ?? 'OFFLINE') ?></span>
+                            </div>
                             <h3 class="font-bold text-base text-slate-900 mt-1"><?= htmlspecialchars($rq['institutionName']) ?></h3>
                             <p class="text-xs text-slate-500">Contact: <?= htmlspecialchars($rq['contactPerson']) ?> • <?= htmlspecialchars($rq['email']) ?> • <?= htmlspecialchars($rq['phone']) ?></p>
                         </div>

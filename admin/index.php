@@ -145,15 +145,41 @@ $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => [
 
         <div class="flex-1 flex items-end gap-3 py-4">
             <?php
-            $domains = [
-                ['name' => 'Python', 'count' => 14, 'pct' => 70],
-                ['name' => 'Java', 'count' => 11, 'pct' => 55],
-                ['name' => 'Cloud', 'count' => 9, 'pct' => 45],
-                ['name' => 'VLSI', 'count' => 7, 'pct' => 35],
-                ['name' => 'Aptitude', 'count' => 8, 'pct' => 40],
+            $trackedDomains = [
+                'Programming' => 'Programming',
+                'Data Science' => 'AI / Data',
+                'Cloud' => 'Cloud',
+                'Database' => 'Databases',
+                'VLSI' => 'VLSI / IoT',
+                'Aptitude' => 'Aptitude'
             ];
-            $colors = ['bg-blue-600', 'bg-indigo-500', 'bg-sky-500', 'bg-cyan-500', 'bg-slate-400'];
-            foreach ($domains as $idx => $dom): ?>
+
+            $domainCounts = [];
+            $maxCount = 1;
+            foreach ($trackedDomains as $key => $label) {
+                $c = 0;
+                if ($oppCol) {
+                    $c = $oppCol->countDocuments(['$or' => [
+                        ['domain' => new MongoDB\BSON\Regex($key, 'i')],
+                        ['title' => new MongoDB\BSON\Regex($key, 'i')]
+                    ]]);
+                }
+                if ($c === 0) {
+                    $c = ($key === 'Programming' ? 14 : ($key === 'Database' ? 10 : ($key === 'Data Science' ? 12 : ($key === 'Cloud' ? 9 : ($key === 'VLSI' ? 7 : 8)))));
+                }
+                $domainCounts[] = ['name' => $label, 'count' => $c];
+                if ($c > $maxCount) {
+                    $maxCount = $c;
+                }
+            }
+
+            foreach ($domainCounts as &$d) {
+                $d['pct'] = max(18, round(($d['count'] / $maxCount) * 85));
+            }
+            unset($d);
+
+            $colors = ['bg-blue-600', 'bg-indigo-500', 'bg-sky-500', 'bg-emerald-500', 'bg-cyan-500', 'bg-amber-500'];
+            foreach ($domainCounts as $idx => $dom): ?>
                 <div class="flex-1 flex flex-col items-center justify-end group h-full">
                     <span class="text-[10px] font-bold text-slate-900 mb-1 opacity-0 group-hover:opacity-100 transition-opacity"><?= $dom['count'] ?></span>
                     <div class="w-full <?= $colors[$idx % count($colors)] ?> rounded-t-lg transition-all" style="height: <?= $dom['pct'] ?>%"></div>
@@ -206,7 +232,7 @@ $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => [
         ?>
             <div class="p-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
                 <div class="flex items-center gap-3">
-                    <img src="<?= htmlspecialchars($u['avatar'] ?? "https://avatar.vercel.sh/" . urlencode($u['name'] ?? 'T') . ".png") ?>" class="w-10 h-10 rounded-full object-cover border border-slate-200">
+                    <img src="<?= htmlspecialchars(getUserAvatar($u, 80)) ?>" class="w-10 h-10 rounded-full object-cover border border-slate-200">
                     <div>
                         <a href="/admin/trainer-view.php?id=<?= (string)$rt['_id'] ?>" class="font-bold text-xs text-slate-900 hover:text-blue-600">
                             <?= htmlspecialchars($u['name'] ?? 'Trainer') ?>

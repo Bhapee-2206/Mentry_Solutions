@@ -18,32 +18,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $travelPreference = trim($_POST['travelPreference'] ?? 'PAN_INDIA');
     $bio = trim($_POST['bio'] ?? '');
 
-    if ($trainerCol && $trainer) {
+    if ($trainerCol) {
+        $trainerCode = $trainer['trainerCode'] ?? ($trainer['mentryId'] ?? ($user['trainerCode'] ?? ''));
+        if (empty($trainerCode)) {
+            $trainerCode = getNextSequentialMentryId('TRAINER');
+        }
+
+        $setData = [
+            'userId' => (string)$user['id'],
+            'trainerCode' => $trainerCode,
+            'mentryId' => $trainerCode,
+            'professionalTitle' => $professionalTitle,
+            'primaryDomain' => $primaryDomain,
+            'currentCity' => $currentCity,
+            'currentState' => $currentState,
+            'dailyRateINR' => $dailyRateINR,
+            'travelPreference' => $travelPreference,
+            'bio' => $bio,
+            'status' => $trainer['status'] ?? 'PENDING_APPROVAL',
+            'updatedAt' => new MongoDB\BSON\UTCDateTime()
+        ];
+        if (!empty($user['name'])) $setData['name'] = $user['name'];
+        if (!empty($user['email'])) $setData['email'] = $user['email'];
+        if (!empty($user['phone'])) $setData['phone'] = $user['phone'];
+        if (!empty($user['avatar'])) $setData['avatar'] = $user['avatar'];
+
+        $filter = !empty($trainer['_id']) ? ['_id' => $trainer['_id']] : ['userId' => (string)$user['id']];
         $trainerCol->updateOne(
-            ['_id' => $trainer['_id']],
-            ['$set' => [
-                'professionalTitle' => $professionalTitle,
-                'primaryDomain' => $primaryDomain,
-                'currentCity' => $currentCity,
-                'currentState' => $currentState,
-                'dailyRateINR' => $dailyRateINR,
-                'travelPreference' => $travelPreference,
-                'bio' => $bio,
-                'updatedAt' => new MongoDB\BSON\UTCDateTime()
-            ]]
+            $filter,
+            [
+                '$set' => $setData,
+                '$setOnInsert' => [
+                    'createdAt' => new MongoDB\BSON\UTCDateTime(),
+                    'joinedAt' => new MongoDB\BSON\UTCDateTime(),
+                    'availabilityStatus' => 'AVAILABLE_NOW',
+                    'verified' => false,
+                    'skills' => []
+                ]
+            ],
+            ['upsert' => true]
         );
-        $trainer = $trainerCol->findOne(['_id' => $trainer['_id']]);
+        $trainer = $trainerCol->findOne(['userId' => (string)$user['id']]);
+
+        // Keep User document in sync
+        $userCol = getCollection("User");
+        if ($userCol) {
+            try {
+                $userCol->updateOne(
+                    ['_id' => new MongoDB\BSON\ObjectId((string)$user['id'])],
+                    ['$set' => [
+                        'trainerCode' => $trainerCode,
+                        'mentryId' => $trainerCode
+                    ]]
+                );
+            } catch (\Throwable $e) {}
+        }
         $saved = true;
     }
+}
+
 $avatarSuccess = $_SESSION['avatar_success'] ?? null;
 $avatarError = $_SESSION['avatar_error'] ?? null;
 unset($_SESSION['avatar_success'], $_SESSION['avatar_error']);
 ?>
 
 <div class="max-w-4xl mx-auto space-y-6">
-    <div>
-        <h1 class="text-2xl font-black text-slate-900 tracking-tight">Trainer Profile</h1>
-        <p class="text-xs text-slate-500 mt-0.5">Manage your professional credentials, expected rates, and travel availability.</p>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+            <h1 class="text-2xl font-black text-slate-900 tracking-tight">Trainer Profile</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Manage your professional credentials, expected rates, and travel availability.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-500">Official Mentry ID:</span>
+            <span class="font-mono text-xs font-black text-[#FE5E04] bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-xl shadow-2xs">
+                <?= htmlspecialchars(getMentryCode('TRAINER', $trainer ?? $user)) ?>
+            </span>
+        </div>
     </div>
 
     <?php if ($saved): ?>
@@ -68,7 +118,7 @@ unset($_SESSION['avatar_success'], $_SESSION['avatar_error']);
     <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-card">
         <div class="flex flex-col sm:flex-row items-center gap-6">
             <div class="relative group">
-                <img src="<?= htmlspecialchars($user['avatar'] ?? "https://avatar.vercel.sh/" . urlencode($user['name']) . ".png") ?>" class="w-24 h-24 rounded-3xl object-cover border-2 border-slate-200 shadow-md">
+                <img src="<?= htmlspecialchars(getUserAvatar($user, 200)) ?>" class="w-24 h-24 rounded-3xl object-cover border-2 border-slate-200 shadow-md">
             </div>
 
             <div class="space-y-2 flex-1 text-center sm:text-left">
@@ -109,7 +159,7 @@ unset($_SESSION['avatar_success'], $_SESSION['avatar_error']);
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Primary Domain *</label>
                 <select name="primaryDomain" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                     <?php
-                    $domains = ["Programming", "Data Science", "Cloud", "VLSI", "Cybersecurity", "Aptitude", "Soft Skills", "Management"];
+                    $domains = ["Programming", "Data Science", "Cloud", "Database", "VLSI", "Cybersecurity", "Aptitude", "Soft Skills", "Management"];
                     foreach ($domains as $d): ?>
                         <option value="<?= $d ?>" <?= ($trainer['primaryDomain'] ?? '') === $d ? 'selected' : '' ?>><?= $d ?></option>
                     <?php endforeach; ?>

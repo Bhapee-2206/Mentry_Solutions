@@ -1,8 +1,8 @@
 <?php
 // admin/opportunity-view.php - Opportunity View & Match Engine
 require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/helpers.php';
-require_once __DIR__ . '/includes/sidebar.php';
+require_once __DIR__ . '/../includes/auth.php';
+requireAdminOrStaff();
 
 $id = $_GET['id'] ?? '';
 $oppCol = getCollection("Opportunity");
@@ -24,8 +24,9 @@ if (!$opp) {
     exit();
 }
 
-$pageTitle = $opp['title'];
+$pageTitle = $opp['title'] ?? 'Opportunity View';
 $oppId = (string)$opp['_id'];
+require_once __DIR__ . '/includes/sidebar.php';
 
 // Get applicants
 $applications = $appCol ? $appCol->find(['opportunityId' => $oppId], ['sort' => ['appliedAt' => -1]])->toArray() : [];

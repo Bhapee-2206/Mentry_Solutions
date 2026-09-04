@@ -11,7 +11,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $message = trim($_POST['message'] ?? '');
 
     $trainerCol = getCollection("Trainer");
-    $trainer = $trainerCol ? $trainerCol->findOne(['userId' => $user['id']]) : null;
+    $trainer = null;
+    if ($trainerCol) {
+        try {
+            $trainer = $trainerCol->findOne([
+                '$or' => [
+                    ['userId' => $user['id']],
+                    ['userId' => new MongoDB\BSON\ObjectId($user['id'])]
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            $trainer = $trainerCol->findOne(['userId' => $user['id']]);
+        }
+    }
     $trainerId = $trainer ? (string)$trainer['_id'] : '';
 
     if (!empty($opportunityId) && !empty($trainerId)) {

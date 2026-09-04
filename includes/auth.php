@@ -53,7 +53,20 @@ function isAdminOrStaff() {
     return in_array($user['role'], ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
 }
 
+/**
+ * Sends strict anti-cache headers to prevent browser caching of sensitive auth forms,
+ * bfcache restores, and back-navigation form resubmission (Alt + Left Arrow).
+ */
+function sendAntiCacheHeaders() {
+    if (!headers_sent()) {
+        header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0");
+        header("Pragma: no-cache");
+        header("Expires: Sat, 01 Jan 2000 00:00:00 GMT");
+    }
+}
+
 function requireAuth() {
+    sendAntiCacheHeaders();
     if (!isLoggedIn()) {
         header("Location: /login.php");
         exit();
@@ -61,6 +74,7 @@ function requireAuth() {
 }
 
 function requireTrainer() {
+    sendAntiCacheHeaders();
     if (!isLoggedIn()) {
         header("Location: /login.php?redirect=" . urlencode($_SERVER['REQUEST_URI']));
         exit();
@@ -74,6 +88,7 @@ function requireTrainer() {
 }
 
 function requireVendor() {
+    sendAntiCacheHeaders();
     if (!isLoggedIn()) {
         header("Location: /vendor-login.php?redirect=" . urlencode($_SERVER['REQUEST_URI']));
         exit();
@@ -87,6 +102,7 @@ function requireVendor() {
 }
 
 function requireAdmin() {
+    sendAntiCacheHeaders();
     if (!isLoggedIn()) {
         header("Location: /admin-login.php?redirect=" . urlencode($_SERVER['REQUEST_URI']));
         exit();
@@ -99,6 +115,7 @@ function requireAdmin() {
 }
 
 function requireAdminOrStaff() {
+    sendAntiCacheHeaders();
     if (!isLoggedIn()) {
         header("Location: /admin-login.php?redirect=" . urlencode($_SERVER['REQUEST_URI']));
         exit();

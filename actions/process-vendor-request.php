@@ -1,8 +1,9 @@
 <?php
 // actions/process-vendor-request.php
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
-requireAdmin();
+requireAdminOrStaff();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $requestId = $_POST['requestId'] ?? '';
@@ -33,11 +34,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($action === 'approve_publish' && $oppCol) {
                 // Generate Job ID
-                $jobId = "MEN-" . strtoupper(substr($domain, 0, 3)) . "-" . rand(100, 999);
+                $jobId = getNextSequentialMentryId('OPPORTUNITY');
 
                 // Create live Opportunity
                 $oppInsert = $oppCol->insertOne([
                     'jobId' => $jobId,
+                    'mentryId' => $jobId,
                     'title' => $title,
                     'domain' => $domain,
                     'mode' => $mode,
@@ -53,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'minExperienceYears' => 3,
                     'skillsRequired' => json_encode($skillsArray),
                     'description' => $description,
+                    'travelCovered' => $mode !== 'ONLINE',
+                    'accommodationCovered' => $mode !== 'ONLINE',
+                    'diningCovered' => $mode !== 'ONLINE',
                     'status' => 'PUBLISHED', // Live on opportunities.php and trainer portal!
                     'vendorRequestId' => $requestId,
                     'vendorId' => $req['vendorId'] ?? null,

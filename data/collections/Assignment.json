@@ -1,0 +1,18 @@
+[
+    {
+        "opportunityId": "6a99b57bf1624b69330f5600",
+        "trainerId": "6a99b619f1624b69330f5610",
+        "applicationId": "6a99b820f1624b69330f5611",
+        "status": "SCHEDULED",
+        "agreedDailyRate": 7500,
+        "agreedTotalFee": 75000,
+        "startDate": "2026-09-18",
+        "durationDays": 10,
+        "location": "Coimbatore, Tamil Nadu",
+        "accommodationDetails": "Campus Guest House Reserved with standard amenities",
+        "travelDetails": "Travel itinerary to be shared prior to batch start date",
+        "createdAt": "1788459955667",
+        "updatedAt": "1788459955667",
+        "_id": "6a99bbb3f1624b69330f5617"
+    }
+]

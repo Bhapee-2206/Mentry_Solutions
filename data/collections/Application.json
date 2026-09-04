@@ -1,0 +1,30 @@
+[
+    {
+        "trainerId": "6a99b619f1624b69330f5610",
+        "opportunityId": "6a99b57bf1624b69330f5600",
+        "proposedDailyRate": 7500,
+        "message": "",
+        "matchScore": 95,
+        "status": "ACCEPTED",
+        "appliedAt": "1788459040465",
+        "createdAt": "1788459040465",
+        "updatedAt": "1788459955664",
+        "_id": "6a99b820f1624b69330f5611",
+        "adminNotes": "",
+        "reviewedAt": "1788459955663"
+    },
+    {
+        "trainerId": "6a99b619f1624b69330f5610",
+        "opportunityId": "6a99b57bf1624b69330f55fe",
+        "proposedDailyRate": 5000,
+        "message": "",
+        "matchScore": 95,
+        "status": "SHORTLISTED",
+        "appliedAt": "1788497831223",
+        "createdAt": "1788497831223",
+        "updatedAt": "1788497883047",
+        "_id": "6a9a4fa7f1624b69330f561c",
+        "adminNotes": "",
+        "reviewedAt": "1788497883046"
+    }
+]

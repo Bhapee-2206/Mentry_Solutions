@@ -2,7 +2,7 @@
 // actions/assign-trainer.php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
-requireAdmin();
+requireAdminOrStaff();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $opportunityId = $_POST['opportunityId'] ?? '';
@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($opp && $trainer && $asgCol) {
             $duration = (int)($opp['durationDays'] ?? 5);
             $totalFee = $duration * $agreedDailyRate;
+            $startDate = $opp['startDate'] ?? new MongoDB\BSON\UTCDateTime();
 
             $asgCol->insertOne([
                 'opportunityId' => $opportunityId,
@@ -30,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'status' => 'SCHEDULED',
                 'agreedDailyRate' => $agreedDailyRate,
                 'agreedTotalFee' => $totalFee,
-                'startDate' => $opp['startDate'] ?? new MongoDB\BSON\UTCDateTime(),
+                'startDate' => $startDate,
                 'durationDays' => $duration,
                 'location' => ($opp['city'] ?? '') . ', ' . ($opp['state'] ?? ''),
                 'accommodationDetails' => $accommodationDetails,
@@ -46,6 +47,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ['$set' => [
                     'status' => 'MATCHED',
                     'assignedTrainerId' => $trainerId,
+                    'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                ]]
+            );
+
+            // Update trainer availability and status
+            $startTs = time();
+            if ($startDate instanceof MongoDB\BSON\UTCDateTime) {
+                $startTs = round($startDate->toDateTime()->getTimestamp());
+            } elseif (is_numeric($startDate)) {
+                $startTs = ($startDate > 20000000000) ? round($startDate / 1000) : (int)$startDate;
+            }
+            $freeAfterMs = ($startTs + ($duration * 86400)) * 1000;
+
+            $trainerCol->updateOne(
+                ['_id' => new MongoDB\BSON\ObjectId($trainerId)],
+                ['$set' => [
+                    'availabilityStatus' => 'BUSY_ON_ASSIGNMENT',
+                    'availabilityNotes' => 'Delivering: ' . ($opp['title'] ?? 'Campus Training'),
+                    'availableFromDate' => new MongoDB\BSON\UTCDateTime($freeAfterMs),
+                    'status' => 'APPROVED',
+                    'availabilityUpdatedAt' => new MongoDB\BSON\UTCDateTime(),
                     'updatedAt' => new MongoDB\BSON\UTCDateTime()
                 ]]
             );

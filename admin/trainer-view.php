@@ -16,6 +16,7 @@ $expCol = getCollection("Experience");
 $docCol = getCollection("Document");
 $asgCol = getCollection("Assignment");
 $appCol = getCollection("Application");
+$oppCol = getCollection("Opportunity");
 
 $trainer = null;
 if (!empty($id)) {
@@ -66,6 +67,7 @@ if (empty($skills) && !empty($trainer['skills'])) {
 $experiences = $expCol ? $expCol->find(['trainerId' => $trainerId])->toArray() : [];
 $documents = $docCol ? $docCol->find(['trainerId' => $trainerId], ['sort' => ['uploadedAt' => -1]])->toArray() : [];
 $assignments = $asgCol ? $asgCol->find(['trainerId' => $trainerId], ['sort' => ['createdAt' => -1]])->toArray() : [];
+$applications = $appCol ? $appCol->find(['trainerId' => $trainerId], ['sort' => ['appliedAt' => -1]])->toArray() : [];
 
 $pageTitle = ($u['name'] ?? 'Trainer') . " Dossier";
 require_once __DIR__ . '/includes/sidebar.php';
@@ -94,17 +96,26 @@ require_once __DIR__ . '/includes/sidebar.php';
     <div class="bg-white rounded-3xl border border-slate-200/90 p-8 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div class="flex items-center gap-5">
             <div class="flex flex-col items-center gap-1.5 shrink-0">
-                <img src="<?= htmlspecialchars($u['avatar'] ?? "https://avatar.vercel.sh/" . urlencode($u['name'] ?? 'T') . ".png") ?>" class="w-20 h-20 rounded-3xl object-cover border-2 border-slate-200 shadow-sm">
-                <?php if (!empty($u['avatar'])): ?>
-                    <a href="<?= htmlspecialchars($u['avatar']) ?>" download="trainer_<?= $trainerId ?>_photo" target="_blank" class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 hover:text-[#FE5E04] bg-slate-100 hover:bg-orange-50 px-2 py-0.5 rounded-lg border border-slate-200 transition-colors" title="Download High-Res Profile Photo">
-                        <span class="material-symbols-outlined text-[13px]">download</span>
-                        Photo
-                    </a>
-                <?php endif; ?>
+                <img src="<?= htmlspecialchars(getUserAvatar($u, 200)) ?>" class="w-20 h-20 rounded-3xl object-cover border-2 border-slate-200 shadow-sm">
+                <div class="flex items-center gap-1">
+                    <?php if (!empty($u['avatar'])): ?>
+                        <a href="<?= htmlspecialchars($u['avatar']) ?>" download="trainer_<?= $trainerId ?>_photo" target="_blank" class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 hover:text-[#FE5E04] bg-slate-100 hover:bg-orange-50 px-2 py-0.5 rounded-lg border border-slate-200 transition-colors" title="Download High-Res Profile Photo">
+                            <span class="material-symbols-outlined text-[13px]">download</span>
+                            Photo
+                        </a>
+                    <?php endif; ?>
+                    <button type="button" onclick="document.getElementById('uploadTrainerPhotoModal').classList.remove('hidden')" class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors cursor-pointer" title="Upload New Profile Photo">
+                        <span class="material-symbols-outlined text-[13px]">photo_camera</span>
+                        Change
+                    </button>
+                </div>
             </div>
             <div class="space-y-1">
                 <div class="flex flex-wrap items-center gap-2">
                     <h1 class="text-2xl font-black text-slate-900"><?= htmlspecialchars($u['name'] ?? 'Trainer') ?></h1>
+                    <span class="font-mono text-xs font-black text-[#FE5E04] bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg shadow-2xs">
+                        <?= htmlspecialchars(getMentryCode('TRAINER', $trainer)) ?>
+                    </span>
                     <?= getStatusBadge($trainer['status'] ?? 'PENDING_APPROVAL') ?>
                     <span class="bg-amber-50 text-amber-700 text-xs font-extrabold px-2 py-0.5 rounded-lg border border-amber-200 flex items-center gap-1">
                         <span class="material-symbols-outlined text-[14px] fill text-amber-500">star</span>
@@ -113,7 +124,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </div>
                 <p class="text-xs text-blue-600 font-bold"><?= htmlspecialchars($trainer['professionalTitle'] ?? 'Senior Technical Trainer') ?></p>
                 <p class="text-xs text-slate-500 font-medium flex flex-wrap items-center gap-3">
-                    <span><i class="material-symbols-outlined text-[14px] align-middle text-slate-400">location_on</i> <?= htmlspecialchars($trainer['currentCity'] ?? 'India') ?>, <?= htmlspecialchars($trainer['currentState'] ?? '') ?></span>
+                    <span><i class="material-symbols-outlined text-[14px] align-middle text-slate-400">location_on</i> <?= htmlspecialchars($trainer['currentCity'] ?? 'India') ?><?= !empty($trainer['currentState']) ? ', ' . htmlspecialchars($trainer['currentState']) : '' ?></span>
                     <span><i class="material-symbols-outlined text-[14px] align-middle text-slate-400">email</i> <?= htmlspecialchars($u['email'] ?? 'N/A') ?></span>
                     <span><i class="material-symbols-outlined text-[14px] align-middle text-slate-400">phone</i> <?= htmlspecialchars($u['phone'] ?? 'N/A') ?></span>
                 </p>
@@ -121,24 +132,54 @@ require_once __DIR__ . '/includes/sidebar.php';
         </div>
 
         <div class="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-end">
-            <form action="/actions/update-trainer.php" method="POST">
-                <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
-                <input type="hidden" name="action_type" value="update_status">
-                <input type="hidden" name="status" value="APPROVED">
-                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
-                    Approve Trainer
-                </button>
-            </form>
-
-            <form action="/actions/update-trainer.php" method="POST">
-                <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
-                <input type="hidden" name="action_type" value="update_status">
-                <input type="hidden" name="status" value="SUSPENDED">
-                <button type="submit" class="bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-colors">
-                    Suspend
-                </button>
-            </form>
+            <?php if (($trainer['status'] ?? '') === 'APPROVED'): ?>
+                <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-2xs">
+                    <span class="material-symbols-outlined text-[16px] fill text-emerald-600">verified</span>
+                    Approved & Active
+                </span>
+                <form action="/actions/update-trainer.php" method="POST" onsubmit="return confirm('Are you sure you want to suspend this trainer? They will not appear in matching results.');">
+                    <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
+                    <input type="hidden" name="action_type" value="update_status">
+                    <input type="hidden" name="status" value="SUSPENDED">
+                    <button type="submit" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[16px]">block</span>
+                        Suspend Trainer
+                    </button>
+                </form>
+            <?php elseif (($trainer['status'] ?? '') === 'SUSPENDED'): ?>
+                <span class="bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-2xs">
+                    <span class="material-symbols-outlined text-[16px]">do_not_disturb_on</span>
+                    Currently Suspended
+                </span>
+                <form action="/actions/update-trainer.php" method="POST">
+                    <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
+                    <input type="hidden" name="action_type" value="update_status">
+                    <input type="hidden" name="status" value="APPROVED">
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                        Re-activate Trainer
+                    </button>
+                </form>
+            <?php else: /* PENDING_APPROVAL */ ?>
+                <form action="/actions/update-trainer.php" method="POST">
+                    <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
+                    <input type="hidden" name="action_type" value="update_status">
+                    <input type="hidden" name="status" value="APPROVED">
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                        Approve Trainer
+                    </button>
+                </form>
+                <form action="/actions/update-trainer.php" method="POST" onsubmit="return confirm('Are you sure you want to reject/suspend this application?');">
+                    <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
+                    <input type="hidden" name="action_type" value="update_status">
+                    <input type="hidden" name="status" value="SUSPENDED">
+                    <button type="submit" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[16px]">close</span>
+                        Reject / Suspend
+                    </button>
+                </form>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -220,17 +261,127 @@ require_once __DIR__ . '/includes/sidebar.php';
             </div>
 
             <!-- Internal Admin Notes -->
-            <div class="bg-amber-50/50 p-6 rounded-3xl border border-amber-200/80 shadow-xs space-y-2">
-                <h3 class="font-bold text-sm text-amber-900 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[18px] text-amber-600">lock</span>
-                    Admin Internal Notes & Audit
-                </h3>
-                <p class="text-xs text-amber-900/80 leading-relaxed"><?= htmlspecialchars($trainer['adminNotes'] ?? 'Verified technical credentials. Recommended for senior semester batches and enterprise bootcamps.') ?></p>
+            <div class="bg-amber-50/70 p-6 rounded-3xl border border-amber-200/90 shadow-xs space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-amber-200/60">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px] text-amber-700">admin_panel_settings</span>
+                        <h3 class="font-bold text-sm text-amber-950">Admin Internal Notes & Audit</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-amber-200/80 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Internal Only</span>
+                        <button type="button" onclick="document.getElementById('editAdminNotesModal').classList.remove('hidden')" class="text-xs font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1 bg-amber-100 hover:bg-amber-200/70 px-2.5 py-1 rounded-lg transition-colors cursor-pointer">
+                            <span class="material-symbols-outlined text-[14px]">edit</span> Edit Notes
+                        </button>
+                    </div>
+                </div>
+                <p class="text-xs text-amber-950/85 leading-relaxed font-medium">
+                    <?= nl2br(htmlspecialchars(!empty($trainer['adminNotes']) ? $trainer['adminNotes'] : 'Verified technical credentials. Recommended for senior semester batches and enterprise bootcamps.')) ?>
+                </p>
+                <div class="text-[11px] text-amber-800/70 pt-1 flex items-center gap-1 border-t border-amber-200/40">
+                    <span class="material-symbols-outlined text-[14px]">shield</span>
+                    <span>Confidential to Admin & Operations Staff. Hidden from candidate trainers and colleges.</span>
+                </div>
             </div>
         </div>
 
-        <!-- Right 2 Columns: Resumes & Documents, Skills, Past Experiences -->
+        <!-- Right 2 Columns: Applications, Resumes & Documents, Skills, Past Experiences -->
         <div class="md:col-span-2 space-y-6">
+            <!-- Opportunity Applications & Assignment Approvals -->
+            <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[#FE5E04] text-lg">assignment_turned_in</span>
+                            Opportunity Applications & Assignment Approvals (<?= count($applications) ?>)
+                        </h3>
+                        <p class="text-[11px] text-slate-500">Review, Accept & Assign, Shortlist, or Reject this candidate's applications.</p>
+                    </div>
+                </div>
+
+                <?php if (empty($applications)): ?>
+                    <div class="p-5 rounded-2xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-400">
+                        No opportunity applications currently on record for this trainer.
+                    </div>
+                <?php else: ?>
+                    <div class="space-y-3">
+                        <?php foreach ($applications as $app): 
+                            $appId = (string)($app['_id'] ?? ($app['id'] ?? ''));
+                            $oppId = (string)($app['opportunityId'] ?? '');
+                            $opp = null;
+                            if (!empty($oppId) && $oppCol) {
+                                try {
+                                    $opp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($oppId)]);
+                                } catch (\Throwable $e) {}
+                            }
+                            $appStatus = strtoupper($app['status'] ?? 'PENDING');
+                        ?>
+                            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-100/50 transition-colors">
+                                <div class="space-y-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h4 class="font-bold text-xs text-slate-900">
+                                            <?= htmlspecialchars($opp['title'] ?? 'Academic Training Assignment') ?>
+                                        </h4>
+                                        <span class="bg-emerald-50 text-emerald-700 font-extrabold text-[10px] px-2 py-0.5 rounded border border-emerald-200">
+                                            <?= htmlspecialchars($app['matchScore'] ?? 95) ?>% Match
+                                        </span>
+                                        <?= getStatusBadge($appStatus) ?>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500">
+                                        <?= htmlspecialchars($opp['city'] ?? 'Location TBA') ?><?= !empty($opp['state']) ? ', ' . htmlspecialchars($opp['state']) : '' ?> • 
+                                        Proposed: <strong class="text-blue-700"><?= formatINR($app['proposedDailyRate'] ?? 0) ?>/day</strong> • 
+                                        Applied: <?= formatDate($app['appliedAt'] ?? null) ?>
+                                    </p>
+                                </div>
+
+                                <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                                    <?php if ($opp): ?>
+                                        <a href="/opportunity-details.php?id=<?= $oppId ?>" target="_blank" class="p-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-colors" title="View Opportunity Details">
+                                            <span class="material-symbols-outlined text-[16px]">visibility</span>
+                                        </a>
+                                    <?php endif; ?>
+
+                                    <?php if ($appStatus !== 'ACCEPTED'): ?>
+                                        <form action="/actions/update-application.php" method="POST" class="inline">
+                                            <input type="hidden" name="applicationId" value="<?= $appId ?>">
+                                            <input type="hidden" name="status" value="ACCEPTED">
+                                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-colors flex items-center gap-1" title="Accept and Assign to Training">
+                                                <span class="material-symbols-outlined text-[15px]">check_circle</span>
+                                                Accept
+                                            </button>
+                                        </form>
+
+                                        <?php if ($appStatus !== 'SHORTLISTED'): ?>
+                                            <form action="/actions/update-application.php" method="POST" class="inline">
+                                                <input type="hidden" name="applicationId" value="<?= $appId ?>">
+                                                <input type="hidden" name="status" value="SHORTLISTED">
+                                                <button type="submit" class="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-bold text-xs px-2.5 py-1.5 rounded-xl transition-colors" title="Shortlist Candidate">
+                                                    Shortlist
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                        <?php if ($appStatus !== 'REJECTED'): ?>
+                                            <form action="/actions/update-application.php" method="POST" class="inline">
+                                                <input type="hidden" name="applicationId" value="<?= $appId ?>">
+                                                <input type="hidden" name="status" value="REJECTED">
+                                                <button type="submit" class="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 font-bold text-xs px-2.5 py-1.5 rounded-xl transition-colors" title="Reject Application">
+                                                    Reject
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                                            <span class="material-symbols-outlined text-[15px]">done_all</span>
+                                            Accepted & Assigned
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
             <!-- Uploaded Resumes and Documents -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
                 <div class="flex items-center justify-between pb-2 border-b border-slate-100">
@@ -352,11 +503,12 @@ require_once __DIR__ . '/includes/sidebar.php';
                     <div class="space-y-3">
                         <?php foreach ($experiences as $ex): 
                             $exId = (string)($ex['_id'] ?? ($ex['id'] ?? ''));
+                            $orgName = $ex['organization'] ?? ($ex['company'] ?? ($ex['institution'] ?? ($ex['college'] ?? '')));
                         ?>
                             <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-start justify-between gap-4">
                                 <div class="space-y-1">
-                                    <h4 class="font-bold text-xs text-slate-900"><?= htmlspecialchars($ex['organization']) ?></h4>
-                                    <p class="text-xs text-slate-600 font-medium"><?= htmlspecialchars($ex['role']) ?> • <strong class="text-slate-800"><?= htmlspecialchars($ex['studentsTrained'] ?? 100) ?> Students Trained</strong></p>
+                                    <h4 class="font-bold text-xs text-slate-900"><?= htmlspecialchars(!empty($orgName) ? $orgName : 'Corporate / Campus Engagement') ?></h4>
+                                    <p class="text-xs text-slate-600 font-medium"><?= htmlspecialchars($ex['role'] ?? 'Technical Trainer') ?> • <strong class="text-slate-800"><?= htmlspecialchars($ex['studentsTrained'] ?? 100) ?> Students Trained</strong></p>
                                     <?php if (!empty($ex['description'])): ?>
                                         <p class="text-[11px] text-slate-500 italic mt-1"><?= nl2br(htmlspecialchars($ex['description'])) ?></p>
                                     <?php endif; ?>
@@ -695,13 +847,15 @@ require_once __DIR__ . '/includes/sidebar.php';
                     <p class="text-xs text-slate-400">No institutional history records logged.</p>
                 <?php else: ?>
                     <div class="space-y-4">
-                        <?php foreach ($experiences as $ex): ?>
+                        <?php foreach ($experiences as $ex): 
+                            $orgName = $ex['organization'] ?? ($ex['company'] ?? ($ex['institution'] ?? ($ex['college'] ?? '')));
+                        ?>
                             <div class="space-y-1">
                                 <div class="flex justify-between items-baseline">
-                                    <h4 class="font-bold text-xs text-slate-900"><?= htmlspecialchars($ex['organization']) ?></h4>
+                                    <h4 class="font-bold text-xs text-slate-900"><?= htmlspecialchars(!empty($orgName) ? $orgName : 'Corporate / Campus Engagement') ?></h4>
                                     <span class="text-[11px] font-bold text-blue-700"><?= htmlspecialchars($ex['studentsTrained'] ?? 100) ?> Students Trained</span>
                                 </div>
-                                <p class="text-xs font-semibold text-slate-700"><?= htmlspecialchars($ex['role']) ?></p>
+                                <p class="text-xs font-semibold text-slate-700"><?= htmlspecialchars($ex['role'] ?? 'Technical Trainer') ?></p>
                                 <?php if (!empty($ex['description'])): ?>
                                     <p class="text-xs text-slate-600"><?= htmlspecialchars($ex['description']) ?></p>
                                 <?php endif; ?>
@@ -717,6 +871,95 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <span>Mobility: <strong class="text-slate-900"><?= htmlspecialchars(str_replace('_', ' ', $trainer['travelPreference'] ?? 'PAN_INDIA')) ?></strong></span>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- ================= MODAL: EDIT ADMIN NOTES ================= -->
+<div id="editAdminNotesModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 space-y-5 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-amber-600">admin_panel_settings</span>
+                <h3 class="text-base font-black text-slate-900">Admin Internal Notes & Rating</h3>
+            </div>
+            <button onclick="document.getElementById('editAdminNotesModal').classList.add('hidden')" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <form action="/actions/update-trainer.php" method="POST" class="space-y-4">
+            <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
+            <input type="hidden" name="action_type" value="update_admin_notes">
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Internal Admin Rating (1.0 - 5.0)</label>
+                <input type="number" step="0.1" min="1" max="5" name="adminRating" value="<?= htmlspecialchars($trainer['adminRating'] ?? 4.9) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white font-bold text-amber-700">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Confidential Internal Notes</label>
+                <textarea name="adminNotes" rows="4" placeholder="Add vetting comments, strengths, feedback from colleges..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white leading-relaxed"><?= htmlspecialchars($trainer['adminNotes'] ?? '') ?></textarea>
+                <p class="text-[11px] text-slate-400 mt-1">This audit note is strictly private to operations staff and will never be shared with candidates or colleges.</p>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="document.getElementById('editAdminNotesModal').classList.add('hidden')" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
+                    Cancel
+                </button>
+                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs">
+                    Save Internal Notes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= MODAL: UPLOAD TRAINER PROFILE PHOTO ================= -->
+<div id="uploadTrainerPhotoModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-600">photo_camera</span>
+                <h3 class="text-base font-black text-slate-900">Update Profile Photo</h3>
+            </div>
+            <button onclick="document.getElementById('uploadTrainerPhotoModal').classList.add('hidden')" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <form action="/actions/upload-avatar.php" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <input type="hidden" name="targetUserId" value="<?= (string)$u['_id'] ?>">
+
+            <div class="flex justify-center pb-2">
+                <img src="<?= htmlspecialchars(getUserAvatar($u, 160)) ?>" class="w-20 h-20 rounded-3xl object-cover border-2 border-slate-200 shadow-sm">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Upload Photo File (Max 2MB)</label>
+                <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp" class="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-2 w-full file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                <p class="text-[11px] text-slate-400 mt-1">Accepted: JPG, PNG, WebP.</p>
+            </div>
+
+            <div class="relative flex py-1 items-center">
+                <div class="flex-grow border-t border-slate-200"></div>
+                <span class="flex-shrink mx-3 text-slate-400 text-[11px] font-bold uppercase">OR</span>
+                <div class="flex-grow border-t border-slate-200"></div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Direct Image URL</label>
+                <input type="url" name="avatarUrl" placeholder="https://images.unsplash.com/... or https://..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="document.getElementById('uploadTrainerPhotoModal').classList.add('hidden')" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
+                    Cancel
+                </button>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs">
+                    Save Profile Photo
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 

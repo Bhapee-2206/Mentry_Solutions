@@ -1,1 +1,352 @@
-[]
+[
+    {
+        "id": "msg_6a993b4fcee3d",
+        "senderId": "65e000000000000000000001",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "VERIFICATION_TEST_MSG_1133",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-03 11:18:07"
+    },
+    {
+        "id": "msg_6a99b39480316",
+        "senderId": "65e000000000000000000001",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "hi",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-03 19:51:16"
+    },
+    {
+        "id": "msg_6a99b398ad067",
+        "senderId": "65e000000000000000000001",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "@Zervy hi",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-03 19:51:20"
+    },
+    {
+        "id": "msg_6a99b398ad5e8",
+        "senderId": "ai_assistant",
+        "senderName": "Zervy (AI Assistant)",
+        "senderRole": "AI_AGENT",
+        "text": "\ud83d\udc4b **Hello! I am Zervy**, your internal AI assistant for Mentry Solutions.\n\nI am doing great! You can ask me anything \u2014 from searching verified trainers and analyzing resumes to drafting workshop syllabi or screening interview questions. How can I help you today?",
+        "aiData": {
+            "understoodRequirement": null,
+            "clarification": null,
+            "topMatches": []
+        },
+        "tokenStats": {
+            "promptTokens": 1,
+            "completionTokens": 67,
+            "totalTokens": 68,
+            "requestCostUsd": "$0.000020",
+            "cumulativeTokens": 8666,
+            "totalRequests": 21,
+            "cumulativeCostUsd": "$0.0013",
+            "model": "gemini-1.5-flash"
+        },
+        "attachment": null,
+        "isAI": true,
+        "timestamp": "2026-09-03 19:51:20"
+    },
+    {
+        "id": "msg_6a99b3ac77de1",
+        "senderId": "65e000000000000000000001",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "@Zervy profiles for java DSA",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-03 19:51:40"
+    },
+    {
+        "id": "msg_6a99b3acb684d",
+        "senderId": "ai_assistant",
+        "senderName": "Zervy (AI Assistant)",
+        "senderRole": "AI_AGENT",
+        "text": "\ud83e\udd16 **Zervy Recommendation** for: *\"profiles for java DSA\"*\n\n1. **Ananya Deshmukh** (65% Match) \u2014 Enterprise Java & Spring Boot Specialist\n   *Why:* Strong match for requested domain with 10+ years of verified experience in Java, Spring Boot, Microservices.\n2. **Rajesh Verma** (65% Match) \u2014 Senior DevOps & Cloud Architect | Corporate Trainer\n   *Why:* Strong match for requested domain with 11+ years of verified experience in Python, Docker, Kubernetes.\n3. **Dr. Priya Sharma** (65% Match) \u2014 Lead Data Scientist & Generative AI Specialist\n   *Why:* Strong match for requested domain with 8+ years of verified experience in Python, Machine Learning, Deep Learning.\n",
+        "aiData": {
+            "understoodRequirement": {
+                "topic": "Java \/ Data Structures & Algorithms",
+                "skills": [
+                    "Java",
+                    "Data Structures & Algorithms"
+                ],
+                "location": "Any",
+                "mode": "ALL"
+            },
+            "clarification": null,
+            "topMatches": [
+                {
+                    "trainerId": "tr_04",
+                    "name": "Ananya Deshmukh",
+                    "headline": "Enterprise Java & Spring Boot Specialist",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "Java"
+                    ],
+                    "relevantExperienceYears": 10,
+                    "relevantTrainings": "31+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 10+ years of verified experience in Java, Spring Boot, Microservices."
+                },
+                {
+                    "trainerId": "tr_01",
+                    "name": "Rajesh Verma",
+                    "headline": "Senior DevOps & Cloud Architect | Corporate Trainer",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "Python",
+                        "Docker",
+                        "Kubernetes",
+                        "AWS"
+                    ],
+                    "relevantExperienceYears": 11,
+                    "relevantTrainings": "24+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 11+ years of verified experience in Python, Docker, Kubernetes."
+                },
+                {
+                    "trainerId": "tr_02",
+                    "name": "Dr. Priya Sharma",
+                    "headline": "Lead Data Scientist & Generative AI Specialist",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "Python",
+                        "Machine Learning",
+                        "Deep Learning",
+                        "Generative AI & LLMs"
+                    ],
+                    "relevantExperienceYears": 8,
+                    "relevantTrainings": "19+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 8+ years of verified experience in Python, Machine Learning, Deep Learning."
+                },
+                {
+                    "trainerId": "tr_03",
+                    "name": "Karthik Ramanathan",
+                    "headline": "Full-Stack Web Architect (MERN \/ Next.js \/ Python)",
+                    "matchScore": 65,
+                    "confidence": "Medium",
+                    "matchingSkills": [
+                        "Python",
+                        "Django",
+                        "React.js",
+                        "Next.js"
+                    ],
+                    "relevantExperienceYears": 9,
+                    "relevantTrainings": "28+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 9+ years of verified experience in Python, Django, React.js."
+                }
+            ]
+        },
+        "tokenStats": {
+            "promptTokens": 6,
+            "completionTokens": 403,
+            "totalTokens": 409,
+            "requestCostUsd": "$0.000121",
+            "cumulativeTokens": 9075,
+            "totalRequests": 22,
+            "cumulativeCostUsd": "$0.0014",
+            "model": "gemini-1.5-flash"
+        },
+        "attachment": null,
+        "isAI": true,
+        "timestamp": "2026-09-03 19:51:40"
+    },
+    {
+        "id": "msg_6a99b4387faf2",
+        "senderId": "65e000000000000000000001",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "@Zervy profilles for Python",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-03 19:54:00"
+    },
+    {
+        "id": "msg_6a99b4392e4e0",
+        "senderId": "ai_assistant",
+        "senderName": "Zervy (AI Assistant)",
+        "senderRole": "AI_AGENT",
+        "text": "\ud83e\udd16 **Zervy Recommendation** for: *\"profilles for Python\"*\n\n1. **Rajesh Verma** (80% Match) \u2014 Senior DevOps & Cloud Architect | Corporate Trainer\n   *Why:* Strong match for requested domain with 11+ years of verified experience in Python, Docker, Kubernetes.\n2. **Dr. Priya Sharma** (80% Match) \u2014 Lead Data Scientist & Generative AI Specialist\n   *Why:* Strong match for requested domain with 8+ years of verified experience in Python, Machine Learning, Deep Learning.\n3. **Karthik Ramanathan** (80% Match) \u2014 Full-Stack Web Architect (MERN \/ Next.js \/ Python)\n   *Why:* Strong match for requested domain with 9+ years of verified experience in Python, Django, React.js.\n",
+        "aiData": {
+            "understoodRequirement": {
+                "topic": "Python",
+                "skills": [
+                    "Python"
+                ],
+                "location": "Any",
+                "mode": "ALL"
+            },
+            "clarification": null,
+            "topMatches": [
+                {
+                    "trainerId": "tr_01",
+                    "name": "Rajesh Verma",
+                    "headline": "Senior DevOps & Cloud Architect | Corporate Trainer",
+                    "matchScore": 80,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "Python"
+                    ],
+                    "relevantExperienceYears": 11,
+                    "relevantTrainings": "24+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 11+ years of verified experience in Python, Docker, Kubernetes."
+                },
+                {
+                    "trainerId": "tr_02",
+                    "name": "Dr. Priya Sharma",
+                    "headline": "Lead Data Scientist & Generative AI Specialist",
+                    "matchScore": 80,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "Python"
+                    ],
+                    "relevantExperienceYears": 8,
+                    "relevantTrainings": "19+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 8+ years of verified experience in Python, Machine Learning, Deep Learning."
+                },
+                {
+                    "trainerId": "tr_03",
+                    "name": "Karthik Ramanathan",
+                    "headline": "Full-Stack Web Architect (MERN \/ Next.js \/ Python)",
+                    "matchScore": 80,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "Python"
+                    ],
+                    "relevantExperienceYears": 9,
+                    "relevantTrainings": "28+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 9+ years of verified experience in Python, Django, React.js."
+                },
+                {
+                    "trainerId": "tr_05",
+                    "name": "Vikramaditya Rao",
+                    "headline": "Cybersecurity & Ethical Hacking Consultant",
+                    "matchScore": 80,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "Python"
+                    ],
+                    "relevantExperienceYears": 7,
+                    "relevantTrainings": "16+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 7+ years of verified experience in Cybersecurity, Ethical Hacking & VAPT, Network Security."
+                }
+            ]
+        },
+        "tokenStats": {
+            "promptTokens": 5,
+            "completionTokens": 378,
+            "totalTokens": 383,
+            "requestCostUsd": "$0.000114",
+            "cumulativeTokens": 9458,
+            "totalRequests": 23,
+            "cumulativeCostUsd": "$0.0015",
+            "model": "gemini-1.5-flash"
+        },
+        "attachment": null,
+        "isAI": true,
+        "timestamp": "2026-09-03 19:54:01"
+    },
+    {
+        "id": "msg_6a99b44813cc2",
+        "senderId": "65e000000000000000000001",
+        "senderName": "Operations Director (Admin 1)",
+        "senderRole": "ADMIN",
+        "text": "@Zervy profiles for python",
+        "attachment": null,
+        "isAI": false,
+        "timestamp": "2026-09-03 19:54:16"
+    },
+    {
+        "id": "msg_6a99b44864758",
+        "senderId": "ai_assistant",
+        "senderName": "Zervy (AI Assistant)",
+        "senderRole": "AI_AGENT",
+        "text": "\ud83e\udd16 **Zervy Recommendation** for: *\"profiles for python\"*\n\n1. **Rajesh Verma** (80% Match) \u2014 Senior DevOps & Cloud Architect | Corporate Trainer\n   *Why:* Strong match for requested domain with 11+ years of verified experience in Python, Docker, Kubernetes.\n2. **Dr. Priya Sharma** (80% Match) \u2014 Lead Data Scientist & Generative AI Specialist\n   *Why:* Strong match for requested domain with 8+ years of verified experience in Python, Machine Learning, Deep Learning.\n3. **Karthik Ramanathan** (80% Match) \u2014 Full-Stack Web Architect (MERN \/ Next.js \/ Python)\n   *Why:* Strong match for requested domain with 9+ years of verified experience in Python, Django, React.js.\n",
+        "aiData": {
+            "understoodRequirement": {
+                "topic": "Python",
+                "skills": [
+                    "Python"
+                ],
+                "location": "Any",
+                "mode": "ALL"
+            },
+            "clarification": null,
+            "topMatches": [
+                {
+                    "trainerId": "tr_01",
+                    "name": "Rajesh Verma",
+                    "headline": "Senior DevOps & Cloud Architect | Corporate Trainer",
+                    "matchScore": 80,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "Python"
+                    ],
+                    "relevantExperienceYears": 11,
+                    "relevantTrainings": "24+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 11+ years of verified experience in Python, Docker, Kubernetes."
+                },
+                {
+                    "trainerId": "tr_02",
+                    "name": "Dr. Priya Sharma",
+                    "headline": "Lead Data Scientist & Generative AI Specialist",
+                    "matchScore": 80,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "Python"
+                    ],
+                    "relevantExperienceYears": 8,
+                    "relevantTrainings": "19+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 8+ years of verified experience in Python, Machine Learning, Deep Learning."
+                },
+                {
+                    "trainerId": "tr_03",
+                    "name": "Karthik Ramanathan",
+                    "headline": "Full-Stack Web Architect (MERN \/ Next.js \/ Python)",
+                    "matchScore": 80,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "Python"
+                    ],
+                    "relevantExperienceYears": 9,
+                    "relevantTrainings": "28+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 9+ years of verified experience in Python, Django, React.js."
+                },
+                {
+                    "trainerId": "tr_05",
+                    "name": "Vikramaditya Rao",
+                    "headline": "Cybersecurity & Ethical Hacking Consultant",
+                    "matchScore": 80,
+                    "confidence": "High",
+                    "matchingSkills": [
+                        "Python"
+                    ],
+                    "relevantExperienceYears": 7,
+                    "relevantTrainings": "16+ completed programs",
+                    "whyRecommended": "Strong match for requested domain with 7+ years of verified experience in Cybersecurity, Ethical Hacking & VAPT, Network Security."
+                }
+            ]
+        },
+        "tokenStats": {
+            "promptTokens": 5,
+            "completionTokens": 378,
+            "totalTokens": 383,
+            "requestCostUsd": "$0.000114",
+            "cumulativeTokens": 9841,
+            "totalRequests": 24,
+            "cumulativeCostUsd": "$0.0017",
+            "model": "gemini-1.5-flash"
+        },
+        "attachment": null,
+        "isAI": true,
+        "timestamp": "2026-09-03 19:54:16"
+    }
+]

@@ -3,7 +3,8 @@
 $pageTitle = "Create Opportunity";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
-require_once __DIR__ . '/includes/sidebar.php';
+require_once __DIR__ . '/../includes/auth.php';
+requireAdminOrStaff();
 
 $error = null;
 
@@ -21,16 +22,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $minExperienceYears = (int)($_POST['minExperienceYears'] ?? 3);
     $skillsRequired = trim($_POST['skillsRequired'] ?? '');
     $description = trim($_POST['description'] ?? '');
+    $travelCovered = isset($_POST['travelCovered']) ? true : ($mode !== 'ONLINE');
+    $accommodationCovered = isset($_POST['accommodationCovered']) ? true : ($mode !== 'ONLINE');
+    $diningCovered = isset($_POST['diningCovered']) ? true : ($mode !== 'ONLINE');
 
     if (empty($title) || empty($city) || empty($startDate)) {
         $error = "Please fill in all mandatory fields.";
     } else {
         $oppCol = getCollection("Opportunity");
-        $jobId = "MEN-" . strtoupper(substr($domain, 0, 3)) . "-" . rand(100, 999);
+        $jobId = getNextSequentialMentryId('OPPORTUNITY');
 
         if ($oppCol) {
             $insertResult = $oppCol->insertOne([
                 'jobId' => $jobId,
+                'mentryId' => $jobId,
                 'title' => $title,
                 'domain' => $domain,
                 'mode' => $mode,
@@ -44,6 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'minExperienceYears' => $minExperienceYears,
                 'skillsRequired' => json_encode(array_map('trim', explode(',', $skillsRequired))),
                 'description' => $description,
+                'travelCovered' => $travelCovered,
+                'accommodationCovered' => $accommodationCovered,
+                'diningCovered' => $diningCovered,
                 'status' => 'PUBLISHED',
                 'createdAt' => new MongoDB\BSON\UTCDateTime(),
                 'updatedAt' => new MongoDB\BSON\UTCDateTime()
@@ -60,6 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+require_once __DIR__ . '/includes/sidebar.php';
 ?>
 
 <div class="max-w-4xl mx-auto space-y-6">
@@ -92,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <option value="Programming">Programming & Software</option>
                     <option value="Data Science">Data Science & AI/ML</option>
                     <option value="Cloud">Cloud & DevOps</option>
+                    <option value="Database">Databases & Big Data</option>
                     <option value="VLSI">VLSI & Embedded</option>
                     <option value="Cybersecurity">Cybersecurity</option>
                     <option value="Aptitude">Aptitude & Placement</option>
@@ -145,6 +156,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="sm:col-span-2">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Program Syllabus Description</label>
                 <textarea name="description" rows="4" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">High-impact pre-placement workshop focused on core data structures, backend frameworks, and hands-on coding labs.</textarea>
+            </div>
+
+            <!-- Campus Logistics Options -->
+            <div class="sm:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+                <label class="block text-xs font-bold text-slate-900 uppercase">Campus Logistics Covered</label>
+                <p class="text-[11px] text-slate-500 mb-2">Select the logistics perks arranged for the trainer by Mentry / host institution:</p>
+                <div class="flex flex-wrap gap-4 text-xs font-semibold text-slate-700">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="travelCovered" value="1" checked class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <span>✓ Travel Logistics Covered</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="accommodationCovered" value="1" checked class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <span>✓ On-Campus Accommodation</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="diningCovered" value="1" checked class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <span>✓ Guest House Dining</span>
+                    </label>
+                </div>
             </div>
         </div>
 

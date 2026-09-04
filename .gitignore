@@ -18,3 +18,17 @@
 Thumbs.db
 .idea/
 .vscode/
+
+# Scratch and temporary scripts
+scratch/
+*.tmp
+*.bak
+*.docx
+
+# User uploaded files
+/public/uploads/avatars/*
+!/public/uploads/avatars/.gitkeep
+/public/uploads/documents/*
+!/public/uploads/documents/.gitkeep
+
+

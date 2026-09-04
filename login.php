@@ -3,6 +3,8 @@
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/auth.php';
 
+sendAntiCacheHeaders();
+
 $alreadyLoggedInAdmin = false;
 $alreadyLoggedInTrainer = false;
 
@@ -31,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Email and password are required.";
     } else {
         $userCol = getCollection("User");
-        $user = $userCol ? $userCol->findOne(['email' => $email]) : null;
+        $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
 
         // Built-in demo trainer credentials fallback
         $demoTrainerAccounts = [
@@ -68,6 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'name' => $user['name'],
                 'role' => $user['role'] ?? 'TRAINER',
                 'avatar' => $user['avatar'] ?? null,
+                'trainerCode' => $trainer['trainerCode'] ?? ($user['trainerCode'] ?? null),
+                'mentryId' => $trainer['mentryId'] ?? ($user['mentryId'] ?? null),
                 'trainerId' => $trainer ? (string)$trainer['_id'] : null,
                 'status' => $trainer['status'] ?? 'PENDING_APPROVAL'
             ];
@@ -141,24 +145,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         <?php endif; ?>
 
-        <!-- Quick Demo Fill Pill -->
-        <div class="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-2xl flex items-center justify-between text-xs">
-            <div>
-                <span class="font-bold text-blue-900 block">Trainer Demo Credentials</span>
-                <span class="text-slate-600 text-[11px]">trainer@mentry.test • trainer123</span>
-            </div>
-            <button type="button" onclick="document.getElementById('emailInput').value='trainer@mentry.test'; document.getElementById('passInput').value='trainer123';" class="text-xs font-bold text-blue-700 bg-white border border-blue-200 px-3 py-1.5 rounded-lg shadow-xs hover:bg-blue-600 hover:text-white transition-colors">
-                Auto-fill
-            </button>
-        </div>
-
         <?php if ($error): ?>
             <div class="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-bold leading-relaxed">
                 <?= $error ?>
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="/login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" class="space-y-4">
+        <form method="POST" action="/login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" autocomplete="off" class="space-y-4">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Registered Trainer Email</label>
                 <input type="email" id="emailInput" name="email" required placeholder="trainer@example.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900 font-medium">
@@ -169,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label class="block text-xs font-bold text-slate-700 uppercase">Password</label>
                     <a href="/forgot-password.php" class="text-xs text-blue-600 hover:underline font-semibold">Forgot?</a>
                 </div>
-                <input type="password" id="passInput" name="password" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900">
+                <input type="password" id="passInput" name="password" required placeholder="••••••••" autocomplete="current-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900">
             </div>
 
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
@@ -185,5 +178,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </p>
         </div>
     </div>
+
+    <script>
+    // Prevent browser bfcache redo / restoring stale form states on Alt + Left Arrow
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {
+            window.location.replace(window.location.href);
+        }
+    });
+    </script>
 </body>
 </html>

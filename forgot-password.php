@@ -72,6 +72,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     </script>
+    <link rel="icon" type="image/png" href="/public/mentry.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
@@ -105,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div>
                     <h3 class="font-bold text-sm text-white">Verification Code Dispatched</h3>
-                    <p class="text-xs text-slate-400 mt-1">If an account matches <strong><?= htmlspecialchars($emailTarget) ?></strong>, a 6-digit OTP code has been delivered.</p>
+                    <p class="text-xs text-slate-400 mt-1">If an account matches <strong><?= htmlspecialchars($emailTarget) ?></strong>, a 6-digit OTP verification code has been dispatched to your email. Please check your inbox and spam folder.</p>
                 </div>
 
                 <a href="/reset-password.php?email=<?= urlencode($emailTarget) ?>" class="block w-full bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs py-3 rounded-xl transition-all shadow-md">

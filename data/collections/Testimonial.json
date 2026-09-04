@@ -1,0 +1,38 @@
+[
+    {
+        "name": "Dr. C. Ravikumar",
+        "role": "Director of Training & Placements",
+        "institution": "RV College of Engineering, Bangalore",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
+        "rating": 5,
+        "featured": true,
+        "quote": "Mentry Solutions provided us with top-tier Python and Full Stack trainers on short notice. The student feedback was 4.9/5 and 92% cleared our tier-1 technical screening.",
+        "createdAt": "1788458363406",
+        "_id": "6a99b57bf1624b69330f560b",
+        "updatedAt": "1788458363408"
+    },
+    {
+        "name": "Karthik Rajan",
+        "role": "Senior Technical Trainer",
+        "institution": "Bangalore, India",
+        "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
+        "rating": 5,
+        "featured": true,
+        "quote": "As a freelance technical trainer, Mentry eliminates all the headache of unpaid bidding and slow payments. Rates are guaranteed and campus guest house logistics are seamlessly handled.",
+        "createdAt": "1788458363411",
+        "_id": "6a99b57bf1624b69330f560c",
+        "updatedAt": "1788458363437"
+    },
+    {
+        "name": "Prof. S. Meenakshi",
+        "role": "Head of Placements",
+        "institution": "PSG College of Technology, Coimbatore",
+        "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop&q=80",
+        "rating": 5,
+        "featured": true,
+        "quote": "The trainer verification on Mentry is second to none. We were matched with an extraordinary VLSI expert who tailored the curriculum exactly to our academic needs.",
+        "createdAt": "1788458363442",
+        "_id": "6a99b57bf1624b69330f560d",
+        "updatedAt": "1788458363477"
+    }
+]

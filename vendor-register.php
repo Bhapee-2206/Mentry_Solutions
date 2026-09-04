@@ -1,7 +1,21 @@
 <?php
 // vendor-register.php - Vendor & College Registration
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/auth.php';
+
+sendAntiCacheHeaders();
+
+if (isLoggedIn()) {
+    $currUser = getCurrentUser();
+    if ($currUser['role'] === 'VENDOR' || $currUser['role'] === 'COLLEGE') {
+        header("Location: /vendor-dashboard.php");
+        exit();
+    } elseif ($currUser['role'] === 'ADMIN' || $currUser['role'] === 'SUPER_ADMIN') {
+        header("Location: /admin/trainers.php");
+        exit();
+    }
+}
 
 $error = null;
 $success = false;
@@ -21,12 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Please fill in all mandatory fields.";
     } else {
         $userCol = getCollection("User");
-        $existing = $userCol ? $userCol->findOne(['email' => $email]) : null;
+        $existing = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
 
         if ($existing) {
-            $error = "An account with this email address already exists. Please <a href='/vendor-login.php' class='underline font-bold'>sign in</a>.";
+            $error = "An account with this email address already exists. Each email can only create one account. Please <a href='/vendor-login.php' class='underline font-bold'>sign in</a>.";
         } else {
+            $vendorCode = getNextSequentialMentryId($organizationType === 'COLLEGE' ? 'COLLEGE' : 'VENDOR');
+
             $userInsert = $userCol->insertOne([
+                'vendorCode' => $vendorCode,
+                'mentryId' => $vendorCode,
                 'name' => $contactPerson,
                 'organizationName' => $organizationName,
                 'organizationType' => $organizationType,
@@ -108,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="/vendor-register.php" class="bg-white rounded-3xl border border-slate-200/90 shadow-xl p-8 space-y-6">
+            <form method="POST" action="/vendor-register.php" autocomplete="off" class="bg-white rounded-3xl border border-slate-200/90 shadow-xl p-8 space-y-6">
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Organization / College / Company Name *</label>
@@ -173,5 +191,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </form>
         <?php endif; ?>
     </div>
+
+    <script>
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {
+            window.location.replace(window.location.href);
+        }
+    });
+    </script>
 </body>
 </html>

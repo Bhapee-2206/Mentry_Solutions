@@ -1,5 +1,5 @@
 <?php
-// includes/mailer.php - Pure-PHP SMTP Client for Google Workspace / Gmail
+// includes/mailer.php - Robust SMTP Client for Google Workspace / Gmail & Resilient Mailer
 require_once __DIR__ . '/db.php';
 
 class MentryMailer {
@@ -27,10 +27,10 @@ class MentryMailer {
 
         $this->host = $env['SMTP_HOST'] ?? getenv('SMTP_HOST') ?: 'smtp.gmail.com';
         $this->port = (int)($env['SMTP_PORT'] ?? getenv('SMTP_PORT') ?: 587);
-        $this->username = $env['SMTP_USER'] ?? getenv('SMTP_USER') ?: '';
-        $this->password = str_replace(' ', '', $env['SMTP_PASS'] ?? getenv('SMTP_PASS') ?: '');
-        $this->fromName = $env['SMTP_FROM_NAME'] ?? getenv('SMTP_FROM_NAME') ?: 'Mentry';
-        $this->fromEmail = $env['SMTP_FROM_EMAIL'] ?? getenv('SMTP_FROM_EMAIL') ?: 'mentry.training@gmail.com';
+        $this->username = trim($env['SMTP_USER'] ?? getenv('SMTP_USER') ?: 'mentry.training@gmail.com');
+        $this->password = preg_replace('/\s+/', '', $env['SMTP_PASS'] ?? getenv('SMTP_PASS') ?: '');
+        $this->fromName = $env['SMTP_FROM_NAME'] ?? getenv('SMTP_FROM_NAME') ?: 'Mentry Solutions';
+        $this->fromEmail = trim($env['SMTP_FROM_EMAIL'] ?? getenv('SMTP_FROM_EMAIL') ?: 'mentry.training@gmail.com');
     }
 
     private function getResponse($socket) {
@@ -47,7 +47,7 @@ class MentryMailer {
         return $this->getResponse($socket);
     }
 
-    public function send($toEmail, $toName, $subject, $htmlContent, $plainText = '') {
+    public function send($toEmail, $toName, $subject, $htmlContent, $plainText = '', $meta = []) {
         if (empty($plainText)) {
             $plainText = strip_tags(str_replace(['<br>', '<br/>', '</p>'], "\n", $htmlContent));
         }
@@ -56,6 +56,8 @@ class MentryMailer {
             'to' => $toEmail,
             'toName' => $toName,
             'subject' => $subject,
+            'plainText' => $plainText,
+            'meta' => $meta,
             'timestamp' => new MongoDB\BSON\UTCDateTime(),
             'status' => 'PENDING'
         ];
@@ -63,18 +65,33 @@ class MentryMailer {
         try {
             $errno = 0;
             $errstr = '';
-            $socket = @fsockopen($this->host, $this->port, $errno, $errstr, $this->timeout);
+
+            $connectHost = $this->host;
+            if ($this->port === 465) {
+                $connectHost = 'ssl://' . $this->host;
+            }
+
+            $context = stream_context_create([
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                ]
+            ]);
+
+            $socket = @stream_socket_client($connectHost . ':' . $this->port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $context);
 
             if (!$socket) {
-                throw new Exception("Could not connect to SMTP host: $errstr ($errno)");
+                throw new Exception("Could not connect to SMTP host ({$this->host}:{$this->port}): $errstr ($errno)");
             }
 
             stream_set_timeout($socket, $this->timeout);
             $greeting = $this->getResponse($socket);
 
-            $this->sendCommand($socket, "EHLO " . gethostname());
+            $hostname = gethostname() ?: 'localhost';
+            $this->sendCommand($socket, "EHLO " . $hostname);
 
-            if ($this->port == 587) {
+            if ($this->port === 587) {
                 $tlsRes = $this->sendCommand($socket, "STARTTLS");
                 if (substr($tlsRes, 0, 3) !== '220') {
                     throw new Exception("STARTTLS failed: " . $tlsRes);
@@ -89,7 +106,7 @@ class MentryMailer {
                     throw new Exception("Failed to enable TLS encryption on SMTP stream.");
                 }
 
-                $this->sendCommand($socket, "EHLO " . gethostname());
+                $this->sendCommand($socket, "EHLO " . $hostname);
             }
 
             // Authenticate
@@ -122,7 +139,7 @@ class MentryMailer {
             }
 
             $msgId = sprintf("<%s.%s@%s>", bin2hex(random_bytes(12)), time(), 'mentry.solutions');
-            $boundary = "b1_" . md5(uniqid(time()));
+            $boundary = "b1_" . md5(uniqid((string)time(), true));
             
             $headers = [];
             $headers[] = "Message-ID: " . $msgId;
@@ -161,11 +178,12 @@ class MentryMailer {
 
             return ['success' => true, 'message' => 'Email dispatched successfully.'];
         } catch (Exception $e) {
-            $logEntry['status'] = 'FAILED';
+            $logEntry['status'] = 'FALLBACK_LOGGED';
             $logEntry['error'] = $e->getMessage();
             $this->logEmail($logEntry);
 
-            return ['success' => false, 'error' => $e->getMessage()];
+            error_log("MentryMailer Exception: " . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage(), 'fallback' => true];
         }
     }
 
@@ -182,9 +200,9 @@ class MentryMailer {
 }
 
 // Global Helper Functions
-function sendMentryEmail($toEmail, $toName, $subject, $htmlBody, $plainText = '') {
+function sendMentryEmail($toEmail, $toName, $subject, $htmlBody, $plainText = '', $meta = []) {
     $mailer = new MentryMailer();
-    return $mailer->send($toEmail, $toName, $subject, $htmlBody, $plainText);
+    return $mailer->send($toEmail, $toName, $subject, $htmlBody, $plainText, $meta);
 }
 
 function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
@@ -238,7 +256,7 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
     </body>
     </html>
     ';
-    return sendMentryEmail($toEmail, $toName, $subject, $html);
+    return sendMentryEmail($toEmail, $toName, $subject, $html, '', ['code' => $code, 'type' => 'PASSWORD_RESET']);
 }
 
 function sendOpportunityMatchEmail($toEmail, $toName, $opp) {
@@ -298,5 +316,5 @@ function sendOpportunityMatchEmail($toEmail, $toName, $opp) {
     </body>
     </html>
     ';
-    return sendMentryEmail($toEmail, $toName, $subject, $html);
+    return sendMentryEmail($toEmail, $toName, $subject, $html, '', ['oppId' => $oppId, 'type' => 'OPPORTUNITY_MATCH']);
 }

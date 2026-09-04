@@ -38,6 +38,29 @@ if ($availFromDate instanceof MongoDB\BSON\UTCDateTime) {
 $availNotes = $trainer['availabilityNotes'] ?? '';
 $mobilityPref = $trainer['travelPreference'] ?? 'PAN_INDIA';
 $availUpdatedTime = $trainer['availabilityUpdatedAt'] ?? null;
+
+$skillCol = getCollection("Skill");
+$docCol = getCollection("Document");
+$expCol = getCollection("Experience");
+
+$hasBio = !empty($trainer['bio']);
+$hasSkills = $skillCol ? ($skillCol->countDocuments(['trainerId' => $trainerId]) > 0) : false;
+$hasDoc = $docCol ? ($docCol->countDocuments(['trainerId' => $trainerId]) > 0) : false;
+$hasExp = $expCol ? ($expCol->countDocuments(['trainerId' => $trainerId]) > 0) : false;
+$hasPhoto = !empty($user['avatar']) && strpos($user['avatar'], 'avatar.vercel.sh') === false;
+
+$completedSteps = 1; // Basic account info
+if ($hasBio) $completedSteps++;
+if ($hasSkills) $completedSteps++;
+if ($hasDoc) $completedSteps++;
+if ($hasExp) $completedSteps++;
+if ($hasPhoto) $completedSteps++;
+
+$completionPercentage = min(100, round(($completedSteps / 6) * 100));
+if ($completedSteps === 6) $completionPercentage = 100;
+
+$isProfileIncomplete = ($completionPercentage < 100);
+$isNewSignup = isset($_GET['new_signup']);
 ?>
 
 <div class="space-y-8">
@@ -48,6 +71,27 @@ $availUpdatedTime = $trainer['availabilityUpdatedAt'] ?? null;
                 <span>Availability status updated! Administrators and hiring coordinators can now see your updated schedule.</span>
             </div>
             <button type="button" onclick="this.parentElement.remove()" class="text-emerald-700 hover:text-emerald-900 font-bold text-xs">✕</button>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($isProfileIncomplete): ?>
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                    <?= $completionPercentage ?>%
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-slate-900">Your trainer profile is <?= $completionPercentage ?>% complete</h4>
+                    <p class="text-[11px] text-slate-600">Add your verified skills, teaching bio, and resume to unlock instant college assignment matching.</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button type="button" onclick="document.getElementById('onboardingProfileModal').classList.remove('hidden'); document.getElementById('onboardingProfileModal').classList.add('flex');" class="text-xs font-bold text-blue-700 hover:underline px-2 py-1">View Checklist</button>
+                <a href="/trainer/profile.php" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1">
+                    <span>Complete Profile</span>
+                    <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </a>
+            </div>
         </div>
     <?php endif; ?>
 
@@ -64,9 +108,14 @@ $availUpdatedTime = $trainer['availabilityUpdatedAt'] ?? null;
     <!-- Welcome Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h1 class="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
-                Welcome back, <?= htmlspecialchars($user['name']) ?>
-            </h1>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                    Welcome back, <?= htmlspecialchars($user['name']) ?>
+                </h1>
+                <span class="font-mono text-xs font-black text-[#FE5E04] bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg shadow-2xs">
+                    <?= htmlspecialchars(getMentryCode('TRAINER', $trainer ?? $user)) ?>
+                </span>
+            </div>
             <p class="text-xs md:text-sm text-slate-500 mt-0.5">
                 Track your college training applications, campus schedule, and availability.
             </p>
@@ -333,6 +382,94 @@ $availUpdatedTime = $trainer['availabilityUpdatedAt'] ?? null;
     </div>
 </div>
 
+<!-- ================= MODAL: COMPLETE YOUR TRAINER PROFILE ================= -->
+<div id="onboardingProfileModal" class="<?= ($isNewSignup || ($isProfileIncomplete && !isset($_COOKIE['hide_profile_popup']))) ? 'flex' : 'hidden' ?> fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+        <div class="flex items-start justify-between gap-4">
+            <div class="space-y-1">
+                <span class="bg-orange-50 text-[#FE5E04] text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border border-orange-200">
+                    Quick Profile Setup
+                </span>
+                <h3 class="text-xl font-black text-slate-900 tracking-tight">
+                    Welcome to Mentry, <?= htmlspecialchars(explode(' ', $user['name'] ?? 'Trainer')[0]) ?>! 🎉
+                </h3>
+                <p class="text-xs text-slate-500">
+                    Finish completing your trainer profile to get verified and shortlisted for high-paying college assignments across India.
+                </p>
+            </div>
+            <button onclick="dismissOnboardingModal()" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer">
+                <span class="material-symbols-outlined text-[18px]">close</span>
+            </button>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <div class="flex items-center justify-between text-xs font-bold">
+                <span class="text-slate-700">Profile Completion</span>
+                <span class="text-blue-600 font-extrabold"><?= $completionPercentage ?>%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: <?= $completionPercentage ?>%"></div>
+            </div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="space-y-2">
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Pending Profile Steps:</h4>
+            
+            <div class="flex items-center justify-between p-3 rounded-xl <?= $hasBio ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-base <?= $hasBio ? 'text-emerald-600' : 'text-slate-400' ?>">
+                        <?= $hasBio ? 'check_circle' : 'radio_button_unchecked' ?>
+                    </span>
+                    <span class="text-xs font-semibold <?= $hasBio ? 'text-emerald-950' : 'text-slate-700' ?>">Teaching Bio & Professional Title</span>
+                </div>
+                <span class="text-[11px] font-bold <?= $hasBio ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasBio ? 'Done' : '+15%' ?></span>
+            </div>
+
+            <div class="flex items-center justify-between p-3 rounded-xl <?= $hasSkills ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-base <?= $hasSkills ? 'text-emerald-600' : 'text-slate-400' ?>">
+                        <?= $hasSkills ? 'check_circle' : 'radio_button_unchecked' ?>
+                    </span>
+                    <span class="text-xs font-semibold <?= $hasSkills ? 'text-emerald-950' : 'text-slate-700' ?>">Verified Technical Skills (Python, Java, Cloud...)</span>
+                </div>
+                <span class="text-[11px] font-bold <?= $hasSkills ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasSkills ? 'Done' : '+20%' ?></span>
+            </div>
+
+            <div class="flex items-center justify-between p-3 rounded-xl <?= $hasDoc ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-base <?= $hasDoc ? 'text-emerald-600' : 'text-slate-400' ?>">
+                        <?= $hasDoc ? 'check_circle' : 'radio_button_unchecked' ?>
+                    </span>
+                    <span class="text-xs font-semibold <?= $hasDoc ? 'text-emerald-950' : 'text-slate-700' ?>">Upload Resume / CV</span>
+                </div>
+                <span class="text-[11px] font-bold <?= $hasDoc ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasDoc ? 'Done' : '+20%' ?></span>
+            </div>
+
+            <div class="flex items-center justify-between p-3 rounded-xl <?= $hasPhoto ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-base <?= $hasPhoto ? 'text-emerald-600' : 'text-slate-400' ?>">
+                        <?= $hasPhoto ? 'check_circle' : 'radio_button_unchecked' ?>
+                    </span>
+                    <span class="text-xs font-semibold <?= $hasPhoto ? 'text-emerald-950' : 'text-slate-700' ?>">Profile Headshot (Optional: Initials used)</span>
+                </div>
+                <span class="text-[11px] font-bold <?= $hasPhoto ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasPhoto ? 'Done' : '+15%' ?></span>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <button type="button" onclick="dismissOnboardingModal()" class="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer">
+                I'll do this later
+            </button>
+            <a href="/trainer/profile.php" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5">
+                <span>Complete Profile Now</span>
+                <span class="material-symbols-outlined text-base">arrow_forward</span>
+            </a>
+        </div>
+    </div>
+</div>
+
 <script>
 function openAvailabilityModal() {
     const modal = document.getElementById('availabilityModal');
@@ -353,6 +490,15 @@ function toggleDateRequirement(show) {
     } else {
         container.classList.add('hidden');
     }
+}
+
+function dismissOnboardingModal() {
+    const modal = document.getElementById('onboardingProfileModal');
+    if (modal) {
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+    }
+    document.cookie = "hide_profile_popup=1; path=/; max-age=86400";
 }
 </script>
 

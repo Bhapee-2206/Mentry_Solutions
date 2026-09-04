@@ -120,11 +120,15 @@ if (!$config['maintenance_mode'] && !$isStaffOrAdmin) {
                 </div>
             </a>
 
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-3">
                 <span class="inline-flex items-center gap-2 bg-amber-50 text-amber-800 border border-amber-200 text-xs font-black px-3.5 py-1.5 rounded-full shadow-xs">
                     <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
                     <span>Work In Progress</span>
                 </span>
+                <a href="/index.php" class="bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold px-3.5 py-1.5 rounded-xl border border-slate-200 transition-all flex items-center gap-1.5 shadow-xs hover:border-[#FE5E04] hover:text-[#FE5E04]">
+                    <span class="material-symbols-outlined text-base text-[#FE5E04]">home</span>
+                    <span>Home Page</span>
+                </a>
             </div>
         </div>
     </header>
@@ -294,6 +298,11 @@ if (!$config['maintenance_mode'] && !$isStaffOrAdmin) {
                 </div>
 
                 <div class="flex flex-wrap items-center gap-3 pt-1">
+                    <a href="/index.php" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-xs hover:scale-[1.02]">
+                        <span class="material-symbols-outlined text-base text-[#FE5E04]">home</span>
+                        Return to Homepage
+                    </a>
+                    
                     <a href="mailto:mentry.training@gmail.com" class="bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all flex items-center gap-2 shadow-xs hover:border-[#FE5E04] hover:text-[#FE5E04] group">
                         <span class="material-symbols-outlined text-base text-[#FE5E04] group-hover:scale-110 transition-transform">mail</span>
                         mentry.training@gmail.com

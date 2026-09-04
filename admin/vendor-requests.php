@@ -104,9 +104,14 @@ $approvedCount = $reqCol ? $reqCol->countDocuments(['status' => 'APPROVED_PUBLIS
                                     <a href="/admin/vendor-request-review.php?id=<?= $rqId ?>" class="font-bold text-slate-900 hover:text-blue-600 block">
                                         <?= htmlspecialchars($rq['title']) ?>
                                     </a>
-                                    <div class="text-[10px] text-slate-500 mt-0.5">
-                                        Vendor: <strong class="text-slate-800"><?= htmlspecialchars($rq['vendorName'] ?? 'Partner') ?></strong> • 
-                                        College: <?= htmlspecialchars($rq['institutionName'] ?? '') ?>
+                                    <div class="flex items-center gap-2 mt-1">
+                                        <span class="font-mono text-[10px] font-bold text-[#FE5E04] bg-orange-50 border border-orange-200 px-1.5 py-0.2 rounded">
+                                            <?= htmlspecialchars(getMentryCode('VENDOR', $rq)) ?>
+                                        </span>
+                                        <span class="text-[10px] text-slate-500">
+                                            Vendor: <strong class="text-slate-800"><?= htmlspecialchars($rq['vendorName'] ?? 'Partner') ?></strong> • 
+                                            College: <?= htmlspecialchars($rq['institutionName'] ?? '') ?>
+                                        </span>
                                     </div>
                                 </td>
                                 <td class="py-4 px-4">

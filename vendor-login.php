@@ -3,6 +3,8 @@
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/auth.php';
 
+sendAntiCacheHeaders();
+
 if (isLoggedIn()) {
     $user = getCurrentUser();
     if ($user['role'] === 'VENDOR' || $user['role'] === 'COLLEGE') {
@@ -105,24 +107,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
 
-        <!-- Quick Demo Fill Pill -->
-        <div class="p-3.5 bg-indigo-50/80 border border-indigo-200/80 rounded-2xl flex items-center justify-between text-xs">
-            <div>
-                <span class="font-bold text-indigo-950 block">Vendor Demo Credentials</span>
-                <span class="text-slate-600 text-[11px]">vendor@mentry.test • vendor123</span>
-            </div>
-            <button type="button" onclick="document.getElementById('emailInput').value='vendor@mentry.test'; document.getElementById('passInput').value='vendor123';" class="text-xs font-bold text-indigo-700 bg-white border border-indigo-200 px-3 py-1.5 rounded-lg shadow-xs hover:bg-indigo-600 hover:text-white transition-colors">
-                Auto-fill
-            </button>
-        </div>
-
         <?php if ($error): ?>
             <div class="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-bold leading-relaxed">
                 <?= $error ?>
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="/vendor-login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" class="space-y-4">
+        <form method="POST" action="/vendor-login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" autocomplete="off" class="space-y-4">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Official Work Email ID</label>
                 <input type="email" id="emailInput" name="email" required placeholder="name@company.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-900 font-medium">
@@ -133,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label class="block text-xs font-bold text-slate-700 uppercase">Password</label>
                     <a href="/forgot-password.php" class="text-xs text-indigo-600 hover:underline font-semibold">Forgot?</a>
                 </div>
-                <input type="password" id="passInput" name="password" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-900">
+                <input type="password" id="passInput" name="password" required placeholder="••••••••" autocomplete="current-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-900">
             </div>
 
             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
@@ -153,5 +144,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
+
+    <script>
+    // Prevent browser bfcache redo / restoring stale form states on Alt + Left Arrow
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {
+            window.location.replace(window.location.href);
+        }
+    });
+    </script>
 </body>
 </html>

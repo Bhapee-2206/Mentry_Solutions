@@ -2,10 +2,11 @@
 // actions/update-opportunity.php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
-requireAdmin();
+requireAdminOrStaff();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id'] ?? '';
+    $status = trim($_POST['status'] ?? 'PUBLISHED');
     $title = trim($_POST['title'] ?? '');
     $domain = trim($_POST['domain'] ?? 'Programming');
     $mode = trim($_POST['mode'] ?? 'OFFLINE');
@@ -21,7 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $minExperienceYears = (int)($_POST['minExperienceYears'] ?? 3);
     $skillsRequired = trim($_POST['skillsRequired'] ?? '');
     $description = trim($_POST['description'] ?? '');
-    $status = trim($_POST['status'] ?? 'PUBLISHED');
+    $travelCovered = isset($_POST['travelCovered']) ? true : false;
+    $accommodationCovered = isset($_POST['accommodationCovered']) ? true : false;
+    $diningCovered = isset($_POST['diningCovered']) ? true : false;
 
     if (!empty($id) && !empty($title)) {
         $oppCol = getCollection("Opportunity");
@@ -46,6 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'minExperienceYears' => $minExperienceYears,
                     'skillsRequired' => json_encode($skillsArray),
                     'description' => $description,
+                    'travelCovered' => $travelCovered,
+                    'accommodationCovered' => $accommodationCovered,
+                    'diningCovered' => $diningCovered,
                     'status' => $status,
                     'updatedAt' => new MongoDB\BSON\UTCDateTime()
                 ]]

@@ -27,7 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $requirementCol = getCollection("CollegeRequirement");
         if ($requirementCol) {
+            $requestCode = getNextSequentialMentryId('REQUIREMENT');
             $requirementCol->insertOne([
+                'requestCode' => $requestCode,
+                'mentryId' => $requestCode,
                 'institutionName' => $institutionName,
                 'contactPerson' => $contactPerson,
                 'email' => strtolower($email),

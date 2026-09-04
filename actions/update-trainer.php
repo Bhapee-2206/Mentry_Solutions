@@ -2,7 +2,7 @@
 // actions/update-trainer.php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
-requireAdmin();
+requireAdminOrStaff();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $trainerId = $_POST['trainerId'] ?? '';
@@ -56,7 +56,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($userCol && !empty($userId)) {
                 $userUpdate = [];
                 if (!empty($name)) $userUpdate['name'] = $name;
-                if (!empty($email)) $userUpdate['email'] = $email;
+                if (!empty($email)) {
+                    $email = strtolower(trim($email));
+                    $duplicate = $userCol->findOne([
+                        'email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i'),
+                        '_id' => ['$ne' => new MongoDB\BSON\ObjectId($userId)]
+                    ]);
+                    if (!$duplicate) {
+                        $userUpdate['email'] = $email;
+                    }
+                }
                 if (!empty($phone)) $userUpdate['phone'] = $phone;
                 if (!empty($userUpdate)) {
                     $userUpdate['updatedAt'] = new MongoDB\BSON\UTCDateTime();
@@ -65,23 +74,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Update trainer document
+            $trainerSet = [
+                'professionalTitle' => $professionalTitle,
+                'primaryDomain' => $primaryDomain,
+                'currentCity' => $currentCity,
+                'currentState' => $currentState,
+                'totalExperienceYears' => $totalExperienceYears,
+                'collegeExperienceYears' => $collegeExperienceYears,
+                'dailyRateINR' => $dailyRateINR,
+                'travelPreference' => $travelPreference,
+                'bio' => $bio,
+                'adminNotes' => $adminNotes,
+                'adminRating' => $adminRating,
+                'status' => $status,
+                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+            ];
+            if (!empty($name)) $trainerSet['name'] = $name;
+            if (!empty($email)) $trainerSet['email'] = $email;
+            if (!empty($phone)) $trainerSet['phone'] = $phone;
+
             $trainerCol->updateOne(
                 ['_id' => new MongoDB\BSON\ObjectId($trainerId)],
-                ['$set' => [
-                    'professionalTitle' => $professionalTitle,
-                    'primaryDomain' => $primaryDomain,
-                    'currentCity' => $currentCity,
-                    'currentState' => $currentState,
-                    'totalExperienceYears' => $totalExperienceYears,
-                    'collegeExperienceYears' => $collegeExperienceYears,
-                    'dailyRateINR' => $dailyRateINR,
-                    'travelPreference' => $travelPreference,
-                    'bio' => $bio,
-                    'adminNotes' => $adminNotes,
-                    'adminRating' => $adminRating,
-                    'status' => $status,
-                    'updatedAt' => new MongoDB\BSON\UTCDateTime()
-                ]]
+                ['$set' => $trainerSet]
+            );
+        } elseif ($actionType === 'update_admin_notes') {
+            $adminNotes = trim($_POST['adminNotes'] ?? '');
+            $adminRating = isset($_POST['adminRating']) ? (float)$_POST['adminRating'] : null;
+            $setData = [
+                'adminNotes' => $adminNotes,
+                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+            ];
+            if ($adminRating !== null) {
+                $setData['adminRating'] = $adminRating;
+            }
+            $trainerCol->updateOne(
+                ['_id' => new MongoDB\BSON\ObjectId($trainerId)],
+                ['$set' => $setData]
             );
         } elseif ($actionType === 'add_skill') {
             $skillName = trim($_POST['skillName'] ?? '');

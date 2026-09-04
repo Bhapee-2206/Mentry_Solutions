@@ -2,8 +2,8 @@
 // admin/vendor-request-review.php - Admin Review, Price Adjustment & Approval
 $pageTitle = "Review Vendor Demand";
 require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/helpers.php';
-require_once __DIR__ . '/includes/sidebar.php';
+require_once __DIR__ . '/../includes/auth.php';
+requireAdminOrStaff();
 
 $id = $_GET['id'] ?? '';
 $reqCol = getCollection("VendorRequest");
@@ -21,6 +21,8 @@ if (!$req) {
     exit();
 }
 
+require_once __DIR__ . '/includes/sidebar.php';
+
 $reqId = (string)$req['_id'];
 $isConverted = ($req['status'] ?? '') === 'APPROVED_PUBLISHED';
 
@@ -34,10 +36,23 @@ if (!empty($req['skillsRequired'])) {
 $skillsString = implode(', ', (array)$skills);
 
 $startDateVal = '';
-if (!empty($req['startDate']) && $req['startDate'] instanceof MongoDB\BSON\UTCDateTime) {
-    $startDateVal = $req['startDate']->toDateTime()->format('Y-m-d');
-} elseif (!empty($req['startDate']) && is_string($req['startDate'])) {
-    $startDateVal = date('Y-m-d', strtotime($req['startDate']));
+if (!empty($req['startDate'])) {
+    $sd = $req['startDate'];
+    if ($sd instanceof MongoDB\BSON\UTCDateTime) {
+        $startDateVal = $sd->toDateTime()->format('Y-m-d');
+    } elseif (is_numeric($sd)) {
+        $ts = ($sd > 20000000000) ? round($sd / 1000) : (int)$sd;
+        $startDateVal = date('Y-m-d', $ts);
+    } elseif (is_array($sd) || is_object($sd)) {
+        $arr = (array)$sd;
+        if (isset($arr['$date'])) {
+            $raw = is_array($arr['$date']) ? ($arr['$date']['$numberLong'] ?? 0) : $arr['$date'];
+            $ts = is_numeric($raw) && $raw > 20000000000 ? round($raw / 1000) : (int)$raw;
+            $startDateVal = date('Y-m-d', $ts);
+        }
+    } elseif (is_string($sd)) {
+        $startDateVal = date('Y-m-d', strtotime($sd));
+    }
 }
 
 // Default recommended trainer payout based on vendor's offered budget (typically 70-80%)

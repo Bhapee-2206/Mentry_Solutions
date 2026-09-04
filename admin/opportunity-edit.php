@@ -3,7 +3,8 @@
 $pageTitle = "Edit Opportunity";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
-require_once __DIR__ . '/includes/sidebar.php';
+require_once __DIR__ . '/../includes/auth.php';
+requireAdminOrStaff();
 
 $id = $_GET['id'] ?? '';
 $oppCol = getCollection("Opportunity");
@@ -20,6 +21,8 @@ if (!$opp) {
     exit();
 }
 
+require_once __DIR__ . '/includes/sidebar.php';
+
 $oppId = (string)$opp['_id'];
 $skills = [];
 if (!empty($opp['skillsRequired'])) {
@@ -30,10 +33,23 @@ if (!empty($opp['skillsRequired'])) {
 }
 $skillsString = implode(', ', (array)$skills);
 $startDateVal = '';
-if (!empty($opp['startDate']) && $opp['startDate'] instanceof MongoDB\BSON\UTCDateTime) {
-    $startDateVal = $opp['startDate']->toDateTime()->format('Y-m-d');
-} elseif (!empty($opp['startDate']) && is_string($opp['startDate'])) {
-    $startDateVal = date('Y-m-d', strtotime($opp['startDate']));
+if (!empty($opp['startDate'])) {
+    $sd = $opp['startDate'];
+    if ($sd instanceof MongoDB\BSON\UTCDateTime) {
+        $startDateVal = $sd->toDateTime()->format('Y-m-d');
+    } elseif (is_numeric($sd)) {
+        $ts = ($sd > 20000000000) ? round($sd / 1000) : (int)$sd;
+        $startDateVal = date('Y-m-d', $ts);
+    } elseif (is_array($sd) || is_object($sd)) {
+        $arr = (array)$sd;
+        if (isset($arr['$date'])) {
+            $raw = is_array($arr['$date']) ? ($arr['$date']['$numberLong'] ?? 0) : $arr['$date'];
+            $ts = is_numeric($raw) && $raw > 20000000000 ? round($raw / 1000) : (int)$raw;
+            $startDateVal = date('Y-m-d', $ts);
+        }
+    } elseif (is_string($sd)) {
+        $startDateVal = date('Y-m-d', strtotime($sd));
+    }
 }
 ?>
 
@@ -85,6 +101,7 @@ if (!empty($opp['startDate']) && $opp['startDate'] instanceof MongoDB\BSON\UTCDa
                     <option value="Programming" <?= ($opp['domain'] ?? '') === 'Programming' ? 'selected' : '' ?>>Programming & Software</option>
                     <option value="Data Science" <?= ($opp['domain'] ?? '') === 'Data Science' ? 'selected' : '' ?>>Data Science & AI/ML</option>
                     <option value="Cloud" <?= ($opp['domain'] ?? '') === 'Cloud' ? 'selected' : '' ?>>Cloud & DevOps</option>
+                    <option value="Database" <?= ($opp['domain'] ?? '') === 'Database' ? 'selected' : '' ?>>Databases & Big Data</option>
                     <option value="VLSI" <?= ($opp['domain'] ?? '') === 'VLSI' ? 'selected' : '' ?>>VLSI & Embedded</option>
                     <option value="Cybersecurity" <?= ($opp['domain'] ?? '') === 'Cybersecurity' ? 'selected' : '' ?>>Cybersecurity</option>
                     <option value="Aptitude" <?= ($opp['domain'] ?? '') === 'Aptitude' ? 'selected' : '' ?>>Aptitude & Placement</option>
@@ -154,6 +171,26 @@ if (!empty($opp['startDate']) && $opp['startDate'] instanceof MongoDB\BSON\UTCDa
             <div class="sm:col-span-2">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Program Syllabus & Description</label>
                 <textarea name="description" rows="5" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none"><?= htmlspecialchars($opp['description'] ?? '') ?></textarea>
+            </div>
+
+            <!-- Campus Logistics Options -->
+            <div class="sm:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+                <label class="block text-xs font-bold text-slate-900 uppercase">Campus Logistics Covered</label>
+                <p class="text-[11px] text-slate-500 mb-2">Select the logistics perks arranged for the trainer by Mentry / host institution:</p>
+                <div class="flex flex-wrap gap-4 text-xs font-semibold text-slate-700">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="travelCovered" value="1" <?= ($opp['travelCovered'] ?? ($opp['mode'] !== 'ONLINE')) ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <span>✓ Travel Logistics Covered</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="accommodationCovered" value="1" <?= ($opp['accommodationCovered'] ?? ($opp['mode'] !== 'ONLINE')) ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <span>✓ On-Campus Accommodation</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="diningCovered" value="1" <?= ($opp['diningCovered'] ?? ($opp['mode'] !== 'ONLINE')) ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <span>✓ Guest House Dining</span>
+                    </label>
+                </div>
             </div>
         </div>
 

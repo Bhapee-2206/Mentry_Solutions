@@ -62,7 +62,7 @@ $applications = $applicationCol ? $applicationCol->find(
                                 <td class="py-4 px-4"><?= getStatusBadge($app['status'] ?? 'PENDING') ?></td>
                                 <td class="py-4 px-5 text-right">
                                     <?php if ($opp): ?>
-                                        <a href="/opportunity-details.php?id=<?= (string)$opp['_id'] ?>" class="text-blue-600 font-bold hover:underline">View Spec</a>
+                                        <a href="/opportunity-details.php?id=<?= (string)$opp['_id'] ?>" class="text-blue-600 font-bold hover:underline">View Info</a>
                                     <?php endif; ?>
                                 </td>
                             </tr>

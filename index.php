@@ -47,6 +47,19 @@ try {
     error_log("MongoDB Connection/Query Error: " . $e->getMessage());
 }
 
+if (empty($categories)) {
+    $categories = [
+        ['name' => 'Programming', 'icon' => 'terminal'],
+        ['name' => 'Data Science', 'icon' => 'monitoring'],
+        ['name' => 'Cloud', 'icon' => 'cloud'],
+        ['name' => 'VLSI', 'icon' => 'memory'],
+        ['name' => 'Cybersecurity', 'icon' => 'security'],
+        ['name' => 'Aptitude', 'icon' => 'calculate'],
+        ['name' => 'Soft Skills', 'icon' => 'record_voice_over'],
+        ['name' => 'Management', 'icon' => 'groups']
+    ];
+}
+
 require_once __DIR__ . '/includes/header.php';
 ?>
 
@@ -57,9 +70,14 @@ require_once __DIR__ . '/includes/header.php';
             <div class="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
                 <!-- Left 7 cols: Content -->
                 <div class="lg:col-span-7 space-y-6 text-left">
-                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-50 border border-orange-200/80 text-[#FE5E04] text-xs font-black tracking-wide shadow-xs">
-                        <span class="w-2 h-2 rounded-full bg-[#FE5E04] animate-pulse"></span>
-                        <span>India's Premier Managed Trainer Network</span>
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200 shadow-xs hover:border-orange-300 hover:shadow-sm transition-all group select-none">
+                        <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-50 text-[#FE5E04] border border-orange-200/60 shrink-0">
+                            <span class="material-symbols-outlined text-[14px]">verified</span>
+                        </span>
+                        <span class="text-xs font-bold text-slate-900 tracking-tight">India's Premier</span>
+                        <span class="text-slate-300 font-light">|</span>
+                        <span class="text-xs font-medium text-slate-600">Managed Trainer Network</span>
+                        <span class="material-symbols-outlined text-[15px] text-[#FE5E04] transition-transform group-hover:translate-x-0.5">chevron_right</span>
                     </div>
 
                     <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-950 tracking-tight leading-[1.12]">
@@ -171,15 +189,7 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
 
                     <!-- Floating Trust Badge -->
-                    <div class="hidden sm:flex absolute -bottom-5 -left-6 bg-white border border-slate-200 p-3.5 rounded-2xl shadow-xl items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-[#FE5E04] text-white flex items-center justify-center font-bold shadow-md shadow-orange-500/20">
-                            <span class="material-symbols-outlined text-xl">verified</span>
-                        </div>
-                        <div>
-                            <span class="text-xs font-bold text-slate-900 block">Prompt Payout Guarantee</span>
-                            <span class="text-[10px] text-slate-500">Disbursed upon program completion</span>
-                        </div>
-                    </div>
+                    
                 </div>
             </div>
         </div>
@@ -191,10 +201,10 @@ require_once __DIR__ . '/includes/header.php';
             <span class="text-blue-600 font-bold text-xs uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                 Managed Partnership
             </span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-950 tracking-tight">
+            <h2 class="text-3xl md:text-4xl font-extrabold text-slate-950 tracking-tight">
                 Designed for India's Academic Training Ecosystem
             </h2>
-            <p className="text-slate-600 text-sm md:text-base">
+            <p class="text-slate-600 text-sm md:text-base">
                 Mentry is not a freelance gig marketplace. We are a managed professional network ensuring quality training delivery and guaranteed trainer honorariums.
             </p>
         </div>
