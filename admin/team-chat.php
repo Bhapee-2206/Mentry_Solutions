@@ -365,6 +365,19 @@ function renderMessages(messages) {
                         <div class="text-xs text-slate-800 leading-relaxed whitespace-pre-line font-medium bg-slate-50/70 p-3 rounded-2xl border border-slate-100">
                             ${formatAiMessageText(msg.text)}
                         </div>
+                        ${(msg.aiData && msg.aiData.topMatches && msg.aiData.topMatches.length > 0) ? `
+                            <div class="mt-2 pt-2 border-t border-orange-100 flex items-center gap-1.5 flex-wrap">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mr-1">Direct Profiles:</span>
+                                ${msg.aiData.topMatches.map(tm => `
+                                    <a href="/admin/trainer-view.php?id=${encodeURIComponent(tm.trainerId || tm.trainerCode)}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-bold bg-white hover:bg-orange-50 text-slate-800 hover:text-[#FE5E04] border border-slate-200 hover:border-orange-200 px-2.5 py-1 rounded-xl shadow-2xs transition-all">
+                                        <span class="material-symbols-outlined text-[13px] text-[#FE5E04]">person</span>
+                                        <span>${escapeHtml(tm.name)}</span>
+                                        ${tm.trainerCode ? `<span class="font-mono text-[9px] font-extrabold bg-orange-50 text-[#FE5E04] border border-orange-200 px-1 py-0.2 rounded">${escapeHtml(tm.trainerCode)}</span>` : ''}
+                                        <span class="material-symbols-outlined text-[11px] text-slate-400">open_in_new</span>
+                                    </a>
+                                `).join('')}
+                            </div>
+                        ` : ''}
                         <div class="pt-1 flex items-center gap-2">
                             <a href="/admin/ai-assistant.php" class="text-[11px] font-bold text-[#FE5E04] hover:underline flex items-center gap-1">
                                 Open in Zervy AI Center →
@@ -652,8 +665,14 @@ async function askAiOnMessage(messageId) {
 
 function formatAiMessageText(text) {
     if (!text) return '';
-    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-               .replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Parse Markdown links [Title](url)
+    let formatted = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-[#FE5E04] font-extrabold hover:underline inline-flex items-center gap-0.5">$1<span class="material-symbols-outlined text-[12px] opacity-70">open_in_new</span></a>');
+    // Parse inline code / badges `code`
+    formatted = formatted.replace(/`([^`]+)`/g, '<span class="font-mono text-[10px] font-extrabold text-[#FE5E04] bg-orange-50 border border-orange-200/80 px-1.5 py-0.2 rounded">$1</span>');
+    // Bold & italic
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                         .replace(/\*(.*?)\*/g, '<em>$1</em>');
+    return formatted;
 }
 
 function escapeHtml(str) {

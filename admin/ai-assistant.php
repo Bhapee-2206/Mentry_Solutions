@@ -387,9 +387,19 @@ function renderAiResults(data, source, tokenStats) {
                 <div class="bg-white rounded-3xl border border-slate-200/90 shadow-card p-6 space-y-4 hover:shadow-card-hover transition-all flex flex-col justify-between group">
                     <div class="space-y-3">
                         <div class="flex items-start justify-between gap-3">
-                            <div>
+                            <div class="space-y-1">
                                 <span class="text-[10px] font-black uppercase text-slate-400">#${idx + 1} Best Match</span>
-                                <h3 class="font-extrabold text-base text-slate-900">${escapeHtml(m.name)}</h3>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <a href="/admin/trainer-view.php?id=${encodeURIComponent(m.trainerId || m.trainerCode)}" target="_blank" class="font-extrabold text-base text-slate-900 hover:text-[#FE5E04] transition-colors flex items-center gap-1 group/link">
+                                        <span>${escapeHtml(m.name)}</span>
+                                        <span class="material-symbols-outlined text-sm text-slate-400 group-hover/link:text-[#FE5E04] transition-colors">open_in_new</span>
+                                    </a>
+                                    ${m.trainerCode ? `
+                                        <a href="/admin/trainers.php?search=${encodeURIComponent(m.trainerCode)}" target="_blank" title="Search in Directory" class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-extrabold bg-orange-50 text-[#FE5E04] border border-orange-200/80 hover:bg-orange-100 hover:border-orange-300 transition-colors shadow-2xs">
+                                            ${escapeHtml(m.trainerCode)}
+                                        </a>
+                                    ` : ''}
+                                </div>
                                 <p class="text-xs text-slate-500 font-medium">${escapeHtml(m.headline || 'Verified Trainer')}</p>
                             </div>
                             <div class="text-right">
@@ -440,8 +450,13 @@ function renderAiResults(data, source, tokenStats) {
                         </label>
 
                         <div class="flex items-center gap-2">
-                            <a href="/admin/trainer-view.php?id=${encodeURIComponent(m.trainerId)}" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-3 py-1.5 rounded-xl transition-colors">
-                                View Profile
+                            <a href="/admin/trainer-view.php?id=${encodeURIComponent(m.trainerId || m.trainerCode)}" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-3 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1">
+                                <span class="material-symbols-outlined text-xs">person</span>
+                                <span>View Profile</span>
+                            </a>
+                            <a href="/admin/trainers.php?search=${encodeURIComponent(m.trainerCode || m.name)}" target="_blank" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-xs px-3 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1">
+                                <span class="material-symbols-outlined text-xs">manage_search</span>
+                                <span>Directory</span>
                             </a>
                             <button type="button" onclick="alert('Resume download ready for ${escapeHtml(m.name)}.')" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-all shadow-xs">
                                 Resume

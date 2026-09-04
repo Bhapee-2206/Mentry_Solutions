@@ -158,7 +158,10 @@ if ($action === 'send_message') {
                 $aiSummary = "🤖 **Zervy Recommendation** for: *\"{$aiQuery}\"*\n\n";
                 if (!empty($topMatches)) {
                     foreach (array_slice($topMatches, 0, 3) as $i => $m) {
-                        $aiSummary .= ($i + 1) . ". **{$m['name']}** ({$m['matchScore']}% Match) — {$m['headline']}\n   *Why:* {$m['whyRecommended']}\n";
+                        $targetId = !empty($m['trainerId']) ? $m['trainerId'] : ($m['trainerCode'] ?? '');
+                        $profileUrl = "/admin/trainer-view.php?id=" . urlencode($targetId);
+                        $tCodeBadge = !empty($m['trainerCode']) ? " `[{$m['trainerCode']}]`" : "";
+                        $aiSummary .= ($i + 1) . ". **[{$m['name']}]({$profileUrl})**{$tCodeBadge} ({$m['matchScore']}% Match) — {$m['headline']}\n   *Why:* {$m['whyRecommended']}\n";
                     }
                 } else {
                     $aiSummary .= "No immediate strong matches found in active database. Try broadening skill constraints.";

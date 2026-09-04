@@ -23,8 +23,15 @@ if (!empty($id)) {
     try {
         if (preg_match('/^[a-f0-9]{24}$/i', $id)) {
             $trainer = $trainerCol ? $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($id)]) : null;
-        } else {
-            $trainer = $trainerCol ? $trainerCol->findOne(['id' => $id]) : null;
+        }
+        if (!$trainer && $trainerCol) {
+            $trainer = $trainerCol->findOne([
+                '$or' => [
+                    ['id' => $id],
+                    ['trainerCode' => $id],
+                    ['mentryId' => $id]
+                ]
+            ]);
         }
     } catch (\Throwable $e) {}
 }
