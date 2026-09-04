@@ -37,12 +37,16 @@ if (file_exists($caFile)) {
 
 try {
     echo "Connecting to MongoDB Atlas Cluster...\n";
+    $dbName = 'mentry';
+    if (preg_match('#cluster0[^\/]*\/([a-zA-Z0-9_\-]+)(\?|$)#', $uri, $m)) {
+        $dbName = $m[1];
+    }
     $client = new MongoDB\Client($uri, [], $driverOpts);
     $cmd = new MongoDB\Driver\Command(['ping' => 1]);
-    $client->getManager()->executeCommand('mentry_solutions', $cmd);
-    echo "Connected successfully to MongoDB Atlas!\n\n";
+    $client->getManager()->executeCommand($dbName, $cmd);
+    echo "Connected successfully to MongoDB Atlas ($dbName)!\n\n";
 
-    $db = $client->selectDatabase('mentry_solutions');
+    $db = $client->selectDatabase($dbName);
     $dataDir = __DIR__ . '/../data/collections';
     $files = glob($dataDir . '/*.json');
 

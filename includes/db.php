@@ -497,8 +497,8 @@ class Database {
     private $db = null;
 
     private function __construct() {
-        $uri = getenv('DATABASE_URL') ?: getenv('MONGODB_URI') ?: "mongodb://localhost:27017/mentry_solutions";
-        $dbName = "mentry_solutions";
+        $uri = getenv('DATABASE_URL') ?: getenv('MONGODB_URI') ?: "mongodb://localhost:27017/mentry";
+        $dbName = getenv('MONGODB_DATABASE') ?: getenv('DATABASE_NAME') ?: "mentry";
 
         $envPath = __DIR__ . '/../.env';
         if (file_exists($envPath)) {
@@ -515,9 +515,20 @@ class Database {
                             $uri = $v;
                         } elseif ($k === 'MONGODB_URI' && empty($uri)) {
                             $uri = $v;
+                        } elseif (($k === 'MONGODB_DATABASE' || $k === 'DATABASE_NAME') && !empty($v)) {
+                            $dbName = $v;
                         }
                     }
                 }
+            }
+        }
+
+        // Dynamically parse database name from URI path if present (e.g. /mentry?...)
+        if (preg_match('#cluster0[^\/]*\/([a-zA-Z0-9_\-]+)(\?|$)#', $uri, $m)) {
+            $dbName = $m[1];
+        } elseif (preg_match('#\/([a-zA-Z0-9_\-]+)(\?|$)#', parse_url($uri, PHP_URL_PATH) ?? '', $m)) {
+            if ($m[1] !== 'admin') {
+                $dbName = $m[1];
             }
         }
 
