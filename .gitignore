@@ -32,4 +32,8 @@ scripts/test_*.php
 /public/uploads/documents/*
 !/public/uploads/documents/.gitkeep
 
+# Runtime transactional data logs
+data/collections/EmailLog.json
+data/collections/PasswordReset.json
+
 
