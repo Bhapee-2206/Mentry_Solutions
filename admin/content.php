@@ -37,10 +37,10 @@ $categories = $categoryCol ? $categoryCol->find([], ['sort' => ['order' => 1]])-
         <div class="grid md:grid-cols-3 gap-4">
             <?php foreach ($testimonials as $t): ?>
                 <div class="p-5 rounded-2xl border border-slate-100 bg-slate-50 space-y-3">
-                    <p class="text-xs text-slate-600 italic">"<?= htmlspecialchars($t['quote']) ?>"</p>
+                    <p class="text-xs text-slate-600 italic">"<?= htmlspecialchars($t['quote'] ?? ($t['text'] ?? '')) ?>"</p>
                     <div class="pt-2 border-t border-slate-200/60">
-                        <p class="font-bold text-xs text-slate-900"><?= htmlspecialchars($t['authorName']) ?></p>
-                        <p class="text-[10px] text-slate-500"><?= htmlspecialchars($t['role']) ?> • <?= htmlspecialchars($t['institution'] ?? '') ?></p>
+                        <p class="font-bold text-xs text-slate-900"><?= htmlspecialchars($t['authorName'] ?? ($t['name'] ?? 'Verified Member')) ?></p>
+                        <p class="text-[10px] text-slate-500"><?= htmlspecialchars($t['role'] ?? 'Trainer') ?> • <?= htmlspecialchars($t['institution'] ?? '') ?></p>
                     </div>
                 </div>
             <?php endforeach; ?>

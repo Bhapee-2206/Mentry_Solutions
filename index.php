@@ -10,13 +10,11 @@ $totalOpportunities = 35;
 $totalTrainers = 19;
 $featuredOpportunities = [];
 $categories = [];
-$testimonials = [];
 
 try {
     $opportunityCol = getCollection("Opportunity");
     $trainerCol = getCollection("Trainer");
     $categoryCol = getCollection("TrainingCategory");
-    $testimonialCol = getCollection("Testimonial");
 
     if ($opportunityCol) {
         $totalOpportunities = $opportunityCol->countDocuments(['status' => 'PUBLISHED']);
@@ -34,13 +32,6 @@ try {
         $categories = $categoryCol->find(
             ['active' => true],
             ['sort' => ['order' => 1]]
-        )->toArray();
-    }
-
-    if ($testimonialCol) {
-        $testimonials = $testimonialCol->find(
-            ['featured' => true],
-            ['limit' => 3]
         )->toArray();
     }
 } catch (Throwable $e) {
@@ -447,48 +438,7 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     </section>
 
-    <!-- 6. Testimonials -->
-    <section class="bg-slate-50/80 py-16 border-y border-slate-200/80">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center max-w-2xl mx-auto mb-12 space-y-2">
-                <span class="text-blue-600 font-bold text-xs uppercase tracking-wider">Verified Reviews</span>
-                <h2 class="text-2xl md:text-3xl font-black text-slate-950">
-                    Trusted by Trainers & Institutions
-                </h2>
-            </div>
-
-            <div class="grid md:grid-cols-3 gap-6">
-                <?php foreach ($testimonials as $t): ?>
-                    <div class="bg-white p-7 rounded-3xl border border-slate-200/90 shadow-card flex flex-col justify-between space-y-6">
-                        <div>
-                            <div class="flex items-center gap-1 text-amber-500 mb-4">
-                                <?php for ($i = 0; $i < ($t['rating'] ?? 5); $i++): ?>
-                                    <span class="material-symbols-outlined text-sm icon-fill">star</span>
-                                <?php endfor; ?>
-                            </div>
-                            <p class="text-xs text-slate-600 italic leading-relaxed">
-                                "<?= htmlspecialchars($t['quote']) ?>"
-                            </p>
-                        </div>
-                        <div class="flex items-center gap-3 pt-4 border-t border-slate-100">
-                            <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-sm">
-                                <?= htmlspecialchars(substr($t['authorName'] ?? 'T', 0, 1)) ?>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-sm text-slate-900"><?= htmlspecialchars($t['authorName']) ?></h4>
-                                <p class="text-[11px] text-slate-500"><?= htmlspecialchars($t['role']) ?></p>
-                                <?php if (!empty($t['institution'])): ?>
-                                    <p class="text-[11px] text-blue-600 font-medium"><?= htmlspecialchars($t['institution']) ?></p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-    </section>
-
-    <!-- 7. Executive Dark CTA Banner -->
+    <!-- 6. Executive Dark CTA Banner -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="bg-[#060D17] text-white rounded-3xl p-8 md:p-14 relative overflow-hidden shadow-2xl border border-slate-800">
             <div class="absolute -right-10 -bottom-10 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
