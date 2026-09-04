@@ -5,27 +5,42 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/matching_engine.php';
 require_once __DIR__ . '/resume_parser.php';
+require_once __DIR__ . '/helpers.php';
 
 class AIAgent {
 
     private static $apiKey = null;
-    private static $model = 'gemini-1.5-flash';
+    private static $model = 'gemini-2.5-flash';
 
     private static function initConfig() {
         if (self::$apiKey !== null) return;
 
         $envFile = __DIR__ . '/../.env';
         if (file_exists($envFile)) {
-            $env = @parse_ini_file($envFile);
-            if (!empty($env['GEMINI_API_KEY'])) {
-                self::$apiKey = trim($env['GEMINI_API_KEY'], '"\'');
-            }
-            if (!empty($env['GEMINI_MODEL'])) {
-                self::$model = trim($env['GEMINI_MODEL'], '"\'');
+            $lines = @file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if ($lines !== false) {
+                foreach ($lines as $l) {
+                    $l = trim($l);
+                    if (empty($l) || $l[0] === '#') continue;
+                    if (strpos($l, '=') !== false) {
+                        list($k, $v) = explode('=', $l, 2);
+                        $k = trim($k);
+                        $v = trim(trim($v), '"\'');
+                        if ($k === 'GEMINI_API_KEY' && !empty($v)) {
+                            self::$apiKey = $v;
+                        }
+                        if ($k === 'GEMINI_MODEL' && !empty($v)) {
+                            self::$model = $v;
+                        }
+                    }
+                }
             }
         }
         if (empty(self::$apiKey)) {
             self::$apiKey = getenv('GEMINI_API_KEY') ?: '';
+        }
+        if (empty(self::$model)) {
+            self::$model = getenv('GEMINI_MODEL') ?: 'gemini-2.5-flash';
         }
     }
 
@@ -190,11 +205,22 @@ class AIAgent {
         $trainerCol = getCollection("Trainer");
         $trainers = [];
 
+        $cleanMode = strtoupper(trim((string)$mode));
+        $cleanLocation = trim((string)$location);
+        if (in_array(strtoupper($cleanLocation), ['ANY', 'ALL', 'NONE', 'N/A', ''])) {
+            $cleanLocation = '';
+        }
+
         try {
             if ($trainerCol) {
                 $filter = ['status' => 'APPROVED'];
-                if ($mode !== 'ALL' && !empty($mode)) {
-                    $filter['preferredMode'] = $mode;
+                if (!empty($cleanMode) && !in_array($cleanMode, ['ALL', 'ANY', 'NONE', 'BOTH', 'EITHER', ''])) {
+                    $filter['$or'] = [
+                        ['preferredMode' => $cleanMode],
+                        ['preferredMode' => 'HYBRID'],
+                        ['preferredMode' => ['$exists' => false]],
+                        ['preferredMode' => null]
+                    ];
                 }
                 $cursor = $trainerCol->find($filter);
                 $trainers = $cursor->toArray();
@@ -211,8 +237,8 @@ class AIAgent {
             'domain' => $domain,
             'skillsRequired' => $skills,
             'minExperienceYears' => $minExp,
-            'city' => $location,
-            'mode' => $mode
+            'city' => $cleanLocation,
+            'mode' => in_array($cleanMode, ['ALL', 'ANY', '']) ? 'ALL' : $cleanMode
         ];
 
         $results = [];
@@ -406,26 +432,40 @@ Return JSON:
                 if (($brainData['action'] ?? '') === 'TRAINER_SEARCH') {
                     $extracted = $brainData['extracted'] ?? [];
                     $skillsList = $extracted['skills'] ?? [];
+                    
+                    // Also merge with deterministic parser extraction to never miss recognized skills
+                    $parserSkills = ResumeSkillParser::extractSkillsFromText($query);
+                    foreach ($parserSkills as $cat => $skList) {
+                        foreach ($skList as $sk) {
+                            if (!in_array($sk, $skillsList)) {
+                                $skillsList[] = $sk;
+                            }
+                        }
+                    }
+
                     $detectedLocation = $extracted['location'] ?? '';
                     $detectedMode = $extracted['mode'] ?? 'ALL';
+                    $topicDomain = $extracted['topic'] ?? '';
 
                     // Perform database candidate discovery
-                    $candidates = self::searchTrainers($skillsList, $extracted['topic'] ?? '', 0, $detectedLocation, $detectedMode);
+                    $candidates = self::searchTrainers($skillsList, $topicDomain, 0, $detectedLocation, $detectedMode);
                     $topCandidates = array_slice($candidates, 0, 5);
 
                     // If candidates exist, rank and explain via Gemini
                     $candidatesData = [];
                     foreach ($topCandidates as $c) {
                         $t = $c['trainer'];
+                        $tCode = $t['trainerCode'] ?? ($t['mentryId'] ?? getMentryCode('TRAINER', $t));
                         $candidatesData[] = [
-                            'id' => $t['id'] ?? (string)($t['_id'] ?? ''),
+                            'id' => (string)($t['_id'] ?? ($t['id'] ?? '')),
+                            'trainerCode' => $tCode,
                             'name' => $t['name'],
-                            'headline' => $t['headline'] ?? ($t['primaryDomain'] . ' Specialist'),
+                            'headline' => $t['professionalTitle'] ?? ($t['headline'] ?? ($t['primaryDomain'] . ' Specialist')),
                             'totalExperienceYears' => $t['totalExperienceYears'] ?? 5,
                             'skills' => $t['skills'] ?? ($t['extractedSkills'] ?? []),
                             'primaryDomain' => $t['primaryDomain'] ?? 'Technical Training',
-                            'city' => $t['city'] ?? 'Bangalore',
-                            'preferredMode' => $t['preferredMode'] ?? 'HYBRID',
+                            'city' => $t['currentCity'] ?? ($t['city'] ?? 'Bangalore'),
+                            'preferredMode' => $t['travelPreference'] ?? ($t['preferredMode'] ?? 'HYBRID'),
                             'certifications' => $t['certifications'] ?? [],
                             'completedTrainings' => $t['completedTrainingsCount'] ?? 8,
                             'baseScore' => $c['score']
@@ -436,7 +476,7 @@ Return JSON:
                     $rankSystem = "You are Zervy AI. Rank and explain why each trainer matches the requirement based on factual records. Return JSON:
 {
   \"understoodRequirement\": {
-    \"topic\": \"" . ($extracted['topic'] ?? 'Training Program') . "\",
+    \"topic\": \"" . ($topicDomain ?: 'Training Program') . "\",
     \"skills\": " . json_encode($skillsList) . ",
     \"location\": \"" . ($detectedLocation ?: 'Any') . "\",
     \"mode\": \"" . $detectedMode . "\"
@@ -445,9 +485,10 @@ Return JSON:
   \"topMatches\": [
     {
       \"trainerId\": \"id\",
+      \"trainerCode\": \"MEN-TRN-xxxx\",
       \"name\": \"name\",
       \"headline\": \"headline\",
-      \"matchScore\": 94,
+      \"matchScore\": 95,
       \"confidence\": \"High\",
       \"matchingSkills\": [\"Skill1\"],
       \"relevantExperienceYears\": 8,
@@ -462,6 +503,19 @@ Return JSON:
                     if ($rankRes['success'] && !empty($rankRes['text'])) {
                         $parsedRank = json_decode($rankRes['text'], true);
                         if (is_array($parsedRank) && !empty($parsedRank['topMatches'])) {
+                            // Ensure trainerCode is preserved in matches
+                            foreach ($parsedRank['topMatches'] as &$m) {
+                                if (empty($m['trainerCode'])) {
+                                    foreach ($candidatesData as $cd) {
+                                        if ($cd['id'] === ($m['trainerId'] ?? '')) {
+                                            $m['trainerCode'] = $cd['trainerCode'];
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            unset($m);
+
                             return [
                                 'success' => true,
                                 'isConversational' => false,
@@ -497,20 +551,30 @@ Return JSON:
         // Default candidate search fallback
         $extractedSkills = ResumeSkillParser::extractSkillsFromText($query);
         $skillsList = [];
+        $domainFromSkills = '';
         foreach ($extractedSkills as $cat => $skList) {
+            if (empty($domainFromSkills) && !empty($cat)) {
+                $domainFromSkills = $cat;
+            }
             foreach ($skList as $sk) { $skillsList[] = $sk; }
         }
-        $candidates = self::searchTrainers($skillsList, '', 0, '', 'ALL');
+        if (empty($skillsList)) {
+            $skillsList = array_filter(array_map('trim', preg_split('/[,&\|\/]+/', $query)));
+        }
+
+        $candidates = self::searchTrainers($skillsList, $domainFromSkills, 0, '', 'ALL');
         $topCandidates = array_slice($candidates, 0, 4);
 
         $fallbackMatches = [];
         foreach ($topCandidates as $c) {
             $t = $c['trainer'];
-            $tSkills = $t['skills'] ?? [];
+            $tSkills = $t['skills'] ?? ($t['extractedSkills'] ?? []);
+            $tCode = $t['trainerCode'] ?? ($t['mentryId'] ?? getMentryCode('TRAINER', $t));
             $fallbackMatches[] = [
-                'trainerId' => $t['id'] ?? (string)($t['_id'] ?? ''),
+                'trainerId' => (string)($t['_id'] ?? ($t['id'] ?? '')),
+                'trainerCode' => $tCode,
                 'name' => $t['name'],
-                'headline' => $t['headline'] ?? ($t['primaryDomain'] . ' Trainer'),
+                'headline' => $t['professionalTitle'] ?? ($t['headline'] ?? ($t['primaryDomain'] . ' Trainer')),
                 'matchScore' => max(65, min(98, $c['score'])),
                 'confidence' => $c['score'] >= 80 ? 'High' : 'Medium',
                 'matchingSkills' => !empty($c['breakdown']['matchedSkills']) ? $c['breakdown']['matchedSkills'] : array_slice($tSkills, 0, 4),

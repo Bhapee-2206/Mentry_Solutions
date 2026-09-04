@@ -95,7 +95,7 @@ class ResumeSkillParser {
             ],
             'Computer Vision' => ['\bcomputer\s+vision\b', '\bopencv\b', '\byolo\b', '\bimage\s+processing\b'],
             'Pandas & NumPy' => ['\bpandas\b', '\bnumpy\b', '\bscipy\b'],
-            'TensorFlow & PyTorch' => ['\btensorflow\b', '\bpytorch\b', '\bkeras\b'],
+            'PyTorch & TensorFlow' => ['\bpytorch\b', '\btensorflow\b', '\bkeras\b'],
             'Scikit-learn' => ['\bscikit[- ]?learn\b', '\bsklearn\b'],
             'Power BI' => ['\bpower\s*bi\b', '\bpowerbi\b'],
             'Tableau' => ['\btableau\b']

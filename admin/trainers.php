@@ -59,15 +59,17 @@ if ($expFilter === '1_3') {
 }
 
 if (!empty($search)) {
+    $trimmedSearch = trim($search);
+    $safeSearch = preg_quote($trimmedSearch, '/');
     $userMatchIds = [];
     if ($userCol) {
         try {
             $userOr = [
-                ['name' => new MongoDB\BSON\Regex($search, 'i')],
-                ['email' => new MongoDB\BSON\Regex($search, 'i')],
-                ['phone' => new MongoDB\BSON\Regex($search, 'i')],
-                ['trainerCode' => new MongoDB\BSON\Regex($search, 'i')],
-                ['mentryId' => new MongoDB\BSON\Regex($search, 'i')]
+                ['name' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+                ['email' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+                ['phone' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+                ['trainerCode' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+                ['mentryId' => new MongoDB\BSON\Regex($safeSearch, 'i')]
             ];
             $matchedUsers = $userCol->find(['$or' => $userOr])->toArray();
             foreach ($matchedUsers as $mu) {
@@ -77,17 +79,25 @@ if (!empty($search)) {
     }
 
     $orConditions = [
-        ['trainerCode' => new MongoDB\BSON\Regex($search, 'i')],
-        ['mentryId' => new MongoDB\BSON\Regex($search, 'i')],
-        ['name' => new MongoDB\BSON\Regex($search, 'i')],
-        ['email' => new MongoDB\BSON\Regex($search, 'i')],
-        ['phone' => new MongoDB\BSON\Regex($search, 'i')],
-        ['professionalTitle' => new MongoDB\BSON\Regex($search, 'i')],
-        ['primaryDomain' => new MongoDB\BSON\Regex($search, 'i')],
-        ['currentCity' => new MongoDB\BSON\Regex($search, 'i')],
-        ['currentState' => new MongoDB\BSON\Regex($search, 'i')],
-        ['skills' => new MongoDB\BSON\Regex($search, 'i')]
+        ['trainerCode' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+        ['mentryId' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+        ['name' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+        ['email' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+        ['phone' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+        ['professionalTitle' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+        ['primaryDomain' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+        ['currentCity' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+        ['currentState' => new MongoDB\BSON\Regex($safeSearch, 'i')],
+        ['skills' => new MongoDB\BSON\Regex($safeSearch, 'i')]
     ];
+
+    // If query has ' & ' or ' and ', also match individual key tokens like 'PyTorch' and 'TensorFlow'
+    $tokens = array_filter(preg_split('/[\s\&\/\,\+]+/', $trimmedSearch), function($t) { return strlen($t) >= 3; });
+    foreach ($tokens as $tok) {
+        $safeTok = preg_quote($tok, '/');
+        $orConditions[] = ['skills' => new MongoDB\BSON\Regex($safeTok, 'i')];
+    }
+
     if (!empty($userMatchIds)) {
         $orConditions[] = ['userId' => ['$in' => $userMatchIds]];
     }
@@ -478,10 +488,25 @@ if (!empty($recentActivities)) {
                     <h2 class="text-xl font-black text-slate-900 tracking-tight">Trainers</h2>
                     <p class="text-xs text-slate-500 mt-0.5">Manage and view all trainers in your platform</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2.5 flex-1 sm:justify-end">
+                    <!-- Quick Search Input -->
+                    <form method="GET" action="/admin/trainers.php" class="relative w-full sm:w-64">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">search</span>
+                        <input type="text" 
+                               name="search" 
+                               value="<?= htmlspecialchars($search) ?>" 
+                               placeholder="Search name, ID, skill..." 
+                               class="w-full text-xs font-semibold bg-slate-50 border border-slate-200/90 rounded-xl pl-9 pr-8 py-2 text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 transition-colors">
+                        <?php if (!empty($search)): ?>
+                            <a href="/admin/trainers.php" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                <span class="material-symbols-outlined text-sm">close</span>
+                            </a>
+                        <?php endif; ?>
+                    </form>
+
                     <button type="button" 
                             onclick="openAddTrainerModal()" 
-                            class="inline-flex items-center gap-1.5 bg-[#1d4ed8] hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition-colors cursor-pointer">
+                            class="inline-flex items-center gap-1.5 bg-[#1d4ed8] hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition-colors cursor-pointer shrink-0">
                         <span class="material-symbols-outlined text-base">add</span>
                         <span>Add Trainer</span>
                     </button>
@@ -666,6 +691,9 @@ if (!empty($recentActivities)) {
                                                         <a href="/admin/trainer-view.php?id=<?= $trainerId ?>" class="font-extrabold text-slate-900 hover:text-blue-600 transition-colors text-sm truncate">
                                                             <?= htmlspecialchars($trainerName) ?>
                                                         </a>
+                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-extrabold bg-orange-50 text-[#FE5E04] border border-orange-200/80 shadow-2xs shrink-0">
+                                                            <?= htmlspecialchars($trainerCode) ?>
+                                                        </span>
 
                                                         <!-- Availability Pill: No 1970 Bug! -->
                                                         <?php if ($avail === 'BUSY_ON_ASSIGNMENT' || $avail === 'DELIVERING'): ?>
