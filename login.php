@@ -60,6 +60,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($user['role'] === 'ADMIN' || $user['role'] === 'SUPER_ADMIN') {
             $error = "This account has Administrator privileges. Please sign in via the <a href='/admin-login.php' class='underline font-bold hover:text-blue-700'>Admin Command Center</a>.";
         } else {
+            // Update lastLoginAt on user record (automatically mirrors to Supabase)
+            if ($userCol) {
+                $userCol->updateOne(
+                    ['_id' => $user['_id']],
+                    ['$set' => [
+                        'lastLoginAt' => date('c'),
+                        'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                    ]]
+                );
+            }
+
             // Fetch trainer profile
             $trainerCol = getCollection("Trainer");
             $trainer = $trainerCol ? $trainerCol->findOne(['userId' => (string)$user['_id']]) : null;
