@@ -111,13 +111,13 @@
         "mentryId": "MEN-TRN-1001",
         "name": "Karthik Rajan",
         "email": "karthik.rajan@mentry.test",
-        "password": "$2y$10$IKi99wEdiY9V3XNOqmTqluh.cNoshIwoa8WJ.RDPgXtek8t2CKDYi",
+        "password": "$2y$10$xqq7eVZeFkChqn.0H1/vP.NZjamoIxUlpeCEA.E5DcRdgl.Ew67JO",
         "role": "TRAINER",
         "phone": "+91 98450 11001",
         "status": "ACTIVE",
         "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
         "createdAt": "1788458360407",
-        "updatedAt": "1788458360407",
+        "updatedAt": "1788601486348",
         "_id": "6a99b578f1624b69330f55ba"
     },
     {

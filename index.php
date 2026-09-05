@@ -17,11 +17,15 @@ try {
     $categoryCol = getCollection("TrainingCategory");
 
     if ($opportunityCol) {
-        $totalOpportunities = $opportunityCol->countDocuments(['status' => 'PUBLISHED']);
-        $featuredOpportunities = $opportunityCol->find(
-            ['status' => 'PUBLISHED'],
-            ['limit' => 3, 'sort' => ['createdAt' => -1]]
-        )->toArray();
+        $allPublished = $opportunityCol->find(['status' => 'PUBLISHED'], ['sort' => ['createdAt' => -1]])->toArray();
+        $openOpps = [];
+        foreach ($allPublished as $op) {
+            $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
+            if ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId'])) continue;
+            $openOpps[] = $op;
+        }
+        $totalOpportunities = count($openOpps);
+        $featuredOpportunities = array_slice($openOpps, 0, 3);
     }
 
     if ($trainerCol) {

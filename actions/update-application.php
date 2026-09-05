@@ -69,12 +69,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                // Update opportunity status to MATCHED / IN_PROGRESS
+                // Update opportunity status to CLOSED (trainer selected & position filled)
                 if ($oppCol && !empty($oppId)) {
-                    $oppCol->updateOne(
-                        ['_id' => new MongoDB\BSON\ObjectId($oppId)],
-                        ['$set' => ['status' => 'MATCHED', 'assignedTrainerId' => $trainerId, 'updatedAt' => new MongoDB\BSON\UTCDateTime()]]
-                    );
+                    $oppUpdate = [
+                        'status' => 'CLOSED',
+                        'assignedTrainerId' => $trainerId,
+                        'closedAt' => new MongoDB\BSON\UTCDateTime(),
+                        'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                    ];
+                    try {
+                        $oppCol->updateOne(
+                            ['_id' => new MongoDB\BSON\ObjectId($oppId)],
+                            ['$set' => $oppUpdate]
+                        );
+                    } catch (\Throwable $e) {
+                        $oppCol->updateOne(
+                            ['_id' => $oppId],
+                            ['$set' => $oppUpdate]
+                        );
+                    }
                 }
 
                 // Update Trainer: set to BUSY_ON_ASSIGNMENT and mark APPROVED
@@ -107,6 +120,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ['opportunityId' => $oppId, 'trainerId' => $trainerId],
                         ['$set' => ['status' => 'CANCELLED', 'updatedAt' => new MongoDB\BSON\UTCDateTime()]]
                     );
+                }
+
+                // Also reopen opportunity if it was closed with this trainer
+                if ($oppCol && !empty($oppId)) {
+                    try {
+                        $oppCol->updateOne(
+                            ['_id' => new MongoDB\BSON\ObjectId($oppId), 'assignedTrainerId' => $trainerId],
+                            ['$set' => [
+                                'status' => 'PUBLISHED',
+                                'assignedTrainerId' => null,
+                                'closedAt' => null,
+                                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                            ]]
+                        );
+                    } catch (\Throwable $e) {
+                        $oppCol->updateOne(
+                            ['_id' => $oppId, 'assignedTrainerId' => $trainerId],
+                            ['$set' => [
+                                'status' => 'PUBLISHED',
+                                'assignedTrainerId' => null,
+                                'closedAt' => null,
+                                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                            ]]
+                        );
+                    }
                 }
 
                 // Check if trainer has other active assignments

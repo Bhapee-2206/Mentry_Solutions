@@ -87,6 +87,7 @@ if (!empty($opp['startDate'])) {
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Status</label>
                 <select name="status" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-800 outline-none">
                     <option value="PUBLISHED" <?= ($opp['status'] ?? '') === 'PUBLISHED' ? 'selected' : '' ?>>PUBLISHED (Open for Trainer Applications)</option>
+                    <option value="CLOSED" <?= ($opp['status'] ?? '') === 'CLOSED' ? 'selected' : '' ?>>CLOSED (Closed for Applications / Position Filled)</option>
                     <option value="MATCHED" <?= ($opp['status'] ?? '') === 'MATCHED' ? 'selected' : '' ?>>MATCHED (Trainer Assigned)</option>
                     <option value="IN_PROGRESS" <?= ($opp['status'] ?? '') === 'IN_PROGRESS' ? 'selected' : '' ?>>IN PROGRESS (Workshop Live)</option>
                     <option value="COMPLETED" <?= ($opp['status'] ?? '') === 'COMPLETED' ? 'selected' : '' ?>>COMPLETED</option>

@@ -6,6 +6,12 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_WARNING);
 if (file_exists(__DIR__ . '/../includes/mongo_polyfill.php')) {
     require_once __DIR__ . '/../includes/mongo_polyfill.php';
 }
+if (file_exists(__DIR__ . '/../includes/helpers.php')) {
+    require_once __DIR__ . '/../includes/helpers.php';
+}
+if (file_exists(__DIR__ . '/../includes/db.php')) {
+    require_once __DIR__ . '/../includes/db.php';
+}
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
@@ -18,6 +24,8 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp)$/
         __DIR__ . '/../' . $cleanUri,
         __DIR__ . '/../public/' . $basename,
         __DIR__ . '/../public/' . $cleanUri,
+        __DIR__ . '/../public/uploads/documents/' . $basename,
+        __DIR__ . '/../public/uploads/avatars/' . $basename,
         __DIR__ . '/../' . $basename
     ];
 
@@ -40,7 +48,7 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp)$/
             ];
             $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
             header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
-            header('Cache-Control: public, max-age=86400');
+            header('Cache-Control: public, max-age=31536000, immutable');
             header('Content-Length: ' . filesize($filePath));
             readfile($filePath);
             exit();

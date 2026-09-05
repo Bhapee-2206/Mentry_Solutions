@@ -26,12 +26,13 @@ class MentryMailer {
         }
 
         $this->host = $env['SMTP_HOST'] ?? ($_ENV['SMTP_HOST'] ?? ($_SERVER['SMTP_HOST'] ?? (getenv('SMTP_HOST') ?: 'smtp.gmail.com')));
-        $this->port = (int)($env['SMTP_PORT'] ?? ($_ENV['SMTP_PORT'] ?? ($_SERVER['SMTP_PORT'] ?? (getenv('SMTP_PORT') ?: 587))));
+        $this->port = (int)($env['SMTP_PORT'] ?? ($_ENV['SMTP_PORT'] ?? ($_SERVER['SMTP_PORT'] ?? (getenv('SMTP_PORT') ?: 465))));
         $this->username = trim($env['SMTP_USER'] ?? ($_ENV['SMTP_USER'] ?? ($_SERVER['SMTP_USER'] ?? (getenv('SMTP_USER') ?: 'bhapeestudios@gmail.com'))));
         $passRaw = $env['SMTP_PASS'] ?? ($_ENV['SMTP_PASS'] ?? ($_SERVER['SMTP_PASS'] ?? (getenv('SMTP_PASS') ?: 'ywnv kgpv khmx qrlz')));
         $this->password = preg_replace('/\s+/', '', $passRaw);
         $this->fromName = $env['SMTP_FROM_NAME'] ?? ($_ENV['SMTP_FROM_NAME'] ?? ($_SERVER['SMTP_FROM_NAME'] ?? (getenv('SMTP_FROM_NAME') ?: 'Mentry Solutions')));
         $this->fromEmail = trim($env['SMTP_FROM_EMAIL'] ?? ($_ENV['SMTP_FROM_EMAIL'] ?? ($_SERVER['SMTP_FROM_EMAIL'] ?? (getenv('SMTP_FROM_EMAIL') ?: $this->username))));
+        $this->timeout = 5; // Fast timeout to prevent serverless function hangs
     }
 
     private function getResponse($socket) {
@@ -46,6 +47,121 @@ class MentryMailer {
     private function sendCommand($socket, $cmd) {
         fputs($socket, $cmd . "\r\n");
         return $this->getResponse($socket);
+    }
+
+    private function attemptSmtpSend(int $port, string $toEmail, string $toName, string $subject, string $htmlContent, string $plainText) {
+        $errno = 0;
+        $errstr = '';
+
+        $connectHost = $this->host;
+        if ($port === 465) {
+            $connectHost = 'ssl://' . $this->host;
+        }
+
+        $context = stream_context_create([
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            ]
+        ]);
+
+        $socket = @stream_socket_client($connectHost . ':' . $port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $context);
+
+        if (!$socket) {
+            throw new Exception("Could not connect to SMTP host ({$this->host}:{$port}): $errstr ($errno)");
+        }
+
+        stream_set_timeout($socket, $this->timeout);
+        $greeting = $this->getResponse($socket);
+
+        $hostname = gethostname() ?: 'localhost';
+        $this->sendCommand($socket, "EHLO " . $hostname);
+
+        if ($port === 587) {
+            $tlsRes = $this->sendCommand($socket, "STARTTLS");
+            if (substr($tlsRes, 0, 3) !== '220') {
+                throw new Exception("STARTTLS failed: " . $tlsRes);
+            }
+
+            $cryptoMethod = STREAM_CRYPTO_METHOD_TLS_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
+            if (defined('STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT')) {
+                $cryptoMethod |= STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
+            }
+
+            if (!@stream_socket_enable_crypto($socket, true, $cryptoMethod)) {
+                throw new Exception("Failed to enable TLS encryption on SMTP stream.");
+            }
+
+            $this->sendCommand($socket, "EHLO " . $hostname);
+        }
+
+        // Authenticate
+        $authRes = $this->sendCommand($socket, "AUTH LOGIN");
+        if (substr($authRes, 0, 3) !== '334') {
+            throw new Exception("AUTH LOGIN rejected: " . $authRes);
+        }
+
+        $userRes = $this->sendCommand($socket, base64_encode($this->username));
+        if (substr($userRes, 0, 3) !== '334') {
+            throw new Exception("Username rejected: " . $userRes);
+        }
+
+        $passRes = $this->sendCommand($socket, base64_encode($this->password));
+        if (substr($passRes, 0, 3) !== '235') {
+            throw new Exception("Password authentication failed: " . $passRes);
+        }
+
+        // Mail From & Rcpt To
+        $this->sendCommand($socket, "MAIL FROM: <" . $this->fromEmail . ">");
+        $rcptRes = $this->sendCommand($socket, "RCPT TO: <" . $toEmail . ">");
+        if (substr($rcptRes, 0, 3) !== '250') {
+            throw new Exception("Recipient rejected: " . $rcptRes);
+        }
+
+        // Send DATA
+        $dataRes = $this->sendCommand($socket, "DATA");
+        if (substr($dataRes, 0, 3) !== '354') {
+            throw new Exception("DATA command rejected: " . $dataRes);
+        }
+
+        $senderDomain = (strpos($this->host, 'gmail.com') !== false) ? 'gmail.com' : (substr(strrchr($this->fromEmail, "@"), 1) ?: 'mentry.solutions');
+        $msgId = sprintf("<%s.%s@%s>", bin2hex(random_bytes(10)), time(), $senderDomain);
+        $boundary = "b1_" . md5(uniqid((string)time(), true));
+        
+        $headers = [];
+        $headers[] = "Message-ID: " . $msgId;
+        $headers[] = "Date: " . date('r');
+        $headers[] = "From: =?UTF-8?B?" . base64_encode($this->fromName) . "?= <" . $this->fromEmail . ">";
+        $headers[] = "Reply-To: =?UTF-8?B?" . base64_encode($this->fromName) . "?= <" . $this->fromEmail . ">";
+        $headers[] = "To: =?UTF-8?B?" . base64_encode($toName) . "?= <" . $toEmail . ">";
+        $headers[] = "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=";
+        $headers[] = "MIME-Version: 1.0";
+        $headers[] = "Content-Type: multipart/alternative; boundary=\"" . $boundary . "\"";
+        $headers[] = "X-Priority: 3";
+        $headers[] = "Importance: Normal";
+        $headers[] = "Auto-Submitted: auto-generated";
+        $headers[] = "Precedence: bulk";
+
+        $body = "--" . $boundary . "\r\n";
+        $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
+        $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
+        $body .= chunk_split(base64_encode($plainText)) . "\r\n";
+
+        $body .= "--" . $boundary . "\r\n";
+        $body .= "Content-Type: text/html; charset=UTF-8\r\n";
+        $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
+        $body .= chunk_split(base64_encode($htmlContent)) . "\r\n";
+
+        $body .= "--" . $boundary . "--\r\n";
+
+        $message = implode("\r\n", $headers) . "\r\n\r\n" . $body . "\r\n.";
+        $sendRes = $this->sendCommand($socket, $message);
+
+        $this->sendCommand($socket, "QUIT");
+        @fclose($socket);
+
+        return $sendRes;
     }
 
     public function send($toEmail, $toName, $subject, $htmlContent, $plainText = '', $meta = []) {
@@ -63,131 +179,42 @@ class MentryMailer {
             'status' => 'PENDING'
         ];
 
+        // 1. Try Primary Port (465 SSL or configured port)
+        $primaryPort = ($this->port === 587) ? 465 : $this->port;
+        $fallbackPort = ($primaryPort === 465) ? 587 : 465;
+        $lastError = '';
+
         try {
-            $errno = 0;
-            $errstr = '';
-
-            $connectHost = $this->host;
-            if ($this->port === 465) {
-                $connectHost = 'ssl://' . $this->host;
-            }
-
-            $context = stream_context_create([
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true
-                ]
-            ]);
-
-            $socket = @stream_socket_client($connectHost . ':' . $this->port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $context);
-
-            if (!$socket) {
-                throw new Exception("Could not connect to SMTP host ({$this->host}:{$this->port}): $errstr ($errno)");
-            }
-
-            stream_set_timeout($socket, $this->timeout);
-            $greeting = $this->getResponse($socket);
-
-            $hostname = gethostname() ?: 'localhost';
-            $this->sendCommand($socket, "EHLO " . $hostname);
-
-            if ($this->port === 587) {
-                $tlsRes = $this->sendCommand($socket, "STARTTLS");
-                if (substr($tlsRes, 0, 3) !== '220') {
-                    throw new Exception("STARTTLS failed: " . $tlsRes);
-                }
-
-                $cryptoMethod = STREAM_CRYPTO_METHOD_TLS_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
-                if (defined('STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT')) {
-                    $cryptoMethod |= STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
-                }
-
-                if (!@stream_socket_enable_crypto($socket, true, $cryptoMethod)) {
-                    throw new Exception("Failed to enable TLS encryption on SMTP stream.");
-                }
-
-                $this->sendCommand($socket, "EHLO " . $hostname);
-            }
-
-            // Authenticate
-            $authRes = $this->sendCommand($socket, "AUTH LOGIN");
-            if (substr($authRes, 0, 3) !== '334') {
-                throw new Exception("AUTH LOGIN rejected: " . $authRes);
-            }
-
-            $userRes = $this->sendCommand($socket, base64_encode($this->username));
-            if (substr($userRes, 0, 3) !== '334') {
-                throw new Exception("Username rejected: " . $userRes);
-            }
-
-            $passRes = $this->sendCommand($socket, base64_encode($this->password));
-            if (substr($passRes, 0, 3) !== '235') {
-                throw new Exception("Password authentication failed: " . $passRes);
-            }
-
-            // Mail From & Rcpt To
-            $this->sendCommand($socket, "MAIL FROM: <" . $this->fromEmail . ">");
-            $rcptRes = $this->sendCommand($socket, "RCPT TO: <" . $toEmail . ">");
-            if (substr($rcptRes, 0, 3) !== '250') {
-                throw new Exception("Recipient rejected: " . $rcptRes);
-            }
-
-            // Send DATA
-            $dataRes = $this->sendCommand($socket, "DATA");
-            if (substr($dataRes, 0, 3) !== '354') {
-                throw new Exception("DATA command rejected: " . $dataRes);
-            }
-
-            $senderDomain = (strpos($this->host, 'gmail.com') !== false) ? 'gmail.com' : (substr(strrchr($this->fromEmail, "@"), 1) ?: 'mentry.solutions');
-            $msgId = sprintf("<%s.%s@%s>", bin2hex(random_bytes(10)), time(), $senderDomain);
-            $boundary = "b1_" . md5(uniqid((string)time(), true));
-            
-            $headers = [];
-            $headers[] = "Message-ID: " . $msgId;
-            $headers[] = "Date: " . date('r');
-            $headers[] = "From: =?UTF-8?B?" . base64_encode($this->fromName) . "?= <" . $this->fromEmail . ">";
-            $headers[] = "Reply-To: =?UTF-8?B?" . base64_encode($this->fromName) . "?= <" . $this->fromEmail . ">";
-            $headers[] = "To: =?UTF-8?B?" . base64_encode($toName) . "?= <" . $toEmail . ">";
-            $headers[] = "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=";
-            $headers[] = "MIME-Version: 1.0";
-            $headers[] = "Content-Type: multipart/alternative; boundary=\"" . $boundary . "\"";
-            $headers[] = "X-Priority: 3";
-            $headers[] = "Importance: Normal";
-            $headers[] = "Auto-Submitted: auto-generated";
-            $headers[] = "Precedence: bulk";
-
-            $body = "--" . $boundary . "\r\n";
-            $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
-            $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
-            $body .= chunk_split(base64_encode($plainText)) . "\r\n";
-
-            $body .= "--" . $boundary . "\r\n";
-            $body .= "Content-Type: text/html; charset=UTF-8\r\n";
-            $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
-            $body .= chunk_split(base64_encode($htmlContent)) . "\r\n";
-
-            $body .= "--" . $boundary . "--\r\n";
-
-            $message = implode("\r\n", $headers) . "\r\n\r\n" . $body . "\r\n.";
-            $sendRes = $this->sendCommand($socket, $message);
-
-            $this->sendCommand($socket, "QUIT");
-            fclose($socket);
-
+            $sendRes = $this->attemptSmtpSend($primaryPort, $toEmail, $toName, $subject, $htmlContent, $plainText);
             $logEntry['status'] = 'SENT';
             $logEntry['response'] = $sendRes;
+            $logEntry['portUsed'] = $primaryPort;
             $this->logEmail($logEntry);
-
             return ['success' => true, 'message' => 'Email dispatched successfully.'];
-        } catch (Exception $e) {
-            $logEntry['status'] = 'FALLBACK_LOGGED';
-            $logEntry['error'] = $e->getMessage();
-            $this->logEmail($logEntry);
+        } catch (\Throwable $e1) {
+            $lastError = $e1->getMessage();
+            error_log("MentryMailer Port {$primaryPort} error: " . $lastError);
 
-            error_log("MentryMailer Exception: " . $e->getMessage());
-            return ['success' => false, 'error' => $e->getMessage(), 'fallback' => true];
+            // 2. Try Fallback Port
+            try {
+                $sendRes = $this->attemptSmtpSend($fallbackPort, $toEmail, $toName, $subject, $htmlContent, $plainText);
+                $logEntry['status'] = 'SENT';
+                $logEntry['response'] = $sendRes;
+                $logEntry['portUsed'] = $fallbackPort;
+                $this->logEmail($logEntry);
+                return ['success' => true, 'message' => 'Email dispatched successfully via fallback port.'];
+            } catch (\Throwable $e2) {
+                $lastError = $e2->getMessage();
+                error_log("MentryMailer Port {$fallbackPort} error: " . $lastError);
+            }
         }
+
+        // Both ports failed (likely blocked on serverless host)
+        $logEntry['status'] = 'FALLBACK_LOGGED';
+        $logEntry['error'] = $lastError;
+        $this->logEmail($logEntry);
+
+        return ['success' => false, 'error' => $lastError, 'fallback' => true];
     }
 
     private function logEmail($data) {

@@ -13,7 +13,10 @@ $selectedType = $_GET['type'] ?? 'ALL';
 
 $opportunityCol = getCollection("Opportunity");
 
-$conditions = [['status' => 'PUBLISHED']];
+$conditions = [
+    ['status' => 'PUBLISHED'],
+    ['status' => ['$nin' => ['CLOSED', 'MATCHED', 'COMPLETED', 'CANCELLED', 'DRAFT']]]
+];
 
 if ($selectedMode !== 'ALL') {
     $conditions[] = ['mode' => $selectedMode];
@@ -48,7 +51,14 @@ if (!empty($search)) {
 
 $filter = count($conditions) === 1 ? $conditions[0] : ['$and' => $conditions];
 
-$opportunities = $opportunityCol ? $opportunityCol->find($filter, ['sort' => ['createdAt' => -1]])->toArray() : [];
+$rawOpportunities = $opportunityCol ? $opportunityCol->find($filter, ['sort' => ['createdAt' => -1]])->toArray() : [];
+$opportunities = [];
+foreach ($rawOpportunities as $op) {
+    $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
+    $isClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']));
+    if ($isClosed) continue;
+    $opportunities[] = $op;
+}
 $totalCount = count($opportunities);
 
 require_once __DIR__ . '/includes/header.php';

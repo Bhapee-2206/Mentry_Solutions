@@ -22,10 +22,18 @@ $recentApplications = $applicationCol ? $applicationCol->find(
     ['limit' => 5, 'sort' => ['appliedAt' => -1]]
 )->toArray() : [];
 
-$recommendedOpportunities = $opportunityCol ? $opportunityCol->find(
+$allPublishedOpps = $opportunityCol ? $opportunityCol->find(
     ['status' => 'PUBLISHED'],
-    ['limit' => 3, 'sort' => ['createdAt' => -1]]
+    ['sort' => ['createdAt' => -1]]
 )->toArray() : [];
+
+$recommendedOpportunities = [];
+foreach ($allPublishedOpps as $op) {
+    $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
+    if ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId'])) continue;
+    $recommendedOpportunities[] = $op;
+    if (count($recommendedOpportunities) >= 3) break;
+}
 
 $availStatus = $trainer['availabilityStatus'] ?? 'AVAILABLE_NOW';
 $availFromDate = $trainer['availableFromDate'] ?? null;

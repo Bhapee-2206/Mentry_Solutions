@@ -12,13 +12,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $travelDetails = trim($_POST['travelDetails'] ?? 'Tickets arranged by Mentry');
     $notes = trim($_POST['notes'] ?? '');
 
+    $closeOpp = !isset($_POST['closeOpportunity']) || $_POST['closeOpportunity'] === '1';
+    $targetStatus = $closeOpp ? 'CLOSED' : 'MATCHED';
+
     if (!empty($opportunityId) && !empty($trainerId)) {
         $oppCol = getCollection("Opportunity");
         $asgCol = getCollection("Assignment");
         $trainerCol = getCollection("Trainer");
 
-        $opp = $oppCol ? $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($opportunityId)]) : null;
-        $trainer = $trainerCol ? $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerId)]) : null;
+        $opp = null;
+        if ($oppCol) {
+            try {
+                $opp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($opportunityId)]);
+            } catch (\Throwable $e) {
+                $opp = $oppCol->findOne(['_id' => $opportunityId]);
+            }
+        }
+
+        $trainer = null;
+        if ($trainerCol) {
+            try {
+                $trainer = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerId)]);
+            } catch (\Throwable $e) {
+                $trainer = $trainerCol->findOne(['_id' => $trainerId]);
+            }
+        }
 
         if ($opp && $trainer && $asgCol) {
             $duration = (int)($opp['durationDays'] ?? 5);
@@ -41,15 +59,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'updatedAt' => new MongoDB\BSON\UTCDateTime()
             ]);
 
-            // Update opportunity
-            $oppCol->updateOne(
-                ['_id' => new MongoDB\BSON\ObjectId($opportunityId)],
-                ['$set' => [
-                    'status' => 'MATCHED',
-                    'assignedTrainerId' => $trainerId,
-                    'updatedAt' => new MongoDB\BSON\UTCDateTime()
-                ]]
-            );
+            // Update opportunity status to CLOSED (or MATCHED)
+            $oppUpdate = [
+                'status' => $targetStatus,
+                'assignedTrainerId' => $trainerId,
+                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+            ];
+            if ($closeOpp) {
+                $oppUpdate['closedAt'] = new MongoDB\BSON\UTCDateTime();
+            }
+
+            try {
+                $oppCol->updateOne(
+                    ['_id' => new MongoDB\BSON\ObjectId($opportunityId)],
+                    ['$set' => $oppUpdate]
+                );
+            } catch (\Throwable $e) {
+                $oppCol->updateOne(
+                    ['_id' => $opportunityId],
+                    ['$set' => $oppUpdate]
+                );
+            }
 
             // Update trainer availability and status
             $startTs = time();

@@ -75,7 +75,10 @@ $domainFilter = trim($_GET['domain'] ?? 'ALL');
 $modeFilter = trim($_GET['mode'] ?? 'ALL');
 $statusFilter = trim($_GET['status'] ?? 'ALL');
 
-$conditions = [['status' => 'PUBLISHED']];
+$conditions = [
+    ['status' => 'PUBLISHED'],
+    ['status' => ['$nin' => ['CLOSED', 'MATCHED', 'COMPLETED', 'CANCELLED', 'DRAFT']]]
+];
 
 if ($domainFilter !== 'ALL') {
     $domainRegex = new MongoDB\BSON\Regex($domainFilter, 'i');
@@ -112,10 +115,14 @@ $rawOpportunities = $opportunityCol ? $opportunityCol->find(
     ['sort' => ['createdAt' => -1]]
 )->toArray() : [];
 
-// Filter by application status in PHP
+// Filter by application status and ensure no closed/assigned opportunities appear
 $opportunities = [];
 foreach ($rawOpportunities as $opp) {
     $oppId = (string)$opp['_id'];
+    $oppStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
+    $isClosed = ($oppStatus === 'CLOSED' || $oppStatus === 'MATCHED' || !empty($opp['assignedTrainerId']));
+    if ($isClosed) continue; // Exclude filled/closed opportunities
+
     $hasApplied = in_array($oppId, $appliedOppIds);
     if ($statusFilter === 'NOT_APPLIED' && $hasApplied) continue;
     if ($statusFilter === 'APPLIED' && !$hasApplied) continue;

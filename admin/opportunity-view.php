@@ -69,6 +69,27 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
         </a>
 
         <div class="flex items-center gap-2">
+            <?php 
+            $currStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
+            $isClosedOrMatched = ($currStatus === 'CLOSED' || $currStatus === 'MATCHED' || !empty($opp['assignedTrainerId']));
+            ?>
+            <form action="/actions/toggle-opportunity-status.php" method="POST" class="inline">
+                <input type="hidden" name="opportunityId" value="<?= $oppId ?>">
+                <?php if ($isClosedOrMatched): ?>
+                    <input type="hidden" name="action" value="reopen">
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5" title="Reopen opportunity for trainer applications">
+                        <span class="material-symbols-outlined text-[16px]">lock_open</span>
+                        Reopen Opportunity
+                    </button>
+                <?php else: ?>
+                    <input type="hidden" name="action" value="close">
+                    <button type="submit" onclick="return confirm('Close this opportunity? It will be hidden from trainer feeds and no new applications will be accepted.');" class="bg-slate-800 hover:bg-rose-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5" title="Close opportunity and stop accepting applications">
+                        <span class="material-symbols-outlined text-[16px]">lock</span>
+                        Close Opportunity
+                    </button>
+                <?php endif; ?>
+            </form>
+
             <a href="/admin/opportunity-edit.php?id=<?= $oppId ?>" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px]">edit</span>
                 Edit Opportunity
@@ -82,6 +103,34 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
             </form>
         </div>
     </div>
+
+    <?php if ($isClosedOrMatched): ?>
+        <!-- Prominent Closed Opportunity Notice -->
+        <div class="bg-slate-900 border border-slate-800 text-white rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+            <div class="flex items-center gap-3.5">
+                <span class="w-10 h-10 rounded-2xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <span class="material-symbols-outlined text-2xl">lock</span>
+                </span>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-extrabold text-sm text-white">This Training Opportunity is Closed</h3>
+                        <span class="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Hidden from Feeds</span>
+                    </div>
+                    <p class="text-xs text-slate-300 mt-0.5">
+                        <?= !empty($assignedTrainer) ? 'Assigned to verified faculty <strong>' . htmlspecialchars($assignedUser['name'] ?? 'Trainer') . '</strong>. It is no longer accepting applications or visible on public feeds.' : 'This requirement is closed and no longer accepting trainer applications.' ?>
+                    </p>
+                </div>
+            </div>
+            <form action="/actions/toggle-opportunity-status.php" method="POST" class="shrink-0 w-full sm:w-auto">
+                <input type="hidden" name="opportunityId" value="<?= $oppId ?>">
+                <input type="hidden" name="action" value="reopen">
+                <button type="submit" class="w-full sm:w-auto bg-white hover:bg-slate-100 text-slate-950 text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-xs flex items-center justify-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px] text-emerald-600">lock_open</span>
+                    Reopen Opportunity
+                </button>
+            </form>
+        </div>
+    <?php endif; ?>
 
     <!-- Main Opportunity Overview Banner -->
     <div class="bg-white rounded-3xl border border-slate-200/90 p-8 shadow-card space-y-6">
@@ -208,8 +257,12 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                 <input type="text" name="logisticsNotes" value="Campus Executive Guest House + Travel Arranged" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
             </div>
 
-            <div class="sm:col-span-3 flex justify-end">
-                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5">
+            <div class="sm:col-span-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
+                <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-emerald-50/70 border border-emerald-200 px-3.5 py-2 rounded-xl">
+                    <input type="checkbox" name="closeOpportunity" value="1" checked class="w-4 h-4 text-emerald-600 rounded">
+                    <span>Close opportunity to further applications upon assignment (hides from public & trainer feeds)</span>
+                </label>
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 shrink-0">
                     <span class="material-symbols-outlined text-[16px]">check_circle</span>
                     Confirm Direct Assignment & Generate Logistics
                 </button>
@@ -409,9 +462,10 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                                 <input type="hidden" name="opportunityId" value="<?= $oppId ?>">
                                 <input type="hidden" name="trainerId" value="<?= $mtId ?>">
                                 <input type="hidden" name="agreedDailyRate" value="<?= htmlspecialchars($mt['dailyRateINR'] ?? 6000) ?>">
-                                <button type="submit" class="bg-slate-900 hover:bg-[#FE5E04] text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-colors flex items-center gap-1">
+                                <input type="hidden" name="closeOpportunity" value="1">
+                                <button type="submit" class="bg-slate-900 hover:bg-[#FE5E04] text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-colors flex items-center gap-1" title="Assign trainer and close opportunity">
                                     <span class="material-symbols-outlined text-[15px]">assignment_ind</span>
-                                    Assign
+                                    Assign & Close
                                 </button>
                             </form>
                         </div>

@@ -14,7 +14,11 @@ $search = trim($_GET['search'] ?? '');
 
 $conditions = [];
 if ($statusFilter !== 'ALL') {
-    $conditions[] = ['status' => $statusFilter];
+    if ($statusFilter === 'CLOSED') {
+        $conditions[] = ['status' => ['$in' => ['CLOSED', 'MATCHED']]];
+    } else {
+        $conditions[] = ['status' => $statusFilter];
+    }
 }
 if ($domainFilter !== 'ALL') {
     $domainRegex = new MongoDB\BSON\Regex($domainFilter, 'i');
@@ -63,6 +67,7 @@ if (empty($opportunities) && !empty($search) && $oppCol) {
 $totalCount = $oppCol ? $oppCol->countDocuments() : 0;
 $publishedCount = $oppCol ? $oppCol->countDocuments(['status' => 'PUBLISHED']) : 0;
 $matchedCount = $oppCol ? $oppCol->countDocuments(['status' => 'MATCHED']) : 0;
+$closedCount = $oppCol ? $oppCol->countDocuments(['status' => ['$in' => ['CLOSED', 'MATCHED']]]) : 0;
 $inProgressCount = $oppCol ? $oppCol->countDocuments(['status' => 'IN_PROGRESS']) : 0;
 $completedCount = $oppCol ? $oppCol->countDocuments(['status' => 'COMPLETED']) : 0;
 $draftCount = $oppCol ? $oppCol->countDocuments(['status' => 'DRAFT']) : 0;
@@ -101,9 +106,9 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
             <p class="text-[11px] font-bold uppercase text-blue-600">Published & Open</p>
             <p class="text-2xl font-black text-blue-600 mt-1"><?= $publishedCount ?></p>
         </a>
-        <a href="/admin/opportunities.php?status=MATCHED" class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card hover:border-emerald-300 transition-colors block">
-            <p class="text-[11px] font-bold uppercase text-emerald-600">Trainer Matched</p>
-            <p class="text-2xl font-black text-emerald-600 mt-1"><?= $matchedCount ?></p>
+        <a href="/admin/opportunities.php?status=CLOSED" class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card hover:border-slate-400 transition-colors block">
+            <p class="text-[11px] font-bold uppercase text-slate-600">Closed / Assigned</p>
+            <p class="text-2xl font-black text-slate-800 mt-1"><?= $closedCount ?></p>
         </a>
         <a href="/admin/opportunities.php?status=COMPLETED" class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card hover:border-purple-300 transition-colors block">
             <p class="text-[11px] font-bold uppercase text-purple-600">Completed</p>
@@ -118,6 +123,7 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
             $statuses = [
                 'ALL' => 'All (' . $totalCount . ')',
                 'PUBLISHED' => 'Published (' . $publishedCount . ')',
+                'CLOSED' => 'Closed (' . $closedCount . ')',
                 'MATCHED' => 'Matched (' . $matchedCount . ')',
                 'IN_PROGRESS' => 'In Progress (' . $inProgressCount . ')',
                 'COMPLETED' => 'Completed (' . $completedCount . ')',
@@ -196,6 +202,24 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
                                         <a href="/admin/opportunity-edit.php?id=<?= $opId ?>" class="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors" title="Edit Opportunity">
                                             <span class="material-symbols-outlined text-[18px]">edit</span>
                                         </a>
+                                        <?php 
+                                        $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
+                                        $opIsClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']));
+                                        ?>
+                                        <form action="/actions/toggle-opportunity-status.php" method="POST" class="inline">
+                                            <input type="hidden" name="opportunityId" value="<?= $opId ?>">
+                                            <?php if ($opIsClosed): ?>
+                                                <input type="hidden" name="action" value="reopen">
+                                                <button type="submit" class="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Reopen Opportunity">
+                                                    <span class="material-symbols-outlined text-[18px]">lock_open</span>
+                                                </button>
+                                            <?php else: ?>
+                                                <input type="hidden" name="action" value="close">
+                                                <button type="submit" onclick="return confirm('Close opportunity \'<?= htmlspecialchars(addslashes($op['title'])) ?>\'?');" class="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition-colors" title="Close Opportunity">
+                                                    <span class="material-symbols-outlined text-[18px]">lock</span>
+                                                </button>
+                                            <?php endif; ?>
+                                        </form>
                                         <form action="/actions/delete-opportunity.php" method="POST" class="inline" onsubmit="return confirm('Delete opportunity \'<?= htmlspecialchars(addslashes($op['title'])) ?>\'?');">
                                             <input type="hidden" name="id" value="<?= $opId ?>">
                                             <button type="submit" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors" title="Delete">

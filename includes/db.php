@@ -134,7 +134,11 @@ class PersistentDocumentStore {
             'Content-Type: application/json'
         ]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+        curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+        curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
+        curl_setopt($ch, CURLOPT_ENCODING, '');
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 3);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $res = curl_exec($ch);
@@ -162,8 +166,39 @@ class PersistentDocumentStore {
         }
 
         $docs = [];
-        // 1. Read base local file
-        if (file_exists($this->filePath)) {
+        $hasTmp = false;
+        $tmpFresh = false;
+
+        // 1. Check /tmp overlay with high-speed TTL
+        if (file_exists($this->tmpPath)) {
+            $tmpMtime = @filemtime($this->tmpPath);
+            $tmpSize = @filesize($this->tmpPath);
+            // Cache TTL: 60s for general collections, 15s for transactional PasswordReset
+            $ttl = ($this->name === 'PasswordReset') ? 15 : 60;
+            if ($tmpMtime && (time() - $tmpMtime < $ttl) && $tmpSize > 2) {
+                $tmpRaw = @file_get_contents($this->tmpPath);
+                if ($tmpRaw) {
+                    $tmpDecoded = @json_decode($tmpRaw, true);
+                    if (is_array($tmpDecoded)) {
+                        $docs = $tmpDecoded;
+                        $hasTmp = true;
+                        $tmpFresh = true;
+                    }
+                }
+            } elseif ($tmpSize > 2) {
+                $tmpRaw = @file_get_contents($this->tmpPath);
+                if ($tmpRaw) {
+                    $tmpDecoded = @json_decode($tmpRaw, true);
+                    if (is_array($tmpDecoded)) {
+                        $docs = $tmpDecoded;
+                        $hasTmp = true;
+                    }
+                }
+            }
+        }
+
+        // 2. Read base local file if /tmp not found
+        if (!$hasTmp && file_exists($this->filePath)) {
             $raw = @file_get_contents($this->filePath);
             if ($raw) {
                 $decoded = @json_decode($raw, true);
@@ -173,20 +208,8 @@ class PersistentDocumentStore {
             }
         }
 
-        // 2. Read /tmp overlay if present
-        if (file_exists($this->tmpPath)) {
-            $tmpRaw = @file_get_contents($this->tmpPath);
-            if ($tmpRaw) {
-                $tmpDecoded = @json_decode($tmpRaw, true);
-                if (is_array($tmpDecoded) && !empty($tmpDecoded)) {
-                    $docs = $tmpDecoded;
-                }
-            }
-        }
-
-        // 3. Sync from Supabase on serverless/read-only environment or first load
-        $isServerless = getenv('VERCEL') || getenv('AWS_LAMBDA_FUNCTION_NAME') || !is_writable(__DIR__ . '/../data/collections');
-        if (($isServerless || empty($docs)) && empty(self::$supabaseFetched[$this->name])) {
+        // 3. Only fetch from Supabase if cache is NOT fresh AND we haven't fetched in this request
+        if (!$tmpFresh && empty(self::$supabaseFetched[$this->name])) {
             self::$supabaseFetched[$this->name] = true;
             $cloudDocs = $this->fetchFromSupabase();
             if (!empty($cloudDocs)) {
@@ -209,6 +232,11 @@ class PersistentDocumentStore {
                 }
                 $docs = array_values($indexed);
                 @file_put_contents($this->tmpPath, json_encode($docs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            } elseif (file_exists($this->tmpPath)) {
+                // Keep tmp fresh so subsequent calls in warm container don't repeatedly block on empty/failed responses
+                @touch($this->tmpPath);
+            } elseif (!empty($docs)) {
+                @file_put_contents($this->tmpPath, json_encode($docs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
             }
         }
 
@@ -226,7 +254,7 @@ class PersistentDocumentStore {
             self::$fileMtimes[$this->name] = @filemtime($this->filePath);
         }
 
-        // 2. Always persist to /tmp so serverless instances retain state
+        // 2. Always persist to /tmp so serverless instances retain state immediately
         $savedTmp = @file_put_contents($this->tmpPath, $raw, LOCK_EX) !== false;
 
         // 3. Immediately sync to Supabase Cloud
@@ -265,7 +293,10 @@ class PersistentDocumentStore {
                 'Prefer: resolution=merge-duplicates,return=minimal'
             ]);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+            curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+            curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             @curl_exec($ch);
@@ -286,7 +317,9 @@ class PersistentDocumentStore {
                 'Authorization: Bearer ' . $supabase['key']
             ]);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 2);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             @curl_exec($ch);
@@ -470,6 +503,26 @@ class PersistentDocumentStore {
     public function findOne(array $filter = [], array $options = []): ?array {
         $cursor = $this->find($filter, array_merge($options, ['limit' => 1]));
         $arr = $cursor->toArray();
+        if (empty($arr) && ($this->name === 'PasswordReset' || $this->name === 'User')) {
+            // Force fetch latest cloud records from Supabase on transactional collections
+            $cloudDocs = $this->fetchFromSupabase();
+            if (!empty($cloudDocs)) {
+                $indexed = [];
+                foreach ($this->readDocuments() as $d) {
+                    $id = (string)($d['_id'] ?? ($d['id'] ?? ''));
+                    if (!empty($id)) $indexed[$id] = $d;
+                }
+                foreach ($cloudDocs as $cd) {
+                    $cId = (string)($cd['_id'] ?? ($cd['id'] ?? ''));
+                    if (!empty($cId)) $indexed[$cId] = $cd;
+                }
+                $merged = array_values($indexed);
+                self::$memoryCache[$this->name] = $merged;
+                @file_put_contents($this->tmpPath, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                $cursor = $this->find($filter, array_merge($options, ['limit' => 1]));
+                $arr = $cursor->toArray();
+            }
+        }
         return !empty($arr) ? $arr[0] : null;
     }
 

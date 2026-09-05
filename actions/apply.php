@@ -27,6 +27,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $trainerId = $trainer ? (string)$trainer['_id'] : '';
 
     if (!empty($opportunityId) && !empty($trainerId)) {
+        // Enforce that Opportunity is not closed or already filled
+        $oppCol = getCollection("Opportunity");
+        $opp = null;
+        if ($oppCol) {
+            try {
+                $opp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($opportunityId)]);
+            } catch (\Throwable $e) {
+                $opp = $oppCol->findOne(['_id' => $opportunityId]);
+            }
+        }
+        if ($opp) {
+            $oppStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
+            $isClosed = ($oppStatus === 'CLOSED' || $oppStatus === 'MATCHED' || !empty($opp['assignedTrainerId']));
+            if ($isClosed) {
+                $_SESSION['apply_error'] = "This opportunity is closed as a trainer has already been assigned.";
+                $referer = $_SERVER['HTTP_REFERER'] ?? '/trainer/opportunities.php';
+                header("Location: " . $referer);
+                exit();
+            }
+        }
+
         // Enforce Strict Resume Requirement
         $docCol = getCollection("Document");
         $hasResume = !empty($trainer['resumeUrl']);

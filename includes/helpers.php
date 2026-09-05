@@ -104,6 +104,10 @@ function getStatusBadge($status) {
         case 'ACTIVE':
         case 'COMPLETED':
             return '<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-0.5 rounded-full">' . htmlspecialchars(str_replace('_', ' ', $status)) . '</span>';
+        case 'MATCHED':
+            return '<span class="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"><span class="material-symbols-outlined text-[13px] text-purple-600">how_to_reg</span> MATCHED</span>';
+        case 'CLOSED':
+            return '<span class="bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"><span class="material-symbols-outlined text-[13px] text-slate-500">lock</span> CLOSED</span>';
         case 'PENDING_APPROVAL':
         case 'PENDING':
         case 'SUBMITTED':

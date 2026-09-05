@@ -7,16 +7,7 @@
   },
   "routes": [
     {
-      "src": "/public/(.*)",
-      "dest": "/api/index.php"
-    },
-    {
-      "src": "/mentry.png",
-      "dest": "/api/index.php"
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/api/index.php"
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",

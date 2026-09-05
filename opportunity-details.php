@@ -127,6 +127,16 @@ require_once __DIR__ . '/includes/header.php';
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
                 <div class="space-y-2">
                     <div class="flex flex-wrap items-center gap-2">
+                        <?php 
+                        $oppStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
+                        $isOpportunityClosed = ($oppStatus === 'CLOSED' || $oppStatus === 'MATCHED' || !empty($opp['assignedTrainerId']));
+                        ?>
+                        <?php if ($isOpportunityClosed): ?>
+                            <span class="bg-slate-900 text-white font-bold text-xs px-3 py-1 rounded-full uppercase inline-flex items-center gap-1 shadow-xs">
+                                <span class="material-symbols-outlined text-[14px] text-amber-400">lock</span>
+                                Closed / Trainer Selected
+                            </span>
+                        <?php endif; ?>
                         <span class="bg-blue-50 text-blue-700 font-bold text-xs px-3 py-1 rounded-full border border-blue-200/60 uppercase">
                             <?= htmlspecialchars($opp['mode']) ?>
                         </span>
@@ -228,7 +238,17 @@ require_once __DIR__ . '/includes/header.php';
                     </p>
                 </div>
 
-                <?php if ($existingApp): ?>
+                <?php if ($isOpportunityClosed): ?>
+                    <div class="flex items-center gap-3 bg-slate-100 border border-slate-200 rounded-2xl px-5 py-3 text-xs text-slate-700 font-semibold w-full sm:w-auto">
+                        <span class="w-8 h-8 rounded-xl bg-slate-200 flex items-center justify-center text-slate-600 shrink-0">
+                            <span class="material-symbols-outlined text-lg">lock</span>
+                        </span>
+                        <div>
+                            <span class="font-bold text-slate-900 block">Applications Closed</span>
+                            <span class="text-slate-500 font-normal">A trainer has been selected. New applications are not accepted.</span>
+                        </div>
+                    </div>
+                <?php elseif ($existingApp): ?>
                     <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
                         <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 font-bold text-xs px-4 py-2.5 rounded-xl border border-emerald-200 shadow-2xs">
                             <span class="material-symbols-outlined text-[18px]">verified</span>
@@ -249,6 +269,7 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 </div>
 
+<?php if (!$isOpportunityClosed): ?>
 <!-- Apply Modal -->
 <div id="applyModal" class="hidden fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
     <div class="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl relative">
@@ -331,5 +352,6 @@ require_once __DIR__ . '/includes/header.php';
         <?php endif; ?>
     </div>
 </div>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
