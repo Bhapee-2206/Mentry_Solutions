@@ -321,5 +321,32 @@
         "availabilityNotes": "Delivering: Python DSA",
         "availableFromDate": "1788472800000",
         "availabilityUpdatedAt": "1788532477079"
+    },
+    {
+        "userId": "6a9ba701f1624b69330f5691",
+        "trainerCode": "MEN-TRN-1559",
+        "mentryId": "MEN-TRN-1559",
+        "name": "Benjamin Ramesh",
+        "email": "testing@gmail.com",
+        "phone": "+9190808072",
+        "status": "APPROVED",
+        "availabilityStatus": "BUSY_ON_ASSIGNMENT",
+        "professionalTitle": "Programming Technical Trainer",
+        "primaryDomain": "Programming",
+        "currentCity": "Chengalpattu",
+        "currentState": "India",
+        "totalExperienceYears": 3,
+        "collegeExperienceYears": 1,
+        "dailyRateINR": 6000,
+        "travelPreference": "PAN_INDIA",
+        "bio": "",
+        "profileCompletion": 50,
+        "joinedAt": "1788585729800",
+        "createdAt": "1788585729800",
+        "updatedAt": "1788585862974",
+        "_id": "6a9ba701f1624b69330f5692",
+        "availabilityNotes": "Delivering: Python DSA",
+        "availableFromDate": "1789250400000",
+        "availabilityUpdatedAt": "1788585862962"
     }
 ]

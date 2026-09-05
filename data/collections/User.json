@@ -216,5 +216,17 @@
         "updatedAt": "1788523375913",
         "_id": "6a9ab2ebf1624b69330f5678",
         "avatar": "/public/uploads/avatars/avatar_6a9ab2ebf1624b69330f5678_1788523370.png"
+    },
+    {
+        "name": "Benjamin Ramesh",
+        "email": "testing@gmail.com",
+        "password": "$2y$10$JpKxHdSabdujbviSOG0Jser5nyBD21knGHth6Y44Dku.aGDp7jLoW",
+        "phone": "+9190808072",
+        "role": "TRAINER",
+        "trainerCode": "MEN-TRN-1559",
+        "mentryId": "MEN-TRN-1559",
+        "createdAt": "1788585729434",
+        "updatedAt": "1788585729434",
+        "_id": "6a9ba701f1624b69330f5691"
     }
 ]

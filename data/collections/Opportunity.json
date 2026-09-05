@@ -332,10 +332,11 @@
         "travelCovered": true,
         "accommodationCovered": true,
         "diningCovered": true,
-        "status": "PUBLISHED",
+        "status": "MATCHED",
         "createdAt": "1788499729773",
-        "updatedAt": "1788508529274",
+        "updatedAt": "1788585862493",
         "_id": "6a9a5711f1624b69330f5621",
-        "mentryId": "MEN-PRO-311"
+        "mentryId": "MEN-PRO-311",
+        "assignedTrainerId": "6a9ba701f1624b69330f5692"
     }
 ]

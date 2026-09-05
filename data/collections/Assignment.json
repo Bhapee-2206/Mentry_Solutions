@@ -30,5 +30,21 @@
         "createdAt": "1788524087555",
         "updatedAt": "1788524087555",
         "_id": "6a9ab637f1624b69330f5684"
+    },
+    {
+        "opportunityId": "6a9a5711f1624b69330f5621",
+        "trainerId": "6a9ba701f1624b69330f5692",
+        "applicationId": "6a9ba76cf1624b69330f5693",
+        "status": "SCHEDULED",
+        "agreedDailyRate": 5000,
+        "agreedTotalFee": 30000,
+        "startDate": "1788732000000",
+        "durationDays": 6,
+        "location": "Chennai, Tamilnadu",
+        "accommodationDetails": "Campus Guest House Reserved with standard amenities",
+        "travelDetails": "Travel itinerary to be shared prior to batch start date",
+        "createdAt": "1788585862126",
+        "updatedAt": "1788585862126",
+        "_id": "6a9ba786f1624b69330f5694"
     }
 ]

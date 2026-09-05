@@ -465,7 +465,9 @@ function validateNameInput($name, $fieldName = 'Name') {
 /**
  * Strict Phone Validator:
  * - Rejects any alphabetical characters.
- * - Minimum 10 digits, maximum 15 digits (standard international / Indian format).
+ * - Enforces exactly 10 digits excluding country code (e.g. +91 9876543210).
+ * - Prevents short inputs like "+91" followed by only 8 digits.
+ * - Validates that Indian mobile numbers start with 6, 7, 8, or 9.
  */
 function validatePhoneInput($phone, $fieldName = 'Mobile number') {
     $trimmed = trim($phone ?? '');
@@ -473,15 +475,33 @@ function validatePhoneInput($phone, $fieldName = 'Mobile number') {
         return "{$fieldName} is required.";
     }
     if (preg_match('/[a-zA-Z]/', $trimmed)) {
-        return "{$fieldName} cannot contain letters or names. Please enter a valid phone number with digits only.";
+        return "{$fieldName} cannot contain letters or names. Please enter a valid numeric mobile number.";
     }
+
+    // Extract raw digits
     $digits = preg_replace('/[^0-9]/', '', $trimmed);
-    if (strlen($digits) < 10) {
-        return "{$fieldName} must contain at least 10 digits.";
+
+    // If starts with +91 or has 12 digits starting with 91, strip country code
+    $localNumber = $digits;
+    if (strpos($trimmed, '+91') === 0) {
+        $localNumber = preg_replace('/^91/', '', $digits);
+    } elseif (strlen($digits) === 12 && strpos($digits, '91') === 0) {
+        $localNumber = substr($digits, 2);
+    } elseif (strlen($digits) === 11 && strpos($digits, '0') === 0) {
+        $localNumber = substr($digits, 1);
     }
-    if (strlen($digits) > 15) {
-        return "{$fieldName} cannot exceed 15 digits.";
+
+    $count = strlen($localNumber);
+    if ($count < 10) {
+        return "{$fieldName} must contain 10 digits excluding the +91 country code (you entered {$count} digit" . ($count === 1 ? '' : 's') . ").";
     }
+    if ($count > 10) {
+        return "{$fieldName} cannot exceed 10 digits (you entered {$count} digits).";
+    }
+    if (!preg_match('/^[6-9]/', $localNumber)) {
+        return "Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.";
+    }
+
     return null;
 }
 

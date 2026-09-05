@@ -319,7 +319,7 @@ $teamMembers = $customStaff;
             </div>
             <div>
                 <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Contact Phone</label>
-                <input type="text" name="phone" placeholder="+91 98..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-[#FE5E04]">
+                <input type="tel" name="phone" placeholder="+91 98..." pattern="^(?:\+91[\s\-]?)?[6-9]\d{4}[\s\-]?\d{5}$" title="Please enter a valid 10-digit mobile number excluding country code (e.g. 9876543210 or +91 98765 43210)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-[#FE5E04]">
             </div>
             <div>
                 <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Custom Avatar URL (Optional)</label>
