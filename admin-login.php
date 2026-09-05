@@ -1,6 +1,7 @@
 <?php
 // admin-login.php - Admin & Staff Command Center Login
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/auth.php';
 
 sendAntiCacheHeaders();
