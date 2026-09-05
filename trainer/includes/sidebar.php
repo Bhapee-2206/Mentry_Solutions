@@ -140,7 +140,7 @@ $navItems = [
                 </div>
             </a>
 
-            <a href="/logout.php" class="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Sign Out">
+            <a href="/logout.php" class="hidden md:inline-flex p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Sign Out">
                 <span class="material-symbols-outlined text-[20px]">logout</span>
             </a>
         </div>

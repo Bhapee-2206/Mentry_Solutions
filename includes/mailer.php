@@ -32,7 +32,7 @@ class MentryMailer {
         $this->password = preg_replace('/\s+/', '', $passRaw);
         $this->fromName = $env['SMTP_FROM_NAME'] ?? ($_ENV['SMTP_FROM_NAME'] ?? ($_SERVER['SMTP_FROM_NAME'] ?? (getenv('SMTP_FROM_NAME') ?: 'Mentry Solutions')));
         $this->fromEmail = trim($env['SMTP_FROM_EMAIL'] ?? ($_ENV['SMTP_FROM_EMAIL'] ?? ($_SERVER['SMTP_FROM_EMAIL'] ?? (getenv('SMTP_FROM_EMAIL') ?: $this->username))));
-        $this->timeout = 5; // Fast timeout to prevent serverless function hangs
+        $this->timeout = 10; // Generous timeout to allow SSL/TLS handshake on cloud networks
     }
 
     private function getResponse($socket) {

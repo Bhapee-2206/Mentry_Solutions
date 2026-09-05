@@ -24,10 +24,13 @@ $infoMessage = null;
 
 if (isset($_GET['error']) && $_GET['error'] === 'trainer_required') {
     $error = "Please sign in with a verified Trainer account to access the Trainer Portal.";
+} elseif (isset($_GET['error']) && $_GET['error'] === 'suspended') {
+    $error = "Your trainer account has been suspended by administration. You have been signed out. Please contact support at mentry.training@gmail.com.";
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = strtolower(trim($_POST['email'] ?? ''));
+    $password = $_POST['password'] ?? '';
     $emailErr = validateEmailInput($email);
     if ($emailErr) {
         $error = $emailErr;
@@ -62,42 +65,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($user['role'] === 'ADMIN' || $user['role'] === 'SUPER_ADMIN') {
             $error = "This account has Administrator privileges. Please sign in via the <a href='/admin-login.php' class='underline font-bold hover:text-blue-700'>Admin Command Center</a>.";
         } else {
-            // Update lastLoginAt on user record (automatically mirrors to Supabase)
-            if ($userCol) {
-                $userCol->updateOne(
-                    ['_id' => $user['_id']],
-                    ['$set' => [
-                        'lastLoginAt' => date('c'),
-                        'updatedAt' => new MongoDB\BSON\UTCDateTime()
-                    ]]
-                );
+            // Check suspension on User record
+            if (($user['status'] ?? '') === 'SUSPENDED' || !empty($user['isSuspended'])) {
+                $error = "Your trainer account has been suspended by administration. Access to the portal is disabled. Please contact support at mentry.training@gmail.com.";
+            } else {
+                // Fetch trainer profile
+                $trainerCol = getCollection("Trainer");
+                $trainer = $trainerCol ? $trainerCol->findOne(['userId' => (string)$user['_id']]) : null;
+
+                if ($trainer && ($trainer['status'] ?? '') === 'SUSPENDED') {
+                    $error = "Your trainer account has been suspended by administration. Access to the portal is disabled. Please contact support at mentry.training@gmail.com.";
+                } else {
+                    // Update lastLoginAt on user record (automatically mirrors to Supabase)
+                    if ($userCol) {
+                        $userCol->updateOne(
+                            ['_id' => $user['_id']],
+                            ['$set' => [
+                                'lastLoginAt' => date('c'),
+                                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                            ]]
+                        );
+                    }
+
+                    $_SESSION['user'] = [
+                        'id' => (string)$user['_id'],
+                        'email' => $user['email'],
+                        'name' => $user['name'],
+                        'role' => $user['role'] ?? 'TRAINER',
+                        'avatar' => $user['avatar'] ?? null,
+                        'trainerCode' => $trainer['trainerCode'] ?? ($user['trainerCode'] ?? null),
+                        'mentryId' => $trainer['mentryId'] ?? ($user['mentryId'] ?? null),
+                        'trainerId' => $trainer ? (string)$trainer['_id'] : null,
+                        'status' => $trainer['status'] ?? 'PENDING_APPROVAL'
+                    ];
+
+                    setPersistentSessionCookie($_SESSION['user']);
+
+                    $redirect = $_GET['redirect'] ?? '/trainer/dashboard.php';
+                    // Sanitize redirect
+                    if (strpos($redirect, '/admin') === 0) {
+                        $redirect = '/trainer/dashboard.php';
+                    }
+                    header("Location: " . $redirect);
+                    exit();
+                }
             }
-
-            // Fetch trainer profile
-            $trainerCol = getCollection("Trainer");
-            $trainer = $trainerCol ? $trainerCol->findOne(['userId' => (string)$user['_id']]) : null;
-
-            $_SESSION['user'] = [
-                'id' => (string)$user['_id'],
-                'email' => $user['email'],
-                'name' => $user['name'],
-                'role' => $user['role'] ?? 'TRAINER',
-                'avatar' => $user['avatar'] ?? null,
-                'trainerCode' => $trainer['trainerCode'] ?? ($user['trainerCode'] ?? null),
-                'mentryId' => $trainer['mentryId'] ?? ($user['mentryId'] ?? null),
-                'trainerId' => $trainer ? (string)$trainer['_id'] : null,
-                'status' => $trainer['status'] ?? 'PENDING_APPROVAL'
-            ];
-
-            setPersistentSessionCookie($_SESSION['user']);
-
-            $redirect = $_GET['redirect'] ?? '/trainer/dashboard.php';
-            // Sanitize redirect
-            if (strpos($redirect, '/admin') === 0) {
-                $redirect = '/trainer/dashboard.php';
-            }
-            header("Location: " . $redirect);
-            exit();
         }
     }
 }

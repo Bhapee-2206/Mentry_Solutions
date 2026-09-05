@@ -73,7 +73,9 @@ function setPersistentSessionCookie(array $userData, $rememberDays = 30) {
         'httponly' => true,
         'samesite' => 'Lax'
     ];
-    setcookie('mentry_session_token', $token, $cookieOptions);
+    if (!headers_sent()) {
+        setcookie('mentry_session_token', $token, $cookieOptions);
+    }
     $_COOKIE['mentry_session_token'] = $token;
 }
 
@@ -86,7 +88,9 @@ function clearPersistentSessionCookie() {
         'httponly' => true,
         'samesite' => 'Lax'
     ];
-    setcookie('mentry_session_token', '', $cookieOptions);
+    if (!headers_sent()) {
+        setcookie('mentry_session_token', '', $cookieOptions);
+    }
     unset($_COOKIE['mentry_session_token']);
 }
 
@@ -149,7 +153,46 @@ function getCurrentUser() {
     if (empty($_SESSION['user']) || empty($_SESSION['user']['id'])) {
         restoreSessionFromCookie();
     }
-    return $_SESSION['user'] ?? null;
+    $user = $_SESSION['user'] ?? null;
+    if (!$user || empty($user['id'])) {
+        return null;
+    }
+
+    // Live suspension check: If trainer account is suspended, invalidate session immediately!
+    if (($user['role'] ?? '') === 'TRAINER') {
+        $isSuspended = false;
+        if (($user['status'] ?? '') === 'SUSPENDED' || !empty($user['isSuspended'])) {
+            $isSuspended = true;
+        } else {
+            $trainerCol = getCollection("Trainer");
+            if ($trainerCol) {
+                $tr = $trainerCol->findOne(['userId' => (string)$user['id']]);
+                if ($tr && ($tr['status'] ?? '') === 'SUSPENDED') {
+                    $isSuspended = true;
+                }
+            }
+            if (!$isSuspended) {
+                $userCol = getCollection("User");
+                if ($userCol) {
+                    $u = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$user['id'])]);
+                    if ($u && (($u['status'] ?? '') === 'SUSPENDED' || !empty($u['isSuspended']))) {
+                        $isSuspended = true;
+                    }
+                }
+            }
+        }
+
+        if ($isSuspended) {
+            $_SESSION = [];
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_destroy();
+            }
+            clearPersistentSessionCookie();
+            return null;
+        }
+    }
+
+    return $user;
 }
 
 function isLoggedIn() {
@@ -209,12 +252,12 @@ function requireAuth() {
 
 function requireTrainer() {
     sendAntiCacheHeaders();
-    if (!isLoggedIn()) {
-        header("Location: /login.php?redirect=" . urlencode($_SERVER['REQUEST_URI']));
+    $user = getCurrentUser();
+    if (!$user || empty($user['id'])) {
+        header("Location: /login.php?error=suspended");
         exit();
     }
     
-    $user = getCurrentUser();
     if ($user['role'] !== 'TRAINER' && $user['role'] !== 'ADMIN' && $user['role'] !== 'SUPER_ADMIN') {
         header("Location: /login.php?error=trainer_required");
         exit();

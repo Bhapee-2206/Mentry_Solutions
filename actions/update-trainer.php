@@ -35,6 +35,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'updatedAt' => new MongoDB\BSON\UTCDateTime()
                 ]]
             );
+
+            // Synchronize User record status and force session invalidation for suspended accounts
+            if ($userCol && !empty($userId)) {
+                $userUpdate = [
+                    'status' => ($status === 'SUSPENDED') ? 'SUSPENDED' : 'ACTIVE',
+                    'isSuspended' => ($status === 'SUSPENDED'),
+                    'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                ];
+                if ($status === 'SUSPENDED') {
+                    $userUpdate['sessionInvalidatedAt'] = time();
+                }
+                $userCol->updateOne(
+                    ['_id' => new MongoDB\BSON\ObjectId($userId)],
+                    ['$set' => $userUpdate]
+                );
+            }
         } elseif ($actionType === 'edit_profile') {
             $name = trim($_POST['name'] ?? '');
             $email = trim($_POST['email'] ?? '');
@@ -77,6 +93,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 if (!empty($phone)) $userUpdate['phone'] = $phone;
+                $userUpdate['status'] = ($status === 'SUSPENDED') ? 'SUSPENDED' : 'ACTIVE';
+                $userUpdate['isSuspended'] = ($status === 'SUSPENDED');
+                if ($status === 'SUSPENDED') {
+                    $userUpdate['sessionInvalidatedAt'] = time();
+                }
                 if (!empty($userUpdate)) {
                     $userUpdate['updatedAt'] = new MongoDB\BSON\UTCDateTime();
                     $userCol->updateOne(['_id' => new MongoDB\BSON\ObjectId($userId)], ['$set' => $userUpdate]);

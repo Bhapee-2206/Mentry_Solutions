@@ -8,8 +8,6 @@ $step = 1; // 1 = Enter Email, 2 = Verify Code & Set Password, 3 = Success
 $error = null;
 $notice = null;
 $emailTarget = strtolower(trim($_GET['email'] ?? $_POST['email'] ?? ''));
-$smtpDeliveryFailed = false;
-$devFallbackCode = null;
 
 // STEP 2 SUBMISSION: Verify Code & Update Password
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reset_password') {
@@ -112,17 +110,15 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $resetLink = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'] . "/reset-password.php?token=" . $token . "&email=" . urlencode($email);
 
-            // Attempt email dispatch (with auto-retry across ports)
+            // Attempt email dispatch strictly via SMTP
             $mailResult = sendPasswordResetEmail($user['email'], $user['name'] ?? 'User', $code, $resetLink);
 
-            $step = 2;
             if (!empty($mailResult['success'])) {
-                $smtpDeliveryFailed = false;
+                $step = 2;
                 $notice = "We have dispatched a 6-digit verification code to <strong>" . htmlspecialchars($email) . "</strong>. Please check your inbox and spam folder.";
             } else {
-                $smtpDeliveryFailed = true;
-                $devFallbackCode = $code;
-                $notice = "Your verification code is ready. In serverless cloud environments where outbound SMTP is restricted, your code is provided below for immediate use.";
+                $step = 1;
+                $error = "Unable to send verification email to " . htmlspecialchars($email) . ". Please verify that your email address is correct and try again.";
             }
         } else {
             // Non-existent email
@@ -229,42 +225,13 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- STEP 2: ENTER OTP & NEW PASSWORD -->
         <?php elseif ($step === 2): ?>
 
-            <?php if (!empty($smtpDeliveryFailed) && !empty($devFallbackCode)): ?>
-                <div class="bg-amber-50 border-2 border-amber-300 text-amber-950 p-4 rounded-2xl space-y-3 shadow-xs">
-                    <div class="flex items-start gap-2.5">
-                        <span class="material-symbols-outlined text-amber-600 text-xl shrink-0 mt-0.5">verified_user</span>
-                        <div>
-                            <span class="font-bold text-amber-950 text-sm block">1-Time Security Verification Code</span>
-                            <span class="text-xs text-amber-800">Cloud email dispatch was restricted by the server network. For your instant access, use your verification code below:</span>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center justify-between bg-white border border-amber-300 rounded-xl px-4 py-2.5 shadow-2xs">
-                        <span class="font-mono font-black text-2xl tracking-[0.25em] text-[#FE5E04]" id="fallbackCodeDisplay"><?= htmlspecialchars($devFallbackCode) ?></span>
-                        <button type="button" onclick="autoFillCode('<?= htmlspecialchars($devFallbackCode) ?>')" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[15px]">auto_fix_high</span>
-                            Auto-Fill
-                        </button>
-                    </div>
-
-                    <?php if (!empty($resetLink)): ?>
-                        <div class="text-center pt-1 border-t border-amber-200/80">
-                            <a href="<?= htmlspecialchars($resetLink) ?>" class="text-[#FE5E04] hover:underline font-bold text-xs inline-flex items-center gap-1">
-                                <span>Or click here to reset password directly</span>
-                                <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-                            </a>
-                        </div>
-                    <?php endif; ?>
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl text-xs flex items-center gap-3">
+                <span class="material-symbols-outlined text-emerald-600 text-2xl shrink-0">mark_email_read</span>
+                <div>
+                    <span class="font-bold text-emerald-950 text-sm block">Verification Code Sent</span>
+                    <span class="text-xs text-emerald-800"><?= $notice ?? ('We have sent a 6-digit verification code to <strong>' . htmlspecialchars($emailTarget) . '</strong>. Please check your inbox and spam folder.') ?></span>
                 </div>
-            <?php else: ?>
-                <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl text-xs flex items-center gap-3">
-                    <span class="material-symbols-outlined text-emerald-600 text-2xl shrink-0">mark_email_read</span>
-                    <div>
-                        <span class="font-bold text-emerald-950 text-sm block">Verification Code Sent</span>
-                        <span class="text-xs text-emerald-800"><?= $notice ?? ('We have sent a 6-digit verification code to <strong>' . htmlspecialchars($emailTarget) . '</strong>. Please check your inbox and spam folder.') ?></span>
-                    </div>
-                </div>
-            <?php endif; ?>
+            </div>
 
             <form method="POST" action="/forgot-password.php" class="space-y-4" autocomplete="off">
                 <input type="hidden" name="action" value="reset_password">
@@ -277,7 +244,7 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">6-Digit Verification Code</label>
-                    <input type="text" id="otpInput" name="code" required maxlength="6" value="<?= !empty($devFallbackCode) ? htmlspecialchars($devFallbackCode) : '' ?>" placeholder="e.g. 123456" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-xl tracking-[0.3em] font-mono font-black focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-[#FE5E04] outline-none text-[#FE5E04]">
+                    <input type="text" id="otpInput" name="code" required maxlength="6" value="" placeholder="e.g. 123456" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-xl tracking-[0.3em] font-mono font-black focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-[#FE5E04] outline-none text-[#FE5E04]">
                 </div>
 
                 <div>
@@ -353,14 +320,6 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             input.type = 'password';
             if (icon) icon.textContent = 'visibility';
-        }
-    }
-
-    function autoFillCode(code) {
-        const input = document.getElementById('otpInput');
-        if (input) {
-            input.value = code;
-            input.focus();
         }
     }
 
