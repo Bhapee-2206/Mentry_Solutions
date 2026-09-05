@@ -583,14 +583,13 @@ require_once __DIR__ . '/includes/sidebar.php';
                     <input type="number" name="dailyRateINR" required value="<?= htmlspecialchars($trainer['dailyRateINR'] ?? 6000) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-blue-700 outline-none focus:bg-white">
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Base City</label>
-                    <input type="text" name="currentCity" value="<?= htmlspecialchars($trainer['currentCity'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Base State</label>
-                    <input type="text" name="currentState" value="<?= htmlspecialchars($trainer['currentState'] ?? 'Karnataka') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Base Location (City, State) *</label>
+                    <?php
+                    $baseLocAdmin = trim(($trainer['currentCity'] ?? '') . (!empty($trainer['currentState']) ? ', ' . $trainer['currentState'] : ''));
+                    if (empty($baseLocAdmin)) $baseLocAdmin = 'Chennai, Tamil Nadu';
+                    ?>
+                    <input type="text" name="baseLocation" value="<?= htmlspecialchars($baseLocAdmin) ?>" placeholder="e.g. Chennai, Tamil Nadu" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white">
                 </div>
 
                 <div>

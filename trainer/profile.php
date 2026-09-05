@@ -12,10 +12,34 @@ $saved = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $professionalTitle = trim($_POST['professionalTitle'] ?? '');
     $primaryDomain = trim($_POST['primaryDomain'] ?? '');
-    $currentCity = trim($_POST['currentCity'] ?? '');
-    $currentState = trim($_POST['currentState'] ?? '');
+    $baseLocation = trim($_POST['baseLocation'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
     $dailyRateINR = (float)($_POST['dailyRateINR'] ?? 6000);
     $travelPreference = trim($_POST['travelPreference'] ?? 'PAN_INDIA');
+
+    // Parse Base Location into City and State
+    $currentCity = $baseLocation;
+    $currentState = 'India';
+    if (strpos($baseLocation, ',') !== false) {
+        $locParts = explode(',', $baseLocation, 2);
+        $currentCity = trim($locParts[0]);
+        $currentState = trim($locParts[1]);
+    } elseif (!empty($_POST['currentCity'])) {
+        $currentCity = trim($_POST['currentCity']);
+        $currentState = trim($_POST['currentState'] ?? 'India');
+    }
+
+    // Clean phone number
+    if (!empty($phone)) {
+        $userCol = getCollection("User");
+        if ($userCol) {
+            $userCol->updateOne(
+                ['_id' => new MongoDB\BSON\ObjectId($user['id'])],
+                ['$set' => ['phone' => $phone, 'updatedAt' => new MongoDB\BSON\UTCDateTime()]]
+            );
+            $_SESSION['user']['phone'] = $phone;
+        }
+    }
 
     if ($trainerCol) {
         $trainerCode = $trainer['trainerCode'] ?? ($trainer['mentryId'] ?? ($user['trainerCode'] ?? ''));
@@ -38,7 +62,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
         if (!empty($user['name'])) $setData['name'] = $user['name'];
         if (!empty($user['email'])) $setData['email'] = $user['email'];
-        if (!empty($user['phone'])) $setData['phone'] = $user['phone'];
+        if (!empty($phone)) {
+            $setData['phone'] = $phone;
+        } elseif (!empty($user['phone'])) {
+            $setData['phone'] = $user['phone'];
+        }
         if (!empty($user['avatar'])) $setData['avatar'] = $user['avatar'];
 
         $filter = !empty($trainer['_id']) ? ['_id' => $trainer['_id']] : ['userId' => (string)$user['id']];
@@ -275,12 +303,16 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
                 </select>
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Base City</label>
-                <input type="text" name="currentCity" value="<?= htmlspecialchars($trainer['currentCity'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Mobile / WhatsApp Number *</label>
+                <input type="tel" name="phone" required placeholder="e.g. 9876543210 or +91 98765 43210" value="<?= htmlspecialchars($trainer['phone'] ?? ($user['phone'] ?? '')) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none font-semibold text-slate-800">
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Base State</label>
-                <input type="text" name="currentState" value="<?= htmlspecialchars($trainer['currentState'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Base Location (City, State) *</label>
+                <?php
+                $baseLoc = trim(($trainer['currentCity'] ?? '') . (!empty($trainer['currentState']) ? ', ' . $trainer['currentState'] : ''));
+                if (empty($baseLoc)) $baseLoc = 'Chennai, Tamil Nadu';
+                ?>
+                <input type="text" name="baseLocation" required placeholder="e.g. Chennai, Tamil Nadu" value="<?= htmlspecialchars($baseLoc) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
             </div>
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Daily Rate (₹/Day)</label>

@@ -87,6 +87,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'status' => $trainer['status'] ?? 'PENDING_APPROVAL'
             ];
 
+            setPersistentSessionCookie($_SESSION['user']);
+
             $redirect = $_GET['redirect'] ?? '/trainer/dashboard.php';
             // Sanitize redirect
             if (strpos($redirect, '/admin') === 0) {

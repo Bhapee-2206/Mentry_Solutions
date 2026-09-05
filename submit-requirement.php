@@ -22,8 +22,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $budgetPerDay = !empty($_POST['budgetPerDay']) ? (float)$_POST['budgetPerDay'] : null;
     $notes = trim($_POST['notes'] ?? '');
 
+    $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
     if (empty($institutionName) || empty($contactPerson) || empty($email) || empty($phone) || empty($trainingDomain)) {
         $error = "Please fill in all mandatory fields marked with an asterisk (*).";
+    } elseif (strlen($cleanPhone) < 10) {
+        $error = "Please enter a valid 10-digit mobile / phone number.";
+    } elseif (!empty($tentativeStartDate) && strtotime($tentativeStartDate) < strtotime(date('Y-m-d'))) {
+        $error = "Tentative start date cannot be in the past. Please select today or a future date.";
     } else {
         $requirementCol = getCollection("CollegeRequirement");
         if ($requirementCol) {
@@ -114,7 +119,7 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Phone / Mobile Number *</label>
-                            <input type="tel" name="phone" required placeholder="+91 98765 43210" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                            <input type="tel" name="phone" required placeholder="e.g. 9876543210 or +91 98765 43210" pattern="[0-9+\s\-]{10,16}" title="Please enter a valid 10-digit phone number" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                         </div>
                     </div>
                 </div>
@@ -146,8 +151,8 @@ require_once __DIR__ . '/includes/header.php';
                             <input type="number" name="durationDays" value="5" min="1" max="60" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tentative Start Date</label>
-                            <input type="date" name="tentativeStartDate" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tentative Start Date (Today or Future)</label>
+                            <input type="date" name="tentativeStartDate" min="<?= date('Y-m-d') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none font-medium">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Estimated Daily Budget (₹/Day)</label>

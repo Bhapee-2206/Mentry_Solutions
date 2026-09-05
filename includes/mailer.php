@@ -25,12 +25,13 @@ class MentryMailer {
             }
         }
 
-        $this->host = $env['SMTP_HOST'] ?? getenv('SMTP_HOST') ?: 'smtp.gmail.com';
-        $this->port = (int)($env['SMTP_PORT'] ?? getenv('SMTP_PORT') ?: 587);
-        $this->username = trim($env['SMTP_USER'] ?? getenv('SMTP_USER') ?: 'mentry.training@gmail.com');
-        $this->password = preg_replace('/\s+/', '', $env['SMTP_PASS'] ?? getenv('SMTP_PASS') ?: '');
-        $this->fromName = $env['SMTP_FROM_NAME'] ?? getenv('SMTP_FROM_NAME') ?: 'Mentry Solutions';
-        $this->fromEmail = trim($env['SMTP_FROM_EMAIL'] ?? getenv('SMTP_FROM_EMAIL') ?: 'mentry.training@gmail.com');
+        $this->host = $env['SMTP_HOST'] ?? ($_ENV['SMTP_HOST'] ?? ($_SERVER['SMTP_HOST'] ?? (getenv('SMTP_HOST') ?: 'smtp.gmail.com')));
+        $this->port = (int)($env['SMTP_PORT'] ?? ($_ENV['SMTP_PORT'] ?? ($_SERVER['SMTP_PORT'] ?? (getenv('SMTP_PORT') ?: 587))));
+        $this->username = trim($env['SMTP_USER'] ?? ($_ENV['SMTP_USER'] ?? ($_SERVER['SMTP_USER'] ?? (getenv('SMTP_USER') ?: 'bhapeestudios@gmail.com'))));
+        $passRaw = $env['SMTP_PASS'] ?? ($_ENV['SMTP_PASS'] ?? ($_SERVER['SMTP_PASS'] ?? (getenv('SMTP_PASS') ?: 'ywnv kgpv khmx qrlz')));
+        $this->password = preg_replace('/\s+/', '', $passRaw);
+        $this->fromName = $env['SMTP_FROM_NAME'] ?? ($_ENV['SMTP_FROM_NAME'] ?? ($_SERVER['SMTP_FROM_NAME'] ?? (getenv('SMTP_FROM_NAME') ?: 'Mentry Solutions')));
+        $this->fromEmail = trim($env['SMTP_FROM_EMAIL'] ?? ($_ENV['SMTP_FROM_EMAIL'] ?? ($_SERVER['SMTP_FROM_EMAIL'] ?? (getenv('SMTP_FROM_EMAIL') ?: $this->username))));
     }
 
     private function getResponse($socket) {

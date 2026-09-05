@@ -105,8 +105,12 @@ $navItems = [
     <?php $isAdminViewing = isAdminOrStaff(); ?>
     <!-- Top Bar -->
     <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-        <div class="flex items-center gap-3">
-            <a href="/index.php" class="md:hidden">
+        <div class="flex items-center gap-2.5">
+            <!-- Mobile Hamburger Button -->
+            <button id="trainerMobileMenuBtn" type="button" aria-label="Open navigation menu" class="md:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#FE5E04]/30">
+                <span class="material-symbols-outlined text-2xl">menu</span>
+            </button>
+            <a href="/index.php" class="md:hidden flex items-center">
                 <img src="/public/mentry.png" alt="Mentry" class="h-7 w-auto">
             </a>
             <div class="flex items-center gap-2">
@@ -141,6 +145,98 @@ $navItems = [
             </a>
         </div>
     </header>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="trainerMobileDrawer" class="hidden fixed inset-0 z-50 md:hidden">
+        <!-- Backdrop -->
+        <div id="trainerDrawerBackdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"></div>
+        
+        <!-- Drawer Panel -->
+        <div class="fixed inset-y-0 left-0 max-w-xs w-full bg-[#0B1526] text-slate-300 shadow-2xl flex flex-col py-6 px-4 z-10 select-none overflow-y-auto">
+            <!-- Close Button & Logo -->
+            <div class="flex items-center justify-between px-2 mb-6">
+                <a href="/index.php" class="flex items-center gap-2.5">
+                    <div class="bg-white p-1 rounded-xl shadow-md shrink-0">
+                        <img src="/public/mentry.png" alt="Mentry" class="h-7 w-auto object-contain rounded-lg">
+                    </div>
+                    <div>
+                        <h2 class="font-extrabold text-sm text-white leading-tight">Mentry Portal</h2>
+                        <p class="text-[10px] font-medium text-slate-400">Trainer Workspace</p>
+                    </div>
+                </a>
+                <button id="trainerDrawerCloseBtn" type="button" aria-label="Close menu" class="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
+                    <span class="material-symbols-outlined text-2xl">close</span>
+                </button>
+            </div>
+
+            <!-- Trainer Info Card -->
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-3 mb-4 flex items-center gap-3">
+                <img src="<?= htmlspecialchars(getUserAvatar($user, 72)) ?>" alt="<?= htmlspecialchars($user['name']) ?>" class="w-9 h-9 rounded-full object-cover border border-slate-600 shrink-0">
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs font-bold text-white truncate"><?= htmlspecialchars($user['name']) ?></p>
+                    <p class="text-[10px] text-slate-400 truncate"><?= htmlspecialchars($user['email']) ?></p>
+                </div>
+            </div>
+
+            <!-- Quick Action -->
+            <div class="mb-4">
+                <a href="/trainer/opportunities.php" class="w-full bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shadow-orange-500/20">
+                    <span class="material-symbols-outlined text-[18px]">search</span>
+                    Browse Openings
+                </a>
+            </div>
+
+            <!-- Navigation Links -->
+            <div class="flex-1 space-y-1">
+                <?php foreach ($navItems as $item): 
+                    $isActive = ($currentPage === basename($item['href']));
+                ?>
+                    <a href="<?= $item['href'] ?>" class="rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold <?= $isActive ? 'bg-[#FE5E04]/15 text-[#FE5E04] border border-[#FE5E04]/30' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white' ?>">
+                        <span class="material-symbols-outlined mr-3 text-[18px] <?= $isActive ? 'text-[#FE5E04] fill' : 'text-slate-400' ?>">
+                            <?= $item['icon'] ?>
+                        </span>
+                        <span class="flex-1 truncate"><?= $item['label'] ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+
+            <!-- Bottom Settings & Logout -->
+            <div class="pt-4 border-t border-slate-800/80 space-y-1">
+                <a href="/index.php" class="rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white">
+                    <span class="material-symbols-outlined mr-3 text-[18px]">home</span>
+                    <span>Website Home</span>
+                </a>
+                <a href="/trainer/settings.php" class="rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white">
+                    <span class="material-symbols-outlined mr-3 text-[18px]">settings</span>
+                    <span>Settings</span>
+                </a>
+                <a href="/logout.php" class="rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-rose-400 hover:bg-rose-950/40 hover:text-rose-300">
+                    <span class="material-symbols-outlined mr-3 text-[18px]">logout</span>
+                    <span>Sign Out</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const openBtn = document.getElementById('trainerMobileMenuBtn');
+        const closeBtn = document.getElementById('trainerDrawerCloseBtn');
+        const backdrop = document.getElementById('trainerDrawerBackdrop');
+        const drawer = document.getElementById('trainerMobileDrawer');
+
+        function openDrawer() {
+            if (drawer) drawer.classList.remove('hidden');
+        }
+        function closeDrawer() {
+            if (drawer) drawer.classList.add('hidden');
+        }
+
+        if (openBtn) openBtn.addEventListener('click', openDrawer);
+        if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+        if (backdrop) backdrop.addEventListener('click', closeDrawer);
+    });
+    </script>
 
     <?php if ($isAdminViewing): ?>
     <!-- One-Time Admin Workspace Notice Modal -->

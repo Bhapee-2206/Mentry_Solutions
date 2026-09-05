@@ -7,6 +7,104 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once __DIR__ . '/db.php';
 
+function getAuthSecret() {
+    $secret = getenv('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? ($_SERVER['JWT_SECRET'] ?? ''));
+    if (empty($secret)) {
+        $envPath = __DIR__ . '/../.env';
+        if (file_exists($envPath)) {
+            $lines = @file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if ($lines) {
+                foreach ($lines as $l) {
+                    if (strpos(trim($l), 'JWT_SECRET=') === 0) {
+                        $secret = trim(substr(trim($l), strlen('JWT_SECRET=')), '"\'');
+                    }
+                }
+            }
+        }
+    }
+    return !empty($secret) ? $secret : 'mentry-persistent-auth-secret-key-2026-prod';
+}
+
+function setPersistentSessionCookie(array $userData, $rememberDays = 30) {
+    if (empty($userData['id'])) return;
+    $payload = [
+        'id' => (string)$userData['id'],
+        'email' => $userData['email'] ?? '',
+        'name' => $userData['name'] ?? '',
+        'role' => $userData['role'] ?? 'TRAINER',
+        'avatar' => $userData['avatar'] ?? '',
+        'issued_at' => time()
+    ];
+    $json = json_encode($payload);
+    $b64 = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
+    $sig = hash_hmac('sha256', $b64, getAuthSecret());
+    $token = $b64 . '.' . $sig;
+    
+    $expire = time() + ($rememberDays * 86400);
+    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+    setcookie('mentry_session_token', $token, [
+        'expires' => $expire,
+        'path' => '/',
+        'domain' => '',
+        'secure' => $isSecure,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    $_COOKIE['mentry_session_token'] = $token;
+}
+
+function clearPersistentSessionCookie() {
+    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+    setcookie('mentry_session_token', '', [
+        'expires' => time() - 3600,
+        'path' => '/',
+        'domain' => '',
+        'secure' => $isSecure,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    unset($_COOKIE['mentry_session_token']);
+}
+
+function restoreSessionFromCookie() {
+    if (!empty($_SESSION['user']['id'])) {
+        return $_SESSION['user'];
+    }
+    if (empty($_COOKIE['mentry_session_token'])) {
+        return null;
+    }
+    $token = $_COOKIE['mentry_session_token'];
+    $parts = explode('.', $token);
+    if (count($parts) !== 2) {
+        return null;
+    }
+    list($b64, $sig) = $parts;
+    $expectedSig = hash_hmac('sha256', $b64, getAuthSecret());
+    if (!hash_equals($expectedSig, $sig)) {
+        return null;
+    }
+    $json = base64_decode(strtr($b64, '-_', '+/'));
+    if (!$json) {
+        return null;
+    }
+    $data = json_decode($json, true);
+    if (!is_array($data) || empty($data['id'])) {
+        return null;
+    }
+    if (isset($data['issued_at']) && (time() - $data['issued_at']) > (30 * 86400)) {
+        clearPersistentSessionCookie();
+        return null;
+    }
+    $_SESSION['user'] = [
+        'id' => (string)$data['id'],
+        'email' => $data['email'] ?? '',
+        'name' => $data['name'] ?? '',
+        'role' => $data['role'] ?? 'TRAINER',
+        'avatar' => $data['avatar'] ?? ('https://ui-avatars.com/api/?name=' . urlencode($data['name'] ?? 'User'))
+    ];
+    return $_SESSION['user'];
+}
+
 function hashPassword($password) {
     return password_hash($password, PASSWORD_BCRYPT);
 }
@@ -16,11 +114,15 @@ function verifyPassword($password, $hash) {
 }
 
 function getCurrentUser() {
+    if (empty($_SESSION['user']) || empty($_SESSION['user']['id'])) {
+        restoreSessionFromCookie();
+    }
     return $_SESSION['user'] ?? null;
 }
 
 function isLoggedIn() {
-    return isset($_SESSION['user']) && !empty($_SESSION['user']['id']);
+    $user = getCurrentUser();
+    return !empty($user) && !empty($user['id']);
 }
 
 function isTrainer() {

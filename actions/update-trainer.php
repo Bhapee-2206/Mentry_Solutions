@@ -43,6 +43,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $primaryDomain = trim($_POST['primaryDomain'] ?? '');
             $currentCity = trim($_POST['currentCity'] ?? '');
             $currentState = trim($_POST['currentState'] ?? '');
+            $baseLocation = trim($_POST['baseLocation'] ?? '');
+            if (!empty($baseLocation)) {
+                if (strpos($baseLocation, ',') !== false) {
+                    $locParts = explode(',', $baseLocation, 2);
+                    $currentCity = trim($locParts[0]);
+                    $currentState = trim($locParts[1]);
+                } else {
+                    $currentCity = $baseLocation;
+                    if (empty($currentState)) $currentState = 'India';
+                }
+            }
             $totalExperienceYears = (int)($_POST['totalExperienceYears'] ?? 0);
             $collegeExperienceYears = (int)($_POST['collegeExperienceYears'] ?? 0);
             $dailyRateINR = (float)($_POST['dailyRateINR'] ?? 0);

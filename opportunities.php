@@ -70,9 +70,10 @@ require_once __DIR__ . '/includes/header.php';
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <!-- Filters Sidebar -->
-            <aside class="lg:col-span-3 space-y-6">
+            <!-- Filters Sidebar (Sticky on desktop) -->
+            <aside class="lg:col-span-3 space-y-6 lg:sticky lg:top-24 self-start">
                 <form method="GET" action="/opportunities.php" class="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-card space-y-6">
+                    <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                         <h2 class="font-extrabold text-base text-slate-900">Filters</h2>
                         <a href="/opportunities.php" class="text-xs text-blue-600 hover:text-blue-700 font-bold">Reset All</a>
@@ -139,11 +140,27 @@ require_once __DIR__ . '/includes/header.php';
             <div class="lg:col-span-9 space-y-6">
                 <!-- Search Bar -->
                 <form method="GET" action="/opportunities.php" class="relative w-full">
-                    <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl">
-                        search
-                    </span>
-                    <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search by technology (e.g. Python, Java, AWS, VLSI) or city..." class="w-full pl-12 pr-12 py-4 rounded-2xl border border-slate-200/90 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-sm shadow-card">
-                    <button type="submit" class="absolute right-4 top-1/2 -translate-y-1/2 bg-blue-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-blue-700">Search</button>
+                    <input type="hidden" name="mode" value="<?= htmlspecialchars($selectedMode) ?>">
+                    <input type="hidden" name="domain" value="<?= htmlspecialchars($selectedDomain) ?>">
+                    <input type="hidden" name="location" value="<?= htmlspecialchars($selectedLocation) ?>">
+                    <input type="hidden" name="type" value="<?= htmlspecialchars($selectedType) ?>">
+
+                    <div class="relative flex items-center">
+                        <span class="material-symbols-outlined absolute left-4 text-slate-400 text-xl pointer-events-none">
+                            search
+                        </span>
+                        <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search by technology (e.g. Python, Java, AWS, VLSI) or city..." class="w-full pl-12 pr-28 py-3.5 rounded-2xl border border-slate-200/90 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-xs sm:text-sm shadow-card">
+                        <div class="absolute right-2 flex items-center gap-1.5">
+                            <?php if (!empty($search)): ?>
+                                <a href="/opportunities.php?mode=<?= urlencode($selectedMode) ?>&domain=<?= urlencode($selectedDomain) ?>&location=<?= urlencode($selectedLocation) ?>&type=<?= urlencode($selectedType) ?>" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition-colors" title="Clear search text">
+                                    <span class="material-symbols-outlined text-[18px]">close</span>
+                                </a>
+                            <?php endif; ?>
+                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer">
+                                <span>Search</span>
+                            </button>
+                        </div>
+                    </div>
                 </form>
 
                 <!-- Count -->

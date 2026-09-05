@@ -3,6 +3,7 @@
 require_once __DIR__ . '/includes/auth.php';
 
 sendAntiCacheHeaders();
+clearPersistentSessionCookie();
 
 $_SESSION = [];
 if (ini_get("session.use_cookies")) {

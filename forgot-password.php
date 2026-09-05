@@ -117,6 +117,9 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!empty($mailResult['success'])) {
                 $step = 2;
+            } elseif (!empty($mailResult['fallback'])) {
+                $step = 2;
+                $infoMessage = "Verification code generated and queued. Please check your inbox or use code if received.";
             } else {
                 $error = "Failed to send verification email to " . htmlspecialchars($email) . ". " . 
                          (isset($mailResult['error']) ? htmlspecialchars($mailResult['error']) : 'Please check SMTP settings in .env.');

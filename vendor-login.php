@@ -60,6 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'avatar' => $user['avatar'] ?? null
             ];
 
+            setPersistentSessionCookie($_SESSION['user']);
+
             $redirect = $_GET['redirect'] ?? '/vendor/dashboard.php';
             header("Location: " . $redirect);
             exit();

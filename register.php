@@ -28,8 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $primaryDomain = trim($_POST['primaryDomain'] ?? 'Programming');
     $currentCity = trim($_POST['currentCity'] ?? '');
 
+    $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
     if (empty($name) || empty($email) || empty($password) || empty($phone) || empty($currentCity)) {
         $error = "Please fill in your name, email, phone, password, and city.";
+    } elseif (strlen($cleanPhone) < 10) {
+        $error = "Please enter a valid 10-digit mobile number.";
     } else {
         $userCol = getCollection("User");
         $existing = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
@@ -94,6 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'trainerId' => $trainerId,
                 'status' => 'PENDING_APPROVAL'
             ];
+
+            setPersistentSessionCookie($_SESSION['user']);
 
             header("Location: /trainer/dashboard.php?new_signup=1");
             exit();
