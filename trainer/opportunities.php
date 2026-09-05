@@ -13,6 +13,40 @@ $skillCol = getCollection("Skill");
 $trainer = $trainerCol ? $trainerCol->findOne(['userId' => $user['id']]) : null;
 $trainerId = $trainer ? (string)$trainer['_id'] : '';
 
+// Enforce Resume Requirement Verification
+$docCol = getCollection("Document");
+$hasResume = !empty($trainer['resumeUrl']);
+$resumeName = '';
+if (!empty($trainer['resumeUrl'])) {
+    $resumeName = basename($trainer['resumeUrl']);
+}
+if (!$hasResume && $docCol && $trainerId) {
+    try {
+        $resumeDoc = $docCol->findOne([
+            'type' => 'RESUME',
+            '$or' => [
+                ['trainerId' => $trainerId],
+                ['trainerId' => new MongoDB\BSON\ObjectId($trainerId)],
+                ['userId' => $user['id']],
+                ['userId' => new MongoDB\BSON\ObjectId($user['id'])]
+            ]
+        ]);
+        if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
+            $hasResume = true;
+            $resumeName = $resumeDoc['originalName'] ?? ($resumeDoc['title'] ?? 'Resume');
+        }
+    } catch (\Throwable $e) {
+        $resumeDoc = $docCol->findOne(['trainerId' => $trainerId, 'type' => 'RESUME']);
+        if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
+            $hasResume = true;
+            $resumeName = $resumeDoc['originalName'] ?? ($resumeDoc['title'] ?? 'Resume');
+        }
+    }
+}
+
+$applyError = $_SESSION['apply_error'] ?? (isset($_GET['error']) && $_GET['error'] === 'resume_required' ? 'A verified resume/CV is strictly required to apply for training opportunities. Please upload your updated resume before submitting an application.' : null);
+unset($_SESSION['apply_error']);
+
 $appliedOppIds = [];
 if ($applicationCol && $trainerId) {
     $myApps = $applicationCol->find(['trainerId' => $trainerId])->toArray();
@@ -97,6 +131,35 @@ require_once __DIR__ . '/../includes/matching_engine.php';
         <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-xs font-bold text-emerald-800 flex items-center gap-2 shadow-xs">
             <span class="material-symbols-outlined text-emerald-600 text-lg">check_circle</span>
             <span>Application submitted successfully! Our academic team will review your proposal and contact you.</span>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($applyError): ?>
+        <div class="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-xs font-bold text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div class="flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-amber-600 text-xl">warning</span>
+                <span><?= htmlspecialchars($applyError) ?></span>
+            </div>
+            <a href="/trainer/profile.php#resume" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white px-3.5 py-1.5 rounded-xl font-bold text-xs transition-colors shrink-0 flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">upload_file</span>
+                <span>Upload Resume</span>
+            </a>
+        </div>
+    <?php elseif (!$hasResume): ?>
+        <div class="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
+                    <span class="material-symbols-outlined text-lg">description</span>
+                </div>
+                <div>
+                    <h4 class="font-bold text-xs text-amber-950">Resume Strictly Required to Apply</h4>
+                    <p class="text-xs text-amber-800 mt-0.5">Partner colleges require an authenticated CV/Resume for faculty reviews. Upload your resume now to unlock 1-click applications.</p>
+                </div>
+            </div>
+            <a href="/trainer/profile.php#resume" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-xs shrink-0 flex items-center gap-1.5 self-end sm:self-auto">
+                <span class="material-symbols-outlined text-[16px]">upload_file</span>
+                <span>Upload Resume</span>
+            </a>
         </div>
     <?php endif; ?>
 
@@ -246,6 +309,11 @@ require_once __DIR__ . '/../includes/matching_engine.php';
                             <a href="/trainer/applications.php" class="bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors">
                                 View Application
                             </a>
+                        <?php elseif (!$hasResume): ?>
+                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer" title="Resume required to apply">
+                                <span class="material-symbols-outlined text-[16px]">upload_file</span>
+                                <span>Apply (Resume Req.)</span>
+                            </button>
                         <?php else: ?>
                             <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-5 py-2 rounded-xl transition-all shadow-md shadow-orange-500/20 cursor-pointer">
                                 View & Apply
@@ -304,34 +372,65 @@ require_once __DIR__ . '/../includes/matching_engine.php';
                 <p id="modalDesc" class="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200/70 whitespace-pre-line"></p>
             </div>
 
-            <!-- Application Form -->
-            <form action="/actions/apply.php" method="POST" class="space-y-4 pt-4 border-t border-slate-100">
-                <input type="hidden" id="modalOppId" name="opportunityId" value="">
-
-                <div class="bg-orange-50/50 border border-orange-200/60 p-4 rounded-2xl space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <span class="text-xs font-bold text-slate-900 block">Your Proposed Daily Rate (₹)</span>
-                            <span class="text-[11px] text-slate-500">Mentry handles invoicing and guarantees timely disbursement.</span>
+            <?php if (!$hasResume): ?>
+                <div class="bg-amber-50 border border-amber-200/90 rounded-2xl p-5 space-y-3 pt-4 border-t border-slate-100">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-2xl">upload_file</span>
                         </div>
-                        <input type="number" id="modalProposedRate" name="proposedDailyRate" required class="w-28 text-right font-black text-sm bg-white border border-slate-300 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-[#FE5E04]/20 outline-none text-[#FE5E04]">
+                        <div>
+                            <h4 class="font-bold text-sm text-amber-950">Resume Strictly Required to Apply</h4>
+                            <p class="text-xs text-amber-800 mt-1 leading-relaxed">
+                                You cannot apply for this opportunity without an uploaded CV/Resume. Colleges and academic partners require an authenticated CV for faculty vetting.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+                        <a href="/trainer/profile.php#resume" class="w-full sm:w-auto bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs px-5 py-3 rounded-xl transition-all shadow-md shadow-orange-500/20 flex items-center justify-center gap-1.5">
+                            <span class="material-symbols-outlined text-[18px]">upload</span>
+                            <span>Upload Resume in Profile</span>
+                        </a>
+                        <button type="button" onclick="closeOppModal()" class="w-full sm:w-auto border border-slate-200 text-slate-700 font-bold text-xs px-5 py-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">
+                            Cancel
+                        </button>
                     </div>
                 </div>
+            <?php else: ?>
+                <!-- Application Form -->
+                <form action="/actions/apply.php" method="POST" class="space-y-4 pt-4 border-t border-slate-100">
+                    <input type="hidden" id="modalOppId" name="opportunityId" value="">
 
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Trainer Availability & Note to Academic Team (Optional)</label>
-                    <textarea name="message" rows="3" placeholder="Confirm availability dates, relevant batch experience, or custom notes..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-[#FE5E04]/20 outline-none"></textarea>
-                </div>
+                    <!-- Attached Resume Confirmation -->
+                    <div class="flex items-center gap-2.5 px-3.5 py-2.5 bg-emerald-50 border border-emerald-200/80 rounded-xl text-xs text-emerald-800 font-medium">
+                        <span class="material-symbols-outlined text-emerald-600 text-lg">check_circle</span>
+                        <span>Verified Resume <strong><?= htmlspecialchars($resumeName ?: 'CV/Resume') ?></strong> is active on file and will be attached automatically.</span>
+                    </div>
 
-                <div class="flex items-center gap-3 pt-2">
-                    <button type="button" onclick="closeOppModal()" class="flex-1 border border-slate-200 text-slate-700 font-bold text-xs py-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">
-                        Cancel
-                    </button>
-                    <button type="submit" class="flex-1 bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs py-3 rounded-xl transition-all shadow-md shadow-orange-500/20 cursor-pointer">
-                        Submit Application Now
-                    </button>
-                </div>
-            </form>
+                    <div class="bg-orange-50/50 border border-orange-200/60 p-4 rounded-2xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold text-slate-900 block">Your Proposed Daily Rate (₹)</span>
+                                <span class="text-[11px] text-slate-500">Mentry handles invoicing and guarantees timely disbursement.</span>
+                            </div>
+                            <input type="number" id="modalProposedRate" name="proposedDailyRate" required class="w-28 text-right font-black text-sm bg-white border border-slate-300 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-[#FE5E04]/20 outline-none text-[#FE5E04]">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Trainer Availability & Note to Academic Team (Optional)</label>
+                        <textarea name="message" rows="3" placeholder="Confirm availability dates, relevant batch experience, or custom notes..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-[#FE5E04]/20 outline-none"></textarea>
+                    </div>
+
+                    <div class="flex items-center gap-3 pt-2">
+                        <button type="button" onclick="closeOppModal()" class="flex-1 border border-slate-200 text-slate-700 font-bold text-xs py-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">
+                            Cancel
+                        </button>
+                        <button type="submit" class="flex-1 bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs py-3 rounded-xl transition-all shadow-md shadow-orange-500/20 cursor-pointer">
+                            Submit Application Now
+                        </button>
+                    </div>
+                </form>
+            <?php endif; ?>
         </div>
     </div>
 </div>

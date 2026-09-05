@@ -28,10 +28,15 @@ if (!$skills) $skills = explode(',', (string)$opp['skillsRequired']);
 $user = getCurrentUser();
 
 $existingApp = null;
+$hasResume = false;
+$resumeName = '';
+$trainer = null;
+
 if ($user) {
     $trainerCol = getCollection("Trainer");
     $appCol = getCollection("Application");
-    $trainer = null;
+    $docCol = getCollection("Document");
+
     if ($trainerCol) {
         try {
             $trainer = $trainerCol->findOne([
@@ -50,6 +55,36 @@ if ($user) {
             'opportunityId' => (string)$opp['_id']
         ]);
     }
+
+    if ($trainer) {
+        $hasResume = !empty($trainer['resumeUrl']);
+        if (!empty($trainer['resumeUrl'])) {
+            $resumeName = basename($trainer['resumeUrl']);
+        }
+        if (!$hasResume && $docCol) {
+            try {
+                $resumeDoc = $docCol->findOne([
+                    'type' => 'RESUME',
+                    '$or' => [
+                        ['trainerId' => (string)$trainer['_id']],
+                        ['trainerId' => new MongoDB\BSON\ObjectId((string)$trainer['_id'])],
+                        ['userId' => $user['id']],
+                        ['userId' => new MongoDB\BSON\ObjectId($user['id'])]
+                    ]
+                ]);
+                if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
+                    $hasResume = true;
+                    $resumeName = $resumeDoc['originalName'] ?? ($resumeDoc['title'] ?? 'Resume');
+                }
+            } catch (\Throwable $e) {
+                $resumeDoc = $docCol->findOne(['trainerId' => (string)$trainer['_id'], 'type' => 'RESUME']);
+                if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
+                    $hasResume = true;
+                    $resumeName = $resumeDoc['originalName'] ?? ($resumeDoc['title'] ?? 'Resume');
+                }
+            }
+        }
+    }
 }
 
 require_once __DIR__ . '/includes/header.php';
@@ -62,6 +97,19 @@ require_once __DIR__ . '/includes/header.php';
             <span class="material-symbols-outlined text-base">arrow_back</span>
             Back to Opportunities
         </a>
+
+        <?php if (isset($_GET['error']) && $_GET['error'] === 'resume_required'): ?>
+            <div class="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-xs font-bold text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-amber-600 text-xl">warning</span>
+                    <span>Resume Required: You must upload a verified resume/CV before applying for this training opportunity.</span>
+                </div>
+                <a href="/trainer/profile.php#resume" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white px-4 py-2 rounded-xl font-bold text-xs transition-colors shrink-0 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">upload_file</span>
+                    <span>Upload Resume Now</span>
+                </a>
+            </div>
+        <?php endif; ?>
 
         <!-- Main Spec Card -->
         <div class="bg-white rounded-3xl border border-slate-200/90 p-8 md:p-10 shadow-card space-y-8">
@@ -214,6 +262,25 @@ require_once __DIR__ . '/includes/header.php';
                     <a href="/register.php" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-3 px-6 rounded-xl transition-all shadow-md text-center">Join Network</a>
                 </div>
             </div>
+        <?php elseif (!$hasResume): ?>
+            <div class="text-center py-4 space-y-4">
+                <div class="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto">
+                    <span class="material-symbols-outlined text-3xl">upload_file</span>
+                </div>
+                <div>
+                    <h3 class="text-xl font-extrabold text-slate-900 mb-1">Resume Strictly Required to Apply</h3>
+                    <p class="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                        Colleges and academic institutions require an authenticated CV/Resume before evaluating applicants. You cannot apply for "<?= htmlspecialchars($opp['title']) ?>" without an active resume on file.
+                    </p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                    <a href="/trainer/profile.php#resume" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs py-3 px-6 rounded-xl transition-all shadow-md text-center flex items-center justify-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">upload</span>
+                        Upload Resume in Profile
+                    </a>
+                    <button type="button" onclick="document.getElementById('applyModal').classList.add('hidden')" class="border border-slate-200 text-slate-700 font-bold text-xs py-3 px-6 rounded-xl hover:bg-slate-50">Cancel</button>
+                </div>
+            </div>
         <?php else: ?>
             <form action="/actions/apply.php" method="POST" class="space-y-4">
                 <input type="hidden" name="opportunityId" value="<?= (string)$opp['_id'] ?>">
@@ -222,6 +289,12 @@ require_once __DIR__ . '/includes/header.php';
                     <span class="text-[10px] font-bold uppercase text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded">Application Intake</span>
                     <h3 class="text-lg font-extrabold text-slate-900 mt-1">Apply for <?= htmlspecialchars($opp['title']) ?></h3>
                     <p class="text-xs text-slate-500"><?= htmlspecialchars($opp['city']) ?> • <?= htmlspecialchars($opp['durationDays']) ?> Days</p>
+                </div>
+
+                <!-- Attached Resume Confirmation -->
+                <div class="flex items-center gap-2 px-3.5 py-2.5 bg-emerald-50 border border-emerald-200/80 rounded-xl text-xs text-emerald-800 font-medium">
+                    <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
+                    <span>Verified Resume <strong><?= htmlspecialchars($resumeName ?: 'CV/Resume') ?></strong> is active on file and will be attached automatically.</span>
                 </div>
 
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
@@ -237,7 +310,7 @@ require_once __DIR__ . '/includes/header.php';
 
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Message to Mentry Academic Team (Optional)</label>
-                    <textarea name="message" rows="3" placeholder="Confirm availability dates, past college batches handled, etc..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none"></textarea>
+                    <textarea name="message" rows="3" placeholder="Confirm availability dates, relevant batch experience, or custom notes..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none"></textarea>
                 </div>
 
                 <div class="flex items-center gap-3 pt-2">

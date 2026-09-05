@@ -202,7 +202,7 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
     </div>
 
     <!-- Trainer Resume & Document Management Card -->
-    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-5">
+    <div id="resume" class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-5 scroll-mt-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">

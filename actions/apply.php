@@ -27,6 +27,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $trainerId = $trainer ? (string)$trainer['_id'] : '';
 
     if (!empty($opportunityId) && !empty($trainerId)) {
+        // Enforce Strict Resume Requirement
+        $docCol = getCollection("Document");
+        $hasResume = !empty($trainer['resumeUrl']);
+        $resumeUrl = $trainer['resumeUrl'] ?? '';
+
+        if (!$hasResume && $docCol) {
+            try {
+                $resumeDoc = $docCol->findOne([
+                    'type' => 'RESUME',
+                    '$or' => [
+                        ['trainerId' => $trainerId],
+                        ['trainerId' => new MongoDB\BSON\ObjectId($trainerId)],
+                        ['userId' => $user['id']],
+                        ['userId' => new MongoDB\BSON\ObjectId($user['id'])]
+                    ]
+                ]);
+                if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
+                    $hasResume = true;
+                    $resumeUrl = $resumeDoc['fileUrl'];
+                }
+            } catch (\Throwable $e) {
+                $resumeDoc = $docCol->findOne(['trainerId' => $trainerId, 'type' => 'RESUME']);
+                if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
+                    $hasResume = true;
+                    $resumeUrl = $resumeDoc['fileUrl'];
+                }
+            }
+        }
+
+        if (!$hasResume) {
+            $_SESSION['apply_error'] = "A verified resume/CV is strictly required to apply for training opportunities. Please upload your resume in your profile.";
+            $referer = $_SERVER['HTTP_REFERER'] ?? '/trainer/opportunities.php';
+            if (strpos($referer, 'opportunity-details.php') !== false) {
+                header("Location: /opportunity-details.php?id=" . urlencode($opportunityId) . "&error=resume_required");
+            } else {
+                header("Location: /trainer/opportunities.php?error=resume_required");
+            }
+            exit();
+        }
+
         $appCol = getCollection("Application");
         if ($appCol) {
             $existing = $appCol->findOne(['trainerId' => $trainerId, 'opportunityId' => $opportunityId]);
@@ -35,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'trainerId' => $trainerId,
                     'opportunityId' => $opportunityId,
                     'proposedDailyRate' => $proposedDailyRate,
+                    'resumeUrl' => $resumeUrl,
                     'message' => $message,
                     'matchScore' => 95,
                     'status' => 'PENDING',
