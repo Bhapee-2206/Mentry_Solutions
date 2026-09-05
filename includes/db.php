@@ -1,14 +1,13 @@
 <?php
-// includes/db.php - Hybrid MongoDB Atlas & Resilient Persistent Document Database Connector
-
-if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
-    require_once __DIR__ . '/../vendor/autoload.php';
-}
+// includes/db.php - Supabase Cloud Database Connector & Document Engine
 
 if (file_exists(__DIR__ . '/mongo_polyfill.php')) {
     require_once __DIR__ . '/mongo_polyfill.php';
 }
 
+/**
+ * SafeCursor implements IteratorAggregate and Countable for smooth iteration across all query results.
+ */
 class SafeCursor implements IteratorAggregate, Countable {
     private $cursor;
     private $fallback;
@@ -55,6 +54,10 @@ class SafeCursor implements IteratorAggregate, Countable {
     }
 }
 
+/**
+ * Supabase-backed Document Store with high-performance memory cache,
+ * serverless /tmp overlay, and real-time Supabase Cloud synchronization.
+ */
 class PersistentDocumentStore {
     private string $name;
     private string $filePath;
@@ -78,7 +81,7 @@ class PersistentDocumentStore {
     private static array $fileMtimes = [];
     private static array $supabaseFetched = [];
 
-    private static function getSupabaseCredentials(): array {
+    public static function getSupabaseCredentials(): array {
         static $cached = null;
         if ($cached !== null) return $cached;
 
@@ -131,7 +134,7 @@ class PersistentDocumentStore {
             'Content-Type: application/json'
         ]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 4);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $res = curl_exec($ch);
@@ -181,9 +184,9 @@ class PersistentDocumentStore {
             }
         }
 
-        // 3. Sync from Supabase on serverless/read-only environment
+        // 3. Sync from Supabase on serverless/read-only environment or first load
         $isServerless = getenv('VERCEL') || getenv('AWS_LAMBDA_FUNCTION_NAME') || !is_writable(__DIR__ . '/../data/collections');
-        if ($isServerless && empty(self::$supabaseFetched[$this->name])) {
+        if (($isServerless || empty($docs)) && empty(self::$supabaseFetched[$this->name])) {
             self::$supabaseFetched[$this->name] = true;
             $cloudDocs = $this->fetchFromSupabase();
             if (!empty($cloudDocs)) {
@@ -270,6 +273,25 @@ class PersistentDocumentStore {
         } catch (\Throwable $e) {
             // Non-blocking fail-safe
         }
+    }
+
+    private function deleteFromSupabase(string $docId): void {
+        $supabase = self::getSupabaseCredentials();
+        if (empty($supabase['url']) || empty($supabase['key']) || empty($docId)) return;
+        try {
+            $ch = curl_init($supabase['url'] . '/rest/v1/mentry_documents?collection=eq.' . urlencode($this->name) . '&id=eq.' . urlencode($docId));
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'apikey: ' . $supabase['key'],
+                'Authorization: Bearer ' . $supabase['key']
+            ]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            @curl_exec($ch);
+            @curl_close($ch);
+        } catch (\Throwable $e) {}
     }
 
     private function matchesDoc(array $doc, array $filter): bool {
@@ -377,7 +399,6 @@ class PersistentDocumentStore {
     }
 
     private function wrapBsonTypes(array $doc): array {
-        // Hydrate timestamps and ids to ObjectId / UTCDateTime if needed
         if (isset($doc['_id']) && is_string($doc['_id']) && preg_match('/^[a-f0-9]{24}$/i', $doc['_id'])) {
             try {
                 $doc['_id'] = new MongoDB\BSON\ObjectId($doc['_id']);
@@ -584,8 +605,12 @@ class PersistentDocumentStore {
 
         foreach ($docs as $i => $doc) {
             if ($this->matchesDoc($doc, $filter)) {
+                $docId = (string)($doc['_id'] ?? ($doc['id'] ?? ''));
                 array_splice($docs, $i, 1);
                 $deleted = 1;
+                if (!empty($docId)) {
+                    $this->deleteFromSupabase($docId);
+                }
                 break;
             }
         }
@@ -608,7 +633,11 @@ class PersistentDocumentStore {
 
         foreach ($docs as $doc) {
             if ($this->matchesDoc($doc, $filter)) {
+                $docId = (string)($doc['_id'] ?? ($doc['id'] ?? ''));
                 $deleted++;
+                if (!empty($docId)) {
+                    $this->deleteFromSupabase($docId);
+                }
             } else {
                 $remaining[] = $doc;
             }
@@ -625,182 +654,143 @@ class PersistentDocumentStore {
         };
     }
 
-    public function distinct(string $field, array $filter = []): array {
-        $cursor = $this->find($filter);
-        $values = [];
-        foreach ($cursor as $doc) {
-            if (isset($doc[$field])) {
-                $val = $doc[$field];
-                if (!in_array($val, $values, true)) {
-                    $values[] = $val;
+    public function aggregate(array $pipeline): SafeCursor {
+        $docs = $this->readDocuments();
+        $result = $docs;
+
+        foreach ($pipeline as $stage) {
+            if (isset($stage['$match'])) {
+                $filtered = [];
+                foreach ($result as $doc) {
+                    if ($this->matchesDoc($doc, $stage['$match'])) {
+                        $filtered[] = $doc;
+                    }
                 }
+                $result = $filtered;
+            } elseif (isset($stage['$group'])) {
+                $groups = [];
+                $groupIdField = $stage['$group']['_id'] ?? null;
+                $accumulators = $stage['$group'];
+                unset($accumulators['_id']);
+
+                foreach ($result as $doc) {
+                    $groupVal = 'null';
+                    if (is_string($groupIdField) && strpos($groupIdField, '$') === 0) {
+                        $fKey = substr($groupIdField, 1);
+                        $groupVal = (string)($doc[$fKey] ?? 'null');
+                    }
+                    if (!isset($groups[$groupVal])) {
+                        $groups[$groupVal] = ['_id' => $groupVal];
+                        foreach ($accumulators as $accKey => $accExpr) {
+                            $groups[$groupVal][$accKey] = 0;
+                        }
+                    }
+                    foreach ($accumulators as $accKey => $accExpr) {
+                        if (isset($accExpr['$sum'])) {
+                            $inc = is_numeric($accExpr['$sum']) ? (float)$accExpr['$sum'] : 1;
+                            $groups[$groupVal][$accKey] += $inc;
+                        } elseif (isset($accExpr['$avg']) && is_string($accExpr['$avg']) && strpos($accExpr['$avg'], '$') === 0) {
+                            $fName = substr($accExpr['$avg'], 1);
+                            $groups[$groupVal]['_avg_vals'][$accKey][] = (float)($doc[$fName] ?? 0);
+                        }
+                    }
+                }
+
+                foreach ($groups as &$g) {
+                    if (isset($g['_avg_vals'])) {
+                        foreach ($g['_avg_vals'] as $accKey => $vals) {
+                            $g[$accKey] = count($vals) > 0 ? (array_sum($vals) / count($vals)) : 0;
+                        }
+                        unset($g['_avg_vals']);
+                    }
+                }
+                $result = array_values($groups);
+            } elseif (isset($stage['$sort'])) {
+                foreach ($stage['$sort'] as $sortKey => $sortDir) {
+                    usort($result, function($a, $b) use ($sortKey, $sortDir) {
+                        $va = $a[$sortKey] ?? 0;
+                        $vb = $b[$sortKey] ?? 0;
+                        return $sortDir < 0 ? ($vb <=> $va) : ($va <=> $vb);
+                    });
+                    break;
+                }
+            } elseif (isset($stage['$limit'])) {
+                $result = array_slice($result, 0, (int)$stage['$limit']);
             }
         }
-        return $values;
+
+        return new SafeCursor($result, $result);
+    }
+
+    public function distinct(string $field, array $filter = []): array {
+        $docs = $this->readDocuments();
+        $values = [];
+        foreach ($docs as $doc) {
+            if ($this->matchesDoc($doc, $filter) && isset($doc[$field])) {
+                $val = $doc[$field];
+                $strVal = is_array($val) ? json_encode($val) : (string)$val;
+                $values[$strVal] = $val;
+            }
+        }
+        return array_values($values);
     }
 }
 
+/**
+ * Universal Database Collection Proxy - Completely powered by Supabase.
+ */
 class SafeCollectionProxy {
-    private $collection;
     private string $name;
-    private ?PersistentDocumentStore $store = null;
+    private PersistentDocumentStore $store;
 
-    public function __construct($collection, string $name = '') {
-        $this->collection = $collection;
+    public function __construct($unused = null, string $name = '') {
         $this->name = $name;
         $this->store = new PersistentDocumentStore($name);
     }
 
     public function __call($method, $arguments) {
-        $writeMethods = ['insertOne', 'updateOne', 'updateMany', 'deleteOne', 'deleteMany'];
-        $isWrite = in_array($method, $writeMethods, true);
-
-        // Try live MongoDB collection if present
-        if ($this->collection) {
-            try {
-                $result = call_user_func_array([$this->collection, $method], $arguments);
-                if ($isWrite && $this->store && method_exists($this->store, $method)) {
-                    try { call_user_func_array([$this->store, $method], $arguments); } catch (\Throwable $ignored) {}
-                }
-                if ($method === 'find' || $method === 'aggregate') {
-                    return new SafeCursor($result);
-                }
-                return $result;
-            } catch (\Throwable $e) {
-                // Live MongoDB command failed; seamlessly fallback to persistent document store
-            }
-        }
-
-        // Delegate to PersistentDocumentStore
-        if ($this->store && method_exists($this->store, $method)) {
+        if (method_exists($this->store, $method)) {
             return call_user_func_array([$this->store, $method], $arguments);
         }
-
         return null;
     }
 }
 
+/**
+ * Native Supabase Database Provider.
+ */
 class Database {
-    private static $instance = null;
-    private $client = null;
-    private $db = null;
+    private static ?self $instance = null;
 
-    private function __construct() {
-        $defaultAtlas = "mongodb+srv://bhapeestudios_db_user:ReeNEGfL3XpId9BZ@cluster0.mmb2glu.mongodb.net/mentry?retryWrites=true&w=majority";
-        $uri = getenv('DATABASE_URL') ?: getenv('MONGODB_URI') ?: "";
-        $dbName = getenv('MONGODB_DATABASE') ?: getenv('DATABASE_NAME') ?: "mentry";
+    private function __construct() {}
 
-        $envPath = __DIR__ . '/../.env';
-        if (file_exists($envPath)) {
-            $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            if ($lines !== false) {
-                foreach ($lines as $line) {
-                    $line = trim($line);
-                    if (empty($line) || $line[0] === '#') continue;
-                    if (strpos($line, '=') !== false) {
-                        list($k, $v) = explode('=', $line, 2);
-                        $k = trim($k);
-                        $v = trim(trim($v), '"\'');
-                        if ($k === 'DATABASE_URL' && !empty($v)) {
-                            $uri = $v;
-                        } elseif ($k === 'MONGODB_URI' && empty($uri)) {
-                            $uri = $v;
-                        } elseif (($k === 'MONGODB_DATABASE' || $k === 'DATABASE_NAME') && !empty($v)) {
-                            $dbName = $v;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (empty($uri)) {
-            $uri = $defaultAtlas;
-        }
-
-        // Dynamically parse database name from URI path if present (e.g. /mentry?...)
-        if (preg_match('#cluster0[^\/]*\/([a-zA-Z0-9_\-]+)(\?|$)#', $uri, $m)) {
-            $dbName = $m[1];
-        } elseif (preg_match('#\/([a-zA-Z0-9_\-]+)(\?|$)#', parse_url($uri, PHP_URL_PATH) ?? '', $m)) {
-            if ($m[1] !== 'admin') {
-                $dbName = $m[1];
-            }
-        }
-
-        // Check circuit breaker or local mode configuration for instant loading
-        $statusFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mentry_atlas_status.json';
-        $skipRemote = false;
-        if (
-            getenv('DB_DRIVER') === 'local' ||
-            getenv('FORCE_LOCAL_DB') === '1' ||
-            (isset($env['DB_DRIVER']) && $env['DB_DRIVER'] === 'local') ||
-            (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1']) && (empty(getenv('FORCE_REMOTE_ATLAS')) && empty($env['FORCE_REMOTE_ATLAS'])))
-        ) {
-            $skipRemote = true;
-        } elseif (file_exists($statusFile)) {
-            $status = @json_decode(@file_get_contents($statusFile), true);
-            if (is_array($status) && isset($status['fail_until']) && time() < $status['fail_until']) {
-                $skipRemote = true;
-            }
-        }
-
-        if (!$skipRemote && class_exists('MongoDB\Client') && !empty($uri)) {
-            try {
-                $uriOptions = [
-                    'serverSelectionTimeoutMS' => 2500,
-                    'tls' => true,
-                    'tlsAllowInvalidCertificates' => true
-                ];
-                $driverOpts = [];
-                $caFile = __DIR__ . '/cacert.pem';
-                if (file_exists($caFile)) {
-                    $uriOptions['tlsCAFile'] = realpath($caFile);
-                    $driverOpts['ca_file'] = realpath($caFile);
-                }
-                $client = new MongoDB\Client($uri, $uriOptions, $driverOpts);
-                $cmd = new MongoDB\Driver\Command(['ping' => 1]);
-                $client->getManager()->executeCommand($dbName, $cmd);
-                $this->client = $client;
-                $this->db = $this->client->selectDatabase($dbName);
-                if (file_exists($statusFile)) {
-                    @unlink($statusFile);
-                }
-            } catch (\Throwable $e) {
-                // Trip circuit breaker for 15 seconds so future page requests load instantly without blocking
-                @file_put_contents($statusFile, json_encode(['fail_until' => time() + 15, 'error' => $e->getMessage()]));
-                $this->client = null;
-                $this->db = null;
-            }
-        }
-    }
-
-    public static function getInstance() {
+    public static function getInstance(): self {
         if (self::$instance === null) {
-            self::$instance = new Database();
+            self::$instance = new self();
         }
         return self::$instance;
     }
 
-    public function getDb() {
-        return $this->db;
+    public function getDb(): self {
+        return $this;
     }
 
-    public function getCollection($collectionName) {
-        if ($this->db === null) {
-            return new SafeCollectionProxy(null, $collectionName);
-        }
-        try {
-            $col = $this->db->selectCollection($collectionName);
-            return new SafeCollectionProxy($col, $collectionName);
-        } catch (\Throwable $e) {
-            return new SafeCollectionProxy(null, $collectionName);
-        }
+    public function selectCollection(string $collectionName): SafeCollectionProxy {
+        return new SafeCollectionProxy(null, $collectionName);
+    }
+
+    public function getCollection(string $collectionName): SafeCollectionProxy {
+        return new SafeCollectionProxy(null, $collectionName);
     }
 }
 
-function getDB() {
-    return Database::getInstance()->getDb();
+/**
+ * Global Database Accessors
+ */
+function getDB(): Database {
+    return Database::getInstance();
 }
 
-function getCollection($name) {
+function getCollection(string $name): SafeCollectionProxy {
     return Database::getInstance()->getCollection($name);
 }

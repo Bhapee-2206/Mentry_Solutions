@@ -1,5 +1,5 @@
 {
-    "require": {
-        "mongodb/mongodb": "^2.4"
-    }
+    "name": "mentry/solution",
+    "description": "Mentry Solutions Enterprise Technical Training Platform",
+    "require": {}
 }
