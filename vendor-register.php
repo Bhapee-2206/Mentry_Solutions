@@ -74,6 +74,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             $success = true;
+
+            // Dispatch real-time Admin Notification
+            require_once __DIR__ . '/includes/notifications.php';
+            notifyAdmin(
+                'NEW_VENDOR',
+                "New Partner Registered: {$organizationName}",
+                "{$organizationName} registered as {$organizationType} partner ({$vendorCode}). Contact: {$contactPerson} (Mobile: {$phone}, Email: {$email}) in {$city}, {$state}.",
+                "/admin/vendor-requests.php",
+                [
+                    'vendorCode' => $vendorCode,
+                    'organizationName' => $organizationName,
+                    'organizationType' => $organizationType,
+                    'contactPerson' => $contactPerson,
+                    'phone' => $phone,
+                    'email' => $email
+                ]
+            );
         }
     }
 }

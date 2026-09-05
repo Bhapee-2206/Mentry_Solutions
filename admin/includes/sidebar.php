@@ -7,6 +7,21 @@ $adminUser = getCurrentUser();
 $currentPage = basename($_SERVER['PHP_SELF']);
 $isStaffUser = isStaff();
 
+// Unread Admin Notifications Counter
+$unreadAdminNotifCount = 0;
+try {
+    $notifCol = getCollection("Notification");
+    if ($notifCol) {
+        $unreadAdminNotifCount = $notifCol->countDocuments([
+            '$or' => [
+                ['isAdminAlert' => true, 'read' => false],
+                ['recipientRole' => 'ADMIN', 'read' => false],
+                ['userId' => $adminUser['id'] ?? '', 'read' => false]
+            ]
+        ]);
+    }
+} catch (\Throwable $e) {}
+
 $navItems = [
     ['label' => 'Dashboard', 'href' => '/admin/index.php', 'icon' => 'space_dashboard'],
     ['label' => 'Zervy AI Assistant', 'href' => '/admin/ai-assistant.php', 'icon' => 'smart_toy'],
@@ -101,6 +116,11 @@ $navItems = [
                     <?= $item['icon'] ?>
                 </span>
                 <span class="flex-1 truncate"><?= $item['label'] ?></span>
+                <?php if ($item['href'] === '/admin/notifications.php' && $unreadAdminNotifCount > 0): ?>
+                    <span class="bg-[#FE5E04] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1.5 shrink-0">
+                        <?= $unreadAdminNotifCount > 99 ? '99+' : $unreadAdminNotifCount ?>
+                    </span>
+                <?php endif; ?>
             </a>
         <?php endforeach; ?>
     </div>
@@ -189,6 +209,11 @@ $navItems = [
                     <?= $item['icon'] ?>
                 </span>
                 <span class="flex-1 truncate"><?= $item['label'] ?></span>
+                <?php if ($item['href'] === '/admin/notifications.php' && $unreadAdminNotifCount > 0): ?>
+                    <span class="bg-[#FE5E04] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1.5 shrink-0">
+                        <?= $unreadAdminNotifCount > 99 ? '99+' : $unreadAdminNotifCount ?>
+                    </span>
+                <?php endif; ?>
             </a>
         <?php endforeach; ?>
     </div>
@@ -237,6 +262,16 @@ $navItems = [
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+            <!-- Admin Real-Time Notification Bell -->
+            <a href="/admin/notifications.php" class="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors flex items-center justify-center cursor-pointer" title="Notification Logs & Alerts">
+                <span class="material-symbols-outlined text-[22px]">notifications</span>
+                <?php if ($unreadAdminNotifCount > 0): ?>
+                    <span class="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-[#FE5E04] text-white font-black text-[10px] rounded-full flex items-center justify-center shadow-xs animate-pulse leading-none">
+                        <?= $unreadAdminNotifCount > 99 ? '99+' : $unreadAdminNotifCount ?>
+                    </span>
+                <?php endif; ?>
+            </a>
+
             <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-700" title="Live Database Connection Active">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>Database: <strong class="text-emerald-700 font-bold">Connected</strong></span>

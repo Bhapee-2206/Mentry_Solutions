@@ -21,6 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'status' => 'NEW',
                 'createdAt' => new MongoDB\BSON\UTCDateTime()
             ]);
+
+            // Dispatch real-time Admin Notification
+            require_once __DIR__ . '/includes/notifications.php';
+            notifyAdmin(
+                'INQUIRY',
+                "New Contact Inquiry: {$name}",
+                "{$name} ({$email}) sent message: " . (strlen($message) > 100 ? substr($message, 0, 100) . '...' : $message),
+                "/admin/notifications.php"
+            );
         }
         $sent = true;
     } else {

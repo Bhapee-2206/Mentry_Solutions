@@ -94,6 +94,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $trainerId = (string)$trainerInsert->getInsertedId();
 
+            // Dispatch real-time Admin Notification
+            require_once __DIR__ . '/includes/notifications.php';
+            notifyAdmin(
+                'NEW_TRAINER',
+                "New Trainer Registered: {$name}",
+                "{$name} ({$trainerCode}) registered as a trainer specializing in {$primaryDomain} from {$currentCity} (Mobile: {$phone}).",
+                "/admin/trainer-view.php?id=" . $trainerId,
+                [
+                    'trainerId' => $trainerId,
+                    'trainerCode' => $trainerCode,
+                    'userId' => $userId,
+                    'domain' => $primaryDomain,
+                    'city' => $currentCity,
+                    'phone' => $phone
+                ]
+            );
+
             // Auto-login into session immediately
             $_SESSION['user'] = [
                 'id' => $userId,

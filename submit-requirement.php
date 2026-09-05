@@ -60,6 +60,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'updatedAt' => new MongoDB\BSON\UTCDateTime()
             ]);
             $submitted = true;
+
+            // Dispatch real-time Admin Notification
+            require_once __DIR__ . '/includes/notifications.php';
+            $dateText = !empty($tentativeStartDate) ? " Target start: {$tentativeStartDate}." : "";
+            notifyAdmin(
+                'NEW_REQUIREMENT',
+                "New College Requirement: {$institutionName}",
+                "{$institutionName} ({$city}, {$state}) submitted a training requirement for {$trainingDomain} ({$durationDays} days, Mode: {$mode}).{$dateText} Contact: {$contactPerson} ({$phone}, {$email}).",
+                "/admin/requirements.php",
+                [
+                    'requestCode' => $requestCode,
+                    'institutionName' => $institutionName,
+                    'domain' => $trainingDomain,
+                    'city' => $city,
+                    'contactPerson' => $contactPerson,
+                    'phone' => $phone
+                ]
+            );
         } else {
             $error = "Database connection error. Please try again or email mentry.training@gmail.com directly.";
         }

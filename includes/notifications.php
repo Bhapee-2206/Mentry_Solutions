@@ -79,3 +79,38 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
         'trainers' => $notifiedNames
     ];
 }
+
+/**
+ * Dispatch an administrative / operational notification to all admins and staff
+ * 
+ * @param string $type e.g. 'NEW_APPLICATION', 'NEW_TRAINER', 'NEW_REQUIREMENT', 'NEW_VENDOR', 'NEW_DEMAND', 'INQUIRY'
+ * @param string $title Short descriptive title
+ * @param string $message Detailed description/context
+ * @param string $link Destination URL in admin panel
+ * @param array $metadata Additional context array
+ * @return bool
+ */
+function notifyAdmin($type, $title, $message, $link = '', $metadata = []) {
+    try {
+        $notifCol = getCollection("Notification");
+        if (!$notifCol) return false;
+
+        $notifDoc = [
+            'recipientRole' => 'ADMIN',
+            'isAdminAlert' => true,
+            'type' => $type,
+            'title' => $title,
+            'message' => $message,
+            'link' => $link,
+            'metadata' => $metadata,
+            'read' => false,
+            'createdAt' => new MongoDB\BSON\UTCDateTime()
+        ];
+
+        $notifCol->insertOne($notifDoc);
+        return true;
+    } catch (\Throwable $e) {
+        error_log("Failed to dispatch admin notification: " . $e->getMessage());
+        return false;
+    }
+}

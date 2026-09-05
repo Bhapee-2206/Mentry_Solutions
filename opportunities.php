@@ -146,18 +146,15 @@ require_once __DIR__ . '/includes/header.php';
                     <input type="hidden" name="type" value="<?= htmlspecialchars($selectedType) ?>">
 
                     <div class="relative flex items-center">
-                        <span class="material-symbols-outlined absolute left-4 text-slate-400 text-xl pointer-events-none">
-                            search
-                        </span>
-                        <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search by technology (e.g. Python, Java, AWS, VLSI) or city..." class="w-full pl-12 pr-28 py-3.5 rounded-2xl border border-slate-200/90 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-xs sm:text-sm shadow-card">
+                        <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search by technology (e.g. Python, Java, AWS, VLSI) or city..." class="w-full pl-5 pr-24 py-3.5 rounded-2xl border border-slate-200/90 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-xs sm:text-sm shadow-card">
                         <div class="absolute right-2 flex items-center gap-1.5">
                             <?php if (!empty($search)): ?>
                                 <a href="/opportunities.php?mode=<?= urlencode($selectedMode) ?>&domain=<?= urlencode($selectedDomain) ?>&location=<?= urlencode($selectedLocation) ?>&type=<?= urlencode($selectedType) ?>" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition-colors" title="Clear search text">
                                     <span class="material-symbols-outlined text-[18px]">close</span>
                                 </a>
                             <?php endif; ?>
-                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer">
-                                <span>Search</span>
+                            <button type="submit" aria-label="Search" class="w-9 h-9 sm:w-10 sm:h-10 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl transition-all shadow-xs flex items-center justify-center cursor-pointer shrink-0" title="Search">
+                                <span class="material-symbols-outlined text-[20px] leading-none">search</span>
                             </button>
                         </div>
                     </div>

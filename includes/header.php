@@ -15,10 +15,20 @@ if ($currentUser) {
     try {
         $notifCol = getCollection("Notification");
         if ($notifCol) {
-            $unreadNotifs = $notifCol->countDocuments([
-                'userId' => $currentUser['id'],
-                'read' => false
-            ]);
+            if (in_array($currentUser['role'] ?? '', ['ADMIN', 'STAFF'])) {
+                $unreadNotifs = $notifCol->countDocuments([
+                    '$or' => [
+                        ['isAdminAlert' => true, 'read' => false],
+                        ['recipientRole' => 'ADMIN', 'read' => false],
+                        ['userId' => $currentUser['id'] ?? '', 'read' => false]
+                    ]
+                ]);
+            } else {
+                $unreadNotifs = $notifCol->countDocuments([
+                    'userId' => $currentUser['id'],
+                    'read' => false
+                ]);
+            }
         }
     } catch (Exception $e) {}
 }
