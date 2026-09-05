@@ -16,32 +16,46 @@ $trainerId = $trainer ? (string)$trainer['_id'] : '';
 // Enforce Resume Requirement Verification
 $docCol = getCollection("Document");
 $hasResume = !empty($trainer['resumeUrl']);
+$resumeDoc = null;
 $resumeName = '';
-if (!empty($trainer['resumeUrl'])) {
-    $resumeName = basename($trainer['resumeUrl']);
-}
-if (!$hasResume && $docCol && $trainerId) {
+
+if ($docCol && (!empty($trainerId) || !empty($user['id']))) {
     try {
+        $orConditions = [];
+        if (!empty($trainerId)) {
+            $orConditions[] = ['trainerId' => (string)$trainerId];
+            if (preg_match('/^[a-f\d]{24}$/i', (string)$trainerId)) {
+                $orConditions[] = ['trainerId' => new MongoDB\BSON\ObjectId((string)$trainerId)];
+            }
+        }
+        if (!empty($user['id'])) {
+            $orConditions[] = ['userId' => (string)$user['id']];
+            if (preg_match('/^[a-f\d]{24}$/i', (string)$user['id'])) {
+                $orConditions[] = ['userId' => new MongoDB\BSON\ObjectId((string)$user['id'])];
+            }
+        }
+        if (!empty($trainer['resumeUrl'])) {
+            $orConditions[] = ['fileUrl' => $trainer['resumeUrl']];
+        }
+
         $resumeDoc = $docCol->findOne([
             'type' => 'RESUME',
-            '$or' => [
-                ['trainerId' => $trainerId],
-                ['trainerId' => new MongoDB\BSON\ObjectId($trainerId)],
-                ['userId' => $user['id']],
-                ['userId' => new MongoDB\BSON\ObjectId($user['id'])]
-            ]
-        ]);
-        if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
-            $hasResume = true;
-            $resumeName = $resumeDoc['originalName'] ?? ($resumeDoc['title'] ?? 'Resume');
-        }
+            '$or' => $orConditions
+        ], ['sort' => ['uploadedAt' => -1]]);
     } catch (\Throwable $e) {
-        $resumeDoc = $docCol->findOne(['trainerId' => $trainerId, 'type' => 'RESUME']);
-        if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
-            $hasResume = true;
-            $resumeName = $resumeDoc['originalName'] ?? ($resumeDoc['title'] ?? 'Resume');
+        if (!empty($trainerId)) {
+            $resumeDoc = $docCol->findOne(['trainerId' => (string)$trainerId, 'type' => 'RESUME']);
         }
     }
+}
+
+if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
+    $hasResume = true;
+}
+
+if ($hasResume || $resumeDoc) {
+    $cleanTrainerName = trim($trainer['name'] ?? ($user['name'] ?? 'Trainer'));
+    $resumeName = getDocumentDisplayName($resumeDoc, $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? ''), $cleanTrainerName);
 }
 
 $applyError = $_SESSION['apply_error'] ?? (isset($_GET['error']) && $_GET['error'] === 'resume_required' ? 'A verified resume/CV is strictly required to apply for training opportunities. Please upload your updated resume before submitting an application.' : null);

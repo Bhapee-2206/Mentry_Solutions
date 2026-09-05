@@ -78,5 +78,20 @@
         "_id": "6a9ba76cf1624b69330f5693",
         "adminNotes": "",
         "reviewedAt": "1788585861633"
+    },
+    {
+        "trainerId": "6a9ba701f1624b69330f5692",
+        "opportunityId": "6a99b57bf1624b69330f55ff",
+        "proposedDailyRate": 7000,
+        "resumeUrl": "https://bmqzwrkhxyptdhqwvhob.supabase.co/storage/v1/object/public/documents/documents/doc_6a9ba701f1624b69330f5692_1788595308_960.pdf",
+        "message": "",
+        "matchScore": 95,
+        "status": "ACCEPTED",
+        "appliedAt": "1788595351208",
+        "createdAt": "1788595351208",
+        "updatedAt": "1788595491953",
+        "_id": "6a9bcc97f1624b69330f5696",
+        "adminNotes": "",
+        "reviewedAt": "1788595491953"
     }
 ]

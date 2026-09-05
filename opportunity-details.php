@@ -58,31 +58,41 @@ if ($user) {
 
     if ($trainer) {
         $hasResume = !empty($trainer['resumeUrl']);
-        if (!empty($trainer['resumeUrl'])) {
-            $resumeName = basename($trainer['resumeUrl']);
-        }
-        if (!$hasResume && $docCol) {
+        $resumeDoc = null;
+        $resumeName = '';
+        if ($docCol) {
             try {
+                $trainerIdStr = (string)$trainer['_id'];
+                $orConditions = [
+                    ['trainerId' => $trainerIdStr],
+                    ['userId' => (string)$user['id']]
+                ];
+                if (preg_match('/^[a-f\d]{24}$/i', $trainerIdStr)) {
+                    $orConditions[] = ['trainerId' => new MongoDB\BSON\ObjectId($trainerIdStr)];
+                }
+                if (preg_match('/^[a-f\d]{24}$/i', (string)$user['id'])) {
+                    $orConditions[] = ['userId' => new MongoDB\BSON\ObjectId((string)$user['id'])];
+                }
+                if (!empty($trainer['resumeUrl'])) {
+                    $orConditions[] = ['fileUrl' => $trainer['resumeUrl']];
+                }
+
                 $resumeDoc = $docCol->findOne([
                     'type' => 'RESUME',
-                    '$or' => [
-                        ['trainerId' => (string)$trainer['_id']],
-                        ['trainerId' => new MongoDB\BSON\ObjectId((string)$trainer['_id'])],
-                        ['userId' => $user['id']],
-                        ['userId' => new MongoDB\BSON\ObjectId($user['id'])]
-                    ]
-                ]);
-                if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
-                    $hasResume = true;
-                    $resumeName = $resumeDoc['originalName'] ?? ($resumeDoc['title'] ?? 'Resume');
-                }
+                    '$or' => $orConditions
+                ], ['sort' => ['uploadedAt' => -1]]);
             } catch (\Throwable $e) {
                 $resumeDoc = $docCol->findOne(['trainerId' => (string)$trainer['_id'], 'type' => 'RESUME']);
-                if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
-                    $hasResume = true;
-                    $resumeName = $resumeDoc['originalName'] ?? ($resumeDoc['title'] ?? 'Resume');
-                }
             }
+        }
+
+        if ($resumeDoc && !empty($resumeDoc['fileUrl'])) {
+            $hasResume = true;
+        }
+
+        if ($hasResume || $resumeDoc) {
+            $cleanTrainerName = trim($trainer['name'] ?? ($user['name'] ?? 'Trainer'));
+            $resumeName = getDocumentDisplayName($resumeDoc, $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? ''), $cleanTrainerName);
         }
     }
 }

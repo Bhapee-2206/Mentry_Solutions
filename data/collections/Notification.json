@@ -110,5 +110,24 @@
         "createdAt": "1788499922821",
         "_id": "6a9a57d2f1624b69330f562c",
         "updatedAt": "1788499922821"
+    },
+    {
+        "recipientRole": "ADMIN",
+        "isAdminAlert": true,
+        "type": "NEW_APPLICATION",
+        "title": "New Application: Benjamin Ramesh",
+        "message": "Benjamin Ramesh (MEN-TRN-1559) applied for 'React 18 & Next.js 14 Full Stack Development' (Programming) with proposed rate of ₹7,000/day.",
+        "link": "/admin/opportunity-view.php?id=6a99b57bf1624b69330f55ff",
+        "metadata": {
+            "trainerId": "6a9ba701f1624b69330f5692",
+            "trainerCode": "MEN-TRN-1559",
+            "opportunityId": "6a99b57bf1624b69330f55ff",
+            "proposedDailyRate": 7000
+        },
+        "read": true,
+        "createdAt": "1788595351603",
+        "_id": "6a9bcc97f1624b69330f5697",
+        "updatedAt": "1788595472352",
+        "readAt": "1788595472352"
     }
 ]

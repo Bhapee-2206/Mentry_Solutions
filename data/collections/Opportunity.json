@@ -253,10 +253,11 @@
             "Server Components"
         ],
         "description": "Modern frontend web development bootcamp emphasizing App Router, Server Actions, state management, and real-time app deployment.",
-        "status": "PUBLISHED",
+        "status": "MATCHED",
         "createdAt": "1788458363032",
-        "updatedAt": "1788458363032",
-        "_id": "6a99b57bf1624b69330f55ff"
+        "updatedAt": "1788595492678",
+        "_id": "6a99b57bf1624b69330f55ff",
+        "assignedTrainerId": "6a9ba701f1624b69330f5692"
     },
     {
         "jobId": "MEN-OPP-1010",

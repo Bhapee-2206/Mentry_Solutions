@@ -46,5 +46,21 @@
         "createdAt": "1788585862126",
         "updatedAt": "1788585862126",
         "_id": "6a9ba786f1624b69330f5694"
+    },
+    {
+        "opportunityId": "6a99b57bf1624b69330f55ff",
+        "trainerId": "6a9ba701f1624b69330f5692",
+        "applicationId": "6a9bcc97f1624b69330f5696",
+        "status": "SCHEDULED",
+        "agreedDailyRate": 7000,
+        "agreedTotalFee": 56000,
+        "startDate": "2026-09-14",
+        "durationDays": 8,
+        "location": "Kochi, Kerala",
+        "accommodationDetails": "Campus Guest House Reserved with standard amenities",
+        "travelDetails": "Travel itinerary to be shared prior to batch start date",
+        "createdAt": "1788595492321",
+        "updatedAt": "1788595492321",
+        "_id": "6a9bcd24f1624b69330f5698"
     }
 ]

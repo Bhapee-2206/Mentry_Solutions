@@ -117,10 +117,26 @@ unset($_SESSION['avatar_success'], $_SESSION['avatar_error'], $_SESSION['resume_
 // Fetch latest resume document
 $docCol = getCollection("Document");
 $resumeDoc = null;
-if (!empty($trainer['_id'])) {
+if (!empty($trainer['_id']) || !empty($user['id']) || !empty($trainer['resumeUrl'])) {
+    $orConditions = [];
+    if (!empty($trainer['_id'])) {
+        $orConditions[] = ['trainerId' => (string)$trainer['_id']];
+        if (preg_match('/^[a-f\d]{24}$/i', (string)$trainer['_id'])) {
+            $orConditions[] = ['trainerId' => new MongoDB\BSON\ObjectId((string)$trainer['_id'])];
+        }
+    }
+    if (!empty($user['id'])) {
+        $orConditions[] = ['userId' => (string)$user['id']];
+        if (preg_match('/^[a-f\d]{24}$/i', (string)$user['id'])) {
+            $orConditions[] = ['userId' => new MongoDB\BSON\ObjectId((string)$user['id'])];
+        }
+    }
+    if (!empty($trainer['resumeUrl'])) {
+        $orConditions[] = ['fileUrl' => $trainer['resumeUrl']];
+    }
     $resumeDoc = $docCol ? $docCol->findOne([
-        'trainerId' => (string)$trainer['_id'],
-        'type' => 'RESUME'
+        'type' => 'RESUME',
+        '$or' => $orConditions
     ], ['sort' => ['uploadedAt' => -1]]) : null;
 }
 $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
@@ -244,7 +260,7 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
                 <div class="flex items-center gap-3">
                     <span class="material-symbols-outlined text-rose-500 text-3xl">picture_as_pdf</span>
                     <div>
-                        <p class="font-bold text-xs text-slate-900"><?= htmlspecialchars($resumeDoc['originalName'] ?? basename($resumeUrl)) ?></p>
+                        <p class="font-bold text-xs text-slate-900"><?= htmlspecialchars(getDocumentDisplayName($resumeDoc, $resumeUrl, $user['name'] ?? 'Trainer')) ?></p>
                         <p class="text-[11px] text-slate-500 mt-0.5">
                             Uploaded <?= formatDate($resumeDoc['uploadedAt'] ?? null) ?> • 
                             <span class="text-emerald-700 font-bold">Active in College Dossier</span>

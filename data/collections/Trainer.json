@@ -328,7 +328,7 @@
         "mentryId": "MEN-TRN-1559",
         "name": "Benjamin Ramesh",
         "email": "testing@gmail.com",
-        "phone": "+9190808072",
+        "phone": "9190808072",
         "status": "APPROVED",
         "availabilityStatus": "BUSY_ON_ASSIGNMENT",
         "professionalTitle": "Programming Technical Trainer",
@@ -343,10 +343,14 @@
         "profileCompletion": 50,
         "joinedAt": "1788585729800",
         "createdAt": "1788585729800",
-        "updatedAt": "1788585862974",
+        "updatedAt": "1788595493039",
         "_id": "6a9ba701f1624b69330f5692",
-        "availabilityNotes": "Delivering: Python DSA",
-        "availableFromDate": "1789250400000",
-        "availabilityUpdatedAt": "1788585862962"
+        "availabilityNotes": "Delivering: React 18 & Next.js 14 Full Stack Development",
+        "availableFromDate": "1789286693000",
+        "availabilityUpdatedAt": "1788595493036",
+        "extractedSkills": [],
+        "extractedSkillsCount": 0,
+        "resumeParsedAt": "1788595308980",
+        "resumeUrl": "https://bmqzwrkhxyptdhqwvhob.supabase.co/storage/v1/object/public/documents/documents/doc_6a9ba701f1624b69330f5692_1788595308_960.pdf"
     }
 ]

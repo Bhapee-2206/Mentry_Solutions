@@ -196,5 +196,20 @@
         "_id": "6a9ac16ff1624b69330f5687",
         "createdAt": "1788526959391",
         "updatedAt": "1788526959391"
+    },
+    {
+        "trainerId": "6a9ba701f1624b69330f5692",
+        "title": "Technical Trainer Resume - Benjamin Ramesh",
+        "type": "RESUME",
+        "fileUrl": "https://bmqzwrkhxyptdhqwvhob.supabase.co/storage/v1/object/public/documents/documents/doc_6a9ba701f1624b69330f5692_1788595308_960.pdf",
+        "originalName": "ResumeDINESHU.pdf",
+        "fileSize": 559634,
+        "mimeType": "application/pdf",
+        "status": "VERIFIED",
+        "uploadedAt": "1788595311536",
+        "uploadedBy": "6a9ba701f1624b69330f5691",
+        "_id": "6a9bcc6ff1624b69330f5695",
+        "createdAt": "1788595311538",
+        "updatedAt": "1788595311538"
     }
 ]

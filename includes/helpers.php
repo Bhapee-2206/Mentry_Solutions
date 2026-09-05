@@ -529,4 +529,42 @@ function validateEmailInput($email) {
     return null;
 }
 
+/**
+ * Resolves a clean, human-friendly display name for a document or resume.
+ * Prevents showing internal generated hash patterns like doc_6a9ba701...
+ */
+function getDocumentDisplayName($doc = null, $fallbackUrl = '', $fallbackOwnerName = 'Trainer', $defaultExt = 'pdf') {
+    $candidateName = '';
+    if (is_array($doc) || $doc instanceof \ArrayAccess || is_object($doc)) {
+        $candidateName = trim($doc['originalName'] ?? '');
+        if (empty($candidateName)) {
+            $candidateTitle = trim($doc['title'] ?? '');
+            if (!empty($candidateTitle) && !preg_match('/^(?:doc|avatar|temp|file)_[a-f0-9]{10,}_\d+/i', $candidateTitle)) {
+                $candidateName = $candidateTitle;
+            }
+        }
+    }
+
+    // Check if candidateName looks like internal storage hash
+    $isInternalHash = !empty($candidateName) && preg_match('/^(?:doc|avatar|temp|file)_[a-f0-9]{10,}_\d+/i', $candidateName);
+
+    if (!empty($candidateName) && !$isInternalHash) {
+        return $candidateName;
+    }
+
+    // Check fallback URL basename
+    if (!empty($fallbackUrl)) {
+        $urlBase = basename(parse_url($fallbackUrl, PHP_URL_PATH) ?? '');
+        if (!empty($urlBase) && !preg_match('/^(?:doc|avatar|temp|file)_[a-f0-9]{10,}_\d+/i', $urlBase)) {
+            return $urlBase;
+        }
+    }
+
+    // Clean owner name fallback
+    $owner = trim($fallbackOwnerName ?: 'Trainer');
+    $ext = !empty($fallbackUrl) ? strtolower(pathinfo(parse_url($fallbackUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION)) : $defaultExt;
+    $ext = in_array($ext, ['pdf', 'doc', 'docx']) ? $ext : 'pdf';
+    return $owner . ' - Resume.' . $ext;
+}
+
 
