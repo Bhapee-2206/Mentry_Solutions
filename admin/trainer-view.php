@@ -88,6 +88,10 @@ require_once __DIR__ . '/includes/sidebar.php';
         </a>
 
         <div class="flex flex-wrap items-center gap-2">
+            <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>" class="bg-[#FE5E04] hover:bg-[#e05202] text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5" title="Download Official Trainer Profile Dossier PDF">
+                <span class="material-symbols-outlined text-[16px]">download</span>
+                Download Trainer Profile
+            </a>
             <button onclick="document.getElementById('editProfileModal').classList.remove('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px]">edit</span>
                 Edit Trainer Details
@@ -409,7 +413,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                         if (!empty($trainer['resumeUrl'])): 
                             $primaryResumeExt = strtolower(pathinfo($trainer['resumeUrl'] ?? '', PATHINFO_EXTENSION)) ?: 'pdf';
-                            $primaryResumeDownloadName = $trainerDocPrefix . '_Resume.' . $primaryResumeExt;
+                            $primaryResumeDownloadName = $cleanTrainerName . '_Resume_' . $cleanTrainerCode . '.' . $primaryResumeExt;
                             $primaryResumeDownloadUrl = '/actions/download-document.php?url=' . urlencode($trainer['resumeUrl'] ?? '') . '&filename=' . urlencode($primaryResumeDownloadName);
                         ?>
                             <div class="p-3.5 rounded-2xl bg-blue-50/50 border border-blue-200/70 flex items-center justify-between">
@@ -435,8 +439,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <?php foreach ($documents as $d): 
                             $docId = (string)($d['_id'] ?? ($d['id'] ?? ''));
                             $docExt = strtolower(pathinfo($d['fileUrl'] ?? '', PATHINFO_EXTENSION)) ?: 'pdf';
-                            $cleanDocTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($d['title'] ?? 'Document'));
-                            $docDownloadName = $trainerDocPrefix . '_' . $cleanDocTitle . '.' . $docExt;
+                            $cleanDocTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($d['title'] ?? ($d['type'] ?? 'Document')));
+                            $docDownloadName = $cleanTrainerName . '_' . $cleanDocTitle . '_' . $cleanTrainerCode . '.' . $docExt;
                             $docDownloadUrl = '/actions/download-document.php?url=' . urlencode($d['fileUrl'] ?? '') . '&filename=' . urlencode($docDownloadName);
                         ?>
                             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between hover:bg-slate-100/50 transition-colors">
@@ -700,6 +704,10 @@ require_once __DIR__ . '/includes/sidebar.php';
                 Mentry Verified Trainer Dossier & Resume
             </span>
             <div class="flex items-center gap-2">
+                <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>" class="bg-[#FE5E04] hover:bg-[#e05202] text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 shadow-xs" title="Download Official Trainer Profile Dossier PDF">
+                    <span class="material-symbols-outlined text-[15px]">download</span>
+                    Download Profile PDF
+                </a>
                 <button onclick="window.print()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1">
                     <span class="material-symbols-outlined text-[15px]">print</span>
                     Print CV

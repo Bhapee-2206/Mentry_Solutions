@@ -153,8 +153,8 @@ unset($_SESSION['upload_error']);
                             </span>
                             <?php if (!empty($d['fileUrl'])): 
                                 $docExt = strtolower(pathinfo($d['fileUrl'] ?? '', PATHINFO_EXTENSION)) ?: 'pdf';
-                                $cleanDocTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($d['title'] ?? 'Document'));
-                                $docDownloadName = $trainerDocPrefix . '_' . $cleanDocTitle . '.' . $docExt;
+                                $cleanDocTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($d['title'] ?? ($d['type'] ?? 'Document')));
+                                $docDownloadName = $cleanTrainerName . '_' . $cleanDocTitle . '_' . $cleanTrainerCode . '.' . $docExt;
                                 $docDownloadUrl = '/actions/download-document.php?url=' . urlencode($d['fileUrl'] ?? '') . '&filename=' . urlencode($docDownloadName);
                             ?>
                                 <button type="button" onclick="openDocumentPreview('<?= htmlspecialchars($d['fileUrl']) ?>', '<?= htmlspecialchars(addslashes($d['title'] ?? 'Document')) ?>', '<?= htmlspecialchars(addslashes($docDownloadName)) ?>')" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer">

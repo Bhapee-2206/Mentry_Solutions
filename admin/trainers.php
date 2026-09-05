@@ -656,7 +656,7 @@ if (!empty($recentActivities)) {
                                     $resumeUrl = $hasResume ? $resumeDoc['fileUrl'] : '';
                                     $cleanTrainerName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $trainerName);
                                     $cleanCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $trainerCode);
-                                    $downloadFilename = "{$cleanTrainerName}_{$cleanCode}_Resume";
+                                    $downloadFilename = "{$cleanTrainerName}_Resume_{$cleanCode}";
 
                                     // Skills array
                                     $skillsArr = [];
@@ -794,11 +794,20 @@ if (!empty($recentActivities)) {
                                                     </button>
                                                 <?php endif; ?>
 
-                                                <a href="/admin/trainer-view.php?id=<?= $trainerId ?>" 
-                                                   class="inline-flex items-center justify-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-1 rounded-lg transition-colors">
-                                                    <span>Dossier</span>
-                                                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-                                                </a>
+                                                <div class="flex items-center gap-1.5">
+                                                     <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>" 
+                                                        class="inline-flex items-center justify-center gap-1 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
+                                                        title="Download Verified Profile PDF: <?= htmlspecialchars($cleanTrainerName . '_' . $cleanCode . '_Profile.pdf') ?>">
+                                                         <span class="material-symbols-outlined text-[14px]">download</span>
+                                                         <span>Profile</span>
+                                                     </a>
+
+                                                     <a href="/admin/trainer-view.php?id=<?= $trainerId ?>" 
+                                                        class="inline-flex items-center justify-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg transition-colors">
+                                                         <span>Dossier</span>
+                                                         <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                                                     </a>
+                                                 </div>
                                             </div>
                                         </td>
                                     </tr>

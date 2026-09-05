@@ -120,7 +120,11 @@ $acceptedApps = $appCol ? $appCol->countDocuments(['status' => 'ACCEPTED']) : 0;
                                 <td class="py-4 px-4 text-slate-500"><?= formatDate($app['appliedAt'] ?? null) ?></td>
                                 <td class="py-4 px-5 text-right">
                                     <div class="flex items-center justify-end gap-1.5">
-                                        <a href="/admin/trainer-view.php?id=<?= (string)$t['_id'] ?>" class="p-1.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors" title="View Resume & CV">
+                                        <a href="/actions/download-trainer-profile.php?id=<?= (string)$t['_id'] ?>" class="p-1.5 rounded-xl bg-orange-50 text-[#FE5E04] hover:bg-orange-100 border border-orange-200/80 transition-colors shadow-2xs" title="Download Verified Profile PDF">
+                                            <span class="material-symbols-outlined text-[17px]">download</span>
+                                        </a>
+
+                                        <a href="/admin/trainer-view.php?id=<?= (string)$t['_id'] ?>" class="p-1.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors" title="View Dossier & CV">
                                             <span class="material-symbols-outlined text-[17px]">description</span>
                                         </a>
 

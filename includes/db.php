@@ -80,6 +80,85 @@ class PersistentDocumentStore {
     private static array $memoryCache = [];
     private static array $fileMtimes = [];
     private static array $supabaseFetched = [];
+    private static bool $globalSyncDone = false;
+    private static int $lastGlobalSync = 0;
+
+    public static function syncAllFromSupabase(): void {
+        $now = time();
+        if (self::$globalSyncDone || ($now - self::$lastGlobalSync < 45)) {
+            return;
+        }
+        self::$globalSyncDone = true;
+        self::$lastGlobalSync = $now;
+
+        $sb = self::getSupabaseCredentials();
+        if (empty($sb['url']) || empty($sb['key'])) {
+            return;
+        }
+
+        $endpoint = $sb['url'] . '/rest/v1/mentry_documents?select=collection,id,data&order=updated_at.asc';
+        $ch = curl_init($endpoint);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'apikey: ' . $sb['key'],
+            'Authorization: Bearer ' . $sb['key'],
+            'Content-Type: application/json'
+        ]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+        curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
+        curl_setopt($ch, CURLOPT_ENCODING, '');
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $res = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode >= 200 && $httpCode < 300 && $res) {
+            $rows = json_decode($res, true);
+            if (is_array($rows) && !empty($rows)) {
+                $tmpDir = rtrim(sys_get_temp_dir(), '/\\') . '/mentry_collections';
+                if (!is_dir($tmpDir)) @mkdir($tmpDir, 0777, true);
+
+                $byCol = [];
+                foreach ($rows as $r) {
+                    $cName = $r['collection'] ?? '';
+                    if (!empty($cName) && isset($r['data']) && is_array($r['data'])) {
+                        $byCol[$cName][] = $r['data'];
+                    }
+                }
+
+                foreach ($byCol as $cName => $cDocs) {
+                    $cTmpPath = $tmpDir . '/' . $cName . '.json';
+                    $existing = [];
+                    if (file_exists($cTmpPath)) {
+                        $raw = @file_get_contents($cTmpPath);
+                        $existing = $raw ? (@json_decode($raw, true) ?: []) : [];
+                    } elseif (file_exists(__DIR__ . '/../data/collections/' . $cName . '.json')) {
+                        $raw = @file_get_contents(__DIR__ . '/../data/collections/' . $cName . '.json');
+                        $existing = $raw ? (@json_decode($raw, true) ?: []) : [];
+                    }
+
+                    $indexed = [];
+                    foreach ($existing as $d) {
+                        $id = (string)($d['_id'] ?? ($d['id'] ?? ''));
+                        if (!empty($id)) $indexed[$id] = $d;
+                        else $indexed[] = $d;
+                    }
+                    foreach ($cDocs as $cd) {
+                        $cId = (string)($cd['_id'] ?? ($cd['id'] ?? ''));
+                        if (!empty($cId)) $indexed[$cId] = $cd;
+                        else $indexed[] = $cd;
+                    }
+                    $merged = array_values($indexed);
+                    self::$memoryCache[$cName] = $merged;
+                    self::$supabaseFetched[$cName] = true;
+                    @file_put_contents($cTmpPath, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                }
+            }
+        }
+    }
 
     public static function getSupabaseCredentials(): array {
         static $cached = null;
@@ -208,8 +287,13 @@ class PersistentDocumentStore {
             }
         }
 
-        // 3. Only fetch from Supabase if cache is NOT fresh AND we haven't fetched in this request
+        // 3. High-speed batch sync from Supabase if cache is not fresh
         if (!$tmpFresh && empty(self::$supabaseFetched[$this->name])) {
+            self::syncAllFromSupabase();
+            if (isset(self::$memoryCache[$this->name]) && !empty(self::$memoryCache[$this->name])) {
+                return self::$memoryCache[$this->name];
+            }
+
             self::$supabaseFetched[$this->name] = true;
             $cloudDocs = $this->fetchFromSupabase();
             if (!empty($cloudDocs)) {
