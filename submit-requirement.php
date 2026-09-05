@@ -22,11 +22,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $budgetPerDay = !empty($_POST['budgetPerDay']) ? (float)$_POST['budgetPerDay'] : null;
     $notes = trim($_POST['notes'] ?? '');
 
-    $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
-    if (empty($institutionName) || empty($contactPerson) || empty($email) || empty($phone) || empty($trainingDomain)) {
+    $personErr = validateNameInput($contactPerson, 'Contact person name');
+    $emailErr = validateEmailInput($email);
+    $phoneErr = validatePhoneInput($phone, 'Phone number');
+
+    if (empty($institutionName) || empty($trainingDomain)) {
         $error = "Please fill in all mandatory fields marked with an asterisk (*).";
-    } elseif (strlen($cleanPhone) < 10) {
-        $error = "Please enter a valid 10-digit mobile / phone number.";
+    } elseif ($personErr) {
+        $error = $personErr;
+    } elseif ($emailErr) {
+        $error = $emailErr;
+    } elseif ($phoneErr) {
+        $error = $phoneErr;
     } elseif (!empty($tentativeStartDate) && strtotime($tentativeStartDate) < strtotime(date('Y-m-d'))) {
         $error = "Tentative start date cannot be in the past. Please select today or a future date.";
     } else {
@@ -111,15 +118,15 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contact Person & Designation *</label>
-                            <input type="text" name="contactPerson" required placeholder="e.g. Dr. Rajesh Kumar (Placement Head)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                            <input type="text" name="contactPerson" required placeholder="e.g. Dr. Rajesh Kumar (Placement Head)" pattern="[a-zA-Z\s\.\'-]{2,50}" title="Name can only contain letters, spaces, dots, or hyphens (no numbers allowed)" oninput="this.value = this.value.replace(/[0-9]/g, '')" value="<?= htmlspecialchars($_POST['contactPerson'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Official Email Address *</label>
-                            <input type="email" name="email" required placeholder="placements@college.edu.in" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                            <input type="email" name="email" required placeholder="placements@college.edu.in" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid official email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Phone / Mobile Number *</label>
-                            <input type="tel" name="phone" required placeholder="e.g. 9876543210 or +91 98765 43210" pattern="[0-9+\s\-]{10,16}" title="Please enter a valid 10-digit phone number" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                            <input type="tel" name="phone" required placeholder="e.g. 9876543210 or +91 98765 43210" pattern="[0-9+\s\-]{10,16}" title="Please enter a valid phone number (minimum 10 digits, no letters allowed)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                         </div>
                     </div>
                 </div>

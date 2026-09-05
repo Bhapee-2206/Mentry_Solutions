@@ -31,8 +31,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $state = trim($_POST['state'] ?? 'Karnataka');
     $website = trim($_POST['website'] ?? '');
 
-    if (empty($organizationName) || empty($contactPerson) || empty($email) || empty($phone) || empty($password)) {
-        $error = "Please fill in all mandatory fields.";
+    $personErr = validateNameInput($contactPerson, 'Contact person name');
+    $emailErr = validateEmailInput($email);
+    $phoneErr = validatePhoneInput($phone, 'Phone number');
+
+    if (empty($organizationName)) {
+        $error = "Organization / College Name is required.";
+    } elseif ($personErr) {
+        $error = $personErr;
+    } elseif ($emailErr) {
+        $error = $emailErr;
+    } elseif ($phoneErr) {
+        $error = $phoneErr;
+    } elseif (empty($password) || strlen($password) < 6) {
+        $error = "Password must be at least 6 characters long.";
     } else {
         $userCol = getCollection("User");
         $existing = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
@@ -163,17 +175,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Primary Contact Person *</label>
-                        <input type="text" name="contactPerson" required placeholder="e.g. Rajesh Kumar" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                        <input type="text" name="contactPerson" required placeholder="e.g. Rajesh Kumar" pattern="[a-zA-Z\s\.\'-]{2,50}" title="Name can only contain letters, spaces, dots, or hyphens (no numbers allowed)" oninput="this.value = this.value.replace(/[0-9]/g, '')" value="<?= htmlspecialchars($_POST['contactPerson'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Official Work Email *</label>
-                        <input type="email" name="email" required placeholder="partner@company.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                        <input type="email" name="email" required placeholder="partner@company.com" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid work email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contact Phone Number *</label>
-                        <input type="text" name="phone" required placeholder="+91 98765 43210" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                        <input type="tel" name="phone" required placeholder="+91 98765 43210" pattern="[0-9+\s\-]{10,16}" title="Please enter a valid phone number (minimum 10 digits, no letters allowed)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
                     </div>
 
                     <div>

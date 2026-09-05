@@ -438,3 +438,75 @@ function uploadFileToCloudOrLocal($tmpFilePath, $desiredFilename, $folder = 'doc
     ];
 }
 
+/**
+ * Strict Name Validator:
+ * - Rejects numbers or special symbols (except spaces, dots, hyphens, single quotes).
+ * - Minimum 2 characters, maximum 60 characters.
+ * - At least 2 letters.
+ */
+function validateNameInput($name, $fieldName = 'Name') {
+    $trimmed = trim($name ?? '');
+    if (empty($trimmed)) {
+        return "{$fieldName} is required.";
+    }
+    if (preg_match('/[0-9]/', $trimmed)) {
+        return "{$fieldName} cannot contain numbers. Please enter only alphabetic characters.";
+    }
+    if (!preg_match('/^[a-zA-Z\s\.\'-]{2,60}$/', $trimmed)) {
+        return "{$fieldName} must be between 2 and 60 characters and contain only letters, spaces, dots, or hyphens.";
+    }
+    $lettersOnly = preg_replace('/[^a-zA-Z]/', '', $trimmed);
+    if (strlen($lettersOnly) < 2) {
+        return "{$fieldName} must contain at least 2 letters.";
+    }
+    return null;
+}
+
+/**
+ * Strict Phone Validator:
+ * - Rejects any alphabetical characters.
+ * - Minimum 10 digits, maximum 15 digits (standard international / Indian format).
+ */
+function validatePhoneInput($phone, $fieldName = 'Mobile number') {
+    $trimmed = trim($phone ?? '');
+    if (empty($trimmed)) {
+        return "{$fieldName} is required.";
+    }
+    if (preg_match('/[a-zA-Z]/', $trimmed)) {
+        return "{$fieldName} cannot contain letters or names. Please enter a valid phone number with digits only.";
+    }
+    $digits = preg_replace('/[^0-9]/', '', $trimmed);
+    if (strlen($digits) < 10) {
+        return "{$fieldName} must contain at least 10 digits.";
+    }
+    if (strlen($digits) > 15) {
+        return "{$fieldName} cannot exceed 15 digits.";
+    }
+    return null;
+}
+
+/**
+ * Strict Email Validator:
+ * - Standard RFC email validation.
+ * - Enforces valid TLD (at least 2 letters).
+ * - Detects and blocks common typo domains such as @gmail.co, @yahoo.co, @hotmail.co, @outlook.co (missing the 'm' in .com).
+ */
+function validateEmailInput($email) {
+    $trimmed = strtolower(trim($email ?? ''));
+    if (empty($trimmed)) {
+        return "Email address is required.";
+    }
+    if (!filter_var($trimmed, FILTER_VALIDATE_EMAIL) || !preg_match('/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/', $trimmed)) {
+        return "Please enter a valid email address.";
+    }
+    // Block common typo extensions
+    if (preg_match('/@(gmail|yahoo|hotmail|outlook|ymail|live|rediffmail)\.co$/i', $trimmed)) {
+        return "Did you mean @...com? The domain '.co' is invalid for this email provider. Please enter your full .com address.";
+    }
+    if (preg_match('/@(gmail|yahoo|hotmail|outlook|ymail|live|rediffmail)\.(con|cmo|cpm|vom|comm)$/i', $trimmed)) {
+        return "Did you mean @...com? Please check for typos in your email domain.";
+    }
+    return null;
+}
+
+

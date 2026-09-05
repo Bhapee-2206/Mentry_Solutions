@@ -31,13 +31,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Clean phone number
     if (!empty($phone)) {
-        $userCol = getCollection("User");
-        if ($userCol) {
-            $userCol->updateOne(
-                ['_id' => new MongoDB\BSON\ObjectId($user['id'])],
-                ['$set' => ['phone' => $phone, 'updatedAt' => new MongoDB\BSON\UTCDateTime()]]
-            );
-            $_SESSION['user']['phone'] = $phone;
+        $phoneErr = validatePhoneInput($phone, 'Mobile number');
+        if ($phoneErr) {
+            $error = $phoneErr;
+        } else {
+            $userCol = getCollection("User");
+            if ($userCol) {
+                $userCol->updateOne(
+                    ['_id' => new MongoDB\BSON\ObjectId($user['id'])],
+                    ['$set' => ['phone' => $phone, 'updatedAt' => new MongoDB\BSON\UTCDateTime()]]
+                );
+                $_SESSION['user']['phone'] = $phone;
+            }
         }
     }
 
@@ -304,7 +309,7 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
             </div>
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Mobile / WhatsApp Number *</label>
-                <input type="tel" name="phone" required placeholder="e.g. 9876543210 or +91 98765 43210" value="<?= htmlspecialchars($trainer['phone'] ?? ($user['phone'] ?? '')) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none font-semibold text-slate-800">
+                <input type="tel" name="phone" required placeholder="e.g. 9876543210 or +91 98765 43210" pattern="[0-9+\s\-]{10,16}" title="Please enter a valid phone number (minimum 10 digits, no letters allowed)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" value="<?= htmlspecialchars($trainer['phone'] ?? ($user['phone'] ?? '')) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none font-semibold text-slate-800">
             </div>
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Base Location (City, State) *</label>

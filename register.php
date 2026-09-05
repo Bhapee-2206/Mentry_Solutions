@@ -28,11 +28,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $primaryDomain = trim($_POST['primaryDomain'] ?? 'Programming');
     $currentCity = trim($_POST['currentCity'] ?? '');
 
-    $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
-    if (empty($name) || empty($email) || empty($password) || empty($phone) || empty($currentCity)) {
-        $error = "Please fill in your name, email, phone, password, and city.";
-    } elseif (strlen($cleanPhone) < 10) {
-        $error = "Please enter a valid 10-digit mobile number.";
+    $nameErr = validateNameInput($name, 'Full Name');
+    $emailErr = validateEmailInput($email);
+    $phoneErr = validatePhoneInput($phone, 'Mobile number');
+
+    if ($nameErr) {
+        $error = $nameErr;
+    } elseif ($emailErr) {
+        $error = $emailErr;
+    } elseif ($phoneErr) {
+        $error = $phoneErr;
+    } elseif (empty($password) || empty($currentCity)) {
+        $error = "Please fill in all mandatory fields including password and city.";
+    } elseif (strlen($password) < 6) {
+        $error = "Password must be at least 6 characters long.";
     } else {
         $userCol = getCollection("User");
         $existing = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
@@ -161,17 +170,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" action="/register.php" class="space-y-4" autocomplete="off">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name *</label>
-                <input type="text" name="name" required placeholder="e.g. Ramesh Kumar" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <input type="text" name="name" required placeholder="e.g. Ramesh Kumar" pattern="[a-zA-Z\s\.\'-]{2,50}" title="Name can only contain letters, spaces, dots, or hyphens (no numbers allowed)" oninput="this.value = this.value.replace(/[0-9]/g, '')" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
             </div>
 
             <div class="grid sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Address *</label>
-                    <input type="email" name="email" required placeholder="ramesh@example.com" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                    <input type="email" name="email" required placeholder="ramesh@example.com" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">WhatsApp / Phone *</label>
-                    <input type="tel" name="phone" required placeholder="+91 98765 43210" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                    <input type="tel" name="phone" required placeholder="+91 98765 43210" pattern="[0-9+\s\-]{10,16}" title="Please enter a valid phone number (minimum 10 digits, no letters allowed)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                 </div>
             </div>
 

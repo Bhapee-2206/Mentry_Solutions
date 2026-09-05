@@ -22,8 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = strtolower(trim($_POST['email'] ?? ''));
     $password = $_POST['password'] ?? '';
 
-    if (empty($email) || empty($password)) {
-        $error = "Email and password are required.";
+    $emailErr = validateEmailInput($email);
+    if ($emailErr) {
+        $error = $emailErr;
+    } elseif (empty($password)) {
+        $error = "Password is required.";
     } else {
         $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
 
@@ -136,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" action="/admin-login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" autocomplete="off" class="space-y-4">
             <div>
                 <label class="block text-xs font-bold text-slate-300 uppercase mb-1.5">Official Email ID</label>
-                <input type="email" id="emailInput" name="email" required placeholder="operations@mentry.in" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl p-3 text-sm focus:bg-slate-800 focus:border-[#FE5E04] focus:ring-2 focus:ring-[#FE5E04]/20 outline-none text-white font-medium transition-all">
+                <input type="email" id="emailInput" name="email" required placeholder="operations@mentry.in" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl p-3 text-sm focus:bg-slate-800 focus:border-[#FE5E04] focus:ring-2 focus:ring-[#FE5E04]/20 outline-none text-white font-medium transition-all">
             </div>
 
             <div>

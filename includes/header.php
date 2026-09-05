@@ -153,8 +153,7 @@ if ($currentUser) {
             <!-- Action CTAs -->
             <div class="hidden lg:flex items-center gap-2.5">
                 <?php 
-                $isHomePage = ($currentPage === 'index.php' || $currentPage === '' || $currentPage === '/');
-                if ($currentUser && !$isHomePage): 
+                if ($currentUser): 
                     $dashboardUrl = '/trainer/dashboard.php';
                     if (in_array($currentUser['role'], ['ADMIN', 'SUPER_ADMIN', 'STAFF'])) {
                         $dashboardUrl = '/admin/index.php';
@@ -229,7 +228,7 @@ if ($currentUser) {
             <span>Contact</span>
         </a>
         <div class="pt-2 border-t border-slate-100 flex flex-col gap-2">
-            <?php if ($currentUser && !$isHomePage): ?>
+            <?php if ($currentUser): ?>
                 <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/index.php' : '/trainer/dashboard.php' ?>" class="w-full bg-slate-900 text-white font-bold text-center py-2.5 rounded-xl text-sm">Go to Dashboard</a>
             <?php else: ?>
                 <a href="/login.php" class="w-full border border-slate-200 hover:border-orange-300 text-slate-800 hover:text-[#FE5E04] font-bold text-center py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">

@@ -81,8 +81,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['createStaff'])) {
     $phone = trim($_POST['phone'] ?? '');
     $avatar = trim($_POST['avatar'] ?? '');
 
-    if (empty($name) || empty($email) || empty($password)) {
-        $errorMsg = "Name, email, and password are required.";
+    $nameErr = validateNameInput($name, 'Staff name');
+    $emailErr = validateEmailInput($email);
+    $phoneErr = !empty($phone) ? validatePhoneInput($phone, 'Contact phone') : null;
+
+    if ($nameErr) {
+        $errorMsg = $nameErr;
+    } elseif ($emailErr) {
+        $errorMsg = $emailErr;
+    } elseif ($phoneErr) {
+        $errorMsg = $phoneErr;
+    } elseif (empty($password)) {
+        $errorMsg = "Password is required.";
     } else {
         $exists = false;
         foreach ($customStaff as $m) {
@@ -153,8 +163,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updateStaff'])) {
     $password = trim($_POST['password'] ?? '');
     $avatar = trim($_POST['avatar'] ?? '');
 
-    if (empty($name) || empty($newEmail)) {
-        $errorMsg = "Name and email are required.";
+    $nameErr = validateNameInput($name, 'Staff name');
+    $emailErr = validateEmailInput($newEmail);
+    $phoneErr = !empty($phone) ? validatePhoneInput($phone, 'Contact phone') : null;
+
+    if ($nameErr) {
+        $errorMsg = $nameErr;
+    } elseif ($emailErr) {
+        $errorMsg = $emailErr;
+    } elseif ($phoneErr) {
+        $errorMsg = $phoneErr;
     } else {
         $updated = false;
         foreach ($customStaff as &$m) {
@@ -282,11 +300,11 @@ $teamMembers = $customStaff;
             <input type="hidden" name="createStaff" value="1">
             <div>
                 <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Full Name *</label>
-                <input type="text" name="name" required placeholder="e.g. Sumanth Kumar" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-[#FE5E04]">
+                <input type="text" name="name" required placeholder="e.g. Sumanth Kumar" pattern="[a-zA-Z\s\.\'-]{2,50}" title="Name can only contain letters, spaces, dots, or hyphens (no numbers allowed)" oninput="this.value = this.value.replace(/[0-9]/g, '')" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-[#FE5E04]">
             </div>
             <div>
                 <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Official Email *</label>
-                <input type="email" name="email" required placeholder="e.g. staff3@mentry.test" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-[#FE5E04]">
+                <input type="email" name="email" required placeholder="e.g. staff3@mentry.test" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address (.co domain is not permitted for this provider)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-[#FE5E04]">
             </div>
             <div>
                 <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Login Password *</label>

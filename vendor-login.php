@@ -26,8 +26,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = strtolower(trim($_POST['email'] ?? ''));
     $password = $_POST['password'] ?? '';
 
-    if (empty($email) || empty($password)) {
-        $error = "Email and password are required.";
+    $emailErr = validateEmailInput($email);
+    if ($emailErr) {
+        $error = $emailErr;
+    } elseif (empty($password)) {
+        $error = "Password is required.";
     } else {
         $userCol = getCollection("User");
         $user = $userCol ? $userCol->findOne(['email' => $email]) : null;
@@ -118,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" action="/vendor-login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" autocomplete="off" class="space-y-4">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Official Work Email ID</label>
-                <input type="email" id="emailInput" name="email" required placeholder="name@company.com" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-900 font-medium">
+                <input type="email" id="emailInput" name="email" required placeholder="name@company.com" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid work email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-900 font-medium">
             </div>
 
             <div>

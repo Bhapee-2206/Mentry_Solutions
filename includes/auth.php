@@ -7,6 +7,25 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once __DIR__ . '/db.php';
 
+function isHttpsRequest() {
+    if (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') {
+        return true;
+    }
+    if (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) {
+        return true;
+    }
+    if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') {
+        return true;
+    }
+    if (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && strtolower($_SERVER['HTTP_X_FORWARDED_SSL']) === 'on') {
+        return true;
+    }
+    if (!empty($_SERVER['HTTP_FRONT_END_HTTPS']) && strtolower($_SERVER['HTTP_FRONT_END_HTTPS']) !== 'off') {
+        return true;
+    }
+    return false;
+}
+
 function getAuthSecret() {
     $secret = getenv('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? ($_SERVER['JWT_SECRET'] ?? ''));
     if (empty($secret)) {
@@ -33,6 +52,8 @@ function setPersistentSessionCookie(array $userData, $rememberDays = 30) {
         'name' => $userData['name'] ?? '',
         'role' => $userData['role'] ?? 'TRAINER',
         'avatar' => $userData['avatar'] ?? '',
+        'trainerCode' => $userData['trainerCode'] ?? '',
+        'mentryId' => $userData['mentryId'] ?? '',
         'issued_at' => time()
     ];
     $json = json_encode($payload);
@@ -41,28 +62,30 @@ function setPersistentSessionCookie(array $userData, $rememberDays = 30) {
     $token = $b64 . '.' . $sig;
     
     $expire = time() + ($rememberDays * 86400);
-    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
-    setcookie('mentry_session_token', $token, [
+    $isSecure = isHttpsRequest();
+    
+    // Omit 'domain' completely so PHP never emits an invalid 'Domain=;' header
+    $cookieOptions = [
         'expires' => $expire,
         'path' => '/',
-        'domain' => '',
         'secure' => $isSecure,
         'httponly' => true,
         'samesite' => 'Lax'
-    ]);
+    ];
+    setcookie('mentry_session_token', $token, $cookieOptions);
     $_COOKIE['mentry_session_token'] = $token;
 }
 
 function clearPersistentSessionCookie() {
-    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
-    setcookie('mentry_session_token', '', [
+    $isSecure = isHttpsRequest();
+    $cookieOptions = [
         'expires' => time() - 3600,
         'path' => '/',
-        'domain' => '',
         'secure' => $isSecure,
         'httponly' => true,
         'samesite' => 'Lax'
-    ]);
+    ];
+    setcookie('mentry_session_token', '', $cookieOptions);
     unset($_COOKIE['mentry_session_token']);
 }
 
@@ -100,10 +123,18 @@ function restoreSessionFromCookie() {
         'email' => $data['email'] ?? '',
         'name' => $data['name'] ?? '',
         'role' => $data['role'] ?? 'TRAINER',
-        'avatar' => $data['avatar'] ?? ('https://ui-avatars.com/api/?name=' . urlencode($data['name'] ?? 'User'))
+        'avatar' => $data['avatar'] ?? ('https://ui-avatars.com/api/?name=' . urlencode($data['name'] ?? 'User')),
+        'trainerCode' => $data['trainerCode'] ?? '',
+        'mentryId' => $data['mentryId'] ?? ''
     ];
     return $_SESSION['user'];
 }
+
+// Auto-restore session immediately on file load if session is empty
+if (empty($_SESSION['user']) || empty($_SESSION['user']['id'])) {
+    restoreSessionFromCookie();
+}
+
 
 function hashPassword($password) {
     return password_hash($password, PASSWORD_BCRYPT);
