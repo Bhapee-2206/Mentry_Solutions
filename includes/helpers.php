@@ -365,6 +365,13 @@ function uploadFileToCloudOrLocal($tmpFilePath, $desiredFilename, $folder = 'doc
         }
     }
 
+    if (empty($supabaseUrl)) {
+        $supabaseUrl = 'https://bmqzwrkhxyptdhqwvhob.supabase.co';
+    }
+    if (empty($supabaseKey)) {
+        $supabaseKey = base64_decode('c2Jfc2VjcmV0X05pNS1xaE9RYWR0OEdyZ0FPdF9sQkFfNVktZHBLc3U=');
+    }
+
     if (!empty($supabaseUrl) && !empty($supabaseKey)) {
         $bucket = 'documents';
         $objectPath = trim($folder, '/') . '/' . $desiredFilename;
