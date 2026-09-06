@@ -1,6 +1,8 @@
 <?php
 // actions/update-opportunity.php
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/../includes/auth.php';
 requireAdminOrStaff();
 
@@ -13,7 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $trainingType = trim($_POST['trainingType'] ?? 'COLLEGE');
     $collegeName = trim($_POST['collegeName'] ?? '');
     $city = trim($_POST['city'] ?? '');
-    $state = trim($_POST['state'] ?? 'Karnataka');
+    $state = trim($_POST['state'] ?? 'Tamil Nadu');
+    list($city, $state) = normalizeIndiaLocation($city, $state);
     $startDate = trim($_POST['startDate'] ?? '');
     $durationDays = (int)($_POST['durationDays'] ?? 5);
     $studentCount = (int)($_POST['studentCount'] ?? 100);

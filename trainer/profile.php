@@ -3,6 +3,7 @@
 $pageTitle = "My Trainer Profile";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/includes/sidebar.php';
 
 $trainerCol = getCollection("Trainer");
@@ -12,21 +13,26 @@ $saved = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $professionalTitle = trim($_POST['professionalTitle'] ?? '');
     $primaryDomain = trim($_POST['primaryDomain'] ?? '');
-    $baseLocation = trim($_POST['baseLocation'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
     $dailyRateINR = (float)($_POST['dailyRateINR'] ?? 6000);
     $travelPreference = trim($_POST['travelPreference'] ?? 'PAN_INDIA');
 
-    // Parse Base Location into City and State
-    $currentCity = $baseLocation;
-    $currentState = 'India';
-    if (strpos($baseLocation, ',') !== false) {
-        $locParts = explode(',', $baseLocation, 2);
-        $currentCity = trim($locParts[0]);
-        $currentState = trim($locParts[1]);
-    } elseif (!empty($_POST['currentCity'])) {
-        $currentCity = trim($_POST['currentCity']);
-        $currentState = trim($_POST['currentState'] ?? 'India');
+    // Parse Base Location into City and State with India Location normalization
+    $city = trim($_POST['city'] ?? '');
+    $state = trim($_POST['state'] ?? '');
+    if (!empty($city) || !empty($state)) {
+        list($currentCity, $currentState) = normalizeIndiaLocation($city, $state);
+        $baseLocation = $currentCity . ', ' . $currentState;
+    } else {
+        $baseLocation = trim($_POST['baseLocation'] ?? '');
+        $currentCity = $baseLocation;
+        $currentState = 'Tamil Nadu';
+        if (strpos($baseLocation, ',') !== false) {
+            $locParts = explode(',', $baseLocation, 2);
+            $currentCity = trim($locParts[0]);
+            $currentState = trim($locParts[1]);
+        }
+        list($currentCity, $currentState) = normalizeIndiaLocation($currentCity, $currentState);
     }
 
     // Clean phone number
@@ -332,13 +338,8 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Mobile / WhatsApp Number *</label>
                 <input type="tel" name="phone" required placeholder="e.g. 9876543210 or +91 98765 43210" pattern="^(?:\+91[\s\-]?)?[6-9]\d{4}[\s\-]?\d{5}$" title="Please enter a valid 10-digit mobile number excluding country code (e.g. 9876543210 or +91 98765 43210)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" value="<?= htmlspecialchars($trainer['phone'] ?? ($user['phone'] ?? '')) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none font-semibold text-slate-800">
             </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Base Location (City, State) *</label>
-                <?php
-                $baseLoc = trim(($trainer['currentCity'] ?? '') . (!empty($trainer['currentState']) ? ', ' . $trainer['currentState'] : ''));
-                if (empty($baseLoc)) $baseLoc = 'Chennai, Tamil Nadu';
-                ?>
-                <input type="text" name="baseLocation" required placeholder="e.g. Chennai, Tamil Nadu" value="<?= htmlspecialchars($baseLoc) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+            <div class="sm:col-span-2">
+                <?= renderStateDistrictSelectors('state', 'city', $trainer['currentState'] ?? 'Tamil Nadu', $trainer['currentCity'] ?? '', true, 'Base State *', 'Base District / City *', 'focus:ring-blue-500/20') ?>
             </div>
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Daily Rate (₹/Day)</label>

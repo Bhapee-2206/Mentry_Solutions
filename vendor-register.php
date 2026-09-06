@@ -2,6 +2,7 @@
 // vendor-register.php - Vendor & College Registration
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__ . '/includes/locations.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/maintenance.php';
 
@@ -34,7 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phone = trim($_POST['phone'] ?? '');
     $password = $_POST['password'] ?? '';
     $city = trim($_POST['city'] ?? '');
-    $state = trim($_POST['state'] ?? 'Karnataka');
+    $state = trim($_POST['state'] ?? 'Tamil Nadu');
+    list($city, $state) = normalizeIndiaLocation($city, $state);
     $website = trim($_POST['website'] ?? '');
 
     $personErr = validateNameInput($contactPerson, 'Contact person name');
@@ -218,14 +220,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="tel" name="phone" required placeholder="+91 98765 43210" pattern="^(?:\+91[\s\-]?)?[6-9]\d{4}[\s\-]?\d{5}$" title="Please enter a valid 10-digit mobile number excluding country code (e.g. 9876543210 or +91 98765 43210)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">City *</label>
-                        <input type="text" name="city" required placeholder="e.g. Bengaluru" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">State *</label>
-                        <input type="text" name="state" required value="Karnataka" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                    <div class="sm:col-span-2">
+                        <?= renderStateDistrictSelectors('state', 'city', $_POST['state'] ?? 'Tamil Nadu', $_POST['city'] ?? '', true, 'State *', 'District / City *', 'focus:ring-indigo-500/20') ?>
                     </div>
 
                     <div class="sm:col-span-2">

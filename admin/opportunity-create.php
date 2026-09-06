@@ -3,6 +3,7 @@
 $pageTitle = "Create Opportunity";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/../includes/auth.php';
 requireAdminOrStaff();
 
@@ -14,7 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mode = trim($_POST['mode'] ?? 'OFFLINE');
     $trainingType = trim($_POST['trainingType'] ?? 'COLLEGE');
     $city = trim($_POST['city'] ?? '');
-    $state = trim($_POST['state'] ?? 'Karnataka');
+    $state = trim($_POST['state'] ?? 'Tamil Nadu');
+    list($city, $state) = normalizeIndiaLocation($city, $state);
     $startDate = trim($_POST['startDate'] ?? '');
     $durationDays = (int)($_POST['durationDays'] ?? 5);
     $dailyRateMin = (float)($_POST['dailyRateMin'] ?? 5000);
@@ -118,14 +120,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </select>
             </div>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">City *</label>
-                <input type="text" name="city" required placeholder="e.g. Bangalore" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">State *</label>
-                <input type="text" name="state" required value="Karnataka" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+            <div class="sm:col-span-2">
+                <?= renderStateDistrictSelectors('state', 'city', $_POST['state'] ?? 'Tamil Nadu', $_POST['city'] ?? '', true, 'State *', 'District / City *', 'focus:ring-blue-500/20') ?>
             </div>
 
             <div>

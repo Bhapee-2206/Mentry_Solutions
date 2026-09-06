@@ -3,6 +3,7 @@
 $pageTitle = "Edit Opportunity";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/../includes/auth.php';
 requireAdminOrStaff();
 
@@ -124,14 +125,8 @@ if (!empty($opp['startDate'])) {
                 <input type="text" name="collegeName" value="<?= htmlspecialchars($opp['collegeName'] ?? '') ?>" placeholder="e.g. RV College of Engineering" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
             </div>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">City *</label>
-                <input type="text" name="city" required value="<?= htmlspecialchars($opp['city'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">State *</label>
-                <input type="text" name="state" required value="<?= htmlspecialchars($opp['state'] ?? 'Karnataka') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+            <div class="sm:col-span-2">
+                <?= renderStateDistrictSelectors('state', 'city', $opp['state'] ?? 'Tamil Nadu', $opp['city'] ?? '', true, 'State *', 'District / City *', 'focus:ring-blue-500/20') ?>
             </div>
 
             <div>

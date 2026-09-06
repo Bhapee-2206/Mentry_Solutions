@@ -2,6 +2,7 @@
 // actions/process-vendor-request.php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/../includes/auth.php';
 requireAdminOrStaff();
 
@@ -19,8 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $title = trim($_POST['title'] ?? ($req['title'] ?? 'Training Opportunity'));
             $domain = trim($_POST['domain'] ?? ($req['domain'] ?? 'Programming'));
             $mode = trim($_POST['mode'] ?? ($req['mode'] ?? 'OFFLINE'));
-            $city = trim($_POST['city'] ?? ($req['city'] ?? 'Bengaluru'));
-            $state = trim($_POST['state'] ?? ($req['state'] ?? 'Karnataka'));
+            $city = trim($_POST['city'] ?? ($req['city'] ?? 'Chennai'));
+            $state = trim($_POST['state'] ?? ($req['state'] ?? 'Tamil Nadu'));
+            list($city, $state) = normalizeIndiaLocation($city, $state);
             $startDate = trim($_POST['startDate'] ?? '');
             $durationDays = (int)($_POST['durationDays'] ?? ($req['durationDays'] ?? 5));
             $dailyRateMin = (float)($_POST['dailyRateMin'] ?? 6000);

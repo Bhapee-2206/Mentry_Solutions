@@ -2,6 +2,8 @@
 // admin/vendor-request-review.php - Admin Review, Price Adjustment & Approval
 $pageTitle = "Review Vendor Demand";
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/../includes/auth.php';
 requireAdminOrStaff();
 
@@ -193,14 +195,8 @@ $defaultMaxRate = max(5000, round($vendorBudget * 0.85 / 500) * 500);
                 </select>
             </div>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Campus City *</label>
-                <input type="text" name="city" required value="<?= htmlspecialchars($req['city']) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Campus State *</label>
-                <input type="text" name="state" required value="<?= htmlspecialchars($req['state'] ?? 'Karnataka') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
+            <div class="sm:col-span-2">
+                <?= renderStateDistrictSelectors('state', 'city', $req['state'] ?? 'Tamil Nadu', $req['city'] ?? '', true, 'Campus State *', 'Campus District / City *', 'focus:ring-blue-500/20') ?>
             </div>
 
             <div>

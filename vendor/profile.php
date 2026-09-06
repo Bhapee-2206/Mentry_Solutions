@@ -3,6 +3,7 @@
 $pageTitle = "Organization Profile";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/includes/sidebar.php';
 
 $vendorId = $user['id'];
@@ -15,7 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $contactPerson = trim($_POST['contactPerson'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
     $city = trim($_POST['city'] ?? '');
-    $state = trim($_POST['state'] ?? 'Karnataka');
+    $state = trim($_POST['state'] ?? 'Tamil Nadu');
+    list($city, $state) = normalizeIndiaLocation($city, $state);
     $website = trim($_POST['website'] ?? '');
     $billingAddress = trim($_POST['billingAddress'] ?? '');
     $gstNumber = trim($_POST['gstNumber'] ?? '');
@@ -124,14 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="url" name="website" value="<?= htmlspecialchars($dbUser['website'] ?? '') ?>" placeholder="https://company.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
             </div>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">City</label>
-                <input type="text" name="city" value="<?= htmlspecialchars($dbUser['city'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">State</label>
-                <input type="text" name="state" value="<?= htmlspecialchars($dbUser['state'] ?? 'Karnataka') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
+            <div class="sm:col-span-2">
+                <?= renderStateDistrictSelectors('state', 'city', $dbUser['state'] ?? 'Tamil Nadu', $dbUser['city'] ?? '', false, 'State', 'District / City', 'focus:ring-indigo-500/20') ?>
             </div>
 
             <div class="sm:col-span-2">

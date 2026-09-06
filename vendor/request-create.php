@@ -3,6 +3,7 @@
 $pageTitle = "Post Job Request";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/includes/sidebar.php';
 
 $error = null;
@@ -14,7 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $domain = trim($_POST['domain'] ?? 'Programming');
     $mode = trim($_POST['mode'] ?? 'OFFLINE');
     $city = trim($_POST['city'] ?? '');
-    $state = trim($_POST['state'] ?? 'Karnataka');
+    $state = trim($_POST['state'] ?? 'Tamil Nadu');
+    list($city, $state) = normalizeIndiaLocation($city, $state);
     $startDate = trim($_POST['startDate'] ?? '');
     $durationDays = (int)($_POST['durationDays'] ?? 5);
     $studentCount = (int)($_POST['studentCount'] ?? 100);
@@ -140,14 +142,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </select>
             </div>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Campus City *</label>
-                <input type="text" name="city" required placeholder="e.g. Bengaluru" value="<?= htmlspecialchars($_POST['city'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
-            </div>
-
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">State *</label>
-                <input type="text" name="state" required value="<?= htmlspecialchars($_POST['state'] ?? 'Karnataka') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+            <div class="sm:col-span-2">
+                <?= renderStateDistrictSelectors('state', 'city', $_POST['state'] ?? 'Tamil Nadu', $_POST['city'] ?? '', true, 'Campus State *', 'Campus District / City *', 'focus:ring-indigo-500/20') ?>
             </div>
 
             <div>
