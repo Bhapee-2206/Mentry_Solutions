@@ -30,6 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($title) || empty($city) || empty($startDate)) {
         $error = "Please fill in all mandatory fields.";
+    } elseif (strtotime($startDate) === false) {
+        $error = "Please provide a valid start date.";
+    } elseif (strtotime($startDate) < strtotime(date('Y-m-d'))) {
+        $error = "Start date cannot be in the past. Please select today or a future date.";
     } else {
         $oppCol = getCollection("Opportunity");
         $jobId = getNextSequentialMentryId('OPPORTUNITY');
@@ -126,7 +130,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Start Date *</label>
-                <input type="date" name="startDate" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <input type="date" name="startDate" required min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($_POST['startDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
             </div>
 
             <div>

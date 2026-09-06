@@ -75,6 +75,12 @@ if (!empty($opp['startDate'])) {
         <p class="text-xs text-slate-500 mt-0.5">Job ID: <span class="font-mono font-bold text-slate-700"><?= htmlspecialchars($opp['jobId'] ?? $oppId) ?></span></p>
     </div>
 
+    <?php if (!empty($_GET['error'])): ?>
+        <div class="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-bold">
+            <?= htmlspecialchars($_GET['error']) ?>
+        </div>
+    <?php endif; ?>
+
     <form method="POST" action="/actions/update-opportunity.php" class="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-6">
         <input type="hidden" name="id" value="<?= $oppId ?>">
 

@@ -201,7 +201,7 @@ $defaultMaxRate = max(5000, round($vendorBudget * 0.85 / 500) * 500);
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Start Date *</label>
-                <input type="date" name="startDate" required value="<?= htmlspecialchars($startDateVal) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
+                <input type="date" name="startDate" required min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($startDateVal) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
             </div>
 
             <div>

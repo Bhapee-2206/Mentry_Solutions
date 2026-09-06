@@ -2,11 +2,13 @@
 // vendor/request-create.php - Submit Private Job Request
 $pageTitle = "Post Job Request";
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
+requireVendor();
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/locations.php';
-require_once __DIR__ . '/includes/sidebar.php';
 
 $error = null;
+$user = getCurrentUser();
 $vendorId = $user['id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -28,6 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($title) || empty($institutionName) || empty($city) || empty($startDate)) {
         $error = "Please fill in all mandatory fields marked with an asterisk (*).";
+    } elseif (strtotime($startDate) === false || strtotime($startDate) < strtotime(date('Y-m-d'))) {
+        $error = "Start date cannot be in the past. Please select today or a future date.";
     } else {
         $reqCol = getCollection("VendorRequest");
         if ($reqCol) {
@@ -82,6 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+require_once __DIR__ . '/includes/sidebar.php';
 ?>
 
 <div class="max-w-4xl mx-auto space-y-6">

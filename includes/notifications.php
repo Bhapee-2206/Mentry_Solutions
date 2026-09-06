@@ -65,8 +65,8 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
                     $notifiedCount++;
                     $notifiedNames[] = $userName;
 
-                    // Send email notification via Mentry Google SMTP
-                    if (!empty($userEmail)) {
+                    // Send email notification to top 3 matching trainers to avoid request timeout
+                    if ($notifiedCount <= 3 && !empty($userEmail)) {
                         @sendOpportunityMatchEmail($userEmail, $userName, $opp);
                     }
                 }

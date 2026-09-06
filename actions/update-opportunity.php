@@ -30,6 +30,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $diningCovered = isset($_POST['diningCovered']) ? true : false;
 
     if (!empty($id) && !empty($title)) {
+        if (!empty($startDate) && strtotime($startDate) !== false && strtotime($startDate) < strtotime(date('Y-m-d'))) {
+            if (!in_array($status, ['COMPLETED', 'IN_PROGRESS', 'CANCELLED'])) {
+                header("Location: /admin/opportunity-edit.php?id=" . urlencode($id) . "&error=" . urlencode("Start date cannot be in the past for active/published opportunities."));
+                exit();
+            }
+        }
+
         $oppCol = getCollection("Opportunity");
         if ($oppCol) {
             $skillsArray = array_values(array_filter(array_map('trim', explode(',', $skillsRequired))));
