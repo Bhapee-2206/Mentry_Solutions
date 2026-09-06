@@ -94,6 +94,9 @@ if ($user) {
             $cleanTrainerName = trim($trainer['name'] ?? ($user['name'] ?? 'Trainer'));
             $resumeName = getDocumentDisplayName($resumeDoc, $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? ''), $cleanTrainerName);
         }
+
+        $conflict = checkTrainerOpportunityDateConflict((string)$trainer['_id'], $opp);
+        $hasConflict = !empty($conflict['hasConflict']);
     }
 }
 
@@ -119,6 +122,12 @@ require_once __DIR__ . '/includes/header.php';
                     <span>Upload Resume Now</span>
                 </a>
             </div>
+        <?php elseif (isset($_GET['error']) && $_GET['error'] === 'schedule_conflict'): ?>
+            <div class="bg-rose-50 border border-rose-300 rounded-2xl p-4 text-xs font-bold text-rose-900 flex items-center gap-3 shadow-xs">
+                <span class="material-symbols-outlined text-rose-600 text-xl shrink-0">event_busy</span>
+                <span><?= htmlspecialchars($_SESSION['apply_error'] ?? 'Schedule Conflict: You are currently committed to an active training project on these dates.') ?></span>
+            </div>
+            <?php unset($_SESSION['apply_error']); ?>
         <?php endif; ?>
 
         <!-- Main Spec Card -->
@@ -258,6 +267,16 @@ require_once __DIR__ . '/includes/header.php';
                             Track in Portal →
                         </a>
                     </div>
+                <?php elseif ($hasConflict): ?>
+                    <div class="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-2xl px-5 py-3 text-xs text-rose-800 font-semibold w-full sm:w-auto">
+                        <span class="w-8 h-8 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                            <span class="material-symbols-outlined text-lg">event_busy</span>
+                        </span>
+                        <div>
+                            <span class="font-bold text-rose-950 block">Schedule Conflict: Teaching Project Active</span>
+                            <span class="text-rose-700 font-normal"><?= htmlspecialchars($conflict['reason']) ?></span>
+                        </div>
+                    </div>
                 <?php else: ?>
                     <button onclick="document.getElementById('applyModal').classList.remove('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-8 py-3.5 rounded-xl transition-all shadow-md flex items-center gap-2 hover:-translate-y-0.5 w-full sm:w-auto justify-center">
                         Apply for this Assignment
@@ -291,6 +310,22 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
                     <a href="/login.php" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 px-6 rounded-xl transition-all shadow-md text-center">Trainer Login</a>
                     <a href="/register.php" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-3 px-6 rounded-xl transition-all shadow-md text-center">Join Network</a>
+                </div>
+            </div>
+        <?php elseif ($hasConflict): ?>
+            <div class="text-center py-4 space-y-4">
+                <div class="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
+                    <span class="material-symbols-outlined text-3xl">event_busy</span>
+                </div>
+                <div>
+                    <h3 class="text-xl font-extrabold text-slate-900 mb-1">Cannot Apply: Schedule Conflict</h3>
+                    <p class="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
+                        <?= htmlspecialchars($conflict['reason']) ?>
+                    </p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                    <a href="/trainer/assignments.php" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-3 px-6 rounded-xl transition-all shadow-md text-center">View Current Assignment</a>
+                    <button type="button" onclick="document.getElementById('applyModal').classList.add('hidden')" class="border border-slate-200 text-slate-700 font-bold text-xs py-3 px-6 rounded-xl hover:bg-slate-50">Close</button>
                 </div>
             </div>
         <?php elseif (!$hasResume): ?>

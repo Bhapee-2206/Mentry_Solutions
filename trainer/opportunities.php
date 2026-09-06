@@ -270,6 +270,10 @@ require_once __DIR__ . '/../includes/matching_engine.php';
                 $match = ($trainer) ? MatchingEngine::evaluateMatch($opp, $trainer, $mySkills) : ['score' => 75];
                 $matchScore = $match['score'] ?? 75;
 
+                // Schedule conflict check: trainer cannot apply if current project hasn't finished and new project starts while teaching
+                $conflict = ($trainer && !empty($trainerId)) ? checkTrainerOpportunityDateConflict($trainerId, $opp) : ['hasConflict' => false];
+                $hasConflict = !empty($conflict['hasConflict']);
+
                 // Data for inline modal
                 $oppDataJson = htmlspecialchars(json_encode([
                     'id' => $oppId,
@@ -288,7 +292,11 @@ require_once __DIR__ . '/../includes/matching_engine.php';
                     'travelCovered' => $opp['travelCovered'] ?? ($opp['mode'] !== 'ONLINE'),
                     'accommodationCovered' => $opp['accommodationCovered'] ?? ($opp['mode'] !== 'ONLINE'),
                     'diningCovered' => $opp['diningCovered'] ?? ($opp['mode'] !== 'ONLINE'),
-                    'matchScore' => $matchScore
+                    'matchScore' => $matchScore,
+                    'hasConflict' => $hasConflict,
+                    'conflictReason' => $conflict['reason'] ?? '',
+                    'finishDateFormatted' => $conflict['finishDateFormatted'] ?? '',
+                    'conflictTitle' => $conflict['conflictTitle'] ?? ''
                 ]), ENT_QUOTES, 'UTF-8');
             ?>
                 <div class="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-card hover:shadow-card-hover transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-5">
@@ -305,6 +313,11 @@ require_once __DIR__ . '/../includes/matching_engine.php';
                             <span class="text-[11px] font-mono text-slate-400">ID: <?= htmlspecialchars($opp['jobId'] ?? $oppId) ?></span>
                             <?php if ($hasApplied): ?>
                                 <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full">Applied</span>
+                            <?php elseif ($hasConflict): ?>
+                                <span class="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1" title="<?= htmlspecialchars($conflict['reason']) ?>">
+                                    <span class="material-symbols-outlined text-[12px]">event_busy</span>
+                                    Date Conflict (Teaching until <?= htmlspecialchars($conflict['finishDateFormatted']) ?>)
+                                </span>
                             <?php endif; ?>
                         </div>
                         <h2 class="font-bold text-base text-slate-900 cursor-pointer hover:text-[#FE5E04] transition-colors block" onclick='openOppModal(<?= $oppDataJson ?>)'>
@@ -330,6 +343,11 @@ require_once __DIR__ . '/../includes/matching_engine.php';
                             <a href="/trainer/applications.php" class="bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors">
                                 View Application
                             </a>
+                        <?php elseif ($hasConflict): ?>
+                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer" title="<?= htmlspecialchars($conflict['reason']) ?>">
+                                <span class="material-symbols-outlined text-[16px]">event_busy</span>
+                                <span>Schedule Conflict</span>
+                            </button>
                         <?php elseif (!$hasResume): ?>
                             <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer" title="Resume required to apply">
                                 <span class="material-symbols-outlined text-[16px]">upload_file</span>
@@ -417,8 +435,30 @@ require_once __DIR__ . '/../includes/matching_engine.php';
                     </div>
                 </div>
             <?php else: ?>
+                <!-- Schedule Conflict Alert Section -->
+                <div id="modalConflictSection" class="hidden bg-rose-50 border border-rose-200/90 rounded-2xl p-5 space-y-3 pt-4 border-t border-slate-100">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-2xl">event_busy</span>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm text-rose-950">Cannot Apply: Active Project Schedule Conflict</h4>
+                            <p id="modalConflictText" class="text-xs text-rose-800 mt-1 leading-relaxed"></p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+                        <a href="/trainer/assignments.php" class="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all shadow-md shadow-rose-500/20 flex items-center justify-center gap-1.5">
+                            <span class="material-symbols-outlined text-[18px]">calendar_month</span>
+                            <span>View My Current Assignments</span>
+                        </a>
+                        <button type="button" onclick="closeOppModal()" class="w-full sm:w-auto border border-slate-200 text-slate-700 font-bold text-xs px-5 py-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">
+                            Close
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Application Form -->
-                <form action="/actions/apply.php" method="POST" class="space-y-4 pt-4 border-t border-slate-100">
+                <form id="modalAppForm" action="/actions/apply.php" method="POST" class="space-y-4 pt-4 border-t border-slate-100">
                     <input type="hidden" id="modalOppId" name="opportunityId" value="">
 
                     <!-- Attached Resume Confirmation -->
@@ -490,6 +530,26 @@ function openOppModal(data) {
         descSec.classList.remove('hidden');
     } else {
         descSec.classList.add('hidden');
+    }
+
+    // Schedule Conflict Section handling
+    const conflictSec = document.getElementById('modalConflictSection');
+    const appForm = document.getElementById('modalAppForm');
+    if (data.hasConflict) {
+        if (conflictSec) {
+            document.getElementById('modalConflictText').textContent = data.conflictReason;
+            conflictSec.classList.remove('hidden');
+        }
+        if (appForm) {
+            appForm.classList.add('hidden');
+        }
+    } else {
+        if (conflictSec) {
+            conflictSec.classList.add('hidden');
+        }
+        if (appForm) {
+            appForm.classList.remove('hidden');
+        }
     }
 
     document.getElementById('trainerOppModal').classList.remove('hidden');

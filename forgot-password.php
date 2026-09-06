@@ -118,7 +118,8 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $notice = "We have dispatched a 6-digit verification code to <strong>" . htmlspecialchars($email) . "</strong>. Please check your inbox and spam folder.";
             } else {
                 $step = 1;
-                $error = "Unable to send verification email to " . htmlspecialchars($email) . ". Please verify that your email address is correct and try again.";
+                $mailErrDetail = !empty($mailResult['error']) ? ' (' . htmlspecialchars($mailResult['error']) . ')' : '';
+                $error = "Unable to send verification email to " . htmlspecialchars($email) . "{$mailErrDetail}. Please verify that your email address is correct and try again.";
             }
         } else {
             // Non-existent email

@@ -25,13 +25,23 @@ class MentryMailer {
             }
         }
 
-        $this->host = $env['SMTP_HOST'] ?? ($_ENV['SMTP_HOST'] ?? ($_SERVER['SMTP_HOST'] ?? (getenv('SMTP_HOST') ?: 'smtp.gmail.com')));
-        $this->port = (int)($env['SMTP_PORT'] ?? ($_ENV['SMTP_PORT'] ?? ($_SERVER['SMTP_PORT'] ?? (getenv('SMTP_PORT') ?: 465))));
-        $this->username = trim($env['SMTP_USER'] ?? ($_ENV['SMTP_USER'] ?? ($_SERVER['SMTP_USER'] ?? (getenv('SMTP_USER') ?: 'bhapeestudios@gmail.com'))));
-        $passRaw = $env['SMTP_PASS'] ?? ($_ENV['SMTP_PASS'] ?? ($_SERVER['SMTP_PASS'] ?? (getenv('SMTP_PASS') ?: 'ywnv kgpv khmx qrlz')));
+        $resolveConfig = function($key, $default = '') use ($env) {
+            if (!empty($env[$key]) && trim((string)$env[$key]) !== '') return trim((string)$env[$key]);
+            if (!empty($_ENV[$key]) && trim((string)$_ENV[$key]) !== '') return trim((string)$_ENV[$key]);
+            if (!empty($_SERVER[$key]) && trim((string)$_SERVER[$key]) !== '') return trim((string)$_SERVER[$key]);
+            $val = getenv($key);
+            if ($val !== false && trim((string)$val) !== '') return trim((string)$val);
+            return $default;
+        };
+
+        $this->host = $resolveConfig('SMTP_HOST', 'smtp.gmail.com');
+        $portVal = (int)$resolveConfig('SMTP_PORT', '465');
+        $this->port = ($portVal > 0) ? $portVal : 465;
+        $this->username = $resolveConfig('SMTP_USER', 'bhapeestudios@gmail.com');
+        $passRaw = $resolveConfig('SMTP_PASS', 'ywnv kgpv khmx qrlz');
         $this->password = preg_replace('/\s+/', '', $passRaw);
-        $this->fromName = $env['SMTP_FROM_NAME'] ?? ($_ENV['SMTP_FROM_NAME'] ?? ($_SERVER['SMTP_FROM_NAME'] ?? (getenv('SMTP_FROM_NAME') ?: 'Mentry Solutions')));
-        $this->fromEmail = trim($env['SMTP_FROM_EMAIL'] ?? ($_ENV['SMTP_FROM_EMAIL'] ?? ($_SERVER['SMTP_FROM_EMAIL'] ?? (getenv('SMTP_FROM_EMAIL') ?: $this->username))));
+        $this->fromName = $resolveConfig('SMTP_FROM_NAME', 'Mentry Solutions');
+        $this->fromEmail = $resolveConfig('SMTP_FROM_EMAIL', $this->username);
         $this->timeout = 10; // Generous timeout to allow SSL/TLS handshake on cloud networks
     }
 
@@ -206,6 +216,26 @@ class MentryMailer {
             } catch (\Throwable $e2) {
                 $lastError = $e2->getMessage();
                 error_log("MentryMailer Port {$fallbackPort} error: " . $lastError);
+            }
+        }
+
+        // 3. Try native mail() function as third fallback
+        if (function_exists('mail')) {
+            try {
+                $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
+                $headers = "MIME-Version: 1.0\r\n" .
+                           "Content-Type: text/html; charset=UTF-8\r\n" .
+                           "From: " . $this->fromName . " <" . $this->fromEmail . ">\r\n" .
+                           "Reply-To: " . $this->fromEmail . "\r\n" .
+                           "X-Mailer: Mentry-Mailer/2.0\r\n";
+                $mailSent = @mail($toEmail, $encodedSubject, $htmlContent, $headers);
+                if ($mailSent) {
+                    $logEntry['status'] = 'SENT_NATIVE';
+                    $this->logEmail($logEntry);
+                    return ['success' => true, 'message' => 'Email dispatched via host mail server.'];
+                }
+            } catch (\Throwable $e3) {
+                error_log("MentryMailer native mail error: " . $e3->getMessage());
             }
         }
 

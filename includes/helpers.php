@@ -578,4 +578,208 @@ function getDocumentDisplayName($doc = null, $fallbackUrl = '', $fallbackOwnerNa
     return $owner . ' - Resume.' . $ext;
 }
 
+/**
+ * Checks if applying for a candidate Opportunity causes a date/schedule conflict
+ * with an ongoing, unfinished assignment or project.
+ *
+ * Rule: The trainer CANNOT apply for a program if their current project hasn't finished,
+ * and the new project starts during the dates they are teaching.
+ * If the new project starts on or after the completion date of the current project, they CAN apply.
+ *
+ * @param string $trainerId
+ * @param array $targetOpp
+ * @return array ['hasConflict' => bool, 'reason' => string, 'finishDate' => string, 'finishDateFormatted' => string, 'conflictTitle' => string]
+ */
+function checkTrainerOpportunityDateConflict($trainerId, $targetOpp) {
+    if (empty($trainerId) || empty($targetOpp)) {
+        return ['hasConflict' => false, 'reason' => '', 'finishDate' => '', 'finishDateFormatted' => '', 'conflictTitle' => ''];
+    }
+
+    $asgCol = getCollection("Assignment");
+    $oppCol = getCollection("Opportunity");
+    $trainerCol = getCollection("Trainer");
+
+    // Convert candidate opportunity start date to timestamp
+    $candStartDate = $targetOpp['startDate'] ?? null;
+    $candStartTs = null;
+    if ($candStartDate instanceof MongoDB\BSON\UTCDateTime) {
+        $candStartTs = round($candStartDate->toDateTime()->getTimestamp());
+    } elseif (is_numeric($candStartDate)) {
+        $candStartTs = ($candStartDate > 20000000000) ? round($candStartDate / 1000) : (int)$candStartDate;
+    } elseif (is_string($candStartDate) && !empty($candStartDate)) {
+        if (is_numeric($candStartDate)) {
+            $candStartTs = ($candStartDate > 20000000000) ? round($candStartDate / 1000) : (int)$candStartDate;
+        } else {
+            $parsed = strtotime($candStartDate);
+            if ($parsed !== false) {
+                $candStartTs = $parsed;
+            }
+        }
+    }
+
+    // Collect all active / unfinished commitments for this trainer
+    $commitments = [];
+
+    // 1. From Assignment collection (status SCHEDULED, IN_PROGRESS, CONFIRMED)
+    if ($asgCol) {
+        try {
+            $trainerOr = [
+                ['trainerId' => (string)$trainerId],
+            ];
+            if (preg_match('/^[a-f\d]{24}$/i', (string)$trainerId)) {
+                $trainerOr[] = ['trainerId' => new MongoDB\BSON\ObjectId((string)$trainerId)];
+            }
+            $asgs = $asgCol->find([
+                '$or' => $trainerOr,
+                'status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS', 'CONFIRMED']]
+            ])->toArray();
+
+            foreach ($asgs as $asg) {
+                $asgStart = $asg['startDate'] ?? null;
+                $asgStartTs = time();
+                if ($asgStart instanceof MongoDB\BSON\UTCDateTime) {
+                    $asgStartTs = round($asgStart->toDateTime()->getTimestamp());
+                } elseif (is_numeric($asgStart)) {
+                    $asgStartTs = ($asgStart > 20000000000) ? round($asgStart / 1000) : (int)$asgStart;
+                } elseif (is_string($asgStart) && !empty($asgStart)) {
+                    $asgStartTs = is_numeric($asgStart) ? round($asgStart / 1000) : strtotime($asgStart);
+                }
+
+                $durationDays = (int)($asg['durationDays'] ?? 5);
+                $endTs = $asgStartTs + ($durationDays * 86400);
+
+                // Check linked opportunity title and endDate
+                $oppTitle = 'Active Assignment';
+                if (!empty($asg['opportunityId']) && $oppCol) {
+                    try {
+                        $linkedOpp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$asg['opportunityId'])]);
+                        if ($linkedOpp) {
+                            $oppTitle = $linkedOpp['title'] ?? $oppTitle;
+                            if (!empty($linkedOpp['endDate'])) {
+                                $endOppTs = strtotime($linkedOpp['endDate']);
+                                if ($endOppTs && $endOppTs > $endTs) {
+                                    $endTs = $endOppTs;
+                                }
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                }
+
+                $commitments[] = [
+                    'title' => $oppTitle,
+                    'startTs' => $asgStartTs,
+                    'endTs' => $endTs,
+                    'status' => $asg['status'] ?? 'SCHEDULED'
+                ];
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    // 2. From Opportunity collection directly (where assignedTrainerId matches and not closed/completed)
+    if ($oppCol) {
+        try {
+            $activeOpps = $oppCol->find([
+                'assignedTrainerId' => (string)$trainerId,
+                'status' => ['$in' => ['MATCHED', 'ASSIGNED', 'IN_PROGRESS']]
+            ])->toArray();
+
+            foreach ($activeOpps as $aOpp) {
+                if ((string)($aOpp['_id'] ?? '') === (string)($targetOpp['_id'] ?? '')) {
+                    continue;
+                }
+                $oStart = $aOpp['startDate'] ?? null;
+                $oStartTs = time();
+                if ($oStart instanceof MongoDB\BSON\UTCDateTime) {
+                    $oStartTs = round($oStart->toDateTime()->getTimestamp());
+                } elseif (is_numeric($oStart)) {
+                    $oStartTs = ($oStart > 20000000000) ? round($oStart / 1000) : (int)$oStart;
+                } elseif (is_string($oStart) && !empty($oStart)) {
+                    $oStartTs = is_numeric($oStart) ? round($oStart / 1000) : strtotime($oStart);
+                }
+
+                $durationDays = (int)($aOpp['durationDays'] ?? 5);
+                $endTs = $oStartTs + ($durationDays * 86400);
+                if (!empty($aOpp['endDate'])) {
+                    $eTs = strtotime($aOpp['endDate']);
+                    if ($eTs && $eTs > $endTs) $endTs = $eTs;
+                }
+
+                $commitments[] = [
+                    'title' => $aOpp['title'] ?? 'Assigned Project',
+                    'startTs' => $oStartTs,
+                    'endTs' => $endTs,
+                    'status' => $aOpp['status'] ?? 'MATCHED'
+                ];
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    // 3. From Trainer availability profile: if BUSY_ON_ASSIGNMENT or FREE_FROM_DATE with availableFromDate
+    if ($trainerCol) {
+        try {
+            $trDoc = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$trainerId)]);
+            if ($trDoc && in_array($trDoc['availabilityStatus'] ?? '', ['BUSY_ON_ASSIGNMENT', 'FREE_FROM_DATE'])) {
+                $availFrom = $trDoc['availableFromDate'] ?? null;
+                if ($availFrom) {
+                    $freeTs = null;
+                    if ($availFrom instanceof MongoDB\BSON\UTCDateTime) {
+                        $freeTs = round($availFrom->toDateTime()->getTimestamp());
+                    } elseif (is_numeric($availFrom)) {
+                        $freeTs = ($availFrom > 20000000000) ? round($availFrom / 1000) : (int)$availFrom;
+                    } elseif (is_string($availFrom)) {
+                        $freeTs = is_numeric($availFrom) ? round($availFrom / 1000) : strtotime($availFrom);
+                    }
+                    if ($freeTs && $freeTs > time()) {
+                        $commitments[] = [
+                            'title' => $trDoc['availabilityNotes'] ?: 'Current Teaching Engagement',
+                            'startTs' => time(),
+                            'endTs' => $freeTs,
+                            'status' => 'ENGAGED'
+                        ];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    if (empty($commitments)) {
+        return ['hasConflict' => false, 'reason' => '', 'finishDate' => '', 'finishDateFormatted' => '', 'conflictTitle' => ''];
+    }
+
+    // Now evaluate against candidate opportunity start date
+    $now = time();
+    foreach ($commitments as $c) {
+        // Only consider commitments that haven't finished yet!
+        if ($c['endTs'] <= $now) {
+            continue;
+        }
+
+        // If candidate opp has a start date, check if candidate opp starts before this commitment finishes
+        // (i.e. starts in the date range that the trainer is still teaching)
+        $hasClash = false;
+        if ($candStartTs !== null && $candStartTs > 0) {
+            if ($candStartTs < $c['endTs']) {
+                $hasClash = true;
+            }
+        } else {
+            // Candidate opportunity starts immediately or without fixed date, but trainer is currently engaged
+            $hasClash = true;
+        }
+
+        if ($hasClash) {
+            $finishDateFormatted = date('M j, Y', $c['endTs']);
+            $oppTitle = htmlspecialchars($c['title']);
+            return [
+                'hasConflict' => true,
+                'finishDate' => date('Y-m-d', $c['endTs']),
+                'finishDateFormatted' => $finishDateFormatted,
+                'conflictTitle' => $c['title'],
+                'reason' => "Schedule Conflict: You are currently committed to an active training project ('{$c['title']}') ending on {$finishDateFormatted}. You cannot apply for a program that starts while you are still teaching. You can apply for opportunities starting on or after {$finishDateFormatted}."
+            ];
+        }
+    }
+
+    return ['hasConflict' => false, 'reason' => '', 'finishDate' => '', 'finishDateFormatted' => '', 'conflictTitle' => ''];
+}
+
 

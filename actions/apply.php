@@ -48,6 +48,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Enforce Schedule Conflict Check: Trainer cannot apply if current project hasn't finished and new project starts while teaching
+        require_once __DIR__ . '/../includes/helpers.php';
+        if ($opp) {
+            $conflictCheck = checkTrainerOpportunityDateConflict($trainerId, $opp);
+            if ($conflictCheck['hasConflict']) {
+                $_SESSION['apply_error'] = $conflictCheck['reason'];
+                $referer = $_SERVER['HTTP_REFERER'] ?? '/trainer/opportunities.php';
+                if (strpos($referer, 'opportunity-details.php') !== false) {
+                    header("Location: /opportunity-details.php?id=" . urlencode($opportunityId) . "&error=schedule_conflict");
+                } else {
+                    header("Location: /trainer/opportunities.php?error=schedule_conflict");
+                }
+                exit();
+            }
+        }
+
         // Enforce Strict Resume Requirement
         $docCol = getCollection("Document");
         $hasResume = !empty($trainer['resumeUrl']);
