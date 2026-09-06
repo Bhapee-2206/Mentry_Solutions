@@ -144,6 +144,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
         body { font-family: 'Inter', sans-serif; }
         .mesh-bg {
             background-color: #f8fafc;
@@ -153,8 +160,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     </style>
 </head>
-<body class="min-h-screen mesh-bg py-12 px-4 flex flex-col justify-center items-center">
-    <div class="max-w-xl w-full bg-white border border-slate-200 rounded-3xl p-8 sm:p-10 shadow-2xl space-y-6">
+<body class="min-h-screen mesh-bg py-8 sm:py-12 px-3.5 sm:px-4 flex flex-col justify-center items-center w-full max-w-full overflow-x-hidden">
+    <div class="max-w-xl w-full bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-2xl space-y-6 min-w-0">
         <div class="text-center space-y-2">
             <a href="/index.php" class="inline-block">
                 <img src="/public/mentry.png" alt="Mentry Solutions" class="h-12 w-auto mx-auto object-contain">

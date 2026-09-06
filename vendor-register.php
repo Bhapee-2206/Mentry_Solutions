@@ -11,7 +11,7 @@ checkMaintenanceGate();
 if (isLoggedIn()) {
     $currUser = getCurrentUser();
     if ($currUser['role'] === 'VENDOR' || $currUser['role'] === 'COLLEGE') {
-        header("Location: /vendor-dashboard.php");
+        header("Location: /vendor/dashboard.php");
         exit();
     } elseif ($currUser['role'] === 'ADMIN' || $currUser['role'] === 'SUPER_ADMIN') {
         header("Location: /admin/trainers.php");
@@ -21,10 +21,14 @@ if (isLoggedIn()) {
 
 $error = null;
 $success = false;
+$defaultType = strtoupper(trim($_GET['type'] ?? ''));
+if ($defaultType !== 'COLLEGE' && $defaultType !== 'EDTECH_CLIENT' && $defaultType !== 'CORPORATE') {
+    $defaultType = 'STAFFING_VENDOR';
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $organizationName = trim($_POST['organizationName'] ?? '');
-    $organizationType = trim($_POST['organizationType'] ?? 'STAFFING_VENDOR');
+    $organizationType = trim($_POST['organizationType'] ?? $defaultType);
     $contactPerson = trim($_POST['contactPerson'] ?? '');
     $email = strtolower(trim($_POST['email'] ?? ''));
     $phone = trim($_POST['phone'] ?? '');
@@ -109,6 +113,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
         body { font-family: 'Inter', sans-serif; }
         .mesh-bg {
             background-color: #f8fafc;
@@ -118,8 +129,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     </style>
 </head>
-<body class="min-h-screen mesh-bg py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-2xl mx-auto space-y-6">
+<body class="min-h-screen mesh-bg py-8 sm:py-12 px-3.5 sm:px-6 lg:px-8 w-full max-w-full overflow-x-hidden">
+    <div class="max-w-2xl mx-auto space-y-6 min-w-0">
         <!-- Logo & Title -->
         <div class="text-center space-y-3">
             <a href="/index.php" class="inline-block group">
@@ -175,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="/vendor-register.php" autocomplete="off" class="bg-white rounded-3xl border border-slate-200/90 shadow-xl p-8 space-y-6">
+            <form method="POST" action="/vendor-register.php" autocomplete="off" class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-8 space-y-6 min-w-0">
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Organization / College / Company Name *</label>
@@ -185,10 +196,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Partner Type *</label>
                         <select name="organizationType" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none">
-                            <option value="STAFFING_VENDOR">Staffing & Recruitment Vendor</option>
-                            <option value="EDTECH_CLIENT">EdTech / Training Company</option>
-                            <option value="COLLEGE">College / University Placement Cell</option>
-                            <option value="CORPORATE">Corporate Enterprise</option>
+                            <option value="COLLEGE" <?= ($organizationType ?? $defaultType) === 'COLLEGE' ? 'selected' : '' ?>>College / University Placement Cell</option>
+                            <option value="STAFFING_VENDOR" <?= ($organizationType ?? $defaultType) === 'STAFFING_VENDOR' ? 'selected' : '' ?>>Staffing & Recruitment Vendor</option>
+                            <option value="EDTECH_CLIENT" <?= ($organizationType ?? $defaultType) === 'EDTECH_CLIENT' ? 'selected' : '' ?>>EdTech / Training Company</option>
+                            <option value="CORPORATE" <?= ($organizationType ?? $defaultType) === 'CORPORATE' ? 'selected' : '' ?>>Corporate Enterprise</option>
                         </select>
                     </div>
 

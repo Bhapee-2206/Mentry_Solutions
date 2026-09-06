@@ -128,6 +128,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
         body { font-family: 'Inter', sans-serif; }
         .mesh-bg {
             background-color: #f8fafc;
@@ -137,8 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     </style>
 </head>
-<body class="min-h-screen mesh-bg flex flex-col justify-center items-center px-4 py-12">
-    <div class="max-w-md w-full bg-white border border-slate-200 rounded-3xl p-8 sm:p-10 shadow-2xl space-y-6">
+<body class="min-h-screen mesh-bg flex flex-col justify-center items-center px-3.5 sm:px-4 py-8 sm:py-12 w-full max-w-full overflow-x-hidden">
+    <div class="max-w-md w-full bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-2xl space-y-6 min-w-0">
         <!-- Logo & Header -->
         <div class="text-center space-y-3">
             <a href="/index.php" class="inline-block group">

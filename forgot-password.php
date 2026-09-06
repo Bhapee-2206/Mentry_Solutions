@@ -142,6 +142,13 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
         body { font-family: 'Inter', sans-serif; }
         .mesh-bg {
             background-color: #f8fafc;
@@ -151,9 +158,9 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     </style>
 </head>
-<body class="min-h-screen mesh-bg flex flex-col justify-center items-center px-4 py-12 text-slate-800">
+<body class="min-h-screen mesh-bg flex flex-col justify-center items-center px-3.5 sm:px-4 py-8 sm:py-12 text-slate-800 w-full max-w-full overflow-x-hidden">
 
-    <div class="max-w-md w-full bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-8 sm:p-10 shadow-2xl space-y-6 relative">
+    <div class="max-w-md w-full bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-2xl space-y-6 relative min-w-0">
         
         <!-- Header & Logo -->
         <div class="text-center space-y-3">
@@ -167,8 +174,8 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <span class="material-symbols-outlined text-[13px]">lock_reset</span>
                     Account Security
                 </span>
-                <h1 class="text-2xl font-black text-slate-900 tracking-tight">Password Recovery</h1>
-                <p class="text-xs text-slate-500 mt-1">
+                <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Password Recovery</h1>
+                <p class="text-xs text-slate-500 mt-1 break-words">
                     <?php if ($step === 1): ?>
                         Enter your registered email to receive a 6-digit verification code.
                     <?php elseif ($step === 2): ?>
@@ -181,18 +188,18 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <!-- Progress Steps -->
-        <div class="flex items-center justify-center gap-2 text-xs font-bold pt-1">
-            <div class="flex items-center gap-1.5 <?= $step >= 1 ? 'text-[#FE5E04]' : 'text-slate-400' ?>">
+        <div class="flex items-center justify-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold pt-1 flex-wrap min-w-0">
+            <div class="flex items-center gap-1 <?= $step >= 1 ? 'text-[#FE5E04]' : 'text-slate-400' ?>">
                 <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] <?= $step >= 1 ? 'bg-[#FE5E04] text-white' : 'bg-slate-200 text-slate-600' ?>">1</span>
                 <span>Email</span>
             </div>
-            <span class="text-slate-300">———</span>
-            <div class="flex items-center gap-1.5 <?= $step >= 2 ? 'text-[#FE5E04]' : 'text-slate-400' ?>">
+            <span class="text-slate-300">——</span>
+            <div class="flex items-center gap-1 <?= $step >= 2 ? 'text-[#FE5E04]' : 'text-slate-400' ?>">
                 <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] <?= $step >= 2 ? 'bg-[#FE5E04] text-white' : 'bg-slate-200 text-slate-600' ?>">2</span>
                 <span>Verify & Reset</span>
             </div>
-            <span class="text-slate-300">———</span>
-            <div class="flex items-center gap-1.5 <?= $step >= 3 ? 'text-emerald-600' : 'text-slate-400' ?>">
+            <span class="text-slate-300">——</span>
+            <div class="flex items-center gap-1 <?= $step >= 3 ? 'text-emerald-600' : 'text-slate-400' ?>">
                 <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] <?= $step >= 3 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600' ?>">3</span>
                 <span>Done</span>
             </div>
@@ -200,9 +207,9 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <!-- Error Alert -->
         <?php if ($error): ?>
-            <div class="bg-rose-50 border border-rose-200 text-rose-800 p-3.5 rounded-2xl text-xs flex items-start gap-2">
+            <div class="bg-rose-50 border border-rose-200 text-rose-800 p-3.5 rounded-2xl text-xs flex items-start gap-2 min-w-0">
                 <span class="material-symbols-outlined text-rose-600 text-base shrink-0 mt-0.5">error</span>
-                <div class="font-medium leading-relaxed"><?= htmlspecialchars($error) ?></div>
+                <div class="font-medium leading-relaxed break-words min-w-0 flex-1"><?= htmlspecialchars($error) ?></div>
             </div>
         <?php endif; ?>
 
@@ -226,11 +233,11 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- STEP 2: ENTER OTP & NEW PASSWORD -->
         <?php elseif ($step === 2): ?>
 
-            <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl text-xs flex items-center gap-3">
-                <span class="material-symbols-outlined text-emerald-600 text-2xl shrink-0">mark_email_read</span>
-                <div>
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3.5 sm:p-4 rounded-2xl text-xs flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
+                <span class="material-symbols-outlined text-emerald-600 text-2xl shrink-0 mt-0.5 sm:mt-0">mark_email_read</span>
+                <div class="min-w-0 flex-1 break-words">
                     <span class="font-bold text-emerald-950 text-sm block">Verification Code Sent</span>
-                    <span class="text-xs text-emerald-800"><?= $notice ?? ('We have sent a 6-digit verification code to <strong>' . htmlspecialchars($emailTarget) . '</strong>. Please check your inbox and spam folder.') ?></span>
+                    <span class="text-xs text-emerald-800 break-words"><?= $notice ?? ('We have sent a 6-digit verification code to <strong>' . htmlspecialchars($emailTarget) . '</strong>. Please check your inbox and spam folder.') ?></span>
                 </div>
             </div>
 
@@ -238,9 +245,9 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="hidden" name="action" value="reset_password">
                 <input type="hidden" name="email" value="<?= htmlspecialchars($emailTarget) ?>">
 
-                <div class="flex items-center justify-between text-xs px-1">
-                    <span class="text-slate-500">Account: <strong><?= htmlspecialchars($emailTarget) ?></strong></span>
-                    <a href="/forgot-password.php" class="text-blue-600 font-bold hover:underline">Change Email</a>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs px-1 min-w-0">
+                    <span class="text-slate-500 truncate">Account: <strong class="text-slate-800 break-all"><?= htmlspecialchars($emailTarget) ?></strong></span>
+                    <a href="/forgot-password.php" class="text-blue-600 font-bold hover:underline shrink-0">Change Email</a>
                 </div>
 
                 <div>

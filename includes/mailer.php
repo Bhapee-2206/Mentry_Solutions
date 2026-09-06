@@ -137,8 +137,9 @@ class MentryMailer {
 
         $senderDomain = (strpos($this->host, 'gmail.com') !== false) ? 'gmail.com' : (substr(strrchr($this->fromEmail, "@"), 1) ?: 'mentry.solutions');
         $msgId = sprintf("<%s.%s@%s>", bin2hex(random_bytes(10)), time(), $senderDomain);
-        $boundary = "b1_" . md5(uniqid((string)time(), true));
+        $boundary = "mentry_b1_" . md5(uniqid((string)time(), true));
         
+        // Gmail 2024+ Compliant Transactional Headers
         $headers = [];
         $headers[] = "Message-ID: " . $msgId;
         $headers[] = "Date: " . date('r');
@@ -148,20 +149,17 @@ class MentryMailer {
         $headers[] = "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=";
         $headers[] = "MIME-Version: 1.0";
         $headers[] = "Content-Type: multipart/alternative; boundary=\"" . $boundary . "\"";
-        $headers[] = "X-Priority: 3";
-        $headers[] = "Importance: Normal";
-        $headers[] = "Auto-Submitted: auto-generated";
-        $headers[] = "Precedence: bulk";
+        $headers[] = "X-Mailer: Mentry Transactional Mailer v2.1";
 
         $body = "--" . $boundary . "\r\n";
         $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
-        $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
-        $body .= chunk_split(base64_encode($plainText)) . "\r\n";
+        $body .= "Content-Transfer-Encoding: quoted-printable\r\n\r\n";
+        $body .= quoted_printable_encode($plainText) . "\r\n";
 
         $body .= "--" . $boundary . "\r\n";
         $body .= "Content-Type: text/html; charset=UTF-8\r\n";
-        $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
-        $body .= chunk_split(base64_encode($htmlContent)) . "\r\n";
+        $body .= "Content-Transfer-Encoding: quoted-printable\r\n\r\n";
+        $body .= quoted_printable_encode($htmlContent) . "\r\n";
 
         $body .= "--" . $boundary . "--\r\n";
 
@@ -266,21 +264,25 @@ function sendMentryEmail($toEmail, $toName, $subject, $htmlBody, $plainText = ''
 }
 
 function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
-    $subject = "Your Mentry Verification Code: " . $code;
+    $subject = $code . " is your Mentry verification code";
     $plainText = "Hello " . $toName . ",\n\n" .
-                 "A password recovery request was received for your Mentry account.\n\n" .
-                 "Your 6-digit verification code is: " . $code . "\n\n" .
-                 "This verification code is valid for 30 minutes.\n\n" .
-                 "Alternatively, you can reset your password using the link below:\n" .
+                 "Your one-time security verification code is: " . $code . "\n\n" .
+                 "Enter this code to verify your account and set a new password on Mentry Solutions.\n\n" .
+                 "Security Notice: This verification code is strictly confidential and expires in 30 minutes. Do not share this code with anyone.\n\n" .
+                 "Alternatively, you may complete the reset directly using this link:\n" .
                  $resetLink . "\n\n" .
-                 "If you did not request this code, no further action is required. Your account remains secure.\n\n" .
-                 "---\nMentry Solutions • Managed Trainer Network\nBangalore, Karnataka, India\nContact: mentry.training@gmail.com\n";
+                 "If you did not make this request, you can safely ignore this message. Your password will remain unchanged.\n\n" .
+                 "---\n" .
+                 "Mentry Solutions • Managed Corporate Trainer Network\n" .
+                 "Bengaluru, Karnataka, India\n" .
+                 "Official Support: mentry.training@gmail.com\n";
 
     $html = '
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Mentry Security Verification</title>
         <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
@@ -293,35 +295,47 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
             .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.5; }
         </style>
     </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800;">Mentry Solutions</h1>
-                <p style="color: #FE5E04; margin: 4px 0 0 0; font-size: 11px; font-weight: 700; text-transform: uppercase;">Account Security Notification</p>
-            </div>
-            <div class="content">
-                <h2 style="font-size: 16px; margin-top: 0; color: #0f172a;">Password Verification Code</h2>
-                <p style="font-size: 13px; line-height: 1.6; color: #475569;">
-                    Hello ' . htmlspecialchars($toName) . ',<br>
-                    A password recovery request was received for your registered Mentry account. Please use the verification code below to complete this process:
-                </p>
-                <div class="otp-box">
-                    <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #c2410c; margin-bottom: 6px;">One-Time Verification Code</div>
-                    <div class="otp-code">' . htmlspecialchars($code) . '</div>
-                    <div style="font-size: 11px; color: #9a3412; margin-top: 6px;">Valid for 30 minutes</div>
-                </div>
-                <div style="text-align: center; margin: 18px 0;">
-                    <a href="' . htmlspecialchars($resetLink) . '" class="btn">Confirm Password Reset</a>
-                </div>
-                <p style="font-size: 11px; color: #64748b; line-height: 1.5;">
-                    If you did not initiate this request, no further action is necessary. Your password remains unchanged.
-                </p>
-            </div>
-            <div class="footer">
-                Mentry Solutions • Managed Trainer Network<br>
-                Bangalore, Karnataka, India • Contact: <a href="mailto:mentry.training@gmail.com" style="color: #FE5E04; text-decoration: none;">mentry.training@gmail.com</a>
-            </div>
-        </div>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f8fafc;">
+            <tr>
+                <td align="center" style="padding: 12px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 540px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+                        <tr>
+                            <td style="background-color: #070D18; padding: 28px 24px; text-align: center; border-bottom: 3px solid #FE5E04;">
+                                <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">Mentry Solutions</h1>
+                                <p style="color: #FE5E04; margin: 6px 0 0 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Account Security Verification</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 32px 28px;">
+                                <h2 style="font-size: 17px; margin-top: 0; color: #0f172a; font-weight: 700;">Password Verification Code</h2>
+                                <p style="font-size: 13px; line-height: 1.6; color: #475569; margin: 12px 0 20px 0;">
+                                    Hello ' . htmlspecialchars($toName) . ',<br><br>
+                                    A request was received to reset the password for your Mentry Solutions account. Please enter the one-time code below to verify your identity:
+                                </p>
+                                <div style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 22px 16px; text-align: center; margin: 20px 0;">
+                                    <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: #c2410c; letter-spacing: 1px; margin-bottom: 8px;">Your 6-Digit One-Time Code</div>
+                                    <div style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #FE5E04; font-family: Courier, monospace; line-height: 1;">' . htmlspecialchars($code) . '</div>
+                                    <div style="font-size: 11px; color: #9a3412; font-weight: 600; margin-top: 10px;">Valid for 30 minutes</div>
+                                </div>
+                                <div style="text-align: center; margin: 24px 0 16px 0;">
+                                    <a href="' . htmlspecialchars($resetLink) . '" style="display: inline-block; background-color: #FE5E04; color: #ffffff !important; font-weight: 700; font-size: 13px; padding: 13px 30px; border-radius: 12px; text-decoration: none; box-shadow: 0 2px 4px rgba(254, 94, 4, 0.2);">Confirm Password Reset</a>
+                                </div>
+                                <p style="font-size: 12px; color: #64748b; line-height: 1.6; margin-top: 24px; padding-top: 18px; border-top: 1px solid #f1f5f9;">
+                                    If you did not initiate this request, your account is safe and no changes have been made. You can disregard this email.
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6;">
+                                <strong style="color: #334155;">Mentry Solutions</strong> • Managed Corporate Trainer Network<br>
+                                Bengaluru, Karnataka, India • Official Support: <a href="mailto:mentry.training@gmail.com" style="color: #FE5E04; text-decoration: none;">mentry.training@gmail.com</a>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
     ';
