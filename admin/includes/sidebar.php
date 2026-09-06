@@ -272,6 +272,17 @@ $navItems = [
                 <?php endif; ?>
             </a>
 
+            <?php 
+            require_once __DIR__ . '/../../includes/maintenance.php';
+            $topbarMaint = getMaintenanceConfig();
+            if (!empty($topbarMaint['maintenance_mode'])):
+            ?>
+                <a href="/admin/settings.php" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 border border-orange-300 text-orange-900 font-extrabold text-[11px] animate-pulse hover:bg-orange-200 transition-colors" title="Maintenance Mode is Active - Click to Manage">
+                    <span class="w-2 h-2 rounded-full bg-[#FE5E04]"></span>
+                    <span>Maintenance: ON</span>
+                </a>
+            <?php endif; ?>
+
             <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-700" title="Live Database Connection Active">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>Database: <strong class="text-emerald-700 font-bold">Connected</strong></span>

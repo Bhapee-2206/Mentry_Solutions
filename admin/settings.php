@@ -11,6 +11,8 @@ $logs = $auditCol ? $auditCol->find([], ['limit' => 20, 'sort' => ['createdAt' =
 
 $maintConfig = getMaintenanceConfig();
 $isMaintActive = !empty($maintConfig['maintenance_mode']);
+$maintFlash = $_SESSION['maint_flash'] ?? null;
+unset($_SESSION['maint_flash']);
 ?>
 
 <div class="space-y-6 max-w-full overflow-hidden">
@@ -19,6 +21,15 @@ $isMaintActive = !empty($maintConfig['maintenance_mode']);
         <p class="text-xs md:text-sm text-slate-500 mt-0.5">Control live website status, review operational security logs, and environment configuration.</p>
     </div>
 
+    <?php if ($maintFlash): ?>
+        <div class="p-4 rounded-2xl border text-xs font-bold flex items-center gap-3 <?= $isMaintActive ? 'bg-orange-50 border-orange-200 text-orange-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900' ?>">
+            <span class="material-symbols-outlined text-xl <?= $isMaintActive ? 'text-[#FE5E04]' : 'text-emerald-600' ?>">
+                <?= $isMaintActive ? 'engineering' : 'check_circle' ?>
+            </span>
+            <span><?= htmlspecialchars($maintFlash) ?></span>
+        </div>
+    <?php endif; ?>
+
     <!-- Website Status & Maintenance Mode Card -->
     <div class="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
@@ -26,9 +37,18 @@ $isMaintActive = !empty($maintConfig['maintenance_mode']);
                 <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-[#FE5E04]">toggle_on</span>
                     <h3 class="font-extrabold text-sm sm:text-base text-slate-900">Website Live / Maintenance Mode Control</h3>
+                    <?php if ($isMaintActive): ?>
+                        <span class="bg-orange-100 text-orange-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-orange-300 animate-pulse">
+                            ACTIVE
+                        </span>
+                    <?php else: ?>
+                        <span class="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-300">
+                            LIVE
+                        </span>
+                    <?php endif; ?>
                 </div>
                 <p class="text-xs text-slate-500">
-                    When Work in Progress mode is ACTIVE, public visitors see the maintenance page while authenticated Admins and Staff can continue operating.
+                    When Work in Progress mode is <strong>ACTIVE</strong>, all public visitors, trainers, and college partners are blocked and see the maintenance page, while authenticated Admins and Staff retain bypass access.
                 </p>
             </div>
 
@@ -50,12 +70,26 @@ $isMaintActive = !empty($maintConfig['maintenance_mode']);
             </form>
         </div>
 
+        <?php if ($isMaintActive): ?>
+            <div class="bg-amber-50/70 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-amber-600 text-lg shrink-0 mt-0.5">info</span>
+                <div class="space-y-1">
+                    <p class="font-bold">Maintenance Mode is actively enforced via Supabase Cloud.</p>
+                    <p class="text-[11px] text-amber-800">
+                        Because you are logged in with an Administrator/Staff session, you bypass the block so you can continue managing the platform. You can test public view using the Preview link below or by visiting in an Incognito window.
+                    </p>
+                </div>
+            </div>
+        <?php endif; ?>
+
         <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500">
             <span class="font-bold text-slate-700">Preview Page:</span>
-            <a href="/maintenance.php" target="_blank" class="text-[#FE5E04] font-semibold hover:underline inline-flex items-center gap-1">
-                <span>View Maintenance Light Page</span>
+            <a href="/maintenance.php?preview=1" target="_blank" class="text-[#FE5E04] font-semibold hover:underline inline-flex items-center gap-1">
+                <span>View Maintenance Page (Preview)</span>
                 <span class="material-symbols-outlined text-[14px]">open_in_new</span>
             </a>
+            <span class="text-slate-300">•</span>
+            <span class="text-[11px] text-slate-500">Cloud Status: <strong>Supabase Synced</strong></span>
         </div>
     </div>
 

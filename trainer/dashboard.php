@@ -292,99 +292,106 @@ $isNewSignup = isset($_GET['new_signup']);
 </div>
 
 <!-- Trainer Availability Modal / Popup -->
-<div id="availabilityModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl p-6 sm:p-8 space-y-6 animate-scaleIn">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+<div id="availabilityModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden overflow-y-auto p-4 sm:p-6 items-center justify-center">
+    <div class="fixed inset-0" onclick="closeAvailabilityModal()" aria-hidden="true"></div>
+    <div class="relative bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl flex flex-col max-h-[90vh] my-auto animate-scaleIn z-10 overflow-hidden" style="max-height: 90vh; max-height: 90dvh; display: flex; flex-direction: column;">
+        <!-- Pinned Header -->
+        <div class="flex items-center justify-between p-5 sm:p-6 pb-4 border-b border-slate-100 shrink-0 bg-white">
             <div class="flex items-center gap-2.5">
-                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                     <span class="material-symbols-outlined text-xl">event_available</span>
                 </div>
                 <div>
-                    <h3 class="font-black text-slate-900 text-lg">Update My Availability</h3>
+                    <h3 class="font-black text-slate-900 text-lg leading-tight">Update My Availability</h3>
                     <p class="text-xs text-slate-500">Help college coordinators match you for upcoming training dates.</p>
                 </div>
             </div>
-            <button type="button" onclick="closeAvailabilityModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center font-bold">
+            <button type="button" onclick="closeAvailabilityModal()" aria-label="Close availability modal" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center font-bold text-sm shrink-0 cursor-pointer">
                 ✕
             </button>
         </div>
 
-        <form action="/actions/update-trainer-availability.php" method="POST" class="space-y-4">
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">My Current Booking Status *</label>
-                <div class="grid grid-cols-1 gap-2">
-                    <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:border-emerald-500 cursor-pointer bg-slate-50/50 has-checked:bg-emerald-50/70 has-checked:border-emerald-500 transition-all">
-                        <input type="radio" name="availabilityStatus" value="AVAILABLE_NOW" <?= ($availStatus === 'AVAILABLE_NOW') ? 'checked' : '' ?> onchange="toggleDateRequirement(false)" class="text-emerald-600 focus:ring-emerald-500">
-                        <div>
-                            <strong class="text-xs font-bold text-slate-900 block flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                Available Immediately
-                            </strong>
-                            <span class="text-[11px] text-slate-500">I am ready to accept campus or online workshop assignments right now.</span>
-                        </div>
-                    </label>
+        <!-- Form: Scrollable Content + Pinned Footer -->
+        <form action="/actions/update-trainer-availability.php" method="POST" class="flex flex-col flex-1 min-h-0 overflow-hidden" style="display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; overflow: hidden;">
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4" style="overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; flex: 1 1 auto;">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-2">My Current Booking Status *</label>
+                    <div class="grid grid-cols-1 gap-2">
+                        <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:border-emerald-500 cursor-pointer bg-slate-50/50 has-checked:bg-emerald-50/70 has-checked:border-emerald-500 transition-all">
+                            <input type="radio" name="availabilityStatus" value="AVAILABLE_NOW" <?= ($availStatus === 'AVAILABLE_NOW') ? 'checked' : '' ?> onchange="toggleDateRequirement(false)" class="text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <strong class="text-xs font-bold text-slate-900 block flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    Available Immediately
+                                </strong>
+                                <span class="text-[11px] text-slate-500">I am ready to accept campus or online workshop assignments right now.</span>
+                            </div>
+                        </label>
 
-                    <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:border-amber-500 cursor-pointer bg-slate-50/50 has-checked:bg-amber-50/70 has-checked:border-amber-500 transition-all">
-                        <input type="radio" name="availabilityStatus" value="FREE_FROM_DATE" <?= ($availStatus === 'FREE_FROM_DATE') ? 'checked' : '' ?> onchange="toggleDateRequirement(true)" class="text-amber-600 focus:ring-amber-500">
-                        <div>
-                            <strong class="text-xs font-bold text-slate-900 block flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                                Free After a Specific Date
-                            </strong>
-                            <span class="text-[11px] text-slate-500">I am completing commitments and free to start new batches after this date.</span>
-                        </div>
-                    </label>
+                        <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:border-amber-500 cursor-pointer bg-slate-50/50 has-checked:bg-amber-50/70 has-checked:border-amber-500 transition-all">
+                            <input type="radio" name="availabilityStatus" value="FREE_FROM_DATE" <?= ($availStatus === 'FREE_FROM_DATE') ? 'checked' : '' ?> onchange="toggleDateRequirement(true)" class="text-amber-600 focus:ring-amber-500">
+                            <div>
+                                <strong class="text-xs font-bold text-slate-900 block flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                    Free After a Specific Date
+                                </strong>
+                                <span class="text-[11px] text-slate-500">I am completing commitments and free to start new batches after this date.</span>
+                            </div>
+                        </label>
 
-                    <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:border-blue-500 cursor-pointer bg-slate-50/50 has-checked:bg-blue-50/70 has-checked:border-blue-500 transition-all">
-                        <input type="radio" name="availabilityStatus" value="BUSY_ON_ASSIGNMENT" <?= ($availStatus === 'BUSY_ON_ASSIGNMENT') ? 'checked' : '' ?> onchange="toggleDateRequirement(true)" class="text-blue-600 focus:ring-blue-500">
-                        <div>
-                            <strong class="text-xs font-bold text-slate-900 block flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                                Currently Delivering Workshop
-                            </strong>
-                            <span class="text-[11px] text-slate-500">Delivering in-person campus labs; available for next booking after completion.</span>
-                        </div>
-                    </label>
+                        <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:border-blue-500 cursor-pointer bg-slate-50/50 has-checked:bg-blue-50/70 has-checked:border-blue-500 transition-all">
+                            <input type="radio" name="availabilityStatus" value="BUSY_ON_ASSIGNMENT" <?= ($availStatus === 'BUSY_ON_ASSIGNMENT') ? 'checked' : '' ?> onchange="toggleDateRequirement(true)" class="text-blue-600 focus:ring-blue-500">
+                            <div>
+                                <strong class="text-xs font-bold text-slate-900 block flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                    Currently Delivering Workshop
+                                </strong>
+                                <span class="text-[11px] text-slate-500">Delivering in-person campus labs; available for next booking after completion.</span>
+                            </div>
+                        </label>
 
-                    <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:border-slate-400 cursor-pointer bg-slate-50/50 has-checked:bg-slate-100 transition-all">
-                        <input type="radio" name="availabilityStatus" value="UNAVAILABLE" <?= ($availStatus === 'UNAVAILABLE') ? 'checked' : '' ?> onchange="toggleDateRequirement(false)" class="text-slate-600 focus:ring-slate-500">
-                        <div>
-                            <strong class="text-xs font-bold text-slate-900 block">Temporarily Unavailable</strong>
-                            <span class="text-[11px] text-slate-500">Taking personal leave or not accepting assignments at this time.</span>
-                        </div>
-                    </label>
+                        <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:border-slate-400 cursor-pointer bg-slate-50/50 has-checked:bg-slate-100 transition-all">
+                            <input type="radio" name="availabilityStatus" value="UNAVAILABLE" <?= ($availStatus === 'UNAVAILABLE') ? 'checked' : '' ?> onchange="toggleDateRequirement(false)" class="text-slate-600 focus:ring-slate-500">
+                            <div>
+                                <strong class="text-xs font-bold text-slate-900 block">Temporarily Unavailable</strong>
+                                <span class="text-[11px] text-slate-500">Taking personal leave or not accepting assignments at this time.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Date Picker for "Free From / After Date" -->
+                <div id="datePickerContainer" class="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-1 <?= in_array($availStatus, ['FREE_FROM_DATE', 'BUSY_ON_ASSIGNMENT']) ? '' : 'hidden' ?>">
+                    <label class="block text-xs font-bold text-amber-950 uppercase">Available / Free From Date *</label>
+                    <input type="date" name="availableFromDate" id="availableFromDateInput" value="<?= htmlspecialchars($availFromDateStr) ?>" min="<?= date('Y-m-d') ?>" class="w-full bg-white border border-amber-300 rounded-xl p-2.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500/20">
+                    <span class="text-[10px] text-amber-800 block">College administrators will prioritize your profile for openings scheduled on or after this date.</span>
+                </div>
+
+                <!-- Mobility Preference -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Campus Travel Preference</label>
+                    <select name="mobilityPreference" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white text-slate-800 font-medium">
+                        <option value="PAN_INDIA" <?= ($mobilityPref === 'PAN_INDIA') ? 'selected' : '' ?>>PAN India (Open to travel anywhere in India with accommodation)</option>
+                        <option value="STATE_ONLY" <?= ($mobilityPref === 'STATE_ONLY') ? 'selected' : '' ?>>Within Home State Only</option>
+                        <option value="CITY_ONLY" <?= ($mobilityPref === 'CITY_ONLY') ? 'selected' : '' ?>>Within Current Metro City Only (No Outstation)</option>
+                        <option value="REMOTE_ONLY" <?= ($mobilityPref === 'REMOTE_ONLY') ? 'selected' : '' ?>>Virtual / Online Only</option>
+                    </select>
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Availability Notes (Optional)</label>
+                    <input type="text" name="availabilityNotes" value="<?= htmlspecialchars($availNotes) ?>" placeholder="e.g. Free for 5-day sprints starting every Monday..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white text-slate-800">
                 </div>
             </div>
 
-            <!-- Date Picker for "Free From / After Date" -->
-            <div id="datePickerContainer" class="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-1 <?= in_array($availStatus, ['FREE_FROM_DATE', 'BUSY_ON_ASSIGNMENT']) ? '' : 'hidden' ?>">
-                <label class="block text-xs font-bold text-amber-950 uppercase">Available / Free From Date *</label>
-                <input type="date" name="availableFromDate" id="availableFromDateInput" value="<?= htmlspecialchars($availFromDateStr) ?>" min="<?= date('Y-m-d') ?>" class="w-full bg-white border border-amber-300 rounded-xl p-2.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500/20">
-                <span class="text-[10px] text-amber-800 block">College administrators will prioritize your profile for openings scheduled on or after this date.</span>
-            </div>
-
-            <!-- Mobility Preference -->
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Campus Travel Preference</label>
-                <select name="mobilityPreference" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
-                    <option value="PAN_INDIA" <?= ($mobilityPref === 'PAN_INDIA') ? 'selected' : '' ?>>PAN India (Open to travel anywhere in India with accommodation)</option>
-                    <option value="STATE_ONLY" <?= ($mobilityPref === 'STATE_ONLY') ? 'selected' : '' ?>>Within Home State Only</option>
-                    <option value="CITY_ONLY" <?= ($mobilityPref === 'CITY_ONLY') ? 'selected' : '' ?>>Within Current Metro City Only (No Outstation)</option>
-                    <option value="REMOTE_ONLY" <?= ($mobilityPref === 'REMOTE_ONLY') ? 'selected' : '' ?>>Virtual / Online Only</option>
-                </select>
-            </div>
-
-            <!-- Notes -->
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Availability Notes (Optional)</label>
-                <input type="text" name="availabilityNotes" value="<?= htmlspecialchars($availNotes) ?>" placeholder="e.g. Free for 5-day sprints starting every Monday..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
-            </div>
-
-            <div class="pt-3 flex items-center justify-end gap-3 border-t border-slate-100">
-                <button type="button" onclick="closeAvailabilityModal()" class="text-xs font-bold text-slate-500 hover:text-slate-800 px-4 py-2.5 rounded-xl">
+            <!-- Pinned Footer -->
+            <div class="p-4 sm:px-6 bg-slate-50 border-t border-slate-100 rounded-b-3xl flex items-center justify-end gap-3 shrink-0">
+                <button type="button" onclick="closeAvailabilityModal()" class="text-xs font-bold text-slate-500 hover:text-slate-800 px-4 py-2.5 rounded-xl cursor-pointer">
                     Cancel
                 </button>
-                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-md transition-all flex items-center gap-1.5">
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-[16px]">save</span>
                     Save Availability Status
                 </button>
@@ -394,9 +401,11 @@ $isNewSignup = isset($_GET['new_signup']);
 </div>
 
 <!-- ================= MODAL: COMPLETE YOUR TRAINER PROFILE ================= -->
-<div id="onboardingProfileModal" class="<?= ($isNewSignup || ($isProfileIncomplete && !isset($_COOKIE['hide_profile_popup']))) ? 'flex' : 'hidden' ?> fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-        <div class="flex items-start justify-between gap-4">
+<div id="onboardingProfileModal" class="<?= ($isNewSignup || ($isProfileIncomplete && !isset($_COOKIE['hide_profile_popup']))) ? 'flex' : 'hidden' ?> fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs overflow-y-auto items-center justify-center p-4 sm:p-6">
+    <div class="fixed inset-0" onclick="dismissOnboardingModal()" aria-hidden="true"></div>
+    <div class="relative bg-white rounded-3xl max-w-lg w-full flex flex-col max-h-[90vh] my-auto shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200 z-10 overflow-hidden" style="max-height: 90vh; max-height: 90dvh; display: flex; flex-direction: column;">
+        <!-- Pinned Header -->
+        <div class="p-6 sm:p-8 pb-4 border-b border-slate-100 flex items-start justify-between gap-4 shrink-0 bg-white">
             <div class="space-y-1">
                 <span class="bg-orange-50 text-[#FE5E04] text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border border-orange-200">
                     Quick Profile Setup
@@ -413,63 +422,67 @@ $isNewSignup = isset($_GET['new_signup']);
             </button>
         </div>
 
-        <!-- Progress Bar -->
-        <div class="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <div class="flex items-center justify-between text-xs font-bold">
-                <span class="text-slate-700">Profile Completion</span>
-                <span class="text-blue-600 font-extrabold"><?= $completionPercentage ?>%</span>
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-6 sm:p-8 pt-4 space-y-5" style="overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; flex: 1 1 auto;">
+            <!-- Progress Bar -->
+            <div class="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div class="flex items-center justify-between text-xs font-bold">
+                    <span class="text-slate-700">Profile Completion</span>
+                    <span class="text-blue-600 font-extrabold"><?= $completionPercentage ?>%</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                    <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: <?= $completionPercentage ?>%"></div>
+                </div>
             </div>
-            <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: <?= $completionPercentage ?>%"></div>
+
+            <!-- Checklist -->
+            <div class="space-y-2">
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Pending Profile Steps:</h4>
+                
+                <div class="flex items-center justify-between p-3 rounded-xl <?= $hasTitle ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
+                    <div class="flex items-center gap-2.5">
+                        <span class="material-symbols-outlined text-base <?= $hasTitle ? 'text-emerald-600' : 'text-slate-400' ?>">
+                            <?= $hasTitle ? 'check_circle' : 'radio_button_unchecked' ?>
+                        </span>
+                        <span class="text-xs font-semibold <?= $hasTitle ? 'text-emerald-950' : 'text-slate-700' ?>">Professional Title & Domain</span>
+                    </div>
+                    <span class="text-[11px] font-bold <?= $hasTitle ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasTitle ? 'Done' : '+15%' ?></span>
+                </div>
+
+                <div class="flex items-center justify-between p-3 rounded-xl <?= $hasSkills ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
+                    <div class="flex items-center gap-2.5">
+                        <span class="material-symbols-outlined text-base <?= $hasSkills ? 'text-emerald-600' : 'text-slate-400' ?>">
+                            <?= $hasSkills ? 'check_circle' : 'radio_button_unchecked' ?>
+                        </span>
+                        <span class="text-xs font-semibold <?= $hasSkills ? 'text-emerald-950' : 'text-slate-700' ?>">Verified Technical Skills (Python, Java, Cloud...)</span>
+                    </div>
+                    <span class="text-[11px] font-bold <?= $hasSkills ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasSkills ? 'Done' : '+20%' ?></span>
+                </div>
+
+                <div class="flex items-center justify-between p-3 rounded-xl <?= $hasDoc ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
+                    <div class="flex items-center gap-2.5">
+                        <span class="material-symbols-outlined text-base <?= $hasDoc ? 'text-emerald-600' : 'text-slate-400' ?>">
+                            <?= $hasDoc ? 'check_circle' : 'radio_button_unchecked' ?>
+                        </span>
+                        <span class="text-xs font-semibold <?= $hasDoc ? 'text-emerald-950' : 'text-slate-700' ?>">Upload Resume / CV</span>
+                    </div>
+                    <span class="text-[11px] font-bold <?= $hasDoc ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasDoc ? 'Done' : '+20%' ?></span>
+                </div>
+
+                <div class="flex items-center justify-between p-3 rounded-xl <?= $hasPhoto ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
+                    <div class="flex items-center gap-2.5">
+                        <span class="material-symbols-outlined text-base <?= $hasPhoto ? 'text-emerald-600' : 'text-slate-400' ?>">
+                            <?= $hasPhoto ? 'check_circle' : 'radio_button_unchecked' ?>
+                        </span>
+                        <span class="text-xs font-semibold <?= $hasPhoto ? 'text-emerald-950' : 'text-slate-700' ?>">Profile Headshot (Optional: Initials used)</span>
+                    </div>
+                    <span class="text-[11px] font-bold <?= $hasPhoto ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasPhoto ? 'Done' : '+15%' ?></span>
+                </div>
             </div>
         </div>
 
-        <!-- Checklist -->
-        <div class="space-y-2">
-            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Pending Profile Steps:</h4>
-            
-            <div class="flex items-center justify-between p-3 rounded-xl <?= $hasTitle ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-2.5">
-                    <span class="material-symbols-outlined text-base <?= $hasTitle ? 'text-emerald-600' : 'text-slate-400' ?>">
-                        <?= $hasTitle ? 'check_circle' : 'radio_button_unchecked' ?>
-                    </span>
-                    <span class="text-xs font-semibold <?= $hasTitle ? 'text-emerald-950' : 'text-slate-700' ?>">Professional Title & Domain</span>
-                </div>
-                <span class="text-[11px] font-bold <?= $hasTitle ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasTitle ? 'Done' : '+15%' ?></span>
-            </div>
-
-            <div class="flex items-center justify-between p-3 rounded-xl <?= $hasSkills ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-2.5">
-                    <span class="material-symbols-outlined text-base <?= $hasSkills ? 'text-emerald-600' : 'text-slate-400' ?>">
-                        <?= $hasSkills ? 'check_circle' : 'radio_button_unchecked' ?>
-                    </span>
-                    <span class="text-xs font-semibold <?= $hasSkills ? 'text-emerald-950' : 'text-slate-700' ?>">Verified Technical Skills (Python, Java, Cloud...)</span>
-                </div>
-                <span class="text-[11px] font-bold <?= $hasSkills ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasSkills ? 'Done' : '+20%' ?></span>
-            </div>
-
-            <div class="flex items-center justify-between p-3 rounded-xl <?= $hasDoc ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-2.5">
-                    <span class="material-symbols-outlined text-base <?= $hasDoc ? 'text-emerald-600' : 'text-slate-400' ?>">
-                        <?= $hasDoc ? 'check_circle' : 'radio_button_unchecked' ?>
-                    </span>
-                    <span class="text-xs font-semibold <?= $hasDoc ? 'text-emerald-950' : 'text-slate-700' ?>">Upload Resume / CV</span>
-                </div>
-                <span class="text-[11px] font-bold <?= $hasDoc ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasDoc ? 'Done' : '+20%' ?></span>
-            </div>
-
-            <div class="flex items-center justify-between p-3 rounded-xl <?= $hasPhoto ? 'bg-emerald-50/60 border border-emerald-200/60' : 'bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-2.5">
-                    <span class="material-symbols-outlined text-base <?= $hasPhoto ? 'text-emerald-600' : 'text-slate-400' ?>">
-                        <?= $hasPhoto ? 'check_circle' : 'radio_button_unchecked' ?>
-                    </span>
-                    <span class="text-xs font-semibold <?= $hasPhoto ? 'text-emerald-950' : 'text-slate-700' ?>">Profile Headshot (Optional: Initials used)</span>
-                </div>
-                <span class="text-[11px] font-bold <?= $hasPhoto ? 'text-emerald-600' : 'text-slate-400' ?>"><?= $hasPhoto ? 'Done' : '+15%' ?></span>
-            </div>
-        </div>
-
-        <div class="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+        <!-- Pinned Footer -->
+        <div class="p-4 sm:px-8 bg-slate-50 border-t border-slate-100 rounded-b-3xl flex flex-col sm:flex-row items-center justify-end gap-2.5 shrink-0">
             <button type="button" onclick="dismissOnboardingModal()" class="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer">
                 I'll do this later
             </button>
@@ -484,14 +497,20 @@ $isNewSignup = isset($_GET['new_signup']);
 <script>
 function openAvailabilityModal() {
     const modal = document.getElementById('availabilityModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.classList.add('overflow-hidden');
+    }
 }
 
 function closeAvailabilityModal() {
     const modal = document.getElementById('availabilityModal');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
 }
 
 function toggleDateRequirement(show) {
@@ -508,9 +527,17 @@ function dismissOnboardingModal() {
     if (modal) {
         modal.classList.remove('flex');
         modal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
     }
     document.cookie = "hide_profile_popup=1; path=/; max-age=86400";
 }
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeAvailabilityModal();
+        dismissOnboardingModal();
+    }
+});
 </script>
 
 </main>

@@ -1,0 +1,12 @@
+[
+    {
+        "_id": "maintenance_mode_config",
+        "key": "maintenance",
+        "message": "Platform upgrades in progress.",
+        "createdAt": "1788624365546",
+        "updatedAt": "1788678782408",
+        "updated_at": "2026-09-06 09:13:02",
+        "estimated_return": "Restore",
+        "maintenance_mode": false
+    }
+]

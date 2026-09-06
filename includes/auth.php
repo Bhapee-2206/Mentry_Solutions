@@ -244,6 +244,7 @@ function sendAntiCacheHeaders() {
 
 function requireAuth() {
     sendAntiCacheHeaders();
+    checkMaintenanceGate();
     if (!isLoggedIn()) {
         header("Location: /login.php");
         exit();
@@ -252,6 +253,7 @@ function requireAuth() {
 
 function requireTrainer() {
     sendAntiCacheHeaders();
+    checkMaintenanceGate();
     $user = getCurrentUser();
     if (!$user || empty($user['id'])) {
         header("Location: /login.php?error=suspended");
@@ -266,6 +268,7 @@ function requireTrainer() {
 
 function requireVendor() {
     sendAntiCacheHeaders();
+    checkMaintenanceGate();
     if (!isLoggedIn()) {
         header("Location: /vendor-login.php?redirect=" . urlencode($_SERVER['REQUEST_URI']));
         exit();

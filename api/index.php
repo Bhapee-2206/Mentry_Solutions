@@ -77,6 +77,12 @@ if (file_exists($target) && is_file($target)) {
     $_SERVER['SCRIPT_FILENAME'] = $target;
     $_SERVER['PHP_SELF'] = '/' . $script;
     chdir(dirname($target));
+
+    if (file_exists(__DIR__ . '/../includes/maintenance.php')) {
+        require_once __DIR__ . '/../includes/maintenance.php';
+        checkMaintenanceGate();
+    }
+
     require $target;
 } else {
     http_response_code(404);

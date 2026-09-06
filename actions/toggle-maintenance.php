@@ -25,6 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'GET
     $estimatedReturn = isset($_POST['estimated_return']) && trim($_POST['estimated_return']) !== '' ? trim($_POST['estimated_return']) : null;
 
     setMaintenanceMode($newStatus, $message, $estimatedReturn);
+    $_SESSION['maint_flash'] = $newStatus 
+        ? "Maintenance Mode is now ENABLED. Public visitors and trainers are currently blocked and redirected to the maintenance page. (Admins retain bypass access)."
+        : "Maintenance Mode is now DISABLED. The platform is LIVE and accessible to all visitors.";
 }
 
 // Return JSON if AJAX request
@@ -34,6 +37,6 @@ if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQ
     exit();
 }
 
-$redirect = $_POST['return_url'] ?? $_GET['return_url'] ?? $_SERVER['HTTP_REFERER'] ?? '/admin/index.php';
-header("Location: " . $redirect);
+$redirect = $_POST['return_url'] ?? $_GET['return_url'] ?? $_SERVER['HTTP_REFERER'] ?? '/admin/settings.php';
+header("Location: " . $redirect . (strpos($redirect, '?') !== false ? '&' : '?') . 'maint_updated=1');
 exit();

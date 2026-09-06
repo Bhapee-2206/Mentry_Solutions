@@ -108,6 +108,27 @@ if ($currentUser) {
 </head>
 <body class="min-h-screen flex flex-col bg-white text-slate-900">
 
+<?php 
+$headerMaint = getMaintenanceConfig();
+if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
+?>
+    <div class="bg-gradient-to-r from-orange-600 to-amber-600 text-white text-xs font-bold px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shadow-md z-[100] sticky top-0">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[18px] animate-pulse">engineering</span>
+            <span><strong>MAINTENANCE MODE IS ACTIVE:</strong> Public visitors, trainers, and colleges are currently blocked and seeing the maintenance page. You are viewing with Administrator bypass.</span>
+        </div>
+        <div class="flex items-center gap-2.5 shrink-0">
+            <a href="/maintenance.php?preview=1" target="_blank" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-xl transition-colors inline-flex items-center gap-1">
+                <span>Preview Public View</span>
+                <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+            </a>
+            <a href="/admin/settings.php" class="bg-white text-orange-700 hover:bg-orange-50 px-3 py-1 rounded-xl transition-colors font-black">
+                Manage Mode
+            </a>
+        </div>
+    </div>
+<?php endif; ?>
+
 <!-- Navigation Header -->
 <header class="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs transition-all">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
