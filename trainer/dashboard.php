@@ -122,22 +122,22 @@ $isNewSignup = isset($_GET['new_signup']);
     <?php endif; ?>
 
     <!-- Welcome Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-            <div class="flex items-center gap-3">
-                <h1 class="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 min-w-0">
+        <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <h1 class="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight break-words">
                     Welcome back, <?= htmlspecialchars($user['name']) ?>
                 </h1>
-                <span class="font-mono text-xs font-black text-[#FE5E04] bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg shadow-2xs">
+                <span class="font-mono text-xs font-black text-[#FE5E04] bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg shadow-2xs shrink-0">
                     <?= htmlspecialchars(getMentryCode('TRAINER', $trainer ?? $user)) ?>
                 </span>
             </div>
-            <p class="text-xs md:text-sm text-slate-500 mt-0.5">
+            <p class="text-xs md:text-sm text-slate-500 mt-1 break-words">
                 Track your college training applications, campus schedule, and availability.
             </p>
         </div>
-        <div class="flex items-center gap-2.5">
-            <a href="/trainer/opportunities.php" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5">
+        <div class="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
+            <a href="/trainer/opportunities.php" class="w-full sm:w-auto justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-base">search</span>
                 Explore Assignments
             </a>
@@ -145,10 +145,10 @@ $isNewSignup = isset($_GET['new_signup']);
     </div>
 
     <!-- Real-Time Availability Widget Card -->
-    <div class="bg-gradient-to-r from-slate-900 to-slate-950 text-white rounded-3xl p-6 shadow-xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div class="space-y-2">
-            <div class="flex items-center gap-2.5">
-                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-800/80 px-2.5 py-0.5 rounded-md border border-slate-700">
+    <div class="bg-gradient-to-r from-slate-900 to-slate-950 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 sm:gap-6 min-w-0">
+        <div class="space-y-2 min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-800/80 px-2.5 py-0.5 rounded-md border border-slate-700 shrink-0">
                     Live Booking Status
                 </span>
                 <span class="text-xs text-slate-400">
@@ -156,19 +156,19 @@ $isNewSignup = isset($_GET['new_signup']);
                 </span>
             </div>
 
-            <div class="flex flex-wrap items-center gap-3">
-                <div class="text-lg md:text-xl font-black flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div class="text-base sm:text-lg md:text-xl font-black flex items-center gap-2 break-words">
                     <?php if ($availStatus === 'AVAILABLE_NOW'): ?>
-                        <span class="w-3.5 h-3.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-500/20"></span>
+                        <span class="w-3.5 h-3.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-500/20 shrink-0"></span>
                         <span class="text-emerald-400">Available Immediately</span>
                     <?php elseif ($availStatus === 'FREE_FROM_DATE'): ?>
-                        <span class="w-3.5 h-3.5 rounded-full bg-amber-400 ring-4 ring-amber-500/20"></span>
+                        <span class="w-3.5 h-3.5 rounded-full bg-amber-400 ring-4 ring-amber-500/20 shrink-0"></span>
                         <span class="text-amber-300">Free from <?= formatDate($availFromDate) ?></span>
                     <?php elseif ($availStatus === 'BUSY_ON_ASSIGNMENT'): ?>
-                        <span class="w-3.5 h-3.5 rounded-full bg-blue-400 ring-4 ring-blue-500/20"></span>
+                        <span class="w-3.5 h-3.5 rounded-full bg-blue-400 ring-4 ring-blue-500/20 shrink-0"></span>
                         <span class="text-blue-300">Delivering Workshop <?= $availFromDate ? '(Free after ' . formatDate($availFromDate) . ')' : '' ?></span>
                     <?php else: ?>
-                        <span class="w-3.5 h-3.5 rounded-full bg-slate-500 ring-4 ring-slate-500/20"></span>
+                        <span class="w-3.5 h-3.5 rounded-full bg-slate-500 ring-4 ring-slate-500/20 shrink-0"></span>
                         <span class="text-slate-400">Temporarily Unavailable</span>
                     <?php endif; ?>
                 </div>
@@ -179,50 +179,50 @@ $isNewSignup = isset($_GET['new_signup']);
             </div>
 
             <?php if (!empty($availNotes)): ?>
-                <p class="text-xs text-slate-300 italic pt-0.5">"<?= htmlspecialchars($availNotes) ?>"</p>
+                <p class="text-xs text-slate-300 italic pt-0.5 break-words">"<?= htmlspecialchars($availNotes) ?>"</p>
             <?php endif; ?>
         </div>
 
-        <button type="button" onclick="openAvailabilityModal()" class="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs px-5 py-3 rounded-2xl shadow-lg transition-all flex items-center gap-2 shrink-0">
+        <button type="button" onclick="openAvailabilityModal()" class="w-full md:w-auto justify-center bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs px-5 py-3 rounded-2xl shadow-lg transition-all flex items-center gap-2 shrink-0">
             <span class="material-symbols-outlined text-[18px]">calendar_today</span>
             <span>Set Schedule & Free Date</span>
         </button>
     </div>
 
     <!-- Stat Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-card">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">Total Applications</span>
-            <p class="text-2xl md:text-3xl font-black text-slate-900 mt-2"><?= $appCount ?></p>
-            <span class="text-[11px] text-blue-600 font-semibold mt-1 block">Active Pipeline</span>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 min-w-0">
+        <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/90 shadow-card min-w-0">
+            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block truncate">Total Applications</span>
+            <p class="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 mt-1.5 sm:mt-2"><?= $appCount ?></p>
+            <span class="text-[10px] sm:text-[11px] text-blue-600 font-semibold mt-1 block truncate">Active Pipeline</span>
         </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-card">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">Confirmed Assignments</span>
-            <p class="text-2xl md:text-3xl font-black text-emerald-600 mt-2"><?= $assignmentCount ?></p>
-            <span class="text-[11px] text-emerald-600 font-semibold mt-1 block">Upcoming Deliveries</span>
+        <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/90 shadow-card min-w-0">
+            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block truncate">Confirmed Assignments</span>
+            <p class="text-xl sm:text-2xl md:text-3xl font-black text-emerald-600 mt-1.5 sm:mt-2"><?= $assignmentCount ?></p>
+            <span class="text-[10px] sm:text-[11px] text-emerald-600 font-semibold mt-1 block truncate">Upcoming Deliveries</span>
         </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-card">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">Profile Match Score</span>
-            <p class="text-2xl md:text-3xl font-black text-blue-600 mt-2"><?= $trainer['profileCompletion'] ?? 90 ?>%</p>
-            <span class="text-[11px] text-slate-500 font-medium mt-1 block">Algorithm Affinity</span>
+        <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/90 shadow-card min-w-0">
+            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block truncate">Profile Match Score</span>
+            <p class="text-xl sm:text-2xl md:text-3xl font-black text-blue-600 mt-1.5 sm:mt-2"><?= $trainer['profileCompletion'] ?? 90 ?>%</p>
+            <span class="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-1 block truncate">Algorithm Affinity</span>
         </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-card">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">Verification Status</span>
-            <p class="text-base font-extrabold text-slate-900 mt-2"><?= htmlspecialchars(str_replace('_', ' ', $trainer['status'] ?? 'APPROVED')) ?></p>
-            <span class="text-[11px] text-slate-500 font-medium mt-1 block">Academic Panel</span>
+        <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/90 shadow-card min-w-0">
+            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block truncate">Verification Status</span>
+            <p class="text-sm sm:text-base font-extrabold text-slate-900 mt-1.5 sm:mt-2 truncate"><?= htmlspecialchars(str_replace('_', ' ', $trainer['status'] ?? 'APPROVED')) ?></p>
+            <span class="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-1 block truncate">Academic Panel</span>
         </div>
     </div>
 
     <!-- Recommended Feed & Recent Applications -->
-    <div class="grid lg:grid-cols-2 gap-8">
+    <div class="grid lg:grid-cols-2 gap-6 sm:gap-8 min-w-0">
         <!-- Recommended Openings -->
-        <div class="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-card space-y-4">
+        <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 p-4 sm:p-6 shadow-card space-y-4 min-w-0 overflow-hidden">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-blue-600">stars</span>
-                    <h3 class="font-bold text-slate-900 text-base">Recommended Openings</h3>
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="material-symbols-outlined text-blue-600 shrink-0">stars</span>
+                    <h3 class="font-bold text-slate-900 text-sm sm:text-base truncate">Recommended Openings</h3>
                 </div>
-                <a href="/trainer/opportunities.php" class="text-xs font-bold text-blue-600 hover:underline">View All →</a>
+                <a href="/trainer/opportunities.php" class="text-xs font-bold text-blue-600 hover:underline shrink-0">View All →</a>
             </div>
 
             <div class="space-y-3">
@@ -232,17 +232,17 @@ $isNewSignup = isset($_GET['new_signup']);
                     <?php foreach ($recommendedOpportunities as $opp): 
                         $oppId = (string)$opp['_id'];
                     ?>
-                        <div class="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 hover:border-blue-300 transition-colors flex justify-between items-center gap-4">
-                            <div class="space-y-1">
-                                <span class="text-[10px] font-bold uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                        <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 hover:border-blue-300 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 min-w-0">
+                            <div class="space-y-1 min-w-0 flex-1">
+                                <span class="text-[10px] font-bold uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-block">
                                     <?= htmlspecialchars($opp['domain'] ?? 'General') ?>
                                 </span>
-                                <h4 class="font-bold text-xs text-slate-900 leading-snug"><?= htmlspecialchars($opp['title']) ?></h4>
-                                <p class="text-[11px] text-slate-500">
+                                <h4 class="font-bold text-xs text-slate-900 leading-snug break-words"><?= htmlspecialchars($opp['title']) ?></h4>
+                                <p class="text-[11px] text-slate-500 break-words">
                                     <?= htmlspecialchars($opp['city'] ?? 'India') ?> • <?= formatINR($opp['dailyRateMin'] ?? 0) ?> – <?= formatINR($opp['dailyRateMax'] ?? 0) ?>/day
                                 </p>
                             </div>
-                            <a href="/opportunity-details.php?id=<?= $oppId ?>" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs shrink-0">
+                            <a href="/opportunity-details.php?id=<?= $oppId ?>" class="w-full sm:w-auto text-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs shrink-0">
                                 Apply →
                             </a>
                         </div>
@@ -252,13 +252,13 @@ $isNewSignup = isset($_GET['new_signup']);
         </div>
 
         <!-- Recent Applications -->
-        <div class="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-card space-y-4">
+        <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 p-4 sm:p-6 shadow-card space-y-4 min-w-0 overflow-hidden">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-indigo-600">assignment</span>
-                    <h3 class="font-bold text-slate-900 text-base">Recent Applications</h3>
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="material-symbols-outlined text-indigo-600 shrink-0">assignment</span>
+                    <h3 class="font-bold text-slate-900 text-sm sm:text-base truncate">Recent Applications</h3>
                 </div>
-                <a href="/trainer/applications.php" class="text-xs font-bold text-blue-600 hover:underline">Track Pipeline →</a>
+                <a href="/trainer/applications.php" class="text-xs font-bold text-blue-600 hover:underline shrink-0">Track Pipeline →</a>
             </div>
 
             <div class="space-y-3">
@@ -271,16 +271,16 @@ $isNewSignup = isset($_GET['new_signup']);
                             $opp = $opportunityCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$app['opportunityId'])]);
                         }
                     ?>
-                        <div class="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between gap-4">
-                            <div class="space-y-0.5">
-                                <h4 class="font-bold text-xs text-slate-900 truncate max-w-[240px]">
+                        <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 min-w-0">
+                            <div class="space-y-0.5 min-w-0 flex-1">
+                                <h4 class="font-bold text-xs text-slate-900 break-words">
                                     <?= htmlspecialchars($opp['title'] ?? 'Training Opportunity') ?>
                                 </h4>
-                                <p class="text-[11px] text-slate-500">
+                                <p class="text-[11px] text-slate-500 break-words">
                                     Proposed Rate: <strong class="text-slate-800"><?= formatINR($app['proposedDailyRate'] ?? 0) ?>/day</strong>
                                 </p>
                             </div>
-                            <div>
+                            <div class="shrink-0 self-start sm:self-auto">
                                 <?= getStatusBadge($app['status'] ?? 'PENDING') ?>
                             </div>
                         </div>

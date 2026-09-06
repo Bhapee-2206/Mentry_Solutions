@@ -18,20 +18,20 @@ $notifications = $notifCol ? $notifCol->find(
         <p class="text-xs text-slate-500 mt-0.5">Stay informed about new college requirements, shortlist updates, and selection announcements.</p>
     </div>
 
-    <div class="bg-white rounded-3xl border border-slate-200/90 shadow-card divide-y divide-slate-100 overflow-hidden">
+    <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card divide-y divide-slate-100 overflow-hidden min-w-0">
         <?php if (empty($notifications)): ?>
-            <div class="p-12 text-center text-xs text-slate-400">
+            <div class="p-8 sm:p-12 text-center text-xs text-slate-400">
                 You're all caught up! No unread notifications.
             </div>
         <?php else: ?>
             <?php foreach ($notifications as $n): ?>
-                <div class="p-5 flex items-start gap-4 hover:bg-slate-50/60 transition-colors">
+                <div class="p-4 sm:p-5 flex items-start gap-3 sm:gap-4 hover:bg-slate-50/60 transition-colors min-w-0">
                     <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                         <span class="material-symbols-outlined text-lg">campaign</span>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <h4 class="font-bold text-xs text-slate-900"><?= htmlspecialchars($n['title'] ?? 'Notification') ?></h4>
-                        <p class="text-xs text-slate-600 mt-0.5 leading-relaxed"><?= htmlspecialchars($n['message'] ?? '') ?></p>
+                        <h4 class="font-bold text-xs text-slate-900 break-words"><?= htmlspecialchars($n['title'] ?? 'Notification') ?></h4>
+                        <p class="text-xs text-slate-600 mt-0.5 leading-relaxed break-words"><?= htmlspecialchars($n['message'] ?? '') ?></p>
                         <span class="text-[10px] text-slate-400 mt-1 block"><?= formatRelativeTime($n['createdAt'] ?? null) ?></span>
                     </div>
                 </div>

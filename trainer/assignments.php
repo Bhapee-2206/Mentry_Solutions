@@ -51,20 +51,20 @@ $assignments = ($assignmentCol && !empty($trainerId)) ? $assignmentCol->find(
                     } catch (\Throwable $e) {}
                 }
             ?>
-                <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
+                <div class="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card space-y-4 min-w-0">
                     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-slate-100">
-                        <div class="space-y-1">
+                        <div class="space-y-1 min-w-0 flex-1">
                             <div class="flex flex-wrap items-center gap-2">
-                                <span class="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">Assignment #<?= substr($asgId, -6) ?></span>
+                                <span class="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shrink-0">Assignment #<?= substr($asgId, -6) ?></span>
                                 <?= getStatusBadge($asg['status'] ?? 'SCHEDULED') ?>
                                 <?php if ($opp): ?>
-                                    <span class="text-[10px] font-mono text-slate-400">Job ID: <?= htmlspecialchars($opp['jobId'] ?? substr((string)$opp['_id'], -6)) ?></span>
+                                    <span class="text-[10px] font-mono text-slate-400 shrink-0">Job ID: <?= htmlspecialchars($opp['jobId'] ?? substr((string)$opp['_id'], -6)) ?></span>
                                 <?php endif; ?>
                             </div>
-                            <h3 class="font-extrabold text-base sm:text-lg text-slate-900 mt-1">
+                            <h3 class="font-extrabold text-base sm:text-lg text-slate-900 mt-1 break-words">
                                 <?= htmlspecialchars($opp['title'] ?? 'Technical Training Delivery') ?>
                             </h3>
-                            <p class="text-xs text-slate-500 font-medium">
+                            <p class="text-xs text-slate-500 font-medium break-words">
                                 <span><i class="material-symbols-outlined text-[13px] align-middle text-slate-400">location_on</i> <?= htmlspecialchars($asg['location'] ?? ($opp['city'] ?? 'Location TBA')) ?></span> • 
                                 <span>Duration: <strong><?= htmlspecialchars($asg['durationDays'] ?? ($opp['durationDays'] ?? 5)) ?> Working Days</strong></span> • 
                                 <span>Starts <strong><?= formatDate($asg['startDate'] ?? ($opp['startDate'] ?? null)) ?></strong></span>

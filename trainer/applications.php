@@ -24,14 +24,14 @@ $applications = $applicationCol ? $applicationCol->find(
         <p class="text-xs text-slate-500 mt-0.5">Track review status, shortlisting, and final college selection.</p>
     </div>
 
-    <div class="bg-white rounded-3xl border border-slate-200/90 shadow-card overflow-hidden">
+    <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card overflow-hidden min-w-0">
         <?php if (empty($applications)): ?>
             <div class="p-12 text-center text-xs text-slate-400">
                 You have not submitted any applications yet. Browse the Opportunities tab to apply.
             </div>
         <?php else: ?>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
+            <div class="overflow-x-auto min-w-0">
+                <table class="w-full min-w-[550px] text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold text-[11px]">
                             <th class="py-4 px-5">Opportunity</th>

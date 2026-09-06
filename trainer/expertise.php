@@ -109,7 +109,7 @@ $experiences = $expCol && $trainerId ? $expCol->find(['trainerId' => $trainerId]
         </div>
 
         <!-- Add Skill Form -->
-        <form method="POST" action="/trainer/expertise.php" class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
+        <form method="POST" action="/trainer/expertise.php" class="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card space-y-4 min-w-0">
             <input type="hidden" name="addSkill" value="1">
             <h3 class="font-bold text-xs text-slate-700 uppercase">Add Technology Skill</h3>
             <div class="grid sm:grid-cols-4 gap-3">
@@ -151,7 +151,7 @@ $experiences = $expCol && $trainerId ? $expCol->find(['trainerId' => $trainerId]
         </form>
 
         <!-- Skills List -->
-        <div class="bg-white rounded-3xl border border-slate-200/90 shadow-card p-6 space-y-4">
+        <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card p-4 sm:p-6 space-y-4 min-w-0">
             <?php if (empty($skills)): ?>
                 <p class="text-xs text-slate-400 py-2">No technical skills added yet. Add your primary curriculum topics above or upload a resume in Documents for automated extraction.</p>
             <?php else: ?>
@@ -185,7 +185,7 @@ $experiences = $expCol && $trainerId ? $expCol->find(['trainerId' => $trainerId]
         </div>
 
         <!-- Add Experience Form -->
-        <form method="POST" action="/trainer/expertise.php" class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
+        <form method="POST" action="/trainer/expertise.php" class="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card space-y-4 min-w-0">
             <input type="hidden" name="addExp" value="1">
             <h3 class="font-bold text-xs text-slate-700 uppercase">Add Past Training Engagement</h3>
             <div class="grid sm:grid-cols-2 gap-4">
@@ -225,7 +225,7 @@ $experiences = $expCol && $trainerId ? $expCol->find(['trainerId' => $trainerId]
         </form>
 
         <!-- Experience List -->
-        <div class="bg-white rounded-3xl border border-slate-200/90 shadow-card p-6 space-y-4">
+        <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card p-4 sm:p-6 space-y-4 min-w-0">
             <?php if (empty($experiences)): ?>
                 <p class="text-xs text-slate-400 py-2">No past training records added yet. Record your past university and corporate sessions above.</p>
             <?php else: ?>

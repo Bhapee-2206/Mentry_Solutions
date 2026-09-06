@@ -191,24 +191,24 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
     <?php endif; ?>
 
     <!-- Profile Photo Upload Card -->
-    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-card">
+    <div class="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card min-w-0">
         <div class="flex flex-col sm:flex-row items-center gap-6">
-            <div class="relative group">
+            <div class="relative group shrink-0">
                 <img src="<?= htmlspecialchars(getUserAvatar($user, 200)) ?>" class="w-24 h-24 rounded-3xl object-cover border-2 border-slate-200 shadow-md">
             </div>
 
-            <div class="space-y-2 flex-1 text-center sm:text-left">
+            <div class="space-y-2 flex-1 text-center sm:text-left min-w-0 w-full">
                 <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                     <h3 class="font-bold text-sm text-slate-900">Profile Photo</h3>
                     <span class="bg-orange-50 text-[#FE5E04] text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-orange-200">
                         Max 2MB Limit
                     </span>
                 </div>
-                <p class="text-xs text-slate-500">Upload a professional headshot for your college trainer dossier. JPG, PNG, or WebP format.</p>
+                <p class="text-xs text-slate-500 break-words">Upload a professional headshot for your college trainer dossier. JPG, PNG, or WebP format.</p>
 
-                <form action="/actions/upload-avatar.php" method="POST" enctype="multipart/form-data" class="flex flex-col sm:flex-row items-center gap-2.5 pt-1">
-                    <input type="file" name="avatar" required accept="image/jpeg,image/png,image/webp" class="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-2 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#FE5E04]/10 file:text-[#FE5E04] hover:file:bg-[#FE5E04]/20 cursor-pointer">
-                    <button type="submit" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1 shrink-0">
+                <form action="/actions/upload-avatar.php" method="POST" enctype="multipart/form-data" class="flex flex-col sm:flex-row items-center gap-2.5 pt-1 w-full">
+                    <input type="file" name="avatar" required accept="image/jpeg,image/png,image/webp" class="w-full sm:w-auto text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-2 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#FE5E04]/10 file:text-[#FE5E04] hover:file:bg-[#FE5E04]/20 cursor-pointer">
+                    <button type="submit" class="w-full sm:w-auto justify-center bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1 shrink-0">
                         <span class="material-symbols-outlined text-[16px]">upload</span>
                         Upload Photo
                     </button>
@@ -218,7 +218,7 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
     </div>
 
     <!-- Trainer Resume & Document Management Card -->
-    <div id="resume" class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-5 scroll-mt-6">
+    <div id="resume" class="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card space-y-5 scroll-mt-6 min-w-0">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
@@ -304,7 +304,7 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
         </form>
     </div>
 
-    <form method="POST" action="/trainer/profile.php" class="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-6">
+    <form method="POST" action="/trainer/profile.php" class="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card space-y-6 min-w-0">
         <div class="grid sm:grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name</label>

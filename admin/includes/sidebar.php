@@ -74,12 +74,19 @@ $navItems = [
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
         body { font-family: 'Inter', sans-serif; }
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400; vertical-align: middle; }
         .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen flex antialiased">
+<body class="bg-slate-50 text-slate-900 min-h-screen flex antialiased w-full max-w-full overflow-x-hidden">
 
 <!-- Desktop Sticky Sidebar -->
 <aside class="bg-[#070D18] text-slate-300 h-screen w-64 shadow-xl flex-col shrink-0 hidden md:flex sticky top-0 z-40 border-r border-slate-800/90 py-6 select-none">
@@ -312,4 +319,4 @@ $navItems = [
     }
     </script>
 
-    <main class="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 space-y-6">
+    <main class="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 space-y-6 min-w-0">

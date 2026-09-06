@@ -81,6 +81,13 @@ if ($currentUser) {
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     
     <style>
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: #ffffff;
@@ -106,7 +113,7 @@ if ($currentUser) {
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col bg-white text-slate-900">
+<body class="min-h-screen flex flex-col bg-white text-slate-900 w-full max-w-full overflow-x-hidden">
 
 <?php 
 $headerMaint = getMaintenanceConfig();

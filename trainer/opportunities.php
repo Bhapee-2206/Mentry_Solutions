@@ -299,31 +299,31 @@ require_once __DIR__ . '/../includes/matching_engine.php';
                     'conflictTitle' => $conflict['conflictTitle'] ?? ''
                 ]), ENT_QUOTES, 'UTF-8');
             ?>
-                <div class="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-card hover:shadow-card-hover transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                    <div class="space-y-2 flex-1">
-                        <div class="flex items-center gap-2">
-                            <span class="bg-orange-50 text-[#FE5E04] font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase"><?= htmlspecialchars($opp['mode']) ?></span>
+                <div class="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-6 shadow-card hover:shadow-card-hover transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5 min-w-0">
+                    <div class="space-y-2 flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                            <span class="bg-orange-50 text-[#FE5E04] font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase shrink-0"><?= htmlspecialchars($opp['mode']) ?></span>
                             
                             <!-- Personalized Match Badge -->
-                            <span class="inline-flex items-center gap-0.5 text-[10px] font-black px-2.5 py-0.5 rounded-full <?= $matchScore >= 80 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-orange-50 text-[#FE5E04] border border-orange-200' ?>">
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-black px-2.5 py-0.5 rounded-full shrink-0 <?= $matchScore >= 80 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-orange-50 text-[#FE5E04] border border-orange-200' ?>">
                                 <span class="material-symbols-outlined text-[12px]">bolt</span>
                                 <?= $matchScore ?>% Match
                             </span>
 
-                            <span class="text-[11px] font-mono text-slate-400">ID: <?= htmlspecialchars($opp['jobId'] ?? $oppId) ?></span>
+                            <span class="text-[11px] font-mono text-slate-400 shrink-0">ID: <?= htmlspecialchars($opp['jobId'] ?? $oppId) ?></span>
                             <?php if ($hasApplied): ?>
-                                <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full">Applied</span>
+                                <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">Applied</span>
                             <?php elseif ($hasConflict): ?>
-                                <span class="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1" title="<?= htmlspecialchars($conflict['reason']) ?>">
+                                <span class="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shrink-0" title="<?= htmlspecialchars($conflict['reason']) ?>">
                                     <span class="material-symbols-outlined text-[12px]">event_busy</span>
                                     Date Conflict (Teaching until <?= htmlspecialchars($conflict['finishDateFormatted']) ?>)
                                 </span>
                             <?php endif; ?>
                         </div>
-                        <h2 class="font-bold text-base text-slate-900 cursor-pointer hover:text-[#FE5E04] transition-colors block" onclick='openOppModal(<?= $oppDataJson ?>)'>
+                        <h2 class="font-bold text-base text-slate-900 cursor-pointer hover:text-[#FE5E04] transition-colors block break-words" onclick='openOppModal(<?= $oppDataJson ?>)'>
                             <?= htmlspecialchars($opp['title']) ?>
                         </h2>
-                        <p class="text-xs text-slate-500">
+                        <p class="text-xs text-slate-500 break-words">
                             <?= htmlspecialchars($opp['city']) ?>, <?= htmlspecialchars($opp['state']) ?> • <?= htmlspecialchars($opp['durationDays']) ?> Days • Starts <?= formatDate($opp['startDate']) ?>
                         </p>
                         <div class="flex flex-wrap gap-1.5 pt-1">
@@ -333,28 +333,28 @@ require_once __DIR__ . '/../includes/matching_engine.php';
                         </div>
                     </div>
 
-                    <div class="shrink-0 flex lg:flex-col items-center lg:items-end justify-between gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                    <div class="shrink-0 flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end justify-between gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 w-full lg:w-auto">
                         <div class="text-left lg:text-right">
                             <span class="text-[10px] text-slate-400 font-bold uppercase block">Remuneration</span>
                             <p class="font-black text-lg text-[#FE5E04]"><?= formatINR($opp['dailyRateMin']) ?> – <?= formatINR($opp['dailyRateMax']) ?> / day</p>
                         </div>
 
                         <?php if ($hasApplied): ?>
-                            <a href="/trainer/applications.php" class="bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors">
+                            <a href="/trainer/applications.php" class="w-full sm:w-auto text-center justify-center bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors">
                                 View Application
                             </a>
                         <?php elseif ($hasConflict): ?>
-                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer" title="<?= htmlspecialchars($conflict['reason']) ?>">
+                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="w-full sm:w-auto text-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer" title="<?= htmlspecialchars($conflict['reason']) ?>">
                                 <span class="material-symbols-outlined text-[16px]">event_busy</span>
                                 <span>Schedule Conflict</span>
                             </button>
                         <?php elseif (!$hasResume): ?>
-                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer" title="Resume required to apply">
+                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="w-full sm:w-auto text-center justify-center bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer" title="Resume required to apply">
                                 <span class="material-symbols-outlined text-[16px]">upload_file</span>
                                 <span>Apply (Resume Req.)</span>
                             </button>
                         <?php else: ?>
-                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-5 py-2 rounded-xl transition-all shadow-md shadow-orange-500/20 cursor-pointer">
+                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="w-full sm:w-auto text-center justify-center bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-5 py-2 rounded-xl transition-all shadow-md shadow-orange-500/20 cursor-pointer">
                                 View & Apply
                             </button>
                         <?php endif; ?>

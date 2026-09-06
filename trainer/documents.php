@@ -36,7 +36,7 @@ unset($_SESSION['upload_error']);
     <?php endif; ?>
 
     <?php if ($newSkillsExtracted): ?>
-        <div class="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/5 border-2 border-[#FE5E04] rounded-3xl p-6 shadow-lg shadow-orange-500/5 space-y-3">
+        <div class="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/5 border-2 border-[#FE5E04] rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-lg shadow-orange-500/5 space-y-3 min-w-0">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-[#FE5E04] text-white flex items-center justify-center font-bold shadow-md shadow-orange-500/20">
                     <span class="material-symbols-outlined text-2xl">auto_awesome</span>
@@ -64,7 +64,7 @@ unset($_SESSION['upload_error']);
 
     <!-- AI Extracted Skills Banner if trainer already has parsed skills -->
     <?php if (!empty($currentExtractedSkills) && !$newSkillsExtracted): ?>
-        <div class="bg-white rounded-3xl border border-slate-200/90 shadow-card p-6 space-y-3">
+        <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card p-4 sm:p-6 space-y-3 min-w-0">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-[#FE5E04] text-xl">psychology</span>
@@ -83,7 +83,7 @@ unset($_SESSION['upload_error']);
     <?php endif; ?>
 
     <!-- Upload Card Form -->
-    <form action="/actions/upload-document.php" method="POST" enctype="multipart/form-data" class="bg-white rounded-3xl border border-slate-200/90 shadow-card p-8 space-y-4">
+    <form action="/actions/upload-document.php" method="POST" enctype="multipart/form-data" class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card p-4 sm:p-8 space-y-4 min-w-0">
         <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
 
         <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
@@ -126,7 +126,7 @@ unset($_SESSION['upload_error']);
     </form>
 
     <!-- Document List -->
-    <div class="bg-white rounded-3xl border border-slate-200/90 shadow-card p-6 space-y-4">
+    <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card p-4 sm:p-6 space-y-4 min-w-0">
         <h3 class="font-bold text-base text-slate-900">Uploaded Documents (<?= count($documents) ?>)</h3>
         <?php if (empty($documents)): ?>
             <div class="p-6 text-center text-xs text-slate-400">
@@ -139,16 +139,16 @@ unset($_SESSION['upload_error']);
         ?>
             <div class="space-y-2">
                 <?php foreach ($documents as $d): ?>
-                    <div class="p-4 rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[#FE5E04] text-2xl">description</span>
-                            <div>
-                                <p class="font-bold text-xs text-slate-900"><?= htmlspecialchars($d['title'] ?? 'Document') ?></p>
+                    <div class="p-3.5 sm:p-4 rounded-2xl border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+                        <div class="flex items-center gap-3 min-w-0 flex-1">
+                            <span class="material-symbols-outlined text-[#FE5E04] text-2xl shrink-0">description</span>
+                            <div class="min-w-0 flex-1">
+                                <p class="font-bold text-xs text-slate-900 truncate"><?= htmlspecialchars($d['title'] ?? 'Document') ?></p>
                                 <p class="text-[10px] text-slate-400"><?= htmlspecialchars($d['type'] ?? 'RESUME') ?> • <?= formatDate($d['uploadedAt'] ?? null) ?></p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <span class="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">
+                        <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                            <span class="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-200 shrink-0">
                                 Verified
                             </span>
                             <?php if (!empty($d['fileUrl'])): 
@@ -157,11 +157,11 @@ unset($_SESSION['upload_error']);
                                 $docDownloadName = $cleanTrainerName . '_' . $cleanDocTitle . '_' . $cleanTrainerCode . '.' . $docExt;
                                 $docDownloadUrl = '/actions/download-document.php?url=' . urlencode($d['fileUrl'] ?? '') . '&filename=' . urlencode($docDownloadName);
                             ?>
-                                <button type="button" onclick="openDocumentPreview('<?= htmlspecialchars($d['fileUrl']) ?>', '<?= htmlspecialchars(addslashes($d['title'] ?? 'Document')) ?>', '<?= htmlspecialchars(addslashes($docDownloadName)) ?>')" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer">
+                                <button type="button" onclick="openDocumentPreview('<?= htmlspecialchars($d['fileUrl']) ?>', '<?= htmlspecialchars(addslashes($d['title'] ?? 'Document')) ?>', '<?= htmlspecialchars(addslashes($docDownloadName)) ?>')" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer shrink-0">
                                     <span class="material-symbols-outlined text-[15px]">visibility</span>
                                     Preview
                                 </button>
-                                <a href="<?= htmlspecialchars($docDownloadUrl) ?>" download="<?= htmlspecialchars($docDownloadName) ?>" class="p-1.5 text-slate-600 hover:text-[#FE5E04] hover:bg-orange-50 rounded-lg transition-colors" title="Download <?= htmlspecialchars($docDownloadName) ?>">
+                                <a href="<?= htmlspecialchars($docDownloadUrl) ?>" download="<?= htmlspecialchars($docDownloadName) ?>" class="p-1.5 text-slate-600 hover:text-[#FE5E04] hover:bg-orange-50 rounded-lg transition-colors shrink-0" title="Download <?= htmlspecialchars($docDownloadName) ?>">
                                     <span class="material-symbols-outlined text-[18px]">download</span>
                                 </a>
                             <?php endif; ?>

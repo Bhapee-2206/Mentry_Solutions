@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     <?php endif; ?>
 
-    <form method="POST" action="/trainer/settings.php" class="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
+    <form method="POST" action="/trainer/settings.php" class="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card space-y-4 min-w-0">
         <h3 class="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">Change Password</h3>
         <div>
             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Current Password</label>
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="password" name="newPassword" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
         </div>
         <div class="pt-2">
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-xs transition-colors">
+            <button type="submit" class="w-full sm:w-auto justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-xs transition-colors flex items-center">
                 Update Password
             </button>
         </div>
