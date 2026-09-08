@@ -57,14 +57,6 @@ $navItems = [
         </a>
     </div>
 
-    <!-- Quick Action: Post New Requirement -->
-    <div class="px-4 mb-5">
-        <a href="/vendor/request-create.php" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md">
-            <span class="material-symbols-outlined text-[18px]">add_circle</span>
-            Post Job Request
-        </a>
-    </div>
-
     <!-- Navigation Links -->
     <div class="flex-1 overflow-y-auto space-y-1 px-3">
         <?php foreach ($navItems as $item): 
@@ -115,13 +107,6 @@ $navItems = [
             <button id="vendorDrawerCloseBtn" type="button" aria-label="Close menu" class="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
                 <span class="material-symbols-outlined text-2xl">close</span>
             </button>
-        </div>
-
-        <div class="mb-4">
-            <a href="/vendor/request-create.php" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md">
-                <span class="material-symbols-outlined text-[18px]">add_circle</span>
-                Post Job Request
-            </a>
         </div>
 
         <div class="flex-1 space-y-1">
@@ -181,12 +166,16 @@ document.addEventListener('DOMContentLoaded', function() {
             <span class="bg-indigo-50 text-indigo-700 text-[10px] sm:text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-indigo-100">Client Portal</span>
         </div>
         <div class="flex items-center gap-2 sm:gap-3">
-            <a href="/vendor/request-create.php" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 sm:px-3.5 py-1.5 rounded-xl shadow-xs transition-colors flex items-center gap-1 shrink-0">
-                <span class="material-symbols-outlined text-[16px]">add</span>
-                <span class="hidden sm:inline">New Request</span>
-                <span class="sm:hidden">Request</span>
+            <a href="/index.php" class="text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-slate-100">
+                <span class="material-symbols-outlined text-[16px]">home</span>
+                <span>Website</span>
             </a>
-            <a href="/logout.php" class="text-xs text-rose-600 font-bold hover:underline shrink-0">Sign Out</a>
+            <a href="/vendor/profile.php" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 transition-colors text-xs font-semibold text-slate-700" title="Manage Organization Profile">
+                <div class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">
+                    <?= substr($user['name'] ?? 'V', 0, 1) ?>
+                </div>
+                <span class="max-w-[140px] truncate text-slate-800"><?= htmlspecialchars($user['organizationName'] ?? $user['name']) ?></span>
+            </a>
         </div>
     </header>
 

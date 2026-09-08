@@ -49,9 +49,10 @@ $recentRequests = $reqCol ? $reqCol->find(
                 </p>
             </div>
         </div>
-        <a href="/vendor/request-create.php" class="bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs shrink-0">
-            Submit Private Scope →
-        </a>
+        <div class="inline-flex items-center gap-1.5 bg-white/90 border border-indigo-200 text-indigo-800 text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs shrink-0">
+            <span class="material-symbols-outlined text-base text-indigo-600">verified_user</span>
+            <span>100% Confidential Vetting</span>
+        </div>
     </div>
 
     <!-- KPI Metric Cards -->
