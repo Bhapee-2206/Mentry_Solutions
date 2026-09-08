@@ -41,9 +41,9 @@ if ($currentUser) {
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Mentry Solutions - Managed Trainer Network</title>
     
     <!-- Favicon & Brand Icons -->
-    <link rel="icon" type="image/png" href="/public/mentry.png">
-    <link rel="shortcut icon" type="image/png" href="/public/mentry.png">
-    <link rel="apple-touch-icon" href="/public/mentry.png">
+    <link rel="icon" type="image/png" href="/public/mentry.png?v=2">
+    <link rel="shortcut icon" href="/favicon.ico?v=2">
+    <link rel="apple-touch-icon" href="/public/mentry.png?v=2">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>

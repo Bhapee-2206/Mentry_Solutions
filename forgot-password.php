@@ -71,6 +71,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 // Mark reset token used
                 $resetCol->updateOne(['_id' => $record['_id']], ['$set' => ['used' => true]]);
 
+                // Fetch updated user and establish session automatically
+                $authenticatedUser = $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]);
+                if ($authenticatedUser) {
+                    $sessionPayload = [
+                        'id' => (string)$authenticatedUser['_id'],
+                        'email' => $authenticatedUser['email'],
+                        'name' => $authenticatedUser['name'] ?? 'User',
+                        'role' => $authenticatedUser['role'] ?? 'TRAINER',
+                        'avatar' => $authenticatedUser['avatar'] ?? '',
+                        'trainerCode' => $authenticatedUser['trainerCode'] ?? '',
+                        'mentryId' => $authenticatedUser['mentryId'] ?? '',
+                        'organizationName' => $authenticatedUser['organizationName'] ?? ''
+                    ];
+                    $_SESSION['user'] = $sessionPayload;
+                    issuePersistentSessionCookie($sessionPayload, 30);
+
+                    $userRole = strtoupper($sessionPayload['role'] ?? 'TRAINER');
+                    if ($userRole === 'COLLEGE' || $userRole === 'VENDOR') {
+                        $redirectUrl = '/vendor/dashboard.php';
+                        $roleBadgeName = 'College / Vendor Partner';
+                        $dashboardBtnText = 'Proceed to Partner Dashboard';
+                        $btnStyle = 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20';
+                    } elseif ($userRole === 'ADMIN' || $userRole === 'SUPER_ADMIN' || $userRole === 'STAFF') {
+                        $redirectUrl = '/admin/index.php';
+                        $roleBadgeName = 'Administrator';
+                        $dashboardBtnText = 'Proceed to Admin Command Center';
+                        $btnStyle = 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/20';
+                    } else {
+                        $redirectUrl = '/trainer/dashboard.php';
+                        $roleBadgeName = 'Technical Trainer';
+                        $dashboardBtnText = 'Proceed to Trainer Dashboard';
+                        $btnStyle = 'bg-[#FE5E04] hover:bg-[#E04E00] shadow-orange-500/20';
+                    }
+                }
+
                 $step = 3; // Success!
             }
         }
@@ -136,7 +171,10 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Account Recovery & Password Reset | Mentry Solutions</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/png" href="/public/mentry.png">
+    <!-- Favicon & Brand Icons -->
+    <link rel="icon" type="image/png" href="/public/mentry.png?v=2">
+    <link rel="shortcut icon" href="/favicon.ico?v=2">
+    <link rel="apple-touch-icon" href="/public/mentry.png?v=2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -290,19 +328,38 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div>
                     <h3 class="text-lg font-black text-slate-900">Password Updated Successfully</h3>
                     <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-                        Your account password has been reset securely. You can now sign in with your updated credentials.
+                        Your account password has been updated and your session is verified. You do not need to re-enter your password.
                     </p>
+                    <div class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
+                        <span class="material-symbols-outlined text-xs text-emerald-600">verified_user</span>
+                        <span><?= htmlspecialchars($roleBadgeName ?? 'Verified Account') ?>: <?= htmlspecialchars($authenticatedUser['name'] ?? $emailTarget) ?></span>
+                    </div>
                 </div>
-                <div class="pt-2 flex flex-col gap-2">
-                    <a href="/login.php?email=<?= urlencode($emailTarget) ?>" class="w-full bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5">
-                        <span>Sign In to Trainer Portal</span>
+
+                <div class="pt-2 flex flex-col gap-2.5">
+                    <a id="proceedBtn" href="<?= htmlspecialchars($redirectUrl ?? '/trainer/dashboard.php') ?>" class="w-full <?= $btnStyle ?? 'bg-[#FE5E04] hover:bg-[#E04E00]' ?> text-white font-bold text-xs py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+                        <span><?= htmlspecialchars($dashboardBtnText ?? 'Proceed to Dashboard') ?></span>
                         <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
                     </a>
-                    <a href="/vendor-login.php?email=<?= urlencode($emailTarget) ?>" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs py-2.5 rounded-xl transition-colors border border-indigo-200/80">
-                        Sign In as College / Vendor Partner
-                    </a>
+                    <p class="text-[11px] text-slate-400 font-medium">
+                        Redirecting automatically in <span id="redirectTimer" class="font-bold text-slate-700">3</span> seconds...
+                    </p>
                 </div>
             </div>
+            <script>
+                // Auto-redirect to verified dashboard after 3 seconds
+                let timeLeft = 3;
+                const timerEl = document.getElementById('redirectTimer');
+                const targetUrl = <?= json_encode($redirectUrl ?? '/trainer/dashboard.php') ?>;
+                const interval = setInterval(() => {
+                    timeLeft--;
+                    if (timerEl) timerEl.textContent = timeLeft;
+                    if (timeLeft <= 0) {
+                        clearInterval(interval);
+                        window.location.href = targetUrl;
+                    }
+                }, 1000);
+            </script>
         <?php endif; ?>
 
         <!-- Footer Navigation -->

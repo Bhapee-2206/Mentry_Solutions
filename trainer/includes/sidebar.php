@@ -25,9 +25,9 @@ $navItems = [
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Trainer Portal - Mentry</title>
     
     <!-- Favicon & Brand Icons -->
-    <link rel="icon" type="image/png" href="/public/mentry.png">
-    <link rel="shortcut icon" type="image/png" href="/public/mentry.png">
-    <link rel="apple-touch-icon" href="/public/mentry.png">
+    <link rel="icon" type="image/png" href="/public/mentry.png?v=2">
+    <link rel="shortcut icon" href="/favicon.ico?v=2">
+    <link rel="apple-touch-icon" href="/public/mentry.png?v=2">
 
     <link rel="dns-prefetch" href="//fonts.googleapis.com">
     <link rel="dns-prefetch" href="//fonts.gstatic.com">

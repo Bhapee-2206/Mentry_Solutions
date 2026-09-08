@@ -80,6 +80,10 @@ function setPersistentSessionCookie(array $userData, $rememberDays = 30) {
     $_COOKIE['mentry_session_token'] = $token;
 }
 
+function issuePersistentSessionCookie(array $userData, $rememberDays = 30) {
+    setPersistentSessionCookie($userData, $rememberDays);
+}
+
 function clearPersistentSessionCookie() {
     $isSecure = isHttpsRequest();
     $cookieOptions = [

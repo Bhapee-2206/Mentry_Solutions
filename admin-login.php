@@ -82,6 +82,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Operations Command Login (Admin & Staff) | Mentry Solutions</title>
+    <!-- Favicon & Brand Icons -->
+    <link rel="icon" type="image/png" href="/public/mentry.png?v=2">
+    <link rel="shortcut icon" href="/favicon.ico?v=2">
+    <link rel="apple-touch-icon" href="/public/mentry.png?v=2">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
