@@ -67,6 +67,7 @@
         "domain": "Cloud",
         "status": "CLOSED",
         "endDate": "2026-09-16",
+        "closedAt": "1788890677200",
         "mentryId": "MEN-OPP-1003",
         "createdAt": "1788458362760",
         "startDate": "2026-09-08",
@@ -84,9 +85,8 @@
             "Kubernetes",
             "Jenkins"
         ],
-        "minExperienceYears": 5,
-        "closedAt": "1788890677200",
-        "autoClosedReason": "START_DATE_PASSED"
+        "autoClosedReason": "START_DATE_PASSED",
+        "minExperienceYears": 5
     },
     {
         "_id": "6a99b57af1624b69330f55fa",
@@ -186,6 +186,7 @@
         "domain": "Aptitude",
         "status": "CLOSED",
         "endDate": "2026-09-24",
+        "closedAt": "1788890678221",
         "mentryId": "MEN-OPP-1007",
         "createdAt": "1788458362932",
         "startDate": "2026-09-09",
@@ -202,9 +203,8 @@
             "Speed Math",
             "Data Interpretation"
         ],
-        "minExperienceYears": 4,
-        "closedAt": "1788890678221",
-        "autoClosedReason": "START_DATE_PASSED"
+        "autoClosedReason": "START_DATE_PASSED",
+        "minExperienceYears": 4
     },
     {
         "_id": "6a99b57bf1624b69330f55fe",
@@ -542,5 +542,35 @@
         "assignedTrainerId": "6a99b578f1624b69330f55bb",
         "minExperienceYears": 3,
         "accommodationCovered": true
+    },
+    {
+        "_id": "6aa056fdf1624b69330f5714",
+        "city": "Chennai",
+        "mode": "OFFLINE",
+        "jobId": "MEN-OPP-1023",
+        "state": "Tamil Nadu",
+        "title": "Java",
+        "domain": "Programming",
+        "status": "CLOSED",
+        "mentryId": "MEN-OPP-1023",
+        "vendorId": "6aa055fcf1624b69330f570e",
+        "createdAt": "1788892925900",
+        "startDate": "1789324200000",
+        "updatedAt": "1788893045321",
+        "collegeName": "dsaqwertyu",
+        "description": "",
+        "dailyRateMax": 5000,
+        "dailyRateMin": 4000,
+        "durationDays": 5,
+        "studentCount": 50,
+        "trainingType": "COLLEGE",
+        "diningCovered": true,
+        "travelCovered": true,
+        "skillsRequired": "[]",
+        "vendorRequestId": "6aa056acf1624b69330f5710",
+        "minExperienceYears": 3,
+        "accommodationCovered": true,
+        "assignedTrainerId": "3e28ab2f8f2b80ce8e1db53e",
+        "closedAt": "1788893045321"
     }
 ]

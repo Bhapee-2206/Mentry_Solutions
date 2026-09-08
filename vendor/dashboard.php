@@ -5,21 +5,106 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/includes/sidebar.php';
 
-$vendorId = $user['id'];
+$vendorId = (string)($user['id'] ?? '');
+$vendorEmail = (string)($user['email'] ?? '');
+$orgName = (string)($user['organizationName'] ?? '');
+
 $reqCol = getCollection("VendorRequest");
 $oppCol = getCollection("Opportunity");
 $asgCol = getCollection("Assignment");
 
-$totalRequests = $reqCol ? $reqCol->countDocuments(['vendorId' => $vendorId]) : 0;
-$pendingReview = $reqCol ? $reqCol->countDocuments(['vendorId' => $vendorId, 'status' => 'PENDING_ADMIN_REVIEW']) : 0;
-$underDiscussion = $reqCol ? $reqCol->countDocuments(['vendorId' => $vendorId, 'status' => 'UNDER_DISCUSSION']) : 0;
-$approvedLive = $reqCol ? $reqCol->countDocuments(['vendorId' => $vendorId, 'status' => 'APPROVED_PUBLISHED']) : 0;
-$matchedAssigned = $reqCol ? $reqCol->countDocuments(['vendorId' => $vendorId, 'status' => 'MATCHED']) : 0;
+// Match requests by vendorId, email, or organization
+$vendorQuery = [
+    '$or' => array_values(array_filter([
+        !empty($vendorId) ? ['vendorId' => $vendorId] : null,
+        !empty($vendorEmail) ? ['vendorContactEmail' => $vendorEmail] : null,
+        !empty($orgName) ? ['vendorName' => $orgName] : null,
+        !empty($orgName) ? ['institutionName' => $orgName] : null
+    ]))
+];
 
-$recentRequests = $reqCol ? $reqCol->find(
-    ['vendorId' => $vendorId],
-    ['sort' => ['createdAt' => -1], 'limit' => 5]
-)->toArray() : [];
+$allRequests = $reqCol ? $reqCol->find($vendorQuery, ['sort' => ['createdAt' => -1]])->toArray() : [];
+
+// Auto-resolve matched/assigned status across converted Opportunities & Assignments
+foreach ($allRequests as &$rq) {
+    $isAssigned = (!empty($rq['assignedTrainerId']) || ($rq['status'] ?? '') === 'MATCHED');
+    $assignedTrainerId = $rq['assignedTrainerId'] ?? null;
+    $convertedOppId = (string)($rq['convertedOpportunityId'] ?? '');
+
+    // 1. Check converted Opportunity status and assigned trainer
+    if (!$isAssigned && !empty($convertedOppId) && $oppCol) {
+        try {
+            $opp = $oppCol->findOne([
+                '$or' => [
+                    ['_id' => new MongoDB\BSON\ObjectId($convertedOppId)],
+                    ['_id' => $convertedOppId],
+                    ['vendorRequestId' => (string)($rq['_id'] ?? '')]
+                ]
+            ]);
+            if ($opp && (!empty($opp['assignedTrainerId']) || in_array($opp['status'] ?? '', ['CLOSED', 'MATCHED']))) {
+                $isAssigned = true;
+                $assignedTrainerId = $opp['assignedTrainerId'] ?? null;
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    // 2. Check Assignment collection directly
+    if (!$isAssigned && $asgCol) {
+        $asgCheck = [];
+        if (!empty($convertedOppId)) $asgCheck[] = ['opportunityId' => $convertedOppId];
+        if (!empty($rq['_id'])) $asgCheck[] = ['vendorRequestId' => (string)$rq['_id']];
+        if (!empty($asgCheck)) {
+            $asg = $asgCol->findOne(['$or' => $asgCheck]);
+            if ($asg && !empty($asg['trainerId'])) {
+                $isAssigned = true;
+                $assignedTrainerId = $asg['trainerId'];
+            }
+        }
+    }
+
+    // If verified assigned, ensure status reflects MATCHED
+    if ($isAssigned) {
+        $rq['status'] = 'MATCHED';
+        $rq['assignedTrainerId'] = $assignedTrainerId;
+        // Persist update back to database
+        if ($reqCol && !empty($rq['_id'])) {
+            try {
+                $reqCol->updateOne(
+                    ['_id' => $rq['_id']],
+                    ['$set' => [
+                        'status' => 'MATCHED',
+                        'assignedTrainerId' => $assignedTrainerId,
+                        'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                    ]]
+                );
+            } catch (\Throwable $e) {}
+        }
+    }
+}
+unset($rq);
+
+// Calculate metrics
+$totalRequests = count($allRequests);
+$pendingReview = 0;
+$underDiscussion = 0;
+$approvedLive = 0;
+$matchedAssigned = 0;
+
+foreach ($allRequests as $r) {
+    $st = $r['status'] ?? 'PENDING_ADMIN_REVIEW';
+    if ($st === 'MATCHED' || !empty($r['assignedTrainerId'])) {
+        $matchedAssigned++;
+    } elseif ($st === 'APPROVED_PUBLISHED') {
+        $approvedLive++;
+    } elseif ($st === 'UNDER_DISCUSSION') {
+        $underDiscussion++;
+    } elseif ($st === 'PENDING_ADMIN_REVIEW') {
+        $pendingReview++;
+    }
+}
+
+// Slice top 5 for recent demands table
+$recentRequests = array_slice($allRequests, 0, 5);
 ?>
 
 <div class="space-y-8">
@@ -112,9 +197,16 @@ $recentRequests = $reqCol ? $reqCol->find(
                         ?>
                             <tr class="hover:bg-slate-50/60 transition-colors">
                                 <td class="py-3.5 px-4">
-                                    <a href="/vendor/request-view.php?id=<?= $rqId ?>" class="font-bold text-slate-900 hover:text-indigo-600 block">
-                                        <?= htmlspecialchars($rq['title']) ?>
-                                    </a>
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <a href="/vendor/request-view.php?id=<?= $rqId ?>" class="font-bold text-slate-900 hover:text-indigo-600">
+                                            <?= htmlspecialchars($rq['title']) ?>
+                                        </a>
+                                        <?php if (($rq['status'] ?? '') === 'MATCHED' || !empty($rq['assignedTrainerId'])): ?>
+                                            <span class="inline-flex items-center gap-0.5 text-[9px] font-black uppercase text-emerald-700 bg-emerald-100/90 border border-emerald-300 px-1.5 py-0.5 rounded-md">
+                                                <span class="material-symbols-outlined text-[11px]">verified</span> Faculty Assigned
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
                                     <span class="text-[10px] text-slate-500 font-medium"><?= htmlspecialchars($rq['institutionName'] ?? 'Academic Campus') ?></span>
                                 </td>
                                 <td class="py-3.5 px-4 font-semibold text-slate-700"><?= htmlspecialchars($rq['domain'] ?? 'Technical') ?></td>

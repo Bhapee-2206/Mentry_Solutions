@@ -39,13 +39,29 @@ if (!empty($req['convertedOpportunityId'])) {
 $assignedTrainer = null;
 $assignedUser = null;
 $assignment = null;
-if (!empty($req['assignedTrainerId'])) {
+
+$trainerIdToFind = $req['assignedTrainerId'] ?? null;
+if (empty($trainerIdToFind) && !empty($linkedOpp)) {
+    $trainerIdToFind = $linkedOpp['assignedTrainerId'] ?? null;
+    if (empty($trainerIdToFind) && $asgCol) {
+        $asg = $asgCol->findOne(['opportunityId' => (string)$linkedOpp['_id']]);
+        if ($asg && !empty($asg['trainerId'])) {
+            $trainerIdToFind = $asg['trainerId'];
+        }
+    }
+}
+
+if (!empty($trainerIdToFind)) {
     try {
-        $assignedTrainer = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$req['assignedTrainerId'])]);
+        $assignedTrainer = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$trainerIdToFind)]);
         if ($assignedTrainer && !empty($assignedTrainer['userId'])) {
             $assignedUser = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$assignedTrainer['userId'])]);
         }
     } catch (Exception $e) {}
+
+    // Ensure status reflects MATCHED
+    $req['status'] = 'MATCHED';
+    $req['assignedTrainerId'] = $trainerIdToFind;
 }
 
 $skills = [];

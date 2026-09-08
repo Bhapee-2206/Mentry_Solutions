@@ -1623,57 +1623,198 @@
         "recipientRole": "ADMIN"
     },
     {
-        "recipientRole": "ADMIN",
-        "isAdminAlert": true,
-        "isStaffAlert": true,
-        "targetRoles": [
-            "ADMIN",
-            "SUPER_ADMIN",
-            "STAFF"
-        ],
+        "_id": "6aa04e35bf3d30ff7d036210",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55f9",
+        "read": false,
         "type": "OPPORTUNITY_AUTO_CLOSED",
-        "opportunityId": "6a99b57af1624b69330f55f9",
-        "milestone": null,
         "title": "Opportunity Closed: AWS Cloud Architecture & DevOps CI/CD Workshop (Start Date Cutoff Passed)",
         "message": "The opportunity 'AWS Cloud Architecture & DevOps CI/CD Workshop' in Pune scheduled for Sep 8, 2026 has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
-        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55f9",
         "metadata": {
-            "opportunityId": "6a99b57af1624b69330f55f9",
             "jobId": "MEN-OPP-1003",
             "title": "AWS Cloud Architecture & DevOps CI/CD Workshop",
             "startDate": "2026-09-08",
+            "opportunityId": "6a99b57af1624b69330f55f9",
             "autoClosedReason": "START_DATE_PASSED"
         },
-        "read": false,
         "createdAt": "1788890677637",
-        "_id": "6aa04e35bf3d30ff7d036210",
-        "updatedAt": "1788890677651"
-    },
-    {
-        "recipientRole": "ADMIN",
-        "isAdminAlert": true,
-        "isStaffAlert": true,
+        "milestone": null,
+        "updatedAt": "1788890677651",
         "targetRoles": [
             "ADMIN",
             "SUPER_ADMIN",
             "STAFF"
         ],
-        "type": "OPPORTUNITY_AUTO_CLOSED",
-        "opportunityId": "6a99b57af1624b69330f55fd",
-        "milestone": null,
-        "title": "Opportunity Closed: Campus Placement Aptitude & Speed Math Finishing School (Start Date Cutoff Passed)",
-        "message": "The opportunity 'Campus Placement Aptitude & Speed Math Finishing School' in Trichy scheduled for Sep 9, 2026 has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57af1624b69330f55f9",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "6aa04e36bf3d30ff7d036211",
         "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55fd",
+        "read": true,
+        "type": "OPPORTUNITY_AUTO_CLOSED",
+        "title": "Opportunity Closed: Campus Placement Aptitude & Speed Math Finishing School (Start Date Cutoff Passed)",
+        "readAt": "1788890914634",
+        "message": "The opportunity 'Campus Placement Aptitude & Speed Math Finishing School' in Trichy scheduled for Sep 9, 2026 has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
         "metadata": {
-            "opportunityId": "6a99b57af1624b69330f55fd",
             "jobId": "MEN-OPP-1007",
             "title": "Campus Placement Aptitude & Speed Math Finishing School",
             "startDate": "2026-09-09",
+            "opportunityId": "6a99b57af1624b69330f55fd",
             "autoClosedReason": "START_DATE_PASSED"
         },
-        "read": false,
         "createdAt": "1788890678764",
-        "_id": "6aa04e36bf3d30ff7d036211",
-        "updatedAt": "1788890678764"
+        "milestone": null,
+        "updatedAt": "1788890914637",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57af1624b69330f55fd",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "6aa055fcf1624b69330f570f",
+        "link": "/admin/vendor-requests.php",
+        "read": false,
+        "type": "NEW_VENDOR",
+        "title": "New Partner Registered: dsaqwertyu",
+        "message": "dsaqwertyu registered as STAFFING_VENDOR partner (MEN-VND-1005). Contact: dfs (Mobile: 9150435591, Email: testcollege@gmail.com) in Dharmapuri, Tamil Nadu.",
+        "metadata": {
+            "email": "testcollege@gmail.com",
+            "phone": "9150435591",
+            "vendorCode": "MEN-VND-1005",
+            "contactPerson": "dfs",
+            "organizationName": "dsaqwertyu",
+            "organizationType": "STAFFING_VENDOR"
+        },
+        "createdAt": "1788892668363",
+        "milestone": null,
+        "updatedAt": "1788892668366",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": null,
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "6aa056adf1624b69330f5711",
+        "link": "/admin/vendor-requests.php",
+        "read": true,
+        "type": "NEW_DEMAND",
+        "title": "New Private Demand: Java",
+        "readAt": "1788892885662",
+        "message": "dsaqwertyu posted a private training demand for dsaqwertyu (Programming, 5 days, Mode: OFFLINE) in Chennai.",
+        "metadata": {
+            "city": "Chennai",
+            "domain": "Programming",
+            "vendorId": "6aa055fcf1624b69330f570e",
+            "vendorName": "dsaqwertyu"
+        },
+        "createdAt": "1788892845035",
+        "milestone": null,
+        "updatedAt": "1788892885664",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": null,
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "6aa056bdf1624b69330f5712",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55f7",
+        "read": false,
+        "type": "OPPORTUNITY_STARTING_SOON",
+        "title": "Urgent: Unassigned Opportunity Starts Tomorrow!",
+        "message": "Training opportunity 'Python Full Stack & Django Pre-Placement Bootcamp' in Bangalore is scheduled to start tomorrow (Sep 10, 2026). No faculty is assigned yet — please review matching trainers before the 6:00 PM cutoff!",
+        "metadata": {
+            "jobId": "MEN-OPP-1001",
+            "title": "Python Full Stack & Django Pre-Placement Bootcamp",
+            "diffDays": 1,
+            "milestone": "TOMORROW",
+            "startDate": "2026-09-10",
+            "isAssigned": false,
+            "opportunityId": "6a99b57af1624b69330f55f7"
+        },
+        "createdAt": "1788892861318",
+        "milestone": "TOMORROW",
+        "updatedAt": "1788892861318",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57af1624b69330f55f7",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "6aa056bef1624b69330f5713",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55fc",
+        "read": false,
+        "type": "OPPORTUNITY_STARTING_SOON",
+        "title": "Reminder: Opportunity Starts in 2 Days (Unassigned)",
+        "message": "Opportunity 'Cybersecurity, Ethical Hacking & SOC Analyst Training' in Delhi starts on Sep 11, 2026 (in 2 days) and still requires faculty assignment.",
+        "metadata": {
+            "jobId": "MEN-OPP-1006",
+            "title": "Cybersecurity, Ethical Hacking & SOC Analyst Training",
+            "diffDays": 2,
+            "milestone": "IN_2_DAYS",
+            "startDate": "2026-09-11",
+            "isAssigned": false,
+            "opportunityId": "6a99b57af1624b69330f55fc"
+        },
+        "createdAt": "1788892862757",
+        "milestone": "IN_2_DAYS",
+        "updatedAt": "1788892862757",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57af1624b69330f55fc",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "6aa05729f1624b69330f5716",
+        "link": "/admin/opportunity-view.php?id=6aa056fdf1624b69330f5714",
+        "read": true,
+        "type": "NEW_APPLICATION",
+        "title": "New Application: bhapee",
+        "message": "bhapee (MEN-TRN-1560) applied for 'Java' (Programming) with proposed rate of ₹4,000/day.",
+        "metadata": {
+            "trainerId": "3e28ab2f8f2b80ce8e1db53e",
+            "trainerCode": "MEN-TRN-1560",
+            "opportunityId": "6aa056fdf1624b69330f5714",
+            "proposedDailyRate": 4000
+        },
+        "createdAt": "1788892969449",
+        "milestone": null,
+        "updatedAt": "1788893014874",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6aa056fdf1624b69330f5714",
+        "recipientRole": "ADMIN",
+        "readAt": "1788893014874"
     }
 ]

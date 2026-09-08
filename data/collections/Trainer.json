@@ -28,11 +28,11 @@
         "dailyRateINR": 8000,
         "primaryDomain": "Programming",
         "travelPreference": "PAN_INDIA",
+        "availabilityNotes": "Delivering: PSG Tech Full Stack Cloud Bootcamp",
+        "availableFromDate": "1790460000000",
         "professionalTitle": "Senior Full Stack Architect & Corporate Technical Trainer",
         "availabilityStatus": "BUSY_ON_ASSIGNMENT",
         "totalExperienceYears": 8,
-        "availabilityNotes": "Delivering: PSG Tech Full Stack Cloud Bootcamp",
-        "availableFromDate": "1790460000000",
         "availabilityUpdatedAt": "1788708767478"
     },
     {
@@ -372,7 +372,7 @@
         "mentryId": "MEN-TRN-1560",
         "createdAt": "1788619593564",
         "resumeUrl": "https://bmqzwrkhxyptdhqwvhob.supabase.co/storage/v1/object/public/documents/documents/doc_3e28ab2f8f2b80ce8e1db53e_1788619782_696.pdf",
-        "updatedAt": "1788624564833",
+        "updatedAt": "1788893045833",
         "adminNotes": "hi",
         "adminRating": 4.9,
         "currentCity": "Bangalore",
@@ -386,10 +386,13 @@
         "travelPreference": "PAN_INDIA",
         "professionalTitle": "Programming Technical Trainer",
         "profileCompletion": 50,
-        "availabilityStatus": "AVAILABLE_NOW",
+        "availabilityStatus": "BUSY_ON_ASSIGNMENT",
         "extractedSkillsCount": 0,
         "totalExperienceYears": 3,
-        "collegeExperienceYears": 1
+        "collegeExperienceYears": 1,
+        "availabilityNotes": "Delivering: Java",
+        "availableFromDate": "1789756200000",
+        "availabilityUpdatedAt": "1788893045833"
     },
     {
         "_id": "13d7226a56475801311a7a63",

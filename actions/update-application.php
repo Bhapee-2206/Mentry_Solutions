@@ -88,6 +88,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ['$set' => $oppUpdate]
                         );
                     }
+
+                    // Sync with linked VendorRequest if applicable
+                    $reqCol = getCollection("VendorRequest");
+                    if ($reqCol) {
+                        $vFilter = [];
+                        if (!empty($opp['vendorRequestId'])) {
+                            try {
+                                $vFilter = ['_id' => new MongoDB\BSON\ObjectId((string)$opp['vendorRequestId'])];
+                            } catch (\Throwable $e) {
+                                $vFilter = ['_id' => (string)$opp['vendorRequestId']];
+                            }
+                        } else {
+                            $vFilter = ['convertedOpportunityId' => (string)$oppId];
+                        }
+                        try {
+                            $reqCol->updateOne(
+                                $vFilter,
+                                ['$set' => [
+                                    'status' => 'MATCHED',
+                                    'assignedTrainerId' => $trainerId,
+                                    'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                                ]]
+                            );
+                        } catch (\Throwable $e) {}
+                    }
                 }
 
                 // Update Trainer: set to BUSY_ON_ASSIGNMENT and mark APPROVED

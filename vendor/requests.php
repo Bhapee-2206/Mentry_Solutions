@@ -5,16 +5,86 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/includes/sidebar.php';
 
-$vendorId = $user['id'];
+$vendorId = (string)($user['id'] ?? '');
+$vendorEmail = (string)($user['email'] ?? '');
+$orgName = (string)($user['organizationName'] ?? '');
+
 $reqCol = getCollection("VendorRequest");
+$oppCol = getCollection("Opportunity");
+$asgCol = getCollection("Assignment");
+
+$vendorQuery = [
+    '$or' => array_values(array_filter([
+        !empty($vendorId) ? ['vendorId' => $vendorId] : null,
+        !empty($vendorEmail) ? ['vendorContactEmail' => $vendorEmail] : null,
+        !empty($orgName) ? ['vendorName' => $orgName] : null,
+        !empty($orgName) ? ['institutionName' => $orgName] : null
+    ]))
+];
+
+$allRequests = $reqCol ? $reqCol->find($vendorQuery, ['sort' => ['createdAt' => -1]])->toArray() : [];
+
+// Auto-resolve matched/assigned status across converted Opportunities & Assignments
+foreach ($allRequests as &$rq) {
+    $isAssigned = (!empty($rq['assignedTrainerId']) || ($rq['status'] ?? '') === 'MATCHED');
+    $assignedTrainerId = $rq['assignedTrainerId'] ?? null;
+    $convertedOppId = (string)($rq['convertedOpportunityId'] ?? '');
+
+    if (!$isAssigned && !empty($convertedOppId) && $oppCol) {
+        try {
+            $opp = $oppCol->findOne([
+                '$or' => [
+                    ['_id' => new MongoDB\BSON\ObjectId($convertedOppId)],
+                    ['_id' => $convertedOppId],
+                    ['vendorRequestId' => (string)($rq['_id'] ?? '')]
+                ]
+            ]);
+            if ($opp && (!empty($opp['assignedTrainerId']) || in_array($opp['status'] ?? '', ['CLOSED', 'MATCHED']))) {
+                $isAssigned = true;
+                $assignedTrainerId = $opp['assignedTrainerId'] ?? null;
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    if (!$isAssigned && $asgCol) {
+        $asgCheck = [];
+        if (!empty($convertedOppId)) $asgCheck[] = ['opportunityId' => $convertedOppId];
+        if (!empty($rq['_id'])) $asgCheck[] = ['vendorRequestId' => (string)$rq['_id']];
+        if (!empty($asgCheck)) {
+            $asg = $asgCol->findOne(['$or' => $asgCheck]);
+            if ($asg && !empty($asg['trainerId'])) {
+                $isAssigned = true;
+                $assignedTrainerId = $asg['trainerId'];
+            }
+        }
+    }
+
+    if ($isAssigned) {
+        $rq['status'] = 'MATCHED';
+        $rq['assignedTrainerId'] = $assignedTrainerId;
+        if ($reqCol && !empty($rq['_id'])) {
+            try {
+                $reqCol->updateOne(
+                    ['_id' => $rq['_id']],
+                    ['$set' => [
+                        'status' => 'MATCHED',
+                        'assignedTrainerId' => $assignedTrainerId,
+                        'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                    ]]
+                );
+            } catch (\Throwable $e) {}
+        }
+    }
+}
+unset($rq);
 
 $statusFilter = $_GET['status'] ?? 'ALL';
-$filter = ['vendorId' => $vendorId];
-if ($statusFilter !== 'ALL') {
-    $filter['status'] = $statusFilter;
+$requests = [];
+foreach ($allRequests as $item) {
+    if ($statusFilter === 'ALL' || ($item['status'] ?? '') === $statusFilter) {
+        $requests[] = $item;
+    }
 }
-
-$requests = $reqCol ? $reqCol->find($filter, ['sort' => ['createdAt' => -1]])->toArray() : [];
 ?>
 
 <div class="space-y-6">

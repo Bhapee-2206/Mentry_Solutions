@@ -12,14 +12,42 @@ $oppCol = getCollection("Opportunity");
 $trainerCol = getCollection("Trainer");
 $userCol = getCollection("User");
 
-// Find all vendor requests that have a convertedOpportunityId
-$vendorReqs = $reqCol ? $reqCol->find(['vendorId' => $vendorId])->toArray() : [];
+$vendorId = (string)($user['id'] ?? '');
+$vendorEmail = (string)($user['email'] ?? '');
+$orgName = (string)($user['organizationName'] ?? '');
+
+$vendorQuery = [
+    '$or' => array_values(array_filter([
+        !empty($vendorId) ? ['vendorId' => $vendorId] : null,
+        !empty($vendorEmail) ? ['vendorContactEmail' => $vendorEmail] : null,
+        !empty($orgName) ? ['vendorName' => $orgName] : null,
+        !empty($orgName) ? ['institutionName' => $orgName] : null
+    ]))
+];
+
+$vendorReqs = $reqCol ? $reqCol->find($vendorQuery)->toArray() : [];
 $opportunityIds = [];
+
 foreach ($vendorReqs as $vr) {
     if (!empty($vr['convertedOpportunityId'])) {
         $opportunityIds[] = (string)$vr['convertedOpportunityId'];
     }
 }
+
+// Also find any Opportunity created directly with vendorId, vendorRequestId, or collegeName
+if ($oppCol) {
+    $directOpps = $oppCol->find([
+        '$or' => array_values(array_filter([
+            !empty($vendorId) ? ['vendorId' => $vendorId] : null,
+            !empty($orgName) ? ['collegeName' => $orgName] : null
+        ]))
+    ])->toArray();
+    foreach ($directOpps as $dOpp) {
+        $opportunityIds[] = (string)$dOpp['_id'];
+    }
+}
+
+$opportunityIds = array_values(array_unique(array_filter($opportunityIds)));
 
 $assignments = [];
 if (!empty($opportunityIds) && $asgCol) {

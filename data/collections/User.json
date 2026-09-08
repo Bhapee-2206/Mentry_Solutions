@@ -430,5 +430,23 @@
         "createdAt": "1788708636409",
         "updatedAt": "1788708636409",
         "trainerCode": "MEN-TRN-1562"
+    },
+    {
+        "_id": "6aa055fcf1624b69330f570e",
+        "name": "dfs",
+        "email": "testcollege@gmail.com",
+        "phone": "9150435591",
+        "organizationName": "dsaqwertyu",
+        "partnerType": "STAFFING_VENDOR",
+        "organizationType": "STAFFING_VENDOR",
+        "role": "VENDOR",
+        "status": "ACTIVE",
+        "mentryId": "MEN-VND-1005",
+        "vendorCode": "MEN-VND-1005",
+        "password": "$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi",
+        "city": "Dharmapuri",
+        "state": "Tamil Nadu",
+        "createdAt": "1788892800000",
+        "updatedAt": "1788892800000"
     }
 ]

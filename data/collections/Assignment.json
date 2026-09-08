@@ -192,19 +192,35 @@
         "accommodationDetails": "Campus Guest House / Hotel Reserved"
     },
     {
-        "opportunityId": "6a9d876cf1624b69330f56fc",
-        "trainerId": "6a99b578f1624b69330f55bb",
-        "status": "SCHEDULED",
-        "agreedDailyRate": 7000,
-        "agreedTotalFee": 35000,
-        "startDate": "1790028000000",
-        "durationDays": 5,
-        "location": "Coimbatore, Tamil Nadu",
-        "accommodationDetails": "Campus Guest House / Hotel Reserved",
-        "travelDetails": "Tickets arranged by Mentry",
+        "_id": "6a9d879ef1624b69330f5707",
         "notes": "",
+        "status": "SCHEDULED",
+        "location": "Coimbatore, Tamil Nadu",
         "createdAt": "1788708766772",
+        "startDate": "1790028000000",
+        "trainerId": "6a99b578f1624b69330f55bb",
         "updatedAt": "1788708766772",
-        "_id": "6a9d879ef1624b69330f5707"
+        "durationDays": 5,
+        "opportunityId": "6a9d876cf1624b69330f56fc",
+        "travelDetails": "Tickets arranged by Mentry",
+        "agreedTotalFee": 35000,
+        "agreedDailyRate": 7000,
+        "accommodationDetails": "Campus Guest House / Hotel Reserved"
+    },
+    {
+        "opportunityId": "6aa056fdf1624b69330f5714",
+        "trainerId": "3e28ab2f8f2b80ce8e1db53e",
+        "applicationId": "6aa05728f1624b69330f5715",
+        "status": "SCHEDULED",
+        "agreedDailyRate": 4000,
+        "agreedTotalFee": 20000,
+        "startDate": "1789324200000",
+        "durationDays": 5,
+        "location": "Chennai, Tamil Nadu",
+        "accommodationDetails": "Campus Guest House Reserved with standard amenities",
+        "travelDetails": "Travel itinerary to be shared prior to batch start date",
+        "createdAt": "1788893045015",
+        "updatedAt": "1788893045015",
+        "_id": "6aa05775f1624b69330f5717"
     }
 ]
