@@ -99,8 +99,8 @@ if (!empty($req['skillsRequired'])) {
                 <p class="text-xs text-slate-500 font-medium">
                     Target Institution: <strong class="text-slate-800"><?= htmlspecialchars($req['institutionName']) ?></strong> • 
                     <?= htmlspecialchars($req['city']) ?>, <?= htmlspecialchars($req['state'] ?? 'India') ?> • 
-                    <?= htmlspecialchars($req['durationDays'] ?? 5) ?> Days • 
-                    Starts <strong><?= formatDate($req['startDate'] ?? null) ?></strong> • 
+                    <?= htmlspecialchars($req['durationDays'] ?? 5) ?> Working Days • 
+                    <?= !empty($req['endDate']) ? 'Starts <strong>' . formatDate($req['startDate'] ?? null) . '</strong> • Ends <strong>' . formatDate($req['endDate']) . '</strong>' : 'Starts <strong>' . formatDate($req['startDate'] ?? null) . '</strong>' ?> • 
                     Batch Size: <strong><?= htmlspecialchars($req['studentCount'] ?? 100) ?> Students</strong>
                 </p>
             </div>

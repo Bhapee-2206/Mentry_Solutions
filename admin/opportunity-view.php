@@ -159,8 +159,8 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                 <p class="text-xs text-slate-500 font-medium">
                     <?= !empty($opp['collegeName']) ? htmlspecialchars($opp['collegeName']) . ' • ' : '' ?>
                     <?= htmlspecialchars($opp['city']) ?>, <?= htmlspecialchars($opp['state']) ?> • 
-                    <?= htmlspecialchars($opp['durationDays'] ?? 5) ?> Days • 
-                    Starts <strong><?= formatDate($opp['startDate'] ?? null) ?></strong> • 
+                    <?= htmlspecialchars($opp['durationDays'] ?? 5) ?> Working Days • 
+                    <?= !empty($opp['endDate']) ? 'Starts <strong>' . formatDate($opp['startDate'] ?? null) . '</strong> • Ends <strong>' . formatDate($opp['endDate']) . '</strong>' : 'Starts <strong>' . formatDate($opp['startDate'] ?? null) . '</strong>' ?> • 
                     Student Batch Size: <strong><?= htmlspecialchars($opp['studentCount'] ?? 100) ?></strong>
                 </p>
             </div>

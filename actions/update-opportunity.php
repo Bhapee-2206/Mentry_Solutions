@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $state = trim($_POST['state'] ?? 'Tamil Nadu');
     list($city, $state) = normalizeIndiaLocation($city, $state);
     $startDate = trim($_POST['startDate'] ?? '');
+    $endDate = trim($_POST['endDate'] ?? '');
     $durationDays = (int)($_POST['durationDays'] ?? 5);
     $studentCount = (int)($_POST['studentCount'] ?? 100);
     $dailyRateMin = (float)($_POST['dailyRateMin'] ?? 5000);
@@ -36,6 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit();
             }
         }
+        if (!empty($startDate) && !empty($endDate) && strtotime($endDate) < strtotime($startDate)) {
+            header("Location: /admin/opportunity-edit.php?id=" . urlencode($id) . "&error=" . urlencode("End date cannot be earlier than start date."));
+            exit();
+        }
 
         $oppCol = getCollection("Opportunity");
         if ($oppCol) {
@@ -52,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'city' => $city,
                     'state' => $state,
                     'startDate' => !empty($startDate) ? new MongoDB\BSON\UTCDateTime(strtotime($startDate) * 1000) : null,
+                    'endDate' => !empty($endDate) ? new MongoDB\BSON\UTCDateTime(strtotime($endDate) * 1000) : null,
                     'durationDays' => $durationDays,
                     'studentCount' => $studentCount,
                     'dailyRateMin' => $dailyRateMin,

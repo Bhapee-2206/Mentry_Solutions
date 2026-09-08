@@ -27,6 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $city = trim($_POST['city'] ?? ($req['city'] ?? 'India'));
             $state = trim($_POST['state'] ?? ($req['state'] ?? 'Karnataka'));
 
+            $startDateObj = !empty($_POST['startDate']) ? new MongoDB\BSON\UTCDateTime(strtotime($_POST['startDate']) * 1000) : ($req['tentativeStartDate'] ?? new MongoDB\BSON\UTCDateTime());
+            $endDateObj = !empty($_POST['endDate']) ? new MongoDB\BSON\UTCDateTime(strtotime($_POST['endDate']) * 1000) : ($req['tentativeEndDate'] ?? ($req['endDate'] ?? null));
+
             $oppInsert = $oppCol->insertOne([
                 'jobId' => $jobId,
                 'mentryId' => $jobId,
@@ -37,7 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'collegeName' => $req['institutionName'],
                 'city' => $city,
                 'state' => $state,
-                'startDate' => $req['tentativeStartDate'] ?? new MongoDB\BSON\UTCDateTime(),
+                'startDate' => $startDateObj,
+                'endDate' => $endDateObj,
                 'durationDays' => $durationDays,
                 'dailyRateMin' => $dailyRateMin, // Admin-configured trainer rate!
                 'dailyRateMax' => $dailyRateMax, // Admin-configured trainer rate!

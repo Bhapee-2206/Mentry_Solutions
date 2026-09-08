@@ -227,7 +227,7 @@ require_once __DIR__ . '/includes/header.php';
                                             <span>•</span>
                                             <span class="flex items-center gap-1">
                                                 <span class="material-symbols-outlined text-slate-400 text-base">calendar_today</span>
-                                                Starts <?= formatDate($opp['startDate']) ?>
+                                                <?= !empty($opp['endDate']) ? formatDate($opp['startDate']) . ' – ' . formatDate($opp['endDate']) : 'Starts ' . formatDate($opp['startDate']) ?>
                                             </span>
                                             <span>•</span>
                                             <span><?= htmlspecialchars($opp['durationDays']) ?> Working Days</span>

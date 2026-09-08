@@ -180,6 +180,7 @@ if ($targetOpp) {
         'state' => $targetOpp['state'] ?? 'India',
         'durationDays' => $targetOpp['durationDays'] ?? 5,
         'startDate' => formatDate($targetOpp['startDate'] ?? null),
+        'endDate' => !empty($targetOpp['endDate']) ? formatDate($targetOpp['endDate']) : '',
         'dailyRateMin' => (float)($targetOpp['dailyRateMin'] ?? 5000),
         'dailyRateMax' => (float)($targetOpp['dailyRateMax'] ?? 7000),
         'skills' => array_values(array_filter(array_map('trim', $targetSkills))),
@@ -349,6 +350,7 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
                     'state' => $opp['state'] ?? 'India',
                     'durationDays' => $opp['durationDays'] ?? 5,
                     'startDate' => formatDate($opp['startDate'] ?? null),
+                    'endDate' => !empty($opp['endDate']) ? formatDate($opp['endDate']) : '',
                     'dailyRateMin' => (float)($opp['dailyRateMin'] ?? 5000),
                     'dailyRateMax' => (float)($opp['dailyRateMax'] ?? 7000),
                     'skills' => array_values(array_filter(array_map('trim', $skills))),
@@ -388,7 +390,7 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
                             <?= htmlspecialchars($opp['title']) ?>
                         </h2>
                         <p class="text-xs text-slate-500 break-words">
-                            <?= htmlspecialchars($opp['city']) ?>, <?= htmlspecialchars($opp['state']) ?> • <?= htmlspecialchars($opp['durationDays']) ?> Days • Starts <?= formatDate($opp['startDate']) ?>
+                            <?= htmlspecialchars($opp['city']) ?>, <?= htmlspecialchars($opp['state']) ?> • <?= htmlspecialchars($opp['durationDays']) ?> Working Days • <?= !empty($opp['endDate']) ? formatDate($opp['startDate']) . ' – ' . formatDate($opp['endDate']) : 'Starts ' . formatDate($opp['startDate']) ?>
                         </p>
                         <div class="flex flex-wrap gap-1.5 pt-1">
                             <?php foreach (array_slice($skills, 0, 4) as $s): ?>
@@ -566,7 +568,8 @@ function openOppModal(data) {
     document.getElementById('modalTitle').textContent = data.title;
     document.getElementById('modalModeBadge').textContent = data.mode;
     document.getElementById('modalIdBadge').textContent = 'ID: ' + data.jobId;
-    document.getElementById('modalSub').textContent = data.city + ', ' + data.state + ' • ' + data.durationDays + ' Days • Starts ' + data.startDate;
+    const dateSpan = data.endDate ? (data.startDate + ' – ' + data.endDate) : ('Starts ' + data.startDate);
+    document.getElementById('modalSub').textContent = data.city + ', ' + data.state + ' • ' + data.durationDays + ' Working Days • ' + dateSpan;
     document.getElementById('modalRate').textContent = '₹' + Number(data.dailyRateMin).toLocaleString('en-IN') + ' – ₹' + Number(data.dailyRateMax).toLocaleString('en-IN');
     document.getElementById('modalProposedRate').value = data.dailyRateMin;
 

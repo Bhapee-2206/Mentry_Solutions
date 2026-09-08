@@ -184,8 +184,8 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
                                     <span class="font-semibold text-slate-800 block"><?= htmlspecialchars($op['city']) ?>, <?= htmlspecialchars($op['state']) ?></span>
                                     <span class="text-[10px] text-blue-600 font-bold uppercase"><?= htmlspecialchars($op['mode'] ?? 'OFFLINE') ?></span>
                                 </td>
-                                <td class="py-4 px-4 text-slate-600"><?= formatDate($op['startDate'] ?? null) ?></td>
-                                <td class="py-4 px-4 text-slate-600 font-medium"><?= htmlspecialchars($op['durationDays'] ?? 5) ?> Days</td>
+                                <td class="py-4 px-4 text-slate-600 font-medium"><?= !empty($op['endDate']) ? formatDate($op['startDate'] ?? null) . ' – ' . formatDate($op['endDate']) : formatDate($op['startDate'] ?? null) ?></td>
+                                <td class="py-4 px-4 text-slate-600 font-medium"><?= htmlspecialchars($op['durationDays'] ?? 5) ?> Working Days</td>
                                 <td class="py-4 px-4 font-bold text-blue-700"><?= formatINR($op['dailyRateMin'] ?? 0) ?> - <?= formatINR($op['dailyRateMax'] ?? 0) ?></td>
                                 <td class="py-4 px-4">
                                     <a href="/admin/opportunity-view.php?id=<?= $opId ?>" class="inline-flex items-center gap-1 font-bold text-xs <?= $applicantCount > 0 ? 'text-blue-600 hover:underline' : 'text-slate-400' ?>">

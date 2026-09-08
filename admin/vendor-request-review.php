@@ -37,25 +37,11 @@ if (!empty($req['skillsRequired'])) {
 }
 $skillsString = implode(', ', (array)$skills);
 
-$startDateVal = '';
-if (!empty($req['startDate'])) {
-    $sd = $req['startDate'];
-    if ($sd instanceof MongoDB\BSON\UTCDateTime) {
-        $startDateVal = $sd->toDateTime()->format('Y-m-d');
-    } elseif (is_numeric($sd)) {
-        $ts = ($sd > 20000000000) ? round($sd / 1000) : (int)$sd;
-        $startDateVal = date('Y-m-d', $ts);
-    } elseif (is_array($sd) || is_object($sd)) {
-        $arr = (array)$sd;
-        if (isset($arr['$date'])) {
-            $raw = is_array($arr['$date']) ? ($arr['$date']['$numberLong'] ?? 0) : $arr['$date'];
-            $ts = is_numeric($raw) && $raw > 20000000000 ? round($raw / 1000) : (int)$raw;
-            $startDateVal = date('Y-m-d', $ts);
-        }
-    } elseif (is_string($sd)) {
-        $startDateVal = date('Y-m-d', strtotime($sd));
-    }
-}
+$startTs = parseDateToTimestamp($req['startDate'] ?? null);
+$startDateVal = $startTs ? date('Y-m-d', $startTs) : '';
+
+$endTs = parseDateToTimestamp($req['endDate'] ?? null);
+$endDateVal = $endTs ? date('Y-m-d', $endTs) : '';
 
 // Default recommended trainer payout based on vendor's offered budget (typically 70-80%)
 $vendorBudget = (float)($req['budgetPerDay'] ?? 8000);
@@ -201,12 +187,19 @@ $defaultMaxRate = max(5000, round($vendorBudget * 0.85 / 500) * 500);
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Start Date *</label>
-                <input type="date" name="startDate" required min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($startDateVal) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
+                <input type="date" id="reviewStartDate" name="startDate" required min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($startDateVal) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Duration (Working Days) *</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">End Date *</label>
+                <input type="date" id="reviewEndDate" name="endDate" required min="<?= htmlspecialchars($startDateVal ?: date('Y-m-d')) ?>" value="<?= htmlspecialchars($endDateVal) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
+                <span class="text-[10px] text-slate-400 mt-1 block">Scheduled completion date (accounting for weekends / off days).</span>
+            </div>
+
+            <div class="sm:col-span-2">
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Actual Training / Working Days *</label>
                 <input type="number" name="durationDays" value="<?= htmlspecialchars($req['durationDays'] ?? 5) ?>" min="1" max="180" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:bg-white">
+                <span class="text-[10px] text-slate-400 mt-1 block">Total instructional days excluding Saturday/Sunday breaks.</span>
             </div>
 
             <div class="sm:col-span-2">
@@ -245,6 +238,23 @@ $defaultMaxRate = max(5000, round($vendorBudget * 0.85 / 500) * 500);
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startInput = document.getElementById('reviewStartDate');
+    const endInput = document.getElementById('reviewEndDate');
+    if (startInput && endInput) {
+        startInput.addEventListener('change', function() {
+            if (this.value) {
+                endInput.min = this.value;
+                if (endInput.value && endInput.value < this.value) {
+                    endInput.value = this.value;
+                }
+            }
+        });
+    }
+});
+</script>
 
 </main>
 </div>

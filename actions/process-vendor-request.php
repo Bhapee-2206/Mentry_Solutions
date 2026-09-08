@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $state = trim($_POST['state'] ?? ($req['state'] ?? 'Tamil Nadu'));
             list($city, $state) = normalizeIndiaLocation($city, $state);
             $startDate = trim($_POST['startDate'] ?? '');
+            $endDate = trim($_POST['endDate'] ?? '');
             $durationDays = (int)($_POST['durationDays'] ?? ($req['durationDays'] ?? 5));
             $dailyRateMin = (float)($_POST['dailyRateMin'] ?? 6000);
             $dailyRateMax = (float)($_POST['dailyRateMax'] ?? 7500);
@@ -33,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $skillsArray = array_values(array_filter(array_map('trim', explode(',', $skillsRequired))));
             $startDateObj = !empty($startDate) ? new MongoDB\BSON\UTCDateTime(strtotime($startDate) * 1000) : ($req['startDate'] ?? new MongoDB\BSON\UTCDateTime());
+            $endDateObj = !empty($endDate) ? new MongoDB\BSON\UTCDateTime(strtotime($endDate) * 1000) : ($req['endDate'] ?? null);
 
             if ($action === 'approve_publish' && $oppCol) {
                 // Generate Job ID
@@ -50,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'city' => $city,
                     'state' => $state,
                     'startDate' => $startDateObj,
+                    'endDate' => $endDateObj,
                     'durationDays' => $durationDays,
                     'studentCount' => $req['studentCount'] ?? 100,
                     'dailyRateMin' => $dailyRateMin, // Admin-configured trainer honorarium!
@@ -77,6 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'convertedOpportunityId' => $newOppId,
                         'adjustedDailyRateMin' => $dailyRateMin,
                         'adjustedDailyRateMax' => $dailyRateMax,
+                        'startDate' => $startDateObj,
+                        'endDate' => $endDateObj,
                         'adminContacted' => true,
                         'adminNotes' => $adminNotes,
                         'updatedAt' => new MongoDB\BSON\UTCDateTime()
@@ -106,6 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'city' => $city,
                         'state' => $state,
                         'startDate' => $startDateObj,
+                        'endDate' => $endDateObj,
                         'durationDays' => $durationDays,
                         'adjustedDailyRateMin' => $dailyRateMin,
                         'adjustedDailyRateMax' => $dailyRateMax,

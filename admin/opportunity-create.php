@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $state = trim($_POST['state'] ?? 'Tamil Nadu');
     list($city, $state) = normalizeIndiaLocation($city, $state);
     $startDate = trim($_POST['startDate'] ?? '');
+    $endDate = trim($_POST['endDate'] ?? '');
     $durationDays = (int)($_POST['durationDays'] ?? 5);
     $dailyRateMin = (float)($_POST['dailyRateMin'] ?? 5000);
     $dailyRateMax = (float)($_POST['dailyRateMax'] ?? 7000);
@@ -28,12 +29,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accommodationCovered = isset($_POST['accommodationCovered']) ? true : ($mode !== 'ONLINE');
     $diningCovered = isset($_POST['diningCovered']) ? true : ($mode !== 'ONLINE');
 
-    if (empty($title) || empty($city) || empty($startDate)) {
-        $error = "Please fill in all mandatory fields.";
-    } elseif (strtotime($startDate) === false) {
-        $error = "Please provide a valid start date.";
+    if (empty($title) || empty($city) || empty($startDate) || empty($endDate)) {
+        $error = "Please fill in all mandatory fields including Start Date and End Date.";
+    } elseif (strtotime($startDate) === false || strtotime($endDate) === false) {
+        $error = "Please provide valid start and end dates.";
     } elseif (strtotime($startDate) < strtotime(date('Y-m-d'))) {
         $error = "Start date cannot be in the past. Please select today or a future date.";
+    } elseif (strtotime($endDate) < strtotime($startDate)) {
+        $error = "End date cannot be earlier than start date.";
     } else {
         $oppCol = getCollection("Opportunity");
         $jobId = getNextSequentialMentryId('OPPORTUNITY');
@@ -49,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'city' => $city,
                 'state' => $state,
                 'startDate' => new MongoDB\BSON\UTCDateTime(strtotime($startDate) * 1000),
+                'endDate' => new MongoDB\BSON\UTCDateTime(strtotime($endDate) * 1000),
                 'durationDays' => $durationDays,
                 'dailyRateMin' => $dailyRateMin,
                 'dailyRateMax' => $dailyRateMax,
@@ -130,12 +134,19 @@ require_once __DIR__ . '/includes/sidebar.php';
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Start Date *</label>
-                <input type="date" name="startDate" required min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($_POST['startDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <input type="date" id="oppStartDate" name="startDate" required min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($_POST['startDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Duration (Working Days) *</label>
-                <input type="number" name="durationDays" value="5" min="1" max="60" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">End Date *</label>
+                <input type="date" id="oppEndDate" name="endDate" required min="<?= htmlspecialchars($_POST['startDate'] ?? date('Y-m-d')) ?>" value="<?= htmlspecialchars($_POST['endDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <span class="text-[10px] text-slate-400 mt-1 block">Scheduled completion date (accounting for weekends / off days).</span>
+            </div>
+
+            <div class="sm:col-span-2">
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Actual Training / Working Days *</label>
+                <input type="number" name="durationDays" value="<?= htmlspecialchars($_POST['durationDays'] ?? '5') ?>" min="1" max="180" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <span class="text-[10px] text-slate-400 mt-1 block">Total instructional days excluding Saturday/Sunday breaks.</span>
             </div>
 
             <div>
@@ -186,6 +197,23 @@ require_once __DIR__ . '/includes/sidebar.php';
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startInput = document.getElementById('oppStartDate');
+    const endInput = document.getElementById('oppEndDate');
+    if (startInput && endInput) {
+        startInput.addEventListener('change', function() {
+            if (this.value) {
+                endInput.min = this.value;
+                if (endInput.value && endInput.value < this.value) {
+                    endInput.value = this.value;
+                }
+            }
+        });
+    }
+});
+</script>
 
 </main>
 </div>

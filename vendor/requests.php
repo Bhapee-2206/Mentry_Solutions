@@ -152,8 +152,8 @@ foreach ($allRequests as $item) {
                                     <span class="text-[10px] text-slate-400 block mt-0.5"><?= htmlspecialchars($rq['mode'] ?? 'OFFLINE') ?> • <?= htmlspecialchars($rq['city']) ?></span>
                                 </td>
                                 <td class="py-4 px-4 font-black text-indigo-700"><?= formatINR($rq['budgetPerDay'] ?? 0) ?>/day</td>
-                                <td class="py-4 px-4 text-slate-600"><?= formatDate($rq['startDate'] ?? null) ?></td>
-                                <td class="py-4 px-4 text-slate-600"><?= htmlspecialchars($rq['durationDays'] ?? 5) ?> Days</td>
+                                <td class="py-4 px-4 text-slate-600 font-medium"><?= !empty($rq['endDate']) ? formatDate($rq['startDate'] ?? null) . ' – ' . formatDate($rq['endDate']) : formatDate($rq['startDate'] ?? null) ?></td>
+                                <td class="py-4 px-4 text-slate-600 font-medium"><?= htmlspecialchars($rq['durationDays'] ?? 5) ?> Working Days</td>
                                 <td class="py-4 px-4"><?= getStatusBadge($rq['status'] ?? 'PENDING_ADMIN_REVIEW') ?></td>
                                 <td class="py-4 px-5 text-right">
                                     <a href="/vendor/request-view.php?id=<?= $rqId ?>" class="bg-slate-50 hover:bg-indigo-50 text-indigo-600 border border-slate-200 hover:border-indigo-200 px-3 py-1.5 rounded-xl font-bold text-xs transition-colors">

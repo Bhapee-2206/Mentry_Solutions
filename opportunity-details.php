@@ -187,20 +187,24 @@ require_once __DIR__ . '/includes/header.php';
             </div>
 
             <!-- Key Info Grid -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <span class="text-xs font-semibold text-slate-400 block">Duration</span>
-                    <p class="font-extrabold text-base text-slate-900 mt-1"><?= htmlspecialchars($opp['durationDays']) ?> Days</p>
-                </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                     <span class="text-xs font-semibold text-slate-400 block">Start Date</span>
                     <p class="font-extrabold text-base text-slate-900 mt-1"><?= formatDate($opp['startDate']) ?></p>
                 </div>
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <span class="text-xs font-semibold text-slate-400 block">Audience</span>
-                    <p class="font-extrabold text-base text-slate-900 mt-1"><?= htmlspecialchars($opp['targetAudience'] ?? 'Engineering Students') ?></p>
+                    <span class="text-xs font-semibold text-slate-400 block">End Date</span>
+                    <p class="font-extrabold text-base text-slate-900 mt-1"><?= !empty($opp['endDate']) ? formatDate($opp['endDate']) : '—' ?></p>
                 </div>
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <span class="text-xs font-semibold text-slate-400 block">Working Days</span>
+                    <p class="font-extrabold text-base text-slate-900 mt-1"><?= htmlspecialchars($opp['durationDays']) ?> Days</p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <span class="text-xs font-semibold text-slate-400 block">Audience</span>
+                    <p class="font-extrabold text-base text-slate-900 mt-1 truncate" title="<?= htmlspecialchars($opp['targetAudience'] ?? 'Engineering Students') ?>"><?= htmlspecialchars($opp['targetAudience'] ?? 'Students') ?></p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 col-span-2 sm:col-span-1">
                     <span class="text-xs font-semibold text-slate-400 block">Min Experience</span>
                     <p class="font-extrabold text-base text-slate-900 mt-1"><?= htmlspecialchars($opp['minExperienceYears']) ?>+ Years</p>
                 </div>
@@ -366,7 +370,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div>
                     <span class="text-[10px] font-bold uppercase text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded">Application Intake</span>
                     <h3 class="text-lg font-extrabold text-slate-900 mt-1">Apply for <?= htmlspecialchars($opp['title']) ?></h3>
-                    <p class="text-xs text-slate-500"><?= htmlspecialchars($opp['city']) ?> • <?= htmlspecialchars($opp['durationDays']) ?> Days</p>
+                    <p class="text-xs text-slate-500"><?= htmlspecialchars($opp['city']) ?> • <?= htmlspecialchars($opp['durationDays']) ?> Working Days • <?= !empty($opp['endDate']) ? formatDate($opp['startDate']) . ' – ' . formatDate($opp['endDate']) : 'Starts ' . formatDate($opp['startDate']) ?></p>
                 </div>
 
                 <!-- Attached Resume Confirmation -->

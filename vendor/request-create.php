@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $state = trim($_POST['state'] ?? 'Tamil Nadu');
     list($city, $state) = normalizeIndiaLocation($city, $state);
     $startDate = trim($_POST['startDate'] ?? '');
+    $endDate = trim($_POST['endDate'] ?? '');
     $durationDays = (int)($_POST['durationDays'] ?? 5);
     $studentCount = (int)($_POST['studentCount'] ?? 100);
     $budgetPerDay = (float)($_POST['budgetPerDay'] ?? 8000);
@@ -28,10 +29,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accommodationDetails = trim($_POST['accommodationDetails'] ?? 'Campus Executive Guest House Provided');
     $travelDetails = trim($_POST['travelDetails'] ?? 'Travel allowance / tickets reimbursed');
 
-    if (empty($title) || empty($institutionName) || empty($city) || empty($startDate)) {
-        $error = "Please fill in all mandatory fields marked with an asterisk (*).";
-    } elseif (strtotime($startDate) === false || strtotime($startDate) < strtotime(date('Y-m-d'))) {
+    if (empty($title) || empty($institutionName) || empty($city) || empty($startDate) || empty($endDate)) {
+        $error = "Please fill in all mandatory fields marked with an asterisk (*) including Start Date and End Date.";
+    } elseif (strtotime($startDate) === false || strtotime($endDate) === false) {
+        $error = "Please provide valid start and end dates.";
+    } elseif (strtotime($startDate) < strtotime(date('Y-m-d'))) {
         $error = "Start date cannot be in the past. Please select today or a future date.";
+    } elseif (strtotime($endDate) < strtotime($startDate)) {
+        $error = "End date cannot be earlier than start date.";
     } else {
         $reqCol = getCollection("VendorRequest");
         if ($reqCol) {
@@ -48,7 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'mode' => $mode,
                 'city' => $city,
                 'state' => $state,
-                'startDate' => !empty($startDate) ? new MongoDB\BSON\UTCDateTime(strtotime($startDate) * 1000) : null,
+                'startDate' => new MongoDB\BSON\UTCDateTime(strtotime($startDate) * 1000),
+                'endDate' => new MongoDB\BSON\UTCDateTime(strtotime($endDate) * 1000),
                 'durationDays' => $durationDays,
                 'studentCount' => $studentCount,
                 'budgetPerDay' => $budgetPerDay,
@@ -154,12 +160,19 @@ require_once __DIR__ . '/includes/sidebar.php';
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tentative Start Date *</label>
-                <input type="date" name="startDate" required min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($_POST['startDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                <input type="date" id="vendorStartDate" name="startDate" required min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($_POST['startDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
             </div>
 
             <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tentative End Date *</label>
+                <input type="date" id="vendorEndDate" name="endDate" required min="<?= htmlspecialchars($_POST['startDate'] ?? date('Y-m-d')) ?>" value="<?= htmlspecialchars($_POST['endDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                <span class="text-[10px] text-slate-400 mt-1 block">Expected completion date including weekend / scheduled breaks.</span>
+            </div>
+
+            <div class="sm:col-span-2">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Duration (Working Days) *</label>
-                <input type="number" name="durationDays" value="5" min="1" max="90" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                <input type="number" name="durationDays" value="<?= htmlspecialchars($_POST['durationDays'] ?? '5') ?>" min="1" max="180" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                <span class="text-[10px] text-slate-400 mt-1 block">Total instructional days excluding Saturday/Sunday breaks.</span>
             </div>
 
             <div>
@@ -205,6 +218,23 @@ require_once __DIR__ . '/includes/sidebar.php';
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startInput = document.getElementById('vendorStartDate');
+    const endInput = document.getElementById('vendorEndDate');
+    if (startInput && endInput) {
+        startInput.addEventListener('change', function() {
+            if (this.value) {
+                endInput.min = this.value;
+                if (endInput.value && endInput.value < this.value) {
+                    endInput.value = this.value;
+                }
+            }
+        });
+    }
+});
+</script>
 
 </main>
 </div>

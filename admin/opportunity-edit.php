@@ -33,25 +33,11 @@ if (!empty($opp['skillsRequired'])) {
     }
 }
 $skillsString = implode(', ', (array)$skills);
-$startDateVal = '';
-if (!empty($opp['startDate'])) {
-    $sd = $opp['startDate'];
-    if ($sd instanceof MongoDB\BSON\UTCDateTime) {
-        $startDateVal = $sd->toDateTime()->format('Y-m-d');
-    } elseif (is_numeric($sd)) {
-        $ts = ($sd > 20000000000) ? round($sd / 1000) : (int)$sd;
-        $startDateVal = date('Y-m-d', $ts);
-    } elseif (is_array($sd) || is_object($sd)) {
-        $arr = (array)$sd;
-        if (isset($arr['$date'])) {
-            $raw = is_array($arr['$date']) ? ($arr['$date']['$numberLong'] ?? 0) : $arr['$date'];
-            $ts = is_numeric($raw) && $raw > 20000000000 ? round($raw / 1000) : (int)$raw;
-            $startDateVal = date('Y-m-d', $ts);
-        }
-    } elseif (is_string($sd)) {
-        $startDateVal = date('Y-m-d', strtotime($sd));
-    }
-}
+$startTs = parseDateToTimestamp($opp['startDate'] ?? null);
+$startDateVal = $startTs ? date('Y-m-d', $startTs) : '';
+
+$endTs = parseDateToTimestamp($opp['endDate'] ?? null);
+$endDateVal = $endTs ? date('Y-m-d', $endTs) : '';
 ?>
 
 <div class="max-w-4xl mx-auto space-y-6">
@@ -137,12 +123,19 @@ if (!empty($opp['startDate'])) {
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Start Date *</label>
-                <input type="date" name="startDate" required value="<?= htmlspecialchars($startDateVal) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <input type="date" id="oppStartDate" name="startDate" required value="<?= htmlspecialchars($startDateVal) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Duration (Working Days) *</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">End Date *</label>
+                <input type="date" id="oppEndDate" name="endDate" required min="<?= htmlspecialchars($startDateVal) ?>" value="<?= htmlspecialchars($endDateVal) ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <span class="text-[10px] text-slate-400 mt-1 block">Scheduled completion date (accounting for weekends / off days).</span>
+            </div>
+
+            <div class="sm:col-span-2">
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Actual Training / Working Days *</label>
                 <input type="number" name="durationDays" value="<?= htmlspecialchars($opp['durationDays'] ?? 5) ?>" min="1" max="180" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <span class="text-[10px] text-slate-400 mt-1 block">Total instructional days excluding Saturday/Sunday breaks.</span>
             </div>
 
             <div>
@@ -206,6 +199,23 @@ if (!empty($opp['startDate'])) {
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startInput = document.getElementById('oppStartDate');
+    const endInput = document.getElementById('oppEndDate');
+    if (startInput && endInput) {
+        startInput.addEventListener('change', function() {
+            if (this.value) {
+                endInput.min = this.value;
+                if (endInput.value && endInput.value < this.value) {
+                    endInput.value = this.value;
+                }
+            }
+        });
+    }
+});
+</script>
 
 </main>
 </div>
