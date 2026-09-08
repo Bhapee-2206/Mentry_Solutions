@@ -39,34 +39,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (empty($password)) {
         $error = "Password is required.";
     } else {
-        $userCol = getCollection("User");
-        $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
-
-        // Built-in demo trainer credentials fallback using secure bcrypt hashes (no plaintext passwords in code)
-        $demoTrainerAccounts = [
-            'trainer@mentry.test' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Rajesh Verma (Senior DevOps Architect)', 'trainerId' => '65e000000000000000000021'],
-            'rajesh.verma@example.com' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Rajesh Verma', 'trainerId' => '65e000000000000000000021'],
-            'priya.sharma@example.com' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Dr. Priya Sharma', 'trainerId' => '65e000000000000000000022'],
-        ];
-
-        if ((!$user || !isset($user['password'])) && isset($demoTrainerAccounts[$email])) {
-            $demo = $demoTrainerAccounts[$email];
-            if (password_verify($password, $demo['hash'])) {
-                $user = [
-                    '_id' => '65e000000000000000000020',
-                    'email' => $email,
-                    'name' => $demo['name'],
-                    'role' => 'TRAINER',
-                    'avatar' => 'https://avatar.vercel.sh/' . urlencode($demo['name']) . '.png'
-                ];
-            }
-        }
-
-        if (!$user || (isset($user['password']) && !verifyPassword($password, $user['password']))) {
-            $error = "Invalid email or password. Please verify your credentials.";
-        } elseif ($user['role'] === 'ADMIN' || $user['role'] === 'SUPER_ADMIN') {
-            $error = "This account has Administrator privileges. Please sign in via the <a href='/admin-login.php' class='underline font-bold hover:text-blue-700'>Admin Command Center</a>.";
+        // Check if account is locked out due to wrong password attempts
+        $lockCheck = checkLoginRateLimit($email);
+        if ($lockCheck['isLocked']) {
+            $error = $lockCheck['message'];
         } else {
+            $userCol = getCollection("User");
+            $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
+
+            // Built-in demo trainer credentials fallback using secure bcrypt hashes
+            $demoTrainerAccounts = [
+                'trainer@mentry.test' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Rajesh Verma (Senior DevOps Architect)', 'trainerId' => '65e000000000000000000021'],
+                'rajesh.verma@example.com' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Rajesh Verma', 'trainerId' => '65e000000000000000000021'],
+                'priya.sharma@example.com' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Dr. Priya Sharma', 'trainerId' => '65e000000000000000000022'],
+            ];
+
+            if ((!$user || !isset($user['password'])) && isset($demoTrainerAccounts[$email])) {
+                $demo = $demoTrainerAccounts[$email];
+                if (password_verify($password, $demo['hash'])) {
+                    $user = [
+                        '_id' => '65e000000000000000000020',
+                        'email' => $email,
+                        'name' => $demo['name'],
+                        'role' => 'TRAINER',
+                        'avatar' => 'https://avatar.vercel.sh/' . urlencode($demo['name']) . '.png'
+                    ];
+                }
+            }
+
+            if (!$user || (isset($user['password']) && !verifyPassword($password, $user['password']))) {
+                $failResult = recordFailedLoginAttempt($email);
+                $error = $failResult['message'];
+            } elseif ($user['role'] === 'ADMIN' || $user['role'] === 'SUPER_ADMIN') {
+                $error = "This account has Administrator privileges. Please sign in via the <a href='/admin-login.php' class='underline font-bold hover:text-blue-700'>Admin Command Center</a>.";
+            } else {
+                // Successful verification: clear failed attempt counters
+                resetLoginAttempts($email);
             // Check suspension on User record
             if (($user['status'] ?? '') === 'SUSPENDED' || !empty($user['isSuspended'])) {
                 $error = "Your trainer account has been suspended by administration. Access to the portal is disabled. Please contact support at mentry.training@gmail.com.";
@@ -114,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+}
 }
 ?>
 <!DOCTYPE html>

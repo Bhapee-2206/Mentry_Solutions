@@ -38,39 +38,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userCol = getCollection("User");
         $user = $userCol ? $userCol->findOne(['email' => $email]) : null;
 
-        // Auto-seed demo vendor account or use fallback if database is offline/pending (bcrypt hash used, no plaintext)
-        if ((!$user || !isset($user['password'])) && $email === 'vendor@mentry.test' && password_verify($password, '$2y$10$5r2PqvH0GX2SF5e00FGyZeod4y4oPlzLSXljZjh25YVQQGgrc.REW')) {
-            $user = [
-                '_id' => '65e000000000000000000010',
-                'name' => 'Nexus EdTech Staffing Solutions',
-                'email' => 'vendor@mentry.test',
-                'role' => 'VENDOR',
-                'organizationName' => 'Nexus EdTech Staffing Solutions',
-                'organizationType' => 'STAFFING_VENDOR',
-                'city' => 'Bengaluru',
-                'state' => 'Karnataka'
-            ];
-        }
-
-        if (!$user || (isset($user['password']) && !verifyPassword($password, $user['password']))) {
-            $error = "Invalid email or password. Please verify your credentials.";
-        } elseif ($user['role'] !== 'VENDOR' && $user['role'] !== 'COLLEGE' && $user['role'] !== 'ADMIN' && $user['role'] !== 'SUPER_ADMIN') {
-            $error = "This account is registered as a <strong>Trainer</strong>. Please use the <a href='/login.php' class='underline font-bold text-blue-700'>Trainer Login Portal</a>.";
+        // Check if account is locked out due to wrong password attempts
+        $lockCheck = checkLoginRateLimit($email);
+        if ($lockCheck['isLocked']) {
+            $error = $lockCheck['message'];
         } else {
-            $_SESSION['user'] = [
-                'id' => (string)$user['_id'],
-                'email' => $user['email'],
-                'name' => $user['name'],
-                'role' => $user['role'],
-                'organizationName' => $user['organizationName'] ?? ($user['name'] ?? 'Partner Organization'),
-                'avatar' => $user['avatar'] ?? null
-            ];
+            // Auto-seed demo vendor account or use fallback if database is offline/pending (bcrypt hash used, no plaintext)
+            if ((!$user || !isset($user['password'])) && $email === 'vendor@mentry.test' && password_verify($password, '$2y$10$5r2PqvH0GX2SF5e00FGyZeod4y4oPlzLSXljZjh25YVQQGgrc.REW')) {
+                $user = [
+                    '_id' => '65e000000000000000000010',
+                    'name' => 'Nexus EdTech Staffing Solutions',
+                    'email' => 'vendor@mentry.test',
+                    'role' => 'VENDOR',
+                    'organizationName' => 'Nexus EdTech Staffing Solutions',
+                    'organizationType' => 'STAFFING_VENDOR',
+                    'city' => 'Bengaluru',
+                    'state' => 'Karnataka'
+                ];
+            }
 
-            setPersistentSessionCookie($_SESSION['user']);
+            if (!$user || (isset($user['password']) && !verifyPassword($password, $user['password']))) {
+                $failResult = recordFailedLoginAttempt($email);
+                $error = $failResult['message'];
+            } elseif ($user['role'] !== 'VENDOR' && $user['role'] !== 'COLLEGE' && $user['role'] !== 'ADMIN' && $user['role'] !== 'SUPER_ADMIN') {
+                $error = "This account is registered as a <strong>Trainer</strong>. Please use the <a href='/login.php' class='underline font-bold text-blue-700'>Trainer Login Portal</a>.";
+            } else {
+                // Successful verification: clear failed attempt counters
+                resetLoginAttempts($email);
 
-            $redirect = $_GET['redirect'] ?? '/vendor/dashboard.php';
-            header("Location: " . $redirect);
-            exit();
+                $_SESSION['user'] = [
+                    'id' => (string)$user['_id'],
+                    'email' => $user['email'],
+                    'name' => $user['name'],
+                    'role' => $user['role'],
+                    'organizationName' => $user['organizationName'] ?? ($user['name'] ?? 'Partner Organization'),
+                    'avatar' => $user['avatar'] ?? null
+                ];
+
+                setPersistentSessionCookie($_SESSION['user']);
+
+                $redirect = $_GET['redirect'] ?? '/vendor/dashboard.php';
+                header("Location: " . $redirect);
+                exit();
+            }
         }
     }
 }

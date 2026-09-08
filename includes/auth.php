@@ -311,3 +311,172 @@ function requireAdminOrStaff() {
         exit();
     }
 }
+
+/**
+ * Check if the given account/email is temporarily locked out due to excessive failed password attempts.
+ * Max attempts: 5. Lockout duration: 15 minutes (900 seconds).
+ *
+ * @param string $email User email address
+ * @return array ['isLocked' => bool, 'minutesLeft' => int, 'secondsLeft' => int, 'attempts' => int, 'message' => string]
+ */
+function checkLoginRateLimit($email) {
+    $email = strtolower(trim($email));
+    if (empty($email)) {
+        return ['isLocked' => false, 'attempts' => 0, 'minutesLeft' => 0, 'secondsLeft' => 0, 'message' => ''];
+    }
+
+    $lockCol = getCollection("LoginAttempt");
+    if (!$lockCol) {
+        return ['isLocked' => false, 'attempts' => 0, 'minutesLeft' => 0, 'secondsLeft' => 0, 'message' => ''];
+    }
+
+    $now = time();
+    $record = $lockCol->findOne(['email' => $email]);
+    if (!$record) {
+        return ['isLocked' => false, 'attempts' => 0, 'minutesLeft' => 0, 'secondsLeft' => 0, 'message' => ''];
+    }
+
+    $lockedUntil = null;
+    if (isset($record['lockedUntil'])) {
+        $lu = $record['lockedUntil'];
+        if ($lu instanceof MongoDB\BSON\UTCDateTime) {
+            $lockedUntil = (int)round($lu->toDateTime()->getTimestamp());
+        } elseif (is_numeric($lu)) {
+            $lockedUntil = ($lu > 20000000000) ? (int)round($lu / 1000) : (int)$lu;
+        } elseif (is_string($lu)) {
+            $lockedUntil = is_numeric($lu) ? (($lu > 20000000000) ? (int)round($lu / 1000) : (int)$lu) : strtotime($lu);
+        }
+    }
+
+    if ($lockedUntil && $now < $lockedUntil) {
+        $secondsLeft = $lockedUntil - $now;
+        $minutesLeft = max(1, (int)ceil($secondsLeft / 60));
+        return [
+            'isLocked' => true,
+            'attempts' => (int)($record['attempts'] ?? 5),
+            'minutesLeft' => $minutesLeft,
+            'secondsLeft' => $secondsLeft,
+            'message' => "Account temporarily locked due to excessive failed attempts. Please try again in {$minutesLeft} minute" . ($minutesLeft > 1 ? 's' : '') . " or reset your password."
+        ];
+    }
+
+    // If lockout has expired, reset attempt count
+    if ($lockedUntil && $now >= $lockedUntil) {
+        $lockCol->updateOne(
+            ['email' => $email],
+            ['$set' => [
+                'attempts' => 0,
+                'lockedUntil' => null,
+                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+            ]]
+        );
+        return ['isLocked' => false, 'attempts' => 0, 'minutesLeft' => 0, 'secondsLeft' => 0, 'message' => ''];
+    }
+
+    return [
+        'isLocked' => false,
+        'attempts' => (int)($record['attempts'] ?? 0),
+        'minutesLeft' => 0,
+        'secondsLeft' => 0,
+        'message' => ''
+    ];
+}
+
+/**
+ * Record a failed password attempt for an account/email.
+ * Increments attempt count and locks for 15 minutes if 5 attempts reached.
+ *
+ * @param string $email User email address
+ * @return array ['isLocked' => bool, 'attempts' => int, 'remaining' => int, 'message' => string]
+ */
+function recordFailedLoginAttempt($email) {
+    $email = strtolower(trim($email));
+    if (empty($email)) {
+        return ['isLocked' => false, 'attempts' => 1, 'remaining' => 4, 'message' => 'Invalid password.'];
+    }
+
+    $lockCol = getCollection("LoginAttempt");
+    $maxAttempts = 5;
+    $lockoutDuration = 900; // 15 minutes
+    $now = time();
+
+    $record = $lockCol ? $lockCol->findOne(['email' => $email]) : null;
+    $currentAttempts = $record ? (int)($record['attempts'] ?? 0) : 0;
+    $newAttempts = $currentAttempts + 1;
+
+    $isLocked = ($newAttempts >= $maxAttempts);
+    $lockedUntil = $isLocked ? new MongoDB\BSON\UTCDateTime(($now + $lockoutDuration) * 1000) : null;
+
+    if ($lockCol) {
+        $lockCol->updateOne(
+            ['email' => $email],
+            ['$set' => [
+                'email' => $email,
+                'attempts' => $newAttempts,
+                'lastAttemptAt' => new MongoDB\BSON\UTCDateTime($now * 1000),
+                'lockedUntil' => $lockedUntil,
+                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+            ]],
+            ['upsert' => true]
+        );
+    }
+
+    // Also reflect on User document if exists
+    $userCol = getCollection("User");
+    if ($userCol) {
+        $userCol->updateOne(
+            ['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')],
+            ['$set' => [
+                'failedLoginAttempts' => $newAttempts,
+                'lockedUntil' => $lockedUntil,
+                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+            ]]
+        );
+    }
+
+    if ($isLocked) {
+        return [
+            'isLocked' => true,
+            'attempts' => $newAttempts,
+            'remaining' => 0,
+            'message' => "Too many failed attempts (5/5). For your security, this account has been locked for 15 minutes. You can reset your password or try again later."
+        ];
+    } else {
+        $remaining = $maxAttempts - $newAttempts;
+        $warning = ($remaining <= 2) ? " Warning: {$remaining} attempt" . ($remaining === 1 ? '' : 's') . " remaining before account lockout." : "";
+        return [
+            'isLocked' => false,
+            'attempts' => $newAttempts,
+            'remaining' => $remaining,
+            'message' => "Invalid email or password.{$warning}"
+        ];
+    }
+}
+
+/**
+ * Reset failed login attempts upon successful authentication
+ *
+ * @param string $email
+ */
+function resetLoginAttempts($email) {
+    $email = strtolower(trim($email));
+    if (empty($email)) return;
+
+    $lockCol = getCollection("LoginAttempt");
+    if ($lockCol) {
+        $lockCol->deleteOne(['email' => $email]);
+    }
+
+    $userCol = getCollection("User");
+    if ($userCol) {
+        $userCol->updateOne(
+            ['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')],
+            ['$set' => [
+                'failedLoginAttempts' => 0,
+                'lockedUntil' => null,
+                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+            ]]
+        );
+    }
+}
+

@@ -33,17 +33,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nameErr = validateNameInput($name, 'Full Name');
     $emailErr = validateEmailInput($email);
     $phoneErr = validatePhoneInput($phone, 'Mobile number');
+    $errorField = '';
 
     if ($nameErr) {
         $error = $nameErr;
+        $errorField = 'name';
     } elseif ($emailErr) {
         $error = $emailErr;
+        $errorField = 'email';
     } elseif ($phoneErr) {
         $error = $phoneErr;
-    } elseif (empty($password) || empty($currentCity)) {
-        $error = "Please fill in all mandatory fields including password and city.";
-    } elseif (strlen($password) < 6) {
+        $errorField = 'phone';
+    } elseif (empty($password) || strlen($password) < 6) {
         $error = "Password must be at least 6 characters long.";
+        $errorField = 'password';
+    } elseif (empty($currentCity)) {
+        $error = "Please provide your current city of residence.";
+        $errorField = 'currentCity';
     } else {
         $userCol = getCollection("User");
         $existing = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
@@ -51,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($existing) {
             $error = "An account with this email address already exists. Each email can only create one account.";
             $errorExistingEmail = $email;
+            $errorField = 'email';
         } else {
             $trainerCode = getNextSequentialMentryId('TRAINER');
 
@@ -197,49 +204,107 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="/register.php" class="space-y-4" autocomplete="off">
+        <form method="POST" action="/register.php" class="space-y-4" autocomplete="off" novalidate>
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name *</label>
-                <input type="text" name="name" required placeholder="e.g. Ramesh Kumar" pattern="[a-zA-Z\s\.\'-]{2,50}" title="Name can only contain letters, spaces, dots, or hyphens (no numbers allowed)" oninput="this.value = this.value.replace(/[0-9]/g, '')" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase">Full Name *</label>
+                    <?php if ($errorField === 'name'): ?>
+                        <span class="text-[11px] text-rose-600 font-bold flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px]">error</span>
+                            <?= htmlspecialchars($error) ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
+                <input type="text" name="name" required placeholder="e.g. Ramesh Kumar" pattern="[a-zA-Z\s\.\'-]{2,50}" title="Name can only contain letters, spaces, dots, or hyphens (no numbers allowed)" oninput="this.value = this.value.replace(/[0-9]/g, '')" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" class="w-full <?= ($errorField === 'name') ? 'bg-rose-50/40 border-rose-400 focus:ring-rose-500/20 text-rose-900 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 focus:ring-blue-500/20 text-slate-900' ?> border rounded-xl p-3 text-xs focus:bg-white focus:ring-2 outline-none transition-all">
             </div>
 
             <div class="grid sm:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Address *</label>
-                    <input type="email" name="email" required placeholder="ramesh@example.com" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">Email Address *</label>
+                        <?php if ($errorField === 'email'): ?>
+                            <span class="text-[11px] text-rose-600 font-bold flex items-center gap-0.5">
+                                <span class="material-symbols-outlined text-[13px]">error</span>
+                                Invalid
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    <input type="email" name="email" required placeholder="ramesh@example.com" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" class="w-full <?= ($errorField === 'email') ? 'bg-rose-50/40 border-rose-400 focus:ring-rose-500/20 text-rose-900 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 focus:ring-blue-500/20 text-slate-900' ?> border rounded-xl p-3 text-xs focus:bg-white focus:ring-2 outline-none transition-all">
+                    <?php if ($errorField === 'email'): ?>
+                        <p class="text-[11px] text-rose-600 font-semibold mt-1"><?= htmlspecialchars($error) ?></p>
+                    <?php endif; ?>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">WhatsApp / Phone *</label>
-                    <input type="tel" name="phone" required placeholder="+91 98765 43210" pattern="^(?:\+91[\s\-]?)?[6-9]\d{4}[\s\-]?\d{5}$" title="Please enter a valid 10-digit mobile number excluding country code (e.g. 9876543210 or +91 98765 43210)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">WhatsApp / Phone *</label>
+                        <?php if ($errorField === 'phone'): ?>
+                            <span class="text-[11px] text-rose-600 font-bold flex items-center gap-0.5">
+                                <span class="material-symbols-outlined text-[13px]">error</span>
+                                Invalid
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    <input type="tel" name="phone" required placeholder="+91 98765 43210" pattern="^(?:\+91[\s\-]?)?[6-9]\d{4}[\s\-]?\d{5}$" title="Please enter a valid 10-digit mobile number excluding country code (e.g. 9876543210 or +91 98765 43210)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" class="w-full <?= ($errorField === 'phone') ? 'bg-rose-50/40 border-rose-400 focus:ring-rose-500/20 text-rose-900 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 focus:ring-blue-500/20 text-slate-900' ?> border rounded-xl p-3 text-xs focus:bg-white focus:ring-2 outline-none transition-all">
+                    <?php if ($errorField === 'phone'): ?>
+                        <p class="text-[11px] text-rose-600 font-semibold mt-1"><?= htmlspecialchars($error) ?></p>
+                    <?php endif; ?>
                 </div>
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Create Password *</label>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase">Create Password *</label>
+                    <span id="passReqText" class="text-[11px] font-bold <?= ($errorField === 'password') ? 'text-rose-600 flex items-center gap-1' : 'text-slate-400' ?>">
+                        <?php if ($errorField === 'password'): ?>
+                            <span class="material-symbols-outlined text-[13px]">error</span>
+                            Must be at least 6 characters
+                        <?php else: ?>
+                            Min 6 characters
+                        <?php endif; ?>
+                    </span>
+                </div>
                 <div class="relative">
-                    <input type="password" id="registerPassword" name="password" required placeholder="••••••••" autocomplete="new-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pr-11 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                    <input type="password" id="registerPassword" name="password" required minlength="6" placeholder="Minimum 6 characters" autocomplete="new-password" class="w-full <?= ($errorField === 'password') ? 'bg-rose-50/40 border-rose-400 focus:ring-rose-500/20 text-rose-900 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 focus:ring-blue-500/20 text-slate-900' ?> border rounded-xl p-3 pr-11 text-xs focus:bg-white focus:ring-2 outline-none transition-all">
                     <button type="button" onclick="togglePasswordVisibility('registerPassword', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1" aria-label="Toggle password visibility">
                         <span class="material-symbols-outlined text-[18px] select-none">visibility</span>
                     </button>
                 </div>
+                <?php if ($errorField === 'password'): ?>
+                    <p class="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[13px]">error</span>
+                        <?= htmlspecialchars($error) ?>
+                    </p>
+                <?php endif; ?>
             </div>
 
             <div class="grid sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Primary Domain *</label>
+                    <?php $selectedDom = $_POST['primaryDomain'] ?? 'Programming'; ?>
                     <select name="primaryDomain" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none font-medium">
-                        <option value="Programming">Programming & Software</option>
-                        <option value="Data Science">Data Science & AI/ML</option>
-                        <option value="Cloud">Cloud & DevOps</option>
-                        <option value="VLSI">VLSI & Embedded Systems</option>
-                        <option value="Cybersecurity">Cybersecurity</option>
-                        <option value="Aptitude">Aptitude & Placement Reasoning</option>
-                        <option value="Soft Skills">Soft Skills & Personality Development</option>
+                        <option value="Programming" <?= ($selectedDom === 'Programming') ? 'selected' : '' ?>>Programming & Software</option>
+                        <option value="Data Science" <?= ($selectedDom === 'Data Science') ? 'selected' : '' ?>>Data Science & AI/ML</option>
+                        <option value="Cloud" <?= ($selectedDom === 'Cloud') ? 'selected' : '' ?>>Cloud & DevOps</option>
+                        <option value="VLSI" <?= ($selectedDom === 'VLSI') ? 'selected' : '' ?>>VLSI & Embedded Systems</option>
+                        <option value="Cybersecurity" <?= ($selectedDom === 'Cybersecurity') ? 'selected' : '' ?>>Cybersecurity</option>
+                        <option value="Aptitude" <?= ($selectedDom === 'Aptitude') ? 'selected' : '' ?>>Aptitude & Placement Reasoning</option>
+                        <option value="Soft Skills" <?= ($selectedDom === 'Soft Skills') ? 'selected' : '' ?>>Soft Skills & Personality Development</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Current City *</label>
-                    <input type="text" name="currentCity" required placeholder="e.g. Bangalore, Chennai" value="<?= htmlspecialchars($_POST['currentCity'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">Current City *</label>
+                        <?php if ($errorField === 'currentCity'): ?>
+                            <span class="text-[11px] text-rose-600 font-bold flex items-center gap-0.5">
+                                <span class="material-symbols-outlined text-[13px]">error</span>
+                                Required
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    <input type="text" name="currentCity" required placeholder="e.g. Bangalore, Chennai" value="<?= htmlspecialchars($_POST['currentCity'] ?? '') ?>" class="w-full <?= ($errorField === 'currentCity') ? 'bg-rose-50/40 border-rose-400 focus:ring-rose-500/20 text-rose-900 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 focus:ring-blue-500/20 text-slate-900' ?> border rounded-xl p-3 text-xs focus:bg-white focus:ring-2 outline-none transition-all">
+                    <?php if ($errorField === 'currentCity'): ?>
+                        <p class="text-[11px] text-rose-600 font-semibold mt-1"><?= htmlspecialchars($error) ?></p>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -269,6 +334,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (icon) icon.textContent = 'visibility';
         }
     }
+
+    // Live password length validator
+    const passInput = document.getElementById('registerPassword');
+    const passReqText = document.getElementById('passReqText');
+    if (passInput && passReqText) {
+        passInput.addEventListener('input', () => {
+            const len = passInput.value.length;
+            if (len === 0) {
+                passReqText.textContent = 'Min 6 characters';
+                passReqText.className = 'text-[11px] font-bold text-slate-400';
+            } else if (len < 6) {
+                passReqText.textContent = (6 - len) + ' more character' + (6 - len === 1 ? '' : 's') + ' needed';
+                passReqText.className = 'text-[11px] font-bold text-rose-600';
+            } else {
+                passReqText.textContent = '✓ Password length valid';
+                passReqText.className = 'text-[11px] font-bold text-emerald-600';
+            }
+        });
+    }
+
+    // Auto-focus and scroll to the exact erroneous field
+    <?php if (!empty($errorField)): ?>
+    window.addEventListener('DOMContentLoaded', () => {
+        const errField = document.querySelector('[name="<?= $errorField ?>"]');
+        if (errField) {
+            errField.focus();
+            errField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+    <?php endif; ?>
 
     // Prevent browser bfcache redo / restoring stale form states on Alt + Left Arrow
     window.addEventListener('pageshow', function(event) {

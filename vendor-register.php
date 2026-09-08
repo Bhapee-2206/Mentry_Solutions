@@ -42,17 +42,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $personErr = validateNameInput($contactPerson, 'Contact person name');
     $emailErr = validateEmailInput($email);
     $phoneErr = validatePhoneInput($phone, 'Phone number');
+    $errorField = '';
 
     if (empty($organizationName)) {
         $error = "Organization / College Name is required.";
+        $errorField = 'organizationName';
     } elseif ($personErr) {
         $error = $personErr;
+        $errorField = 'contactPerson';
     } elseif ($emailErr) {
         $error = $emailErr;
+        $errorField = 'email';
     } elseif ($phoneErr) {
         $error = $phoneErr;
+        $errorField = 'phone';
     } elseif (empty($password) || strlen($password) < 6) {
         $error = "Password must be at least 6 characters long.";
+        $errorField = 'password';
     } else {
         $userCol = getCollection("User");
         $existing = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
@@ -60,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($existing) {
             $error = "An account with this email address already exists. Each email can only create one account.";
             $errorExistingEmail = $email;
+            $errorField = 'email';
         } else {
             $vendorCode = getNextSequentialMentryId($organizationType === 'COLLEGE' ? 'COLLEGE' : 'VENDOR');
 
@@ -192,36 +199,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="/vendor-register.php" autocomplete="off" class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-8 space-y-6 min-w-0">
+            <form method="POST" action="/vendor-register.php" autocomplete="off" novalidate class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-8 space-y-6 min-w-0">
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Organization / College / Company Name *</label>
-                        <input type="text" name="organizationName" required placeholder="e.g. Apex EdTech Solutions / RV Engineering College" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-slate-900">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-slate-700 uppercase">Organization / College / Company Name *</label>
+                            <?php if ($errorField === 'organizationName'): ?>
+                                <span class="text-[11px] text-rose-600 font-bold flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px]">error</span>
+                                    <?= htmlspecialchars($error) ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                        <input type="text" name="organizationName" required placeholder="e.g. Apex EdTech Solutions / RV Engineering College" value="<?= htmlspecialchars($_POST['organizationName'] ?? '') ?>" class="w-full <?= ($errorField === 'organizationName') ? 'bg-rose-50/40 border-rose-400 focus:ring-rose-500/20 text-rose-900 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 focus:ring-indigo-500/20 text-slate-900' ?> border rounded-xl p-3 text-xs focus:bg-white focus:ring-2 outline-none font-bold transition-all">
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Partner Type *</label>
+                        <?php $selectedType = $_POST['organizationType'] ?? ($organizationType ?? $defaultType); ?>
                         <select name="organizationType" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none">
-                            <option value="COLLEGE" <?= ($organizationType ?? $defaultType) === 'COLLEGE' ? 'selected' : '' ?>>College / University Placement Cell</option>
-                            <option value="STAFFING_VENDOR" <?= ($organizationType ?? $defaultType) === 'STAFFING_VENDOR' ? 'selected' : '' ?>>Staffing & Recruitment Vendor</option>
-                            <option value="EDTECH_CLIENT" <?= ($organizationType ?? $defaultType) === 'EDTECH_CLIENT' ? 'selected' : '' ?>>EdTech / Training Company</option>
-                            <option value="CORPORATE" <?= ($organizationType ?? $defaultType) === 'CORPORATE' ? 'selected' : '' ?>>Corporate Enterprise</option>
+                            <option value="COLLEGE" <?= ($selectedType === 'COLLEGE') ? 'selected' : '' ?>>College / University Placement Cell</option>
+                            <option value="STAFFING_VENDOR" <?= ($selectedType === 'STAFFING_VENDOR') ? 'selected' : '' ?>>Staffing & Recruitment Vendor</option>
+                            <option value="EDTECH_CLIENT" <?= ($selectedType === 'EDTECH_CLIENT') ? 'selected' : '' ?>>EdTech / Training Company</option>
+                            <option value="CORPORATE" <?= ($selectedType === 'CORPORATE') ? 'selected' : '' ?>>Corporate Enterprise</option>
                         </select>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Primary Contact Person *</label>
-                        <input type="text" name="contactPerson" required placeholder="e.g. Rajesh Kumar" pattern="[a-zA-Z\s\.\'-]{2,50}" title="Name can only contain letters, spaces, dots, or hyphens (no numbers allowed)" oninput="this.value = this.value.replace(/[0-9]/g, '')" value="<?= htmlspecialchars($_POST['contactPerson'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-slate-700 uppercase">Primary Contact Person *</label>
+                            <?php if ($errorField === 'contactPerson'): ?>
+                                <span class="text-[11px] text-rose-600 font-bold flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px]">error</span>
+                                    <?= htmlspecialchars($error) ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                        <input type="text" name="contactPerson" required placeholder="e.g. Rajesh Kumar" pattern="[a-zA-Z\s\.\'-]{2,50}" title="Name can only contain letters, spaces, dots, or hyphens (no numbers allowed)" oninput="this.value = this.value.replace(/[0-9]/g, '')" value="<?= htmlspecialchars($_POST['contactPerson'] ?? '') ?>" class="w-full <?= ($errorField === 'contactPerson') ? 'bg-rose-50/40 border-rose-400 focus:ring-rose-500/20 text-rose-900 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 focus:ring-indigo-500/20 text-slate-900' ?> border rounded-xl p-3 text-xs focus:bg-white focus:ring-2 outline-none transition-all">
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Official Work Email *</label>
-                        <input type="email" name="email" required placeholder="partner@company.com" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid work email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-slate-700 uppercase">Official Work Email *</label>
+                            <?php if ($errorField === 'email'): ?>
+                                <span class="text-[11px] text-rose-600 font-bold flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px]">error</span>
+                                    Invalid
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                        <input type="email" name="email" required placeholder="partner@company.com" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid work email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" class="w-full <?= ($errorField === 'email') ? 'bg-rose-50/40 border-rose-400 focus:ring-rose-500/20 text-rose-900 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 focus:ring-indigo-500/20 text-slate-900' ?> border rounded-xl p-3 text-xs focus:bg-white focus:ring-2 outline-none transition-all">
+                        <?php if ($errorField === 'email'): ?>
+                            <p class="text-[11px] text-rose-600 font-semibold mt-1"><?= htmlspecialchars($error) ?></p>
+                        <?php endif; ?>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contact Phone Number *</label>
-                        <input type="tel" name="phone" required placeholder="+91 98765 43210" pattern="^(?:\+91[\s\-]?)?[6-9]\d{4}[\s\-]?\d{5}$" title="Please enter a valid 10-digit mobile number excluding country code (e.g. 9876543210 or +91 98765 43210)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-slate-700 uppercase">Contact Phone Number *</label>
+                            <?php if ($errorField === 'phone'): ?>
+                                <span class="text-[11px] text-rose-600 font-bold flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px]">error</span>
+                                    Invalid
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                        <input type="tel" name="phone" required placeholder="+91 98765 43210" pattern="^(?:\+91[\s\-]?)?[6-9]\d{4}[\s\-]?\d{5}$" title="Please enter a valid 10-digit mobile number excluding country code (e.g. 9876543210 or +91 98765 43210)" oninput="this.value = this.value.replace(/[^0-9+\s\-]/g, '')" maxlength="16" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" class="w-full <?= ($errorField === 'phone') ? 'bg-rose-50/40 border-rose-400 focus:ring-rose-500/20 text-rose-900 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 focus:ring-indigo-500/20 text-slate-900' ?> border rounded-xl p-3 text-xs focus:bg-white focus:ring-2 outline-none transition-all">
+                        <?php if ($errorField === 'phone'): ?>
+                            <p class="text-[11px] text-rose-600 font-semibold mt-1"><?= htmlspecialchars($error) ?></p>
+                        <?php endif; ?>
                     </div>
 
                     <div class="sm:col-span-2">
@@ -230,17 +276,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Website / Portal URL</label>
-                        <input type="url" name="website" placeholder="https://example.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                        <input type="url" name="website" placeholder="https://example.com" value="<?= htmlspecialchars($_POST['website'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
                     </div>
 
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Create Account Password *</label>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-slate-700 uppercase">Create Account Password *</label>
+                            <span id="vendorPassReqText" class="text-[11px] font-bold <?= ($errorField === 'password') ? 'text-rose-600 flex items-center gap-1' : 'text-slate-400' ?>">
+                                <?php if ($errorField === 'password'): ?>
+                                    <span class="material-symbols-outlined text-[13px]">error</span>
+                                    Must be at least 6 characters
+                                <?php else: ?>
+                                    Min 6 characters
+                                <?php endif; ?>
+                            </span>
+                        </div>
                         <div class="relative">
-                            <input type="password" id="vendorPassword" name="password" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pr-11 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+                            <input type="password" id="vendorPassword" name="password" required minlength="6" placeholder="Minimum 6 characters" class="w-full <?= ($errorField === 'password') ? 'bg-rose-50/40 border-rose-400 focus:ring-rose-500/20 text-rose-900 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 focus:ring-indigo-500/20 text-slate-900' ?> border rounded-xl p-3 pr-11 text-xs focus:bg-white focus:ring-2 outline-none transition-all">
                             <button type="button" onclick="togglePasswordVisibility('vendorPassword', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1" aria-label="Toggle password visibility">
                                 <span class="material-symbols-outlined text-[18px] select-none">visibility</span>
                             </button>
                         </div>
+                        <?php if ($errorField === 'password'): ?>
+                            <p class="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[13px]">error</span>
+                                <?= htmlspecialchars($error) ?>
+                            </p>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -270,6 +332,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (icon) icon.textContent = 'visibility';
         }
     }
+
+    // Live password length validator
+    const vendorPassInput = document.getElementById('vendorPassword');
+    const vendorPassReqText = document.getElementById('vendorPassReqText');
+    if (vendorPassInput && vendorPassReqText) {
+        vendorPassInput.addEventListener('input', () => {
+            const len = vendorPassInput.value.length;
+            if (len === 0) {
+                vendorPassReqText.textContent = 'Min 6 characters';
+                vendorPassReqText.className = 'text-[11px] font-bold text-slate-400';
+            } else if (len < 6) {
+                vendorPassReqText.textContent = (6 - len) + ' more character' + (6 - len === 1 ? '' : 's') + ' needed';
+                vendorPassReqText.className = 'text-[11px] font-bold text-rose-600';
+            } else {
+                vendorPassReqText.textContent = '✓ Password length valid';
+                vendorPassReqText.className = 'text-[11px] font-bold text-emerald-600';
+            }
+        });
+    }
+
+    // Auto-focus and scroll to the exact erroneous field
+    <?php if (!empty($errorField)): ?>
+    window.addEventListener('DOMContentLoaded', () => {
+        const errField = document.querySelector('[name="<?= $errorField ?>"]');
+        if (errField) {
+            errField.focus();
+            errField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+    <?php endif; ?>
 
     window.addEventListener('pageshow', function(event) {
         if (event.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {

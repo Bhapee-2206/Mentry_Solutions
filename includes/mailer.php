@@ -85,8 +85,9 @@ class MentryMailer {
         stream_set_timeout($socket, $this->timeout);
         $greeting = $this->getResponse($socket);
 
-        $hostname = gethostname() ?: 'localhost';
-        $this->sendCommand($socket, "EHLO " . $hostname);
+        $isGmail = (strpos($this->host, 'gmail.com') !== false);
+        $ehloDomain = $isGmail ? 'mail.gmail.com' : 'mentry.solutions';
+        $this->sendCommand($socket, "EHLO " . $ehloDomain);
 
         if ($port === 587) {
             $tlsRes = $this->sendCommand($socket, "STARTTLS");
@@ -103,7 +104,7 @@ class MentryMailer {
                 throw new Exception("Failed to enable TLS encryption on SMTP stream.");
             }
 
-            $this->sendCommand($socket, "EHLO " . $hostname);
+            $this->sendCommand($socket, "EHLO " . $ehloDomain);
         }
 
         // Authenticate
@@ -135,8 +136,8 @@ class MentryMailer {
             throw new Exception("DATA command rejected: " . $dataRes);
         }
 
-        $senderDomain = (strpos($this->host, 'gmail.com') !== false) ? 'gmail.com' : (substr(strrchr($this->fromEmail, "@"), 1) ?: 'mentry.solutions');
-        $msgId = sprintf("<%s.%s@%s>", bin2hex(random_bytes(10)), time(), $senderDomain);
+        $senderDomain = $isGmail ? 'gmail.com' : (substr(strrchr($this->fromEmail, "@"), 1) ?: 'mentry.solutions');
+        $msgId = sprintf("<%s.%s@%s>", bin2hex(random_bytes(12)), time(), $senderDomain);
         $boundary = "mentry_b1_" . md5(uniqid((string)time(), true));
         
         // Gmail 2024+ Compliant Transactional Headers
@@ -149,7 +150,11 @@ class MentryMailer {
         $headers[] = "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=";
         $headers[] = "MIME-Version: 1.0";
         $headers[] = "Content-Type: multipart/alternative; boundary=\"" . $boundary . "\"";
-        $headers[] = "X-Mailer: Mentry Transactional Mailer v2.1";
+        $headers[] = "Auto-Submitted: auto-generated";
+        $headers[] = "X-Auto-Response-Suppress: All";
+        $headers[] = "Importance: high";
+        $headers[] = "X-Priority: 1";
+        $headers[] = "X-Mailer: Mentry Transactional Service v2.2";
 
         $body = "--" . $boundary . "\r\n";
         $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
@@ -264,13 +269,16 @@ function sendMentryEmail($toEmail, $toName, $subject, $htmlBody, $plainText = ''
 }
 
 function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
-    $subject = $code . " is your Mentry verification code";
+    // Sanitize reset link so it never sends 'localhost' into recipient inboxes (which triggers spam filters)
+    $cleanResetLink = preg_replace('#https?://(localhost|127\.0\.0\.1)(:\d+)?#i', 'https://mentry.solutions', $resetLink);
+
+    $subject = "Your Mentry verification code: " . $code;
     $plainText = "Hello " . $toName . ",\n\n" .
                  "Your one-time security verification code is: " . $code . "\n\n" .
                  "Enter this code to verify your account and set a new password on Mentry Solutions.\n\n" .
-                 "Security Notice: This verification code is strictly confidential and expires in 30 minutes. Do not share this code with anyone.\n\n" .
-                 "Alternatively, you may complete the reset directly using this link:\n" .
-                 $resetLink . "\n\n" .
+                 "Security Notice: This verification code is confidential and expires in 30 minutes. Do not share this code with anyone.\n\n" .
+                 "Direct Reset Link:\n" .
+                 $cleanResetLink . "\n\n" .
                  "If you did not make this request, you can safely ignore this message. Your password will remain unchanged.\n\n" .
                  "---\n" .
                  "Mentry Solutions • Managed Corporate Trainer Network\n" .
@@ -296,6 +304,10 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
         </style>
     </head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+        <!-- Hidden Inbox Preview Preheader -->
+        <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">
+            Your Mentry verification code is ' . htmlspecialchars($code) . '. Use this code within 30 minutes to reset your account password.
+        </div>
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f8fafc;">
             <tr>
                 <td align="center" style="padding: 12px;">
@@ -319,7 +331,7 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
                                     <div style="font-size: 11px; color: #9a3412; font-weight: 600; margin-top: 10px;">Valid for 30 minutes</div>
                                 </div>
                                 <div style="text-align: center; margin: 24px 0 16px 0;">
-                                    <a href="' . htmlspecialchars($resetLink) . '" style="display: inline-block; background-color: #FE5E04; color: #ffffff !important; font-weight: 700; font-size: 13px; padding: 13px 30px; border-radius: 12px; text-decoration: none; box-shadow: 0 2px 4px rgba(254, 94, 4, 0.2);">Confirm Password Reset</a>
+                                    <a href="' . htmlspecialchars($cleanResetLink) . '" style="display: inline-block; background-color: #FE5E04; color: #ffffff !important; font-weight: 700; font-size: 13px; padding: 13px 30px; border-radius: 12px; text-decoration: none; box-shadow: 0 2px 4px rgba(254, 94, 4, 0.2);">Confirm Password Reset</a>
                                 </div>
                                 <p style="font-size: 12px; color: #64748b; line-height: 1.6; margin-top: 24px; padding-top: 18px; border-top: 1px solid #f1f5f9;">
                                     If you did not initiate this request, your account is safe and no changes have been made. You can disregard this email.
@@ -388,7 +400,7 @@ function sendOpportunityMatchEmail($toEmail, $toName, $opp) {
                 </div>
 
                 <div style="text-align: center; margin: 20px 0 10px 0;">
-                    <a href="http://localhost/opportunity-details.php?id=' . $oppId . '" class="btn">Review Requirement Details</a>
+                    <a href="https://mentry.solutions/opportunity-details.php?id=' . $oppId . '" class="btn">Review Requirement Details</a>
                 </div>
             </div>
             <div class="footer">

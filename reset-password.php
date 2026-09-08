@@ -205,19 +205,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php else: ?>
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Registered Email</label>
-                        <input type="email" name="email" required value="<?= htmlspecialchars($prefilledEmail) ?>" placeholder="your-email@example.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-[#FE5E04] outline-none text-slate-900 font-medium">
+                        <input type="email" name="email" required value="<?= htmlspecialchars($_POST['email'] ?? $prefilledEmail) ?>" placeholder="your-email@example.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-[#FE5E04] outline-none text-slate-900 font-medium">
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">6-Digit Verification Code</label>
-                        <input type="text" name="code" required maxlength="6" placeholder="e.g. 123456" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-xl tracking-[0.3em] font-mono font-black focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-[#FE5E04] outline-none text-[#FE5E04]">
+                        <input type="text" name="code" required maxlength="6" value="<?= htmlspecialchars($_POST['code'] ?? '') ?>" placeholder="e.g. 123456" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-xl tracking-[0.3em] font-mono font-black focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-[#FE5E04] outline-none text-[#FE5E04]">
                     </div>
                 <?php endif; ?>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">New Password</label>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">New Password</label>
+                        <span class="text-[11px] font-bold text-slate-400">Min 6 characters</span>
+                    </div>
                     <div class="relative">
-                        <input type="password" id="resetNewPass" name="newPassword" required placeholder="Minimum 6 characters" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pr-11 text-sm focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-[#FE5E04] outline-none text-slate-900">
+                        <input type="password" id="resetNewPass" name="newPassword" required minlength="6" placeholder="Minimum 6 characters" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pr-11 text-sm focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-[#FE5E04] outline-none text-slate-900">
                         <button type="button" onclick="togglePasswordVisibility('resetNewPass', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1" aria-label="Toggle password visibility">
                             <span class="material-symbols-outlined text-[20px] select-none">visibility</span>
                         </button>

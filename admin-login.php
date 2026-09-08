@@ -29,36 +29,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (empty($password)) {
         $error = "Password is required.";
     } else {
-        $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
-
-        // Built-in demo credentials fallback using secure bcrypt hashes (no plaintext passwords in code)
-        $demoAdminAccounts = [
-            'admin@mentry.test' => ['hash' => '$2y$10$uuj71c/RpLiWaZiOx.XnF.7RgogZOg2fPHjb8.gFdtqNIwVq3j8E6', 'name' => 'Operations Director (Admin 1)', 'role' => 'ADMIN', 'id' => '65e000000000000000000001'],
-            'admin2@mentry.test' => ['hash' => '$2y$10$KVX1kXyHKDY2ShUb.Wi5n.Bxip8ARejEvuQd0fguzFXRdKJoz3//i', 'name' => 'Lead Administrator (Admin 2)', 'role' => 'ADMIN', 'id' => '65e000000000000000000002'],
-            'staff1@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Operations Coordinator (Staff 1)', 'role' => 'STAFF', 'id' => '65e000000000000000000003'],
-            'staff2@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Talent Sourcing Specialist (Staff 2)', 'role' => 'STAFF', 'id' => '65e000000000000000000004'],
-        ];
-
-        $authenticated = false;
-        if ($user && isset($user['password']) && verifyPassword($password, $user['password'])) {
-            $authenticated = true;
-        } elseif (isset($demoAdminAccounts[$email]) && password_verify($password, $demoAdminAccounts[$email]['hash'])) {
-            $demo = $demoAdminAccounts[$email];
-            $user = [
-                '_id' => $user['_id'] ?? $demo['id'],
-                'email' => $email,
-                'name' => $user['name'] ?? $demo['name'],
-                'role' => $user['role'] ?? $demo['role'],
-                'avatar' => $user['avatar'] ?? ('https://avatar.vercel.sh/' . urlencode($demo['name']) . '.png')
-            ];
-            $authenticated = true;
-        }
-
-        if (!$authenticated || !$user) {
-            $error = "Invalid credentials. Please check your email and password.";
-        } elseif (!in_array($user['role'], ['ADMIN', 'SUPER_ADMIN', 'STAFF'])) {
-            $error = "Access Restricted: This account is registered as a <strong>{$user['role']}</strong>. Please use the appropriate portal to sign in.";
+        // Check if account is locked out due to wrong password attempts
+        $lockCheck = checkLoginRateLimit($email);
+        if ($lockCheck['isLocked']) {
+            $error = $lockCheck['message'];
         } else {
+            $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
+
+            // Built-in demo credentials fallback using secure bcrypt hashes (no plaintext passwords in code)
+            $demoAdminAccounts = [
+                'admin@mentry.test' => ['hash' => '$2y$10$uuj71c/RpLiWaZiOx.XnF.7RgogZOg2fPHjb8.gFdtqNIwVq3j8E6', 'name' => 'Operations Director (Admin 1)', 'role' => 'ADMIN', 'id' => '65e000000000000000000001'],
+                'admin2@mentry.test' => ['hash' => '$2y$10$KVX1kXyHKDY2ShUb.Wi5n.Bxip8ARejEvuQd0fguzFXRdKJoz3//i', 'name' => 'Lead Administrator (Admin 2)', 'role' => 'ADMIN', 'id' => '65e000000000000000000002'],
+                'staff1@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Operations Coordinator (Staff 1)', 'role' => 'STAFF', 'id' => '65e000000000000000000003'],
+                'staff2@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Talent Sourcing Specialist (Staff 2)', 'role' => 'STAFF', 'id' => '65e000000000000000000004'],
+            ];
+
+            $authenticated = false;
+            if ($user && isset($user['password']) && verifyPassword($password, $user['password'])) {
+                $authenticated = true;
+            } elseif (isset($demoAdminAccounts[$email]) && password_verify($password, $demoAdminAccounts[$email]['hash'])) {
+                $demo = $demoAdminAccounts[$email];
+                $user = [
+                    '_id' => $user['_id'] ?? $demo['id'],
+                    'email' => $email,
+                    'name' => $user['name'] ?? $demo['name'],
+                    'role' => $user['role'] ?? $demo['role'],
+                    'avatar' => $user['avatar'] ?? ('https://avatar.vercel.sh/' . urlencode($demo['name']) . '.png')
+                ];
+                $authenticated = true;
+            }
+
+            if (!$authenticated || !$user) {
+                $failResult = recordFailedLoginAttempt($email);
+                $error = $failResult['message'];
+            } elseif (!in_array($user['role'], ['ADMIN', 'SUPER_ADMIN', 'STAFF'])) {
+                $error = "Access Restricted: This account is registered as a <strong>{$user['role']}</strong>. Please use the appropriate portal to sign in.";
+            } else {
+                // Successful verification: clear failed attempt counters
+                resetLoginAttempts($email);
             $_SESSION['user'] = [
                 'id' => (string)$user['_id'],
                 'email' => $user['email'],
@@ -74,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
     }
+}
 }
 ?>
 <!DOCTYPE html>
