@@ -83,7 +83,7 @@ if ($currentUser) {
     <style>
         html, body {
             max-width: 100%;
-            overflow-x: hidden;
+            overflow-x: clip;
         }
         *, *::before, *::after {
             box-sizing: border-box;
@@ -113,7 +113,7 @@ if ($currentUser) {
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col bg-white text-slate-900 w-full max-w-full overflow-x-hidden">
+<body class="min-h-screen flex flex-col bg-white text-slate-900 w-full max-w-full overflow-x-clip">
 
 <?php 
 $headerMaint = getMaintenanceConfig();

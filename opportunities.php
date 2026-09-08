@@ -83,8 +83,8 @@ require_once __DIR__ . '/includes/header.php';
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <!-- Filters Sidebar (Sticky on desktop) -->
-            <aside class="lg:col-span-4 xl:col-span-3 2xl:col-span-2 space-y-6 lg:sticky lg:top-24 self-start">
-                <form method="GET" action="/opportunities.php" class="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-card space-y-6">
+            <aside class="lg:col-span-4 xl:col-span-3 2xl:col-span-2 lg:sticky lg:top-24 z-20 self-start">
+                <form method="GET" action="/opportunities.php" class="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-card space-y-6 max-h-[calc(100vh-7rem)] overflow-y-auto">
                     <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                         <h2 class="font-extrabold text-base text-slate-900">Filters</h2>
