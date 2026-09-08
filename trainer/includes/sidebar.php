@@ -6,6 +6,19 @@ requireTrainer();
 $user = getCurrentUser();
 $currentPage = basename($_SERVER['PHP_SELF']);
 
+$unreadTrainerNotifs = 0;
+try {
+    $notifColForBadge = getCollection("Notification");
+    if ($notifColForBadge && !empty($user['id'])) {
+        $uQuery = [(string)$user['id']];
+        try { $uQuery[] = new MongoDB\BSON\ObjectId($user['id']); } catch (\Throwable $e) {}
+        $unreadTrainerNotifs = $notifColForBadge->countDocuments([
+            'userId' => ['$in' => $uQuery],
+            '$or' => [['read' => false], ['read' => ['$exists' => false]]]
+        ]);
+    }
+} catch (\Throwable $e) {}
+
 $navItems = [
     ['label' => 'Dashboard', 'href' => '/trainer/dashboard.php', 'icon' => 'space_dashboard'],
     ['label' => 'My Profile', 'href' => '/trainer/profile.php', 'icon' => 'person'],
@@ -86,6 +99,11 @@ $navItems = [
                     <?= $item['icon'] ?>
                 </span>
                 <span class="flex-1 truncate"><?= $item['label'] ?></span>
+                <?php if ($item['href'] === '/trainer/notifications.php' && $unreadTrainerNotifs > 0): ?>
+                    <span class="bg-[#FE5E04] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1.5 shrink-0">
+                        <?= $unreadTrainerNotifs > 99 ? '99+' : $unreadTrainerNotifs ?>
+                    </span>
+                <?php endif; ?>
             </a>
         <?php endforeach; ?>
     </div>
@@ -137,6 +155,16 @@ $navItems = [
                     Return to Admin
                 </a>
             <?php endif; ?>
+
+            <!-- Notification Bell Icon -->
+            <a href="/trainer/notifications.php" class="relative p-2 text-slate-600 hover:text-[#FE5E04] hover:bg-slate-100 rounded-xl transition-colors flex items-center justify-center cursor-pointer" title="Notifications & Match Alerts">
+                <span class="material-symbols-outlined text-[22px]">notifications</span>
+                <?php if ($unreadTrainerNotifs > 0): ?>
+                    <span class="absolute top-1.5 right-1.5 w-4 h-4 bg-[#FE5E04] text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-xs">
+                        <?= $unreadTrainerNotifs > 9 ? '9+' : $unreadTrainerNotifs ?>
+                    </span>
+                <?php endif; ?>
+            </a>
 
             <!-- Trainer Profile Pill -->
             <a href="/trainer/profile.php" class="flex items-center gap-2.5 p-1 sm:pr-3 rounded-full hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200">
@@ -199,6 +227,11 @@ $navItems = [
                             <?= $item['icon'] ?>
                         </span>
                         <span class="flex-1 truncate"><?= $item['label'] ?></span>
+                        <?php if ($item['href'] === '/trainer/notifications.php' && $unreadTrainerNotifs > 0): ?>
+                            <span class="bg-[#FE5E04] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1.5 shrink-0">
+                                <?= $unreadTrainerNotifs > 99 ? '99+' : $unreadTrainerNotifs ?>
+                            </span>
+                        <?php endif; ?>
                     </a>
                 <?php endforeach; ?>
             </div>
