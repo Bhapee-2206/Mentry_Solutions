@@ -2,6 +2,23 @@
 // includes/helpers.php
 date_default_timezone_set('Asia/Kolkata');
 
+// Production Error Reporting & Logging Hardening
+$isLocalEnv = (isset($_SERVER['HTTP_HOST']) && (
+    $_SERVER['HTTP_HOST'] === 'localhost' ||
+    $_SERVER['HTTP_HOST'] === '127.0.0.1' ||
+    strpos($_SERVER['HTTP_HOST'], 'localhost:') === 0 ||
+    strpos($_SERVER['HTTP_HOST'], '127.0.0.1:') === 0
+));
+
+$isExplicitProd = (getenv('APP_ENV') === 'production');
+
+if ($isExplicitProd || !$isLocalEnv) {
+    @ini_set('display_errors', '0');
+    @ini_set('display_startup_errors', '0');
+    @ini_set('log_errors', '1');
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+}
+
 if (file_exists(__DIR__ . '/mongo_polyfill.php')) {
     require_once __DIR__ . '/mongo_polyfill.php';
 }
@@ -825,5 +842,17 @@ function isOpportunityPastCutoff($opp) {
     return ($now >= $closeCutoffTs) || ($todayDateStr >= $startDateStr);
 }
 
-
-
+/**
+ * Returns canonical production base URL (HTTPS aware, env configurable)
+ */
+function getAppUrl(): string {
+    $envUrl = getenv('APP_URL') ?: (getenv('NEXT_PUBLIC_APP_URL') ?: '');
+    if (!empty($envUrl) && strpos($envUrl, 'localhost') === false) {
+        return rtrim($envUrl, '/');
+    }
+    if (!empty($_SERVER['HTTP_HOST'])) {
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) ? 'https' : 'http';
+        return $protocol . '://' . $_SERVER['HTTP_HOST'];
+    }
+    return 'https://mentry.solutions';
+}

@@ -1,14 +1,6 @@
 <?php
 // includes/auth.php - Secure Authentication & Role-Based Access Control
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/helpers.php';
-require_once __DIR__ . '/maintenance.php';
-
 function isHttpsRequest() {
     if (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') {
         return true;
@@ -27,6 +19,24 @@ function isHttpsRequest() {
     }
     return false;
 }
+
+if (session_status() === PHP_SESSION_NONE) {
+    $isHttps = isHttpsRequest();
+    @ini_set('session.cookie_httponly', '1');
+    @ini_set('session.use_only_cookies', '1');
+    if ($isHttps) {
+        @ini_set('session.cookie_secure', '1');
+    }
+    session_start([
+        'cookie_httponly' => true,
+        'cookie_samesite' => 'Lax',
+        'cookie_secure' => $isHttps
+    ]);
+}
+
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/maintenance.php';
 
 function getAuthSecret() {
     $secret = getenv('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? ($_SERVER['JWT_SECRET'] ?? ''));
