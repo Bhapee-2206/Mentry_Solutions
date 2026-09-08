@@ -57,7 +57,7 @@ $rawOpportunities = $opportunityCol ? $opportunityCol->find($filter, ['sort' => 
 $opportunities = [];
 foreach ($rawOpportunities as $op) {
     $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
-    $isClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']));
+    $isClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']) || isOpportunityPastCutoff($op));
     if ($isClosed) continue;
     $opportunities[] = $op;
 }

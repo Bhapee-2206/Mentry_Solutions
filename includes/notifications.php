@@ -1,6 +1,8 @@
 <?php
 // includes/notifications.php - Automated Match Notifications & Dispatch Engine
+date_default_timezone_set('Asia/Kolkata');
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/matching_engine.php';
 require_once __DIR__ . '/mailer.php';
 
@@ -165,7 +167,9 @@ function checkOpportunityScheduleMilestones($force = false) {
         return ['checked' => 0, 'notifiedTomorrow' => 0, 'notifiedIn2Days' => 0, 'closed' => 0];
     }
 
-    $todayMidnight = strtotime(date('Y-m-d'));
+    $now = time();
+    $todayMidnight = strtotime(date('Y-m-d', $now));
+    $todayDateStr = date('Y-m-d', $now);
     $stats = [
         'checked' => 0,
         'notifiedTomorrow' => 0,
@@ -190,14 +194,19 @@ function checkOpportunityScheduleMilestones($force = false) {
             $startTs = getOpportunityStartTimestamp($opp);
             if (!$startTs) continue;
 
-            $startDateMidnight = strtotime(date('Y-m-d', $startTs));
+            $startDateStr = date('Y-m-d', $startTs);
+            $startDateMidnight = strtotime($startDateStr);
             $diffDays = (int)round(($startDateMidnight - $todayMidnight) / 86400);
             $dateFormatted = date('M j, Y', $startTs);
 
-            // CASE 1: Start date has passed (diffDays < 0)
-            // If opportunity is still PUBLISHED and unassigned, auto-close it!
-            if ($diffDays < 0) {
-                if ($status === 'PUBLISHED' && !$isAssigned) {
+            // Cutoff: 18:00 (6:00 PM) on the eve (day before) of scheduled start date
+            $closeCutoffTs = strtotime($startDateStr . ' 18:00:00 -1 day');
+            $isPastCutoff = ($now >= $closeCutoffTs) || ($todayDateStr >= $startDateStr);
+
+            // CASE 1: Cutoff has passed AND opportunity is unassigned
+            // The opportunity must be closed on the evening of the day before start date
+            if ($isPastCutoff && !$isAssigned) {
+                if ($status === 'PUBLISHED') {
                     $oppCol->updateOne(
                         ['_id' => $opp['_id']],
                         ['$set' => [
@@ -220,14 +229,14 @@ function checkOpportunityScheduleMilestones($force = false) {
                     if (!$existingAutoCloseNotif) {
                         notifyAdmin(
                             'OPPORTUNITY_AUTO_CLOSED',
-                            "Opportunity Closed: {$title} (Start Date Passed)",
-                            "The opportunity '{$title}' in {$city} scheduled for {$dateFormatted} has been automatically closed because its start date has passed without an assigned trainer.",
+                            "Opportunity Closed: {$title} (Start Date Cutoff Passed)",
+                            "The opportunity '{$title}' in {$city} scheduled for {$dateFormatted} has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
                             "/admin/opportunity-view.php?id=" . $oppId,
                             [
                                 'opportunityId' => $oppId,
                                 'jobId' => $opp['jobId'] ?? $oppId,
                                 'title' => $title,
-                                'startDate' => date('Y-m-d', $startTs),
+                                'startDate' => $startDateStr,
                                 'autoClosedReason' => 'START_DATE_PASSED'
                             ]
                         );
@@ -243,7 +252,8 @@ function checkOpportunityScheduleMilestones($force = false) {
             }
 
             // CASE 2: Starts TOMORROW (diffDays === 1)
-            if ($diffDays === 1) {
+            // Only alert if still within active window before the 18:00 eve cutoff
+            if ($diffDays === 1 && $now < $closeCutoffTs) {
                 $existingNotif = $notifCol->findOne([
                     'type' => 'OPPORTUNITY_STARTING_SOON',
                     '$or' => [
@@ -258,7 +268,7 @@ function checkOpportunityScheduleMilestones($force = false) {
                         : "Urgent: Unassigned Opportunity Starts Tomorrow!";
                     $detailMsg = $isAssigned
                         ? "Confirmed training program '{$title}' in {$city} commences tomorrow ({$dateFormatted}). Please verify faculty travel, lodging, and campus reporting schedule."
-                        : "Training opportunity '{$title}' in {$city} is scheduled to start tomorrow ({$dateFormatted}). No faculty is assigned yet — please review matching trainers immediately!";
+                        : "Training opportunity '{$title}' in {$city} is scheduled to start tomorrow ({$dateFormatted}). No faculty is assigned yet — please review matching trainers before the 6:00 PM cutoff!";
 
                     notifyAdmin(
                         'OPPORTUNITY_STARTING_SOON',
@@ -272,7 +282,7 @@ function checkOpportunityScheduleMilestones($force = false) {
                             'milestone' => 'TOMORROW',
                             'diffDays' => 1,
                             'isAssigned' => $isAssigned,
-                            'startDate' => date('Y-m-d', $startTs)
+                            'startDate' => $startDateStr
                         ]
                     );
                     $stats['notifiedTomorrow']++;

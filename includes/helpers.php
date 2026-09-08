@@ -1,5 +1,6 @@
 <?php
 // includes/helpers.php
+date_default_timezone_set('Asia/Kolkata');
 
 if (file_exists(__DIR__ . '/mongo_polyfill.php')) {
     require_once __DIR__ . '/mongo_polyfill.php';
@@ -781,5 +782,48 @@ function checkTrainerOpportunityDateConflict($trainerId, $targetOpp) {
 
     return ['hasConflict' => false, 'reason' => '', 'finishDate' => '', 'finishDateFormatted' => '', 'conflictTitle' => ''];
 }
+
+/**
+ * Checks if an unassigned opportunity has passed its application closing cutoff.
+ * The application window strictly closes at 18:00 (6:00 PM) on the eve (day before)
+ * of the scheduled start date, or anytime on/after the start date itself.
+ *
+ * @param array|object $opp Opportunity document
+ * @return bool True if unassigned and past cutoff
+ */
+function isOpportunityPastCutoff($opp) {
+    if (empty($opp)) return false;
+    $status = strtoupper($opp['status'] ?? 'PUBLISHED');
+    $isAssigned = !empty($opp['assignedTrainerId']) || $status === 'MATCHED';
+    // If faculty is already assigned, it's not subject to unassigned auto-close
+    if ($isAssigned) return false;
+
+    $startTs = null;
+    if (function_exists('getOpportunityStartTimestamp')) {
+        $startTs = getOpportunityStartTimestamp($opp);
+    } else {
+        $rawStart = $opp['startDate'] ?? null;
+        if ($rawStart instanceof MongoDB\BSON\UTCDateTime) {
+            $startTs = round($rawStart->toDateTime()->getTimestamp());
+        } elseif (is_numeric($rawStart)) {
+            $startTs = ($rawStart > 20000000000) ? round($rawStart / 1000) : (int)$rawStart;
+        } elseif (is_string($rawStart) && !empty($rawStart)) {
+            $parsed = strtotime($rawStart);
+            if ($parsed !== false) $startTs = $parsed;
+        }
+    }
+
+    if (!$startTs) return false;
+
+    $now = time();
+    $startDateStr = date('Y-m-d', $startTs);
+    $todayDateStr = date('Y-m-d', $now);
+
+    // Evening cutoff: 18:00 (6:00 PM) on the day before start date
+    $closeCutoffTs = strtotime($startDateStr . ' 18:00:00 -1 day');
+
+    return ($now >= $closeCutoffTs) || ($todayDateStr >= $startDateStr);
+}
+
 
 

@@ -122,8 +122,8 @@ $opportunities = [];
 foreach ($rawOpportunities as $opp) {
     $oppId = (string)$opp['_id'];
     $oppStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
-    $isClosed = ($oppStatus === 'CLOSED' || $oppStatus === 'MATCHED' || !empty($opp['assignedTrainerId']));
-    if ($isClosed) continue; // Exclude filled/closed opportunities
+    $isClosed = ($oppStatus === 'CLOSED' || $oppStatus === 'MATCHED' || !empty($opp['assignedTrainerId']) || isOpportunityPastCutoff($opp));
+    if ($isClosed) continue; // Exclude filled/closed/expired opportunities
 
     $hasApplied = in_array($oppId, $appliedOppIds);
     if ($statusFilter === 'NOT_APPLIED' && $hasApplied) continue;

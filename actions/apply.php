@@ -39,9 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($opp) {
             $oppStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
-            $isClosed = ($oppStatus === 'CLOSED' || $oppStatus === 'MATCHED' || !empty($opp['assignedTrainerId']));
+            $isClosed = ($oppStatus === 'CLOSED' || $oppStatus === 'MATCHED' || !empty($opp['assignedTrainerId']) || isOpportunityPastCutoff($opp));
             if ($isClosed) {
-                $_SESSION['apply_error'] = "This opportunity is closed as a trainer has already been assigned.";
+                $_SESSION['apply_error'] = "This opportunity is closed. The deadline to apply has passed or a trainer has already been assigned.";
                 $referer = $_SERVER['HTTP_REFERER'] ?? '/trainer/opportunities.php';
                 header("Location: " . $referer);
                 exit();

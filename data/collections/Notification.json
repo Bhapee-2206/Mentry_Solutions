@@ -1621,5 +1621,59 @@
         "isAdminAlert": true,
         "isStaffAlert": true,
         "recipientRole": "ADMIN"
+    },
+    {
+        "recipientRole": "ADMIN",
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "type": "OPPORTUNITY_AUTO_CLOSED",
+        "opportunityId": "6a99b57af1624b69330f55f9",
+        "milestone": null,
+        "title": "Opportunity Closed: AWS Cloud Architecture & DevOps CI/CD Workshop (Start Date Cutoff Passed)",
+        "message": "The opportunity 'AWS Cloud Architecture & DevOps CI/CD Workshop' in Pune scheduled for Sep 8, 2026 has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55f9",
+        "metadata": {
+            "opportunityId": "6a99b57af1624b69330f55f9",
+            "jobId": "MEN-OPP-1003",
+            "title": "AWS Cloud Architecture & DevOps CI/CD Workshop",
+            "startDate": "2026-09-08",
+            "autoClosedReason": "START_DATE_PASSED"
+        },
+        "read": false,
+        "createdAt": "1788890677637",
+        "_id": "6aa04e35bf3d30ff7d036210",
+        "updatedAt": "1788890677651"
+    },
+    {
+        "recipientRole": "ADMIN",
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "type": "OPPORTUNITY_AUTO_CLOSED",
+        "opportunityId": "6a99b57af1624b69330f55fd",
+        "milestone": null,
+        "title": "Opportunity Closed: Campus Placement Aptitude & Speed Math Finishing School (Start Date Cutoff Passed)",
+        "message": "The opportunity 'Campus Placement Aptitude & Speed Math Finishing School' in Trichy scheduled for Sep 9, 2026 has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55fd",
+        "metadata": {
+            "opportunityId": "6a99b57af1624b69330f55fd",
+            "jobId": "MEN-OPP-1007",
+            "title": "Campus Placement Aptitude & Speed Math Finishing School",
+            "startDate": "2026-09-09",
+            "autoClosedReason": "START_DATE_PASSED"
+        },
+        "read": false,
+        "createdAt": "1788890678764",
+        "_id": "6aa04e36bf3d30ff7d036211",
+        "updatedAt": "1788890678764"
     }
 ]

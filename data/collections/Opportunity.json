@@ -65,12 +65,12 @@
         "state": "Maharashtra",
         "title": "AWS Cloud Architecture & DevOps CI/CD Workshop",
         "domain": "Cloud",
-        "status": "PUBLISHED",
+        "status": "CLOSED",
         "endDate": "2026-09-16",
         "mentryId": "MEN-OPP-1003",
         "createdAt": "1788458362760",
         "startDate": "2026-09-08",
-        "updatedAt": "1788458362760",
+        "updatedAt": "1788890677200",
         "collegeName": "MIT World Peace University (MIT-WPU)",
         "description": "Hybrid workshop blending live virtual foundations with 4 days of on-campus interactive infrastructure provisioning and CI/CD pipelines.",
         "dailyRateMax": 10500,
@@ -84,7 +84,9 @@
             "Kubernetes",
             "Jenkins"
         ],
-        "minExperienceYears": 5
+        "minExperienceYears": 5,
+        "closedAt": "1788890677200",
+        "autoClosedReason": "START_DATE_PASSED"
     },
     {
         "_id": "6a99b57af1624b69330f55fa",
@@ -182,12 +184,12 @@
         "state": "Tamil Nadu",
         "title": "Campus Placement Aptitude & Speed Math Finishing School",
         "domain": "Aptitude",
-        "status": "PUBLISHED",
+        "status": "CLOSED",
         "endDate": "2026-09-24",
         "mentryId": "MEN-OPP-1007",
         "createdAt": "1788458362932",
         "startDate": "2026-09-09",
-        "updatedAt": "1788458362932",
+        "updatedAt": "1788890678221",
         "collegeName": "SASTRA Deemed University",
         "description": "High-energy placement accelerator tackling speed calculation shortcuts, advanced permutations, and standard MNC screening patterns.",
         "dailyRateMax": 7000,
@@ -200,7 +202,9 @@
             "Speed Math",
             "Data Interpretation"
         ],
-        "minExperienceYears": 4
+        "minExperienceYears": 4,
+        "closedAt": "1788890678221",
+        "autoClosedReason": "START_DATE_PASSED"
     },
     {
         "_id": "6a99b57bf1624b69330f55fe",

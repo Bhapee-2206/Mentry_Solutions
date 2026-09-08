@@ -16,12 +16,17 @@ if (!empty($id)) {
     }
 }
 
+require_once __DIR__ . '/includes/notifications.php';
+checkOpportunityScheduleMilestones();
+
 if (!$opp) {
     header("Location: /opportunities.php");
     exit();
 }
 
 $pageTitle = $opp['title'];
+$opStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
+$isOpportunityClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($opp['assignedTrainerId']) || isOpportunityPastCutoff($opp));
 $skills = is_string($opp['skillsRequired']) ? json_decode($opp['skillsRequired'], true) : (array)$opp['skillsRequired'];
 if (!$skills) $skills = explode(',', (string)$opp['skillsRequired']);
 
@@ -254,7 +259,7 @@ require_once __DIR__ . '/includes/header.php';
                         </span>
                         <div>
                             <span class="font-bold text-slate-900 block">Applications Closed</span>
-                            <span class="text-slate-500 font-normal">A trainer has been selected. New applications are not accepted.</span>
+                            <span class="text-slate-500 font-normal"><?= (!empty($opp['assignedTrainerId']) || $opStatus === 'MATCHED') ? 'A trainer has been selected. New applications are not accepted.' : 'The deadline for this opportunity has passed. Applications are no longer accepted.' ?></span>
                         </div>
                     </div>
                 <?php elseif ($existingApp): ?>

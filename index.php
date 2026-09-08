@@ -2,6 +2,8 @@
 // index.php - Public Homepage
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__ . '/includes/notifications.php';
+checkOpportunityScheduleMilestones();
 
 $pageTitle = "India's Premier Managed Trainer Network";
 
@@ -21,7 +23,7 @@ try {
         $openOpps = [];
         foreach ($allPublished as $op) {
             $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
-            if ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId'])) continue;
+            if ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']) || isOpportunityPastCutoff($op)) continue;
             $openOpps[] = $op;
         }
         $totalOpportunities = count($openOpps);

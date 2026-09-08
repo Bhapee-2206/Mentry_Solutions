@@ -3,6 +3,8 @@
 $pageTitle = "Trainer Dashboard";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/notifications.php';
+checkOpportunityScheduleMilestones();
 require_once __DIR__ . '/includes/sidebar.php';
 
 $trainerCol = getCollection("Trainer");
@@ -30,7 +32,7 @@ $allPublishedOpps = $opportunityCol ? $opportunityCol->find(
 $recommendedOpportunities = [];
 foreach ($allPublishedOpps as $op) {
     $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
-    if ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId'])) continue;
+    if ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']) || isOpportunityPastCutoff($op)) continue;
     $recommendedOpportunities[] = $op;
     if (count($recommendedOpportunities) >= 3) break;
 }
