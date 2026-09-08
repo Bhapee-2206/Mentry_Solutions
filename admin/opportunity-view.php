@@ -104,6 +104,13 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
         </div>
     </div>
 
+    <?php if (!empty($_GET['error'])): ?>
+        <div class="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined text-rose-600 text-base">error</span>
+            <?= htmlspecialchars($_GET['error']) ?>
+        </div>
+    <?php endif; ?>
+
     <?php if ($isClosedOrMatched): ?>
         <!-- Prominent Closed Opportunity Notice -->
         <div class="bg-slate-900 border border-slate-800 text-white rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
@@ -117,7 +124,13 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                         <span class="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Hidden from Feeds</span>
                     </div>
                     <p class="text-xs text-slate-300 mt-0.5">
-                        <?= !empty($assignedTrainer) ? 'Assigned to verified faculty <strong>' . htmlspecialchars($assignedUser['name'] ?? 'Trainer') . '</strong>. It is no longer accepting applications or visible on public feeds.' : 'This requirement is closed and no longer accepting trainer applications.' ?>
+                        <?php if (!empty($assignedTrainer)): ?>
+                            Assigned to verified faculty <strong><?= htmlspecialchars($assignedUser['name'] ?? 'Trainer') ?></strong>. It is no longer accepting applications or visible on public feeds.
+                        <?php elseif (($opp['autoClosedReason'] ?? '') === 'START_DATE_PASSED'): ?>
+                            This opportunity was <strong class="text-amber-300">automatically closed</strong> because its start date (<?= formatDate($opp['startDate'] ?? null) ?>) has passed without an assigned trainer.
+                        <?php else: ?>
+                            This requirement is closed and no longer accepting trainer applications.
+                        <?php endif; ?>
                     </p>
                 </div>
             </div>

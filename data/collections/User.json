@@ -252,9 +252,9 @@
         "avatar": "https://bmqzwrkhxyptdhqwvhob.supabase.co/storage/v1/object/public/documents/avatars/avatar_6879c53d89a8bc1e22618a67_1788619621.png",
         "status": "ACTIVE",
         "mentryId": "MEN-TRN-1560",
-        "password": "$2y$12$yv4erGLvzQhDneqZZ6IpbeVIZzIV1obc4HXruvavNFk1MSIdJ8/s2",
+        "password": "$2y$10$N5s5tUIfxUF6jqJSUKBUgu/lNNhB3tqT7lfACsaguKoJ8QFofbSNy",
         "createdAt": "1788619592854",
-        "updatedAt": "1788624538097",
+        "updatedAt": "1788889702308",
         "isSuspended": false,
         "lastLoginAt": "2026-09-05T16:08:58+00:00",
         "trainerCode": "MEN-TRN-1560",
@@ -420,15 +420,15 @@
         "organizationType": "COLLEGE"
     },
     {
+        "_id": "6a9d871cf1624b69330f56f9",
         "name": "Arun Kumar Trainer",
-        "email": "arun.trainer.1788708130580@mentry.test",
-        "password": "$2y$10$2JN.NTLtDonBKDYYTIXpJuMHS8TLLxlj4YVJtF931MqaNnqociKDe",
-        "phone": "+91 98401 77889",
         "role": "TRAINER",
-        "trainerCode": "MEN-TRN-1562",
+        "email": "arun.trainer.1788708130580@mentry.test",
+        "phone": "+91 98401 77889",
         "mentryId": "MEN-TRN-1562",
+        "password": "$2y$10$2JN.NTLtDonBKDYYTIXpJuMHS8TLLxlj4YVJtF931MqaNnqociKDe",
         "createdAt": "1788708636409",
         "updatedAt": "1788708636409",
-        "_id": "6a9d871cf1624b69330f56f9"
+        "trainerCode": "MEN-TRN-1562"
     }
 ]

@@ -49,6 +49,8 @@ if ($activeFilter === 'NEW_APPLICATION') {
     $mongoFilter['type'] = 'NEW_REQUIREMENT';
 } elseif ($activeFilter === 'PARTNER') {
     $mongoFilter['type'] = ['$in' => ['NEW_VENDOR', 'NEW_DEMAND']];
+} elseif ($activeFilter === 'OPPORTUNITIES') {
+    $mongoFilter['type'] = ['$in' => ['OPPORTUNITY_STARTING_SOON', 'OPPORTUNITY_AUTO_CLOSED']];
 } elseif ($activeFilter === 'UNREAD') {
     $mongoFilter['read'] = false;
 }
@@ -61,6 +63,7 @@ $appCount = 0;
 $trainerCount = 0;
 $reqCount = 0;
 $partnerCount = 0;
+$oppAlertCount = 0;
 
 if ($notifCol) {
     try {
@@ -69,6 +72,7 @@ if ($notifCol) {
         $trainerCount = $notifCol->countDocuments(['type' => 'NEW_TRAINER']);
         $reqCount = $notifCol->countDocuments(['type' => 'NEW_REQUIREMENT']);
         $partnerCount = $notifCol->countDocuments(['type' => ['$in' => ['NEW_VENDOR', 'NEW_DEMAND']]]);
+        $oppAlertCount = $notifCol->countDocuments(['type' => ['$in' => ['OPPORTUNITY_STARTING_SOON', 'OPPORTUNITY_AUTO_CLOSED']]]);
     } catch (\Throwable $e) {}
 }
 
@@ -122,6 +126,20 @@ function getNotificationConfig($type) {
                 'bg' => 'bg-sky-50 text-sky-600 border border-sky-100',
                 'badge' => 'bg-sky-50 text-sky-700 border border-sky-200/80',
                 'label' => 'Trainer Match'
+            ];
+        case 'OPPORTUNITY_STARTING_SOON':
+            return [
+                'icon' => 'timer',
+                'bg' => 'bg-amber-50 text-amber-600 border border-amber-100',
+                'badge' => 'bg-amber-50 text-amber-700 border border-amber-200/80',
+                'label' => 'Starting Soon'
+            ];
+        case 'OPPORTUNITY_AUTO_CLOSED':
+            return [
+                'icon' => 'event_busy',
+                'bg' => 'bg-rose-50 text-rose-600 border border-rose-100',
+                'badge' => 'bg-rose-50 text-rose-700 border border-rose-200/80',
+                'label' => 'Opportunity Closed'
             ];
         default:
             return [
@@ -199,6 +217,14 @@ function getNotificationConfig($type) {
             <?php if ($partnerCount > 0): ?>
                 <span class="px-1.5 py-0.2 rounded-full text-[10px] <?= $activeFilter === 'PARTNER' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' ?>">
                     <?= $partnerCount ?>
+                </span>
+            <?php endif; ?>
+        </a>
+        <a href="/admin/notifications.php?filter=OPPORTUNITIES" class="px-3.5 py-2 rounded-xl border transition-all whitespace-nowrap flex items-center gap-1.5 <?= $activeFilter === 'OPPORTUNITIES' ? 'bg-[#FE5E04] text-white border-[#FE5E04] shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50' ?>">
+            <span>Opportunities</span>
+            <?php if ($oppAlertCount > 0): ?>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] <?= $activeFilter === 'OPPORTUNITIES' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600' ?>">
+                    <?= $oppAlertCount ?>
                 </span>
             <?php endif; ?>
         </a>

@@ -83,7 +83,7 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
 /**
  * Dispatch an administrative / operational notification to all admins and staff
  * 
- * @param string $type e.g. 'NEW_APPLICATION', 'NEW_TRAINER', 'NEW_REQUIREMENT', 'NEW_VENDOR', 'NEW_DEMAND', 'INQUIRY'
+ * @param string $type e.g. 'NEW_APPLICATION', 'NEW_TRAINER', 'NEW_REQUIREMENT', 'NEW_VENDOR', 'NEW_DEMAND', 'OPPORTUNITY_STARTING_SOON', 'OPPORTUNITY_AUTO_CLOSED'
  * @param string $title Short descriptive title
  * @param string $message Detailed description/context
  * @param string $link Destination URL in admin panel
@@ -98,7 +98,11 @@ function notifyAdmin($type, $title, $message, $link = '', $metadata = []) {
         $notifDoc = [
             'recipientRole' => 'ADMIN',
             'isAdminAlert' => true,
+            'isStaffAlert' => true,
+            'targetRoles' => ['ADMIN', 'SUPER_ADMIN', 'STAFF'],
             'type' => $type,
+            'opportunityId' => $metadata['opportunityId'] ?? null,
+            'milestone' => $metadata['milestone'] ?? null,
             'title' => $title,
             'message' => $message,
             'link' => $link,
@@ -113,4 +117,208 @@ function notifyAdmin($type, $title, $message, $link = '', $metadata = []) {
         error_log("Failed to dispatch admin notification: " . $e->getMessage());
         return false;
     }
+}
+
+/**
+ * Extract Unix timestamp from opportunity start date in any stored format
+ *
+ * @param array|object $opp Opportunity document
+ * @return int|null Timestamp or null if unparseable
+ */
+function getOpportunityStartTimestamp($opp) {
+    if (empty($opp)) return null;
+    $startDate = $opp['startDate'] ?? null;
+    if ($startDate instanceof MongoDB\BSON\UTCDateTime) {
+        return round($startDate->toDateTime()->getTimestamp());
+    } elseif (is_numeric($startDate)) {
+        return ($startDate > 20000000000) ? round($startDate / 1000) : (int)$startDate;
+    } elseif (is_string($startDate) && !empty($startDate)) {
+        if (is_numeric($startDate)) {
+            return ($startDate > 20000000000) ? round($startDate / 1000) : (int)$startDate;
+        } else {
+            $parsed = strtotime($startDate);
+            if ($parsed !== false) return $parsed;
+        }
+    }
+    return null;
+}
+
+/**
+ * Check upcoming opportunity milestones (tomorrow and day after tomorrow) and auto-close expired opportunities.
+ * - If start date is tomorrow (T+1): Send urgent notification to admin and staff.
+ * - If start date is day after tomorrow (T+2): Send reminder notification to admin and staff.
+ * - If start date has passed (T < 0): Auto-close the opportunity and notify admin & staff.
+ *
+ * @param bool $force Force check regardless of in-process cache throttle
+ * @return array Summary of operations
+ */
+function checkOpportunityScheduleMilestones($force = false) {
+    static $alreadyRunInProcess = false;
+    if ($alreadyRunInProcess && !$force) {
+        return ['checked' => 0, 'notifiedTomorrow' => 0, 'notifiedIn2Days' => 0, 'closed' => 0];
+    }
+    $alreadyRunInProcess = true;
+
+    $oppCol = getCollection("Opportunity");
+    $notifCol = getCollection("Notification");
+    if (!$oppCol || !$notifCol) {
+        return ['checked' => 0, 'notifiedTomorrow' => 0, 'notifiedIn2Days' => 0, 'closed' => 0];
+    }
+
+    $todayMidnight = strtotime(date('Y-m-d'));
+    $stats = [
+        'checked' => 0,
+        'notifiedTomorrow' => 0,
+        'notifiedIn2Days' => 0,
+        'closed' => 0
+    ];
+
+    try {
+        // Find opportunities that are not permanently cancelled or completed
+        $activeOpps = $oppCol->find([
+            'status' => ['$nin' => ['CANCELLED', 'COMPLETED']]
+        ])->toArray();
+
+        foreach ($activeOpps as $opp) {
+            $stats['checked']++;
+            $oppId = (string)$opp['_id'];
+            $title = $opp['title'] ?? 'Training Opportunity';
+            $city = $opp['city'] ?? 'Campus';
+            $status = strtoupper($opp['status'] ?? 'PUBLISHED');
+            $isAssigned = !empty($opp['assignedTrainerId']) || $status === 'MATCHED';
+
+            $startTs = getOpportunityStartTimestamp($opp);
+            if (!$startTs) continue;
+
+            $startDateMidnight = strtotime(date('Y-m-d', $startTs));
+            $diffDays = (int)round(($startDateMidnight - $todayMidnight) / 86400);
+            $dateFormatted = date('M j, Y', $startTs);
+
+            // CASE 1: Start date has passed (diffDays < 0)
+            // If opportunity is still PUBLISHED and unassigned, auto-close it!
+            if ($diffDays < 0) {
+                if ($status === 'PUBLISHED' && !$isAssigned) {
+                    $oppCol->updateOne(
+                        ['_id' => $opp['_id']],
+                        ['$set' => [
+                            'status' => 'CLOSED',
+                            'closedAt' => new MongoDB\BSON\UTCDateTime(),
+                            'autoClosedReason' => 'START_DATE_PASSED',
+                            'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                        ]]
+                    );
+
+                    // Notify admin and staff if not already notified
+                    $existingAutoCloseNotif = $notifCol->findOne([
+                        'type' => 'OPPORTUNITY_AUTO_CLOSED',
+                        '$or' => [
+                            ['opportunityId' => $oppId],
+                            ['metadata.opportunityId' => $oppId]
+                        ]
+                    ]);
+
+                    if (!$existingAutoCloseNotif) {
+                        notifyAdmin(
+                            'OPPORTUNITY_AUTO_CLOSED',
+                            "Opportunity Closed: {$title} (Start Date Passed)",
+                            "The opportunity '{$title}' in {$city} scheduled for {$dateFormatted} has been automatically closed because its start date has passed without an assigned trainer.",
+                            "/admin/opportunity-view.php?id=" . $oppId,
+                            [
+                                'opportunityId' => $oppId,
+                                'jobId' => $opp['jobId'] ?? $oppId,
+                                'title' => $title,
+                                'startDate' => date('Y-m-d', $startTs),
+                                'autoClosedReason' => 'START_DATE_PASSED'
+                            ]
+                        );
+                    }
+                    $stats['closed']++;
+                }
+                continue;
+            }
+
+            // For upcoming reminders, skip already closed opportunities
+            if ($status === 'CLOSED') {
+                continue;
+            }
+
+            // CASE 2: Starts TOMORROW (diffDays === 1)
+            if ($diffDays === 1) {
+                $existingNotif = $notifCol->findOne([
+                    'type' => 'OPPORTUNITY_STARTING_SOON',
+                    '$or' => [
+                        ['opportunityId' => $oppId, 'milestone' => 'TOMORROW'],
+                        ['metadata.opportunityId' => $oppId, 'metadata.milestone' => 'TOMORROW']
+                    ]
+                ]);
+
+                if (!$existingNotif) {
+                    $urgencyPrefix = $isAssigned 
+                        ? "Confirmed Training Starts Tomorrow!" 
+                        : "Urgent: Unassigned Opportunity Starts Tomorrow!";
+                    $detailMsg = $isAssigned
+                        ? "Confirmed training program '{$title}' in {$city} commences tomorrow ({$dateFormatted}). Please verify faculty travel, lodging, and campus reporting schedule."
+                        : "Training opportunity '{$title}' in {$city} is scheduled to start tomorrow ({$dateFormatted}). No faculty is assigned yet — please review matching trainers immediately!";
+
+                    notifyAdmin(
+                        'OPPORTUNITY_STARTING_SOON',
+                        $urgencyPrefix,
+                        $detailMsg,
+                        "/admin/opportunity-view.php?id=" . $oppId,
+                        [
+                            'opportunityId' => $oppId,
+                            'jobId' => $opp['jobId'] ?? $oppId,
+                            'title' => $title,
+                            'milestone' => 'TOMORROW',
+                            'diffDays' => 1,
+                            'isAssigned' => $isAssigned,
+                            'startDate' => date('Y-m-d', $startTs)
+                        ]
+                    );
+                    $stats['notifiedTomorrow']++;
+                }
+            }
+
+            // CASE 3: Starts DAY AFTER TOMORROW (diffDays === 2)
+            if ($diffDays === 2) {
+                $existingNotif = $notifCol->findOne([
+                    'type' => 'OPPORTUNITY_STARTING_SOON',
+                    '$or' => [
+                        ['opportunityId' => $oppId, 'milestone' => 'IN_2_DAYS'],
+                        ['metadata.opportunityId' => $oppId, 'metadata.milestone' => 'IN_2_DAYS']
+                    ]
+                ]);
+
+                if (!$existingNotif) {
+                    $remindPrefix = $isAssigned 
+                        ? "Reminder: Training Starts in 2 Days" 
+                        : "Reminder: Opportunity Starts in 2 Days (Unassigned)";
+                    $detailMsg = $isAssigned
+                        ? "Training engagement '{$title}' in {$city} starts on {$dateFormatted} (in 2 days). Ensure course materials and logistics are finalized."
+                        : "Opportunity '{$title}' in {$city} starts on {$dateFormatted} (in 2 days) and still requires faculty assignment.";
+
+                    notifyAdmin(
+                        'OPPORTUNITY_STARTING_SOON',
+                        $remindPrefix,
+                        $detailMsg,
+                        "/admin/opportunity-view.php?id=" . $oppId,
+                        [
+                            'opportunityId' => $oppId,
+                            'jobId' => $opp['jobId'] ?? $oppId,
+                            'title' => $title,
+                            'milestone' => 'IN_2_DAYS',
+                            'diffDays' => 2,
+                            'isAssigned' => $isAssigned,
+                            'startDate' => date('Y-m-d', $startTs)
+                        ]
+                    );
+                    $stats['notifiedIn2Days']++;
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+        error_log("Error in checkOpportunityScheduleMilestones: " . $e->getMessage());
+    }
+
+    return $stats;
 }

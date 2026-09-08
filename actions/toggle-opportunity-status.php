@@ -34,6 +34,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $newStatus = $targetStatus;
             }
 
+            if ($newStatus === 'PUBLISHED') {
+                require_once __DIR__ . '/../includes/notifications.php';
+                $startTs = getOpportunityStartTimestamp($opp);
+                if ($startTs && strtotime(date('Y-m-d', $startTs)) < strtotime(date('Y-m-d'))) {
+                    $referer = $_SERVER['HTTP_REFERER'] ?? ('/admin/opportunity-view.php?id=' . urlencode($opportunityId));
+                    $separator = (strpos($referer, '?') !== false) ? '&' : '?';
+                    header("Location: " . $referer . $separator . "error=" . urlencode("Cannot reopen opportunity because its start date (" . date('M j, Y', $startTs) . ") has passed. Please edit the opportunity and set a future start date first."));
+                    exit();
+                }
+            }
+
             $updateData = [
                 'status' => $newStatus,
                 'updatedAt' => new MongoDB\BSON\UTCDateTime()
@@ -41,8 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($newStatus === 'CLOSED') {
                 $updateData['closedAt'] = new MongoDB\BSON\UTCDateTime();
+                $updateData['autoClosedReason'] = 'ADMIN_MANUAL_CLOSE';
             } elseif ($newStatus === 'PUBLISHED') {
                 $updateData['closedAt'] = null;
+                $updateData['autoClosedReason'] = null;
             }
 
             try {

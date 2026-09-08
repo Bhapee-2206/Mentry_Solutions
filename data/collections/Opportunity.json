@@ -522,6 +522,7 @@
         "title": "PSG Tech Full Stack Cloud Bootcamp",
         "domain": "Programming",
         "status": "CLOSED",
+        "closedAt": "1788708767158",
         "mentryId": "MEN-OPP-1022",
         "createdAt": "1788708716195",
         "startDate": "1790028000000",
@@ -534,9 +535,8 @@
         "diningCovered": true,
         "travelCovered": true,
         "skillsRequired": "[\"Python\",\"React\",\"AWS\",\"Docker\"]",
-        "minExperienceYears": 3,
-        "accommodationCovered": true,
         "assignedTrainerId": "6a99b578f1624b69330f55bb",
-        "closedAt": "1788708767158"
+        "minExperienceYears": 3,
+        "accommodationCovered": true
     }
 ]

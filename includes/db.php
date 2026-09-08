@@ -438,7 +438,25 @@ class PersistentDocumentStore {
                 continue;
             }
 
-            $val = $doc[$key] ?? null;
+            $val = null;
+            if (strpos($key, '.') !== false) {
+                $parts = explode('.', $key);
+                $curr = $doc;
+                $found = true;
+                foreach ($parts as $p) {
+                    if (is_array($curr) && array_key_exists($p, $curr)) {
+                        $curr = $curr[$p];
+                    } else {
+                        $found = false;
+                        break;
+                    }
+                }
+                if ($found) {
+                    $val = $curr;
+                }
+            } else {
+                $val = $doc[$key] ?? null;
+            }
 
             // Handle _id equality (support ObjectId, string, object)
             if ($key === '_id' || $key === 'id') {

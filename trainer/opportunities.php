@@ -3,6 +3,8 @@
 $pageTitle = "Training Opportunities Feed";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/notifications.php';
+checkOpportunityScheduleMilestones();
 require_once __DIR__ . '/includes/sidebar.php';
 
 $opportunityCol = getCollection("Opportunity");

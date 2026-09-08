@@ -7,6 +7,9 @@ $adminUser = getCurrentUser();
 $currentPage = basename($_SERVER['PHP_SELF']);
 $isStaffUser = isStaff();
 
+require_once __DIR__ . '/../../includes/notifications.php';
+checkOpportunityScheduleMilestones();
+
 // Unread Admin Notifications Counter
 $unreadAdminNotifCount = 0;
 try {
