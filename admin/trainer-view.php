@@ -96,26 +96,14 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <span class="material-symbols-outlined text-[16px]">edit</span>
                 Edit Trainer Details
             </button>
-            <button onclick="document.getElementById('resumeModal').classList.remove('hidden')" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[16px]">description</span>
-                View Printable Resume / CV
-            </button>
         </div>
     </div>
 
     <!-- Top Profile Banner -->
     <div class="bg-white rounded-3xl border border-slate-200/90 p-8 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div class="flex items-center gap-5">
-            <div class="flex flex-col items-center gap-1.5 shrink-0">
+            <div class="shrink-0">
                 <img src="<?= htmlspecialchars(getUserAvatar($u, 200)) ?>" class="w-20 h-20 rounded-3xl object-cover border-2 border-slate-200 shadow-sm">
-                <div class="flex items-center gap-1">
-                    <?php if (!empty($u['avatar'])): ?>
-                        <a href="<?= htmlspecialchars($u['avatar']) ?>" download="trainer_<?= $trainerId ?>_photo" target="_blank" class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 hover:text-[#FE5E04] bg-slate-100 hover:bg-orange-50 px-2 py-0.5 rounded-lg border border-slate-200 transition-colors" title="Download High-Res Profile Photo">
-                            <span class="material-symbols-outlined text-[13px]">download</span>
-                            Photo
-                        </a>
-                    <?php endif; ?>
-                </div>
             </div>
             <div class="space-y-1">
                 <div class="flex flex-wrap items-center gap-2">
