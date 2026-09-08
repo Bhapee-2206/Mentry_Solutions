@@ -109,7 +109,7 @@ require_once __DIR__ . '/includes/header.php';
 ?>
 
 <div class="bg-slate-50/50 min-h-screen py-10 md:py-14 border-b border-slate-100">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16 space-y-8">
         <!-- Back Link -->
         <a href="/opportunities.php" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600">
             <span class="material-symbols-outlined text-base">arrow_back</span>

@@ -138,7 +138,7 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
 
 <!-- Navigation Header -->
 <header class="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs transition-all">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16">
         <div class="flex items-center justify-between h-20">
             <!-- Brand Logo with mentry.png -->
             <a href="/index.php" class="flex items-center gap-3 group">

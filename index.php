@@ -63,7 +63,7 @@ require_once __DIR__ . '/includes/header.php';
 <div class="space-y-20 md:space-y-28 pb-20 bg-white text-slate-900 overflow-hidden">
     <!-- 1. Hero Section with Modern Mesh Gradient -->
     <section class="relative pt-12 pb-20 md:pt-20 md:pb-28 border-b border-slate-100 mesh-bg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16">
             <div class="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
                 <!-- Left 7 cols: Content -->
                 <div class="lg:col-span-7 space-y-6 text-left">
@@ -193,7 +193,7 @@ require_once __DIR__ . '/includes/header.php';
     </section>
 
     <!-- 2. Value Proposition Bento -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16">
         <div class="text-center max-w-2xl mx-auto mb-12 space-y-2">
             <span class="text-blue-600 font-bold text-xs uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                 Managed Partnership
@@ -271,7 +271,7 @@ require_once __DIR__ . '/includes/header.php';
 
     <!-- 3. Training Categories Grid -->
     <section class="bg-slate-50/70 py-16 border-y border-slate-200/70">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16">
             <div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
                 <div>
                     <span class="text-[#FE5E04] font-bold text-xs uppercase tracking-wider">Curriculum Domains</span>
@@ -306,7 +306,7 @@ require_once __DIR__ . '/includes/header.php';
     </section>
 
     <!-- 4. End-to-End How It Works (6 Steps) -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16">
         <div class="text-center max-w-2xl mx-auto mb-14 space-y-2">
             <span class="text-blue-600 font-bold text-xs uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                 Streamlined Execution
@@ -347,7 +347,7 @@ require_once __DIR__ . '/includes/header.php';
     </section>
 
     <!-- 5. Live Featured Opportunities -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16">
         <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
             <div>
                 <span class="text-blue-600 font-bold text-xs uppercase tracking-wider">Live Openings</span>
@@ -445,7 +445,7 @@ require_once __DIR__ . '/includes/header.php';
     </section>
 
     <!-- 6. Executive Dark CTA Banner -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16">
         <div class="bg-[#060D17] text-white rounded-3xl p-8 md:p-14 relative overflow-hidden shadow-2xl border border-slate-800">
             <div class="absolute -right-10 -bottom-10 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
             <div class="relative z-10 max-w-2xl space-y-6">

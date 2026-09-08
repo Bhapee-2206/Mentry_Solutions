@@ -67,7 +67,7 @@ require_once __DIR__ . '/includes/header.php';
 ?>
 
 <div class="bg-slate-50/50 min-h-screen py-10 md:py-14 border-b border-slate-100">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16 space-y-8">
         <div>
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold mb-2">
                 <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
@@ -83,7 +83,7 @@ require_once __DIR__ . '/includes/header.php';
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <!-- Filters Sidebar (Sticky on desktop) -->
-            <aside class="lg:col-span-3 space-y-6 lg:sticky lg:top-24 self-start">
+            <aside class="lg:col-span-4 xl:col-span-3 2xl:col-span-2 space-y-6 lg:sticky lg:top-24 self-start">
                 <form method="GET" action="/opportunities.php" class="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-card space-y-6">
                     <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -149,7 +149,7 @@ require_once __DIR__ . '/includes/header.php';
             </aside>
 
             <!-- Results Canvas -->
-            <div class="lg:col-span-9 space-y-6">
+            <div class="lg:col-span-8 xl:col-span-9 2xl:col-span-10 space-y-6 min-w-0">
                 <!-- Search Bar -->
                 <form method="GET" action="/opportunities.php" class="relative w-full">
                     <input type="hidden" name="mode" value="<?= htmlspecialchars($selectedMode) ?>">

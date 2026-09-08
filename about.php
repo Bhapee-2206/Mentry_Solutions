@@ -5,7 +5,7 @@ require_once __DIR__ . '/includes/header.php';
 ?>
 
 <div class="bg-white py-16 md:py-24">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <div class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16 space-y-12">
         <div class="text-center space-y-3">
             <span class="text-blue-600 font-bold text-xs uppercase tracking-wider bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-100">
                 Company Mission

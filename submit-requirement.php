@@ -9,7 +9,7 @@ require_once __DIR__ . '/includes/header.php';
 ?>
 
 <div class="bg-slate-50/60 min-h-screen py-10 sm:py-16 w-full max-w-full overflow-x-hidden">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 sm:space-y-16 min-w-0">
+    <div class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16 space-y-12 sm:space-y-16 min-w-0">
         
         <!-- Hero Section -->
         <div class="text-center space-y-4 max-w-3xl mx-auto">
