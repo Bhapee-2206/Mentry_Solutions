@@ -32,6 +32,13 @@ if (!$skills) $skills = explode(',', (string)$opp['skillsRequired']);
 
 $user = getCurrentUser();
 
+// If the visitor is a logged-in trainer, redirect them into the Trainer Dashboard view
+if ($user && ($user['role'] ?? '') === 'TRAINER') {
+    $oppIdentifier = (string)($opp['_id'] ?? $id);
+    header("Location: /trainer/opportunities.php?id=" . urlencode($oppIdentifier));
+    exit();
+}
+
 $existingApp = null;
 $hasResume = false;
 $resumeName = '';

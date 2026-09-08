@@ -93,14 +93,21 @@ if ($notifCol && !empty($userQuery)) {
                 $isUnread = empty($n['read']);
                 $type = $n['type'] ?? 'OPPORTUNITY_MATCH';
                 
-                // Determine target destination
+                // Extract opportunity ID if this notification is opportunity-related
+                $oppId = $n['opportunityId'] ?? '';
+                if (empty($oppId) && !empty($n['metadata']['opportunityId'])) {
+                    $oppId = $n['metadata']['opportunityId'];
+                }
+                if (empty($oppId) && !empty($n['link']) && preg_match('/[?&]id=([a-f\d]{24}|[A-Za-z0-9_-]+)/i', $n['link'], $m)) {
+                    $oppId = $m[1];
+                }
+
+                // Determine target destination (always keep trainer inside the Trainer Portal)
                 $targetUrl = null;
                 $actionLabel = 'View Details';
-                if (!empty($n['link'])) {
-                    $targetUrl = $n['link'];
-                    $actionLabel = 'View Opportunity';
-                } elseif (!empty($n['opportunityId'])) {
-                    $targetUrl = '/opportunity-details.php?id=' . (string)$n['opportunityId'];
+
+                if (!empty($oppId)) {
+                    $targetUrl = '/trainer/opportunities.php?id=' . (string)$oppId;
                     $actionLabel = 'View Opportunity';
                 } elseif (in_array($type, ['ASSIGNMENT_CONFIRMED', 'ASSIGNMENT_UPDATE'])) {
                     $targetUrl = '/trainer/assignments.php';
@@ -114,6 +121,12 @@ if ($notifCol && !empty($userQuery)) {
                 } elseif ($type === 'DOCUMENT_APPROVED') {
                     $targetUrl = '/trainer/documents.php';
                     $actionLabel = 'View Documents';
+                } elseif (!empty($n['link'])) {
+                    $targetUrl = $n['link'];
+                    if (strpos($targetUrl, '/opportunity-details.php') !== false) {
+                        $targetUrl = str_replace('/opportunity-details.php', '/trainer/opportunities.php', $targetUrl);
+                    }
+                    $actionLabel = 'View Details';
                 } else {
                     $targetUrl = '/trainer/opportunities.php';
                     $actionLabel = 'Browse Opportunities';

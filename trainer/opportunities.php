@@ -131,9 +131,71 @@ foreach ($rawOpportunities as $opp) {
     $opportunities[] = $opp;
 }
 
-$hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !== 'ALL' || $statusFilter !== 'ALL');
 $mySkills = ($skillCol && $trainerId) ? $skillCol->find(['trainerId' => $trainerId])->toArray() : [];
 require_once __DIR__ . '/../includes/matching_engine.php';
+
+// Auto-focus and auto-open opportunity modal if direct ID is passed (e.g. from notification)
+$targetId = trim($_GET['id'] ?? '');
+$targetOpp = null;
+$autoOpenOppData = null;
+
+if (!empty($targetId) && $opportunityCol) {
+    try {
+        $targetOpp = $opportunityCol->findOne(['_id' => new MongoDB\BSON\ObjectId($targetId)]);
+    } catch (\Throwable $e) {}
+    if (!$targetOpp) {
+        $targetOpp = $opportunityCol->findOne(['jobId' => $targetId]);
+    }
+}
+
+if ($targetOpp) {
+    $targetOppId = (string)$targetOpp['_id'];
+    $alreadyInList = false;
+    foreach ($opportunities as $op) {
+        if ((string)$op['_id'] === $targetOppId) {
+            $alreadyInList = true;
+            break;
+        }
+    }
+    if (!$alreadyInList) {
+        array_unshift($opportunities, $targetOpp);
+    }
+
+    $targetSkills = is_string($targetOpp['skillsRequired'] ?? '') ? json_decode($targetOpp['skillsRequired'], true) : (array)($targetOpp['skillsRequired'] ?? []);
+    if (!$targetSkills) $targetSkills = explode(',', (string)($targetOpp['skillsRequired'] ?? ''));
+
+    $targetMatch = ($trainer) ? MatchingEngine::evaluateMatch($targetOpp, $trainer, $mySkills) : ['score' => 75];
+    $targetMatchScore = $targetMatch['score'] ?? 75;
+
+    $targetConflict = ($trainer && !empty($trainerId)) ? checkTrainerOpportunityDateConflict($trainerId, $targetOpp) : ['hasConflict' => false];
+    $targetHasConflict = !empty($targetConflict['hasConflict']);
+
+    $autoOpenOppData = [
+        'id' => $targetOppId,
+        'jobId' => $targetOpp['jobId'] ?? $targetOppId,
+        'title' => $targetOpp['title'] ?? '',
+        'mode' => $targetOpp['mode'] ?? 'OFFLINE',
+        'trainingType' => $targetOpp['trainingType'] ?? 'COLLEGE',
+        'city' => $targetOpp['city'] ?? '',
+        'state' => $targetOpp['state'] ?? 'India',
+        'durationDays' => $targetOpp['durationDays'] ?? 5,
+        'startDate' => formatDate($targetOpp['startDate'] ?? null),
+        'dailyRateMin' => (float)($targetOpp['dailyRateMin'] ?? 5000),
+        'dailyRateMax' => (float)($targetOpp['dailyRateMax'] ?? 7000),
+        'skills' => array_values(array_filter(array_map('trim', $targetSkills))),
+        'description' => $targetOpp['description'] ?? '',
+        'travelCovered' => $targetOpp['travelCovered'] ?? ($targetOpp['mode'] !== 'ONLINE'),
+        'accommodationCovered' => $targetOpp['accommodationCovered'] ?? ($targetOpp['mode'] !== 'ONLINE'),
+        'diningCovered' => $targetOpp['diningCovered'] ?? ($targetOpp['mode'] !== 'ONLINE'),
+        'matchScore' => $targetMatchScore,
+        'hasConflict' => $targetHasConflict,
+        'conflictReason' => $targetConflict['reason'] ?? '',
+        'finishDateFormatted' => $targetConflict['finishDateFormatted'] ?? '',
+        'conflictTitle' => $targetConflict['conflictTitle'] ?? ''
+    ];
+}
+
+$hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !== 'ALL' || $statusFilter !== 'ALL');
 ?>
 
 <div class="space-y-6">
@@ -301,7 +363,7 @@ require_once __DIR__ . '/../includes/matching_engine.php';
                     'conflictTitle' => $conflict['conflictTitle'] ?? ''
                 ]), ENT_QUOTES, 'UTF-8');
             ?>
-                <div class="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-6 shadow-card hover:shadow-card-hover transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5 min-w-0">
+                <div id="opp-card-<?= $oppId ?>" class="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-6 shadow-card hover:shadow-card-hover transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5 min-w-0">
                     <div class="space-y-2 flex-1 min-w-0">
                         <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
                             <span class="bg-orange-50 text-[#FE5E04] font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase shrink-0"><?= htmlspecialchars($opp['mode']) ?></span>
@@ -565,6 +627,19 @@ function closeOppModal() {
 document.getElementById('trainerOppModal')?.addEventListener('click', function(e) {
     if (e.target === this) closeOppModal();
 });
+
+<?php if (!empty($autoOpenOppData)): ?>
+window.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        openOppModal(<?= json_encode($autoOpenOppData) ?>);
+        const card = document.getElementById('opp-card-<?= $autoOpenOppData['id'] ?>');
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.classList.add('ring-2', 'ring-[#FE5E04]', 'bg-orange-50/20');
+        }
+    }, 150);
+});
+<?php endif; ?>
 </script>
 
 </main>
