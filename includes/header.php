@@ -143,11 +143,12 @@ if ($currentUser) {
     <link rel="apple-touch-icon" href="/public/icon-192.png?v=3">
 
     <!-- Progressive Web App (PWA) Manifest & Standalone App Capabilities -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#FE5E04">
+    <link rel="manifest" href="/manifest.json?v=3">
+    <meta name="theme-color" content="#FFFFFF">
+    <meta name="background-color" content="#FFFFFF">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Mentry">
 
     <!-- Tailwind CSS -->

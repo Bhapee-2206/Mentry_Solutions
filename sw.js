@@ -1,9 +1,12 @@
 // sw.js - Mentry Solutions PWA Service Worker & Web Push Engine
-const CACHE_NAME = 'mentry-pwa-v1';
+const CACHE_NAME = 'mentry-pwa-v3';
 const ASSETS_TO_PRECACHE = [
   '/',
   '/manifest.json',
-  '/public/mentry.png',
+  '/public/icon-192.png',
+  '/public/icon-512.png',
+  '/public/icon-maskable-512.png',
+  '/public/mentry-emblem.png',
   '/favicon.ico',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap',
   'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap'
