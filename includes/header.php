@@ -244,15 +244,20 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
 <?php endif; ?>
 
 <!-- Navigation Header -->
-<header class="sticky top-0 z-50 w-full px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-2 transition-all">
+<header class="sticky top-0 z-50 w-full px-2.5 sm:px-6 lg:px-8 pt-2.5 sm:pt-4 pb-2 transition-all">
     <div class="max-w-[1420px] mx-auto">
-        <div class="bg-white border border-slate-200/90 rounded-2xl lg:rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.06)] px-3.5 sm:px-5 lg:px-6 py-2.5 transition-all">
-            <div class="flex items-center justify-between gap-2 lg:gap-3">
-                <!-- Brand Logo (Matches screenshot: MENTRY Solutions / Managed Trainer Network) -->
-                <div class="flex items-center gap-3 shrink-0">
-                    <a href="/index.php" class="flex items-center gap-2.5 group">
-                        <img src="/public/mentry.png" alt="Mentry Solutions Logo" class="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105 shrink-0">
-                        <div class="block">
+        <div class="bg-white border border-slate-200/90 rounded-2xl lg:rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.06)] px-2.5 sm:px-5 lg:px-6 py-2 sm:py-2.5 transition-all">
+            <div class="flex items-center justify-between gap-1.5 sm:gap-2 lg:gap-3">
+                <!-- Brand Logo (Mobile: MENTRY only, Desktop: MENTRY Solutions / Managed Trainer Network) -->
+                <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                    <a href="/index.php" class="flex items-center gap-2 sm:gap-2.5 group shrink-0">
+                        <img src="/public/mentry.png" alt="Mentry Solutions Logo" class="h-7 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105 shrink-0">
+                        <!-- Mobile screen view (< sm): Just "MENTRY" -->
+                        <span class="sm:hidden font-black text-[14px] tracking-wide text-slate-900 leading-none group-hover:text-[#FE5E04] transition-colors">
+                            MENTRY
+                        </span>
+                        <!-- Tablet / Desktop view (sm and up): Full brand name and subtitle -->
+                        <div class="hidden sm:block">
                             <span class="font-extrabold text-[14px] sm:text-[15px] text-slate-900 tracking-tight leading-none block group-hover:text-[#FE5E04] transition-colors">
                                 <span class="font-black">MENTRY</span> Solutions
                             </span>
@@ -296,13 +301,13 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                     </a>
                 </nav>
 
-                <!-- Action CTAs (Matches screenshot: | Divider, Download icon box, Notification Bell with badge, Navy Dashboard button) -->
-                <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
+                <!-- Action CTAs (Download, Notification Bell with badge, Navy Dashboard button, Mobile Menu) -->
+                <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
                     <div class="hidden lg:block h-6 w-px bg-slate-200 mr-1.5"></div>
 
-                    <!-- Download App Button (Rounded-2xl square card with orange download icon) -->
-                    <button type="button" onclick="window.promptPWAInstall()" class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl text-slate-700 hover:text-[#FE5E04] bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-orange-300 transition-all cursor-pointer shrink-0 shadow-2xs flex items-center justify-center" title="Download & Install Mentry App (Add to Home Screen)">
-                        <span class="material-symbols-outlined text-[20px] text-[#FE5E04]">download</span>
+                    <!-- Download App Button -->
+                    <button type="button" onclick="window.promptPWAInstall()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl text-slate-700 hover:text-[#FE5E04] bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-orange-300 transition-all cursor-pointer shrink-0 shadow-2xs flex items-center justify-center" title="Download & Install Mentry App (Add to Home Screen)">
+                        <span class="material-symbols-outlined text-[18px] sm:text-[20px] text-[#FE5E04]">download</span>
                     </button>
 
                     <?php 
@@ -314,19 +319,19 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                             $dashboardUrl = '/vendor/dashboard.php';
                         }
                     ?>
-                        <!-- Notifications Bell Badge (Rounded-2xl white card with orange count badge) -->
-                        <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/notifications.php' : '/trainer/notifications.php' ?>" class="relative w-9 h-9 sm:w-10 sm:h-10 text-slate-700 hover:text-[#FE5E04] bg-white border border-slate-200 hover:border-orange-300 rounded-2xl transition-all shadow-2xs flex items-center justify-center shrink-0" title="Notifications">
-                            <span class="material-symbols-outlined text-[20px]">notifications</span>
+                        <!-- Notifications Bell Badge -->
+                        <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/notifications.php' : '/trainer/notifications.php' ?>" class="relative w-8 h-8 sm:w-10 sm:h-10 text-slate-700 hover:text-[#FE5E04] bg-white border border-slate-200 hover:border-orange-300 rounded-xl sm:rounded-2xl transition-all shadow-2xs flex items-center justify-center shrink-0" title="Notifications">
+                            <span class="material-symbols-outlined text-[18px] sm:text-[20px]">notifications</span>
                             <?php if ($unreadNotifs > 0): ?>
-                                <span class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-[#FE5E04] text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs leading-none">
+                                <span class="absolute -top-1 -right-1 min-w-[16px] sm:min-w-[18px] h-4 sm:h-[18px] px-1 bg-[#FE5E04] text-white text-[9px] sm:text-[10px] font-black rounded-full flex items-center justify-center shadow-xs leading-none">
                                     <?= min(99, $unreadNotifs) ?>
                                 </span>
                             <?php endif; ?>
                         </a>
 
-                        <!-- Dashboard Button (Matches screenshot: Navy rounded-2xl pill with space_dashboard icon & Dashboard label) -->
-                        <a href="<?= $dashboardUrl ?>" class="bg-[#182A4A] hover:bg-[#0F1B30] text-white text-xs font-bold px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl transition-all shadow-sm flex items-center gap-2 shrink-0">
-                            <span class="material-symbols-outlined text-[18px]">space_dashboard</span>
+                        <!-- Dashboard Button -->
+                        <a href="<?= $dashboardUrl ?>" class="bg-[#182A4A] hover:bg-[#0F1B30] text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl sm:rounded-2xl transition-all shadow-sm flex items-center gap-1.5 sm:gap-2 shrink-0">
+                            <span class="material-symbols-outlined text-[16px] sm:text-[18px]">space_dashboard</span>
                             <span>Dashboard</span>
                         </a>
                     <?php else: ?>
@@ -347,10 +352,10 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                         </a>
                     <?php endif; ?>
 
-                    <!-- Mobile menu toggle (Matches Screenshot 2: Rounded-xl light gray card with hamburger lines) -->
+                    <!-- Mobile menu toggle -->
                     <div class="flex lg:hidden items-center shrink-0">
-                        <button id="mobileMenuToggleBtn" type="button" aria-label="Toggle navigation menu" class="p-1.5 sm:p-2 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-800 transition-colors cursor-pointer flex items-center justify-center shrink-0">
-                            <span class="material-symbols-outlined text-[21px] sm:text-[23px]">menu</span>
+                        <button id="mobileMenuToggleBtn" type="button" aria-label="Toggle navigation menu" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-800 transition-colors cursor-pointer flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-[20px] sm:text-[23px]">menu</span>
                         </button>
                     </div>
                 </div>
