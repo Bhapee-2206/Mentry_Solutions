@@ -1,8 +1,9 @@
 <?php
 // includes/loading_screen.php - Premium Branded Mentry Loading Screen & Transition Preloader
+// STRICTLY active for Standalone/Downloaded PWA users only. Regular browser visitors will not see this loading screen.
 ?>
-<!-- Mentry Global Loading Screen -->
-<div id="mentryGlobalLoader" class="fixed inset-0 z-[99999] bg-gradient-to-b from-[#FFFFFF] via-[#F8FAFC] to-[#EFF6FF] flex flex-col items-center justify-between transition-opacity duration-300 opacity-100 pointer-events-auto select-none overflow-hidden" style="display: flex;">
+<!-- Mentry Global Loading Screen (Active strictly for PWA/Downloaded App users) -->
+<div id="mentryGlobalLoader" class="fixed inset-0 z-[99999] bg-gradient-to-b from-[#FFFFFF] via-[#F8FAFC] to-[#EFF6FF] flex flex-col items-center justify-between transition-opacity duration-300 opacity-0 pointer-events-none select-none overflow-hidden" style="display: none;">
     <!-- Ambient glowing light orbs -->
     <div class="absolute -top-28 -left-28 w-80 h-80 sm:w-96 sm:h-96 rounded-full bg-sky-200/30 blur-3xl pointer-events-none"></div>
     <div class="absolute top-1/4 -right-20 w-72 h-72 rounded-full bg-blue-100/40 blur-3xl pointer-events-none"></div>
@@ -79,9 +80,42 @@
 
 <script>
 (function() {
+    // 1. Strict PWA detection: Only users who installed/downloaded the app will see this loading screen
+    let isPwa = false;
+    try {
+        const isStandaloneMatch = window.matchMedia && (
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: window-controls-overlay)').matches ||
+            window.matchMedia('(display-mode: fullscreen)').matches ||
+            window.matchMedia('(display-mode: minimal-ui)').matches
+        );
+        const isIosStandalone = window.navigator && window.navigator.standalone === true;
+        const isUrlPwa = new URLSearchParams(window.location.search).get('source') === 'pwa';
+        const isReferrerPwa = document.referrer && document.referrer.indexOf('android-app://') !== -1;
+        const isSessionPwa = sessionStorage.getItem('mentry_app_installed_pwa') === '1';
+
+        if (isStandaloneMatch || isIosStandalone || isUrlPwa || isReferrerPwa || isSessionPwa) {
+            isPwa = true;
+            sessionStorage.setItem('mentry_app_installed_pwa', '1');
+        }
+    } catch(e) {
+        isPwa = false;
+    }
+
     const loader = document.getElementById('mentryGlobalLoader');
     const msgEl = document.getElementById('mentryLoaderMessage');
 
+    // If NOT in standalone/installed PWA mode, completely deactivate loader and exit
+    if (!isPwa) {
+        window.showMentryLoader = function() {};
+        window.hideMentryLoader = function() {
+            if (loader) loader.style.display = 'none';
+        };
+        if (loader) loader.style.display = 'none';
+        return; // Regular browser users will have completely instant zero-loader browsing!
+    }
+
+    // --- PWA MODE ONLY BELOW ---
     window.showMentryLoader = function(msg) {
         if (!loader) return;
         if (msg && msgEl) msgEl.textContent = msg;
@@ -103,26 +137,31 @@
         }, 280);
     };
 
-    // Auto-hide when DOM is ready
+    // Show initial splash loader in PWA on fresh page loads
+    loader.style.display = 'flex';
+    loader.classList.remove('opacity-0', 'pointer-events-none');
+    loader.classList.add('opacity-100', 'pointer-events-auto');
+
+    // Auto-hide when DOM is ready in PWA
     if (document.readyState === 'complete') {
-        setTimeout(window.hideMentryLoader, 80);
+        setTimeout(window.hideMentryLoader, 120);
     } else {
         window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(window.hideMentryLoader, 100);
+            setTimeout(window.hideMentryLoader, 150);
         });
         window.addEventListener('load', () => {
-            setTimeout(window.hideMentryLoader, 120);
+            setTimeout(window.hideMentryLoader, 200);
         });
-        // Strict safety fallback: never trap the screen if a remote font or analytics hangs
-        setTimeout(window.hideMentryLoader, 800);
+        // Strict safety fallback
+        setTimeout(window.hideMentryLoader, 1000);
     }
 
-    // Automatically hide on page restored from browser bfcache (Back/Forward)
-    window.addEventListener('pageshow', (event) => {
+    // Auto-hide on bfcache restore
+    window.addEventListener('pageshow', () => {
         window.hideMentryLoader();
     });
 
-    // Attach smooth transition trigger on link navigation
+    // PWA transitions for links
     document.addEventListener('click', function(e) {
         const link = e.target.closest('a');
         if (!link) return;
@@ -130,24 +169,20 @@
         const target = link.getAttribute('target');
         const download = link.hasAttribute('download');
 
-        // Ignore hash anchors, javascript links, downloads, new tabs, or external protocols
         if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:') || target === '_blank' || download) {
             return;
         }
-
-        // Ignore if user held Ctrl, Cmd, or Shift to open in new tab
         if (e.ctrlKey || e.metaKey || e.shiftKey) return;
 
-        // Display loader with subtle delay to prevent flicker on instant cached loads
         setTimeout(() => {
-            window.showMentryLoader("Loading page...");
+            window.showMentryLoader("Loading...");
         }, 60);
     });
 
-    // Attach on form submissions
+    // PWA transitions on form submissions
     document.addEventListener('submit', function(e) {
         if (e.target.getAttribute('target') === '_blank') return;
-        window.showMentryLoader("Processing request...");
+        window.showMentryLoader("Processing...");
     });
 })();
 </script>
