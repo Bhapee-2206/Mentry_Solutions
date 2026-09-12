@@ -79,6 +79,34 @@ if ($notifCol && !empty($userQuery)) {
         <?php endif; ?>
     </div>
 
+    <!-- Real-Time Device / Mobile Push Notification Control Card -->
+    <div id="mobilePushStatusCard" class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-700/80 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-start gap-3.5 min-w-0">
+            <div id="mobilePushIconBox" class="w-10 h-10 rounded-2xl bg-orange-500/20 text-[#FE5E04] border border-orange-500/30 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-2xl">notifications_active</span>
+            </div>
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h3 class="font-extrabold text-sm text-white">Mobile Device Push Notifications</h3>
+                    <span id="mobilePushBadge" class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Checking Device...</span>
+                </div>
+                <p id="mobilePushDesc" class="text-xs text-slate-300 mt-1 leading-relaxed">
+                    Receive instant alerts on your phone screen outside the app when you are selected, shortlisted, or when new opportunities match.
+                </p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+            <button id="enableMobilePushBtn" type="button" onclick="requestMentryDeviceNotifications()" class="hidden bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
+                <span class="material-symbols-outlined text-[16px]">notifications</span>
+                <span>Enable Mobile Alerts</span>
+            </button>
+            <button id="testMobilePushBtn" type="button" onclick="sendTestDeviceNotification()" class="hidden bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer">
+                <span class="material-symbols-outlined text-[16px]">send_to_mobile</span>
+                <span>Send Test Alert to Phone</span>
+            </button>
+        </div>
+    </div>
+
     <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card divide-y divide-slate-100 overflow-hidden min-w-0">
         <?php if (empty($notifications)): ?>
             <div class="p-12 text-center text-xs text-slate-400">

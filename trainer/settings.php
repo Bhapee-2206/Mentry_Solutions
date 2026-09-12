@@ -198,8 +198,8 @@ $prefs = array_merge([
                         <div>
                             <div class="flex items-center gap-2">
                                 <h4 class="font-bold text-xs sm:text-sm text-slate-900">Browser & PWA Push Notifications</h4>
-                                <button type="button" onclick="if (typeof window.showPushBanner === 'function') { window.showPushBanner(true); } else if (typeof window.enablePushNotifications === 'function') { window.enablePushNotifications(); }" class="text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors cursor-pointer" title="Test browser permission">
-                                    Test / Enable Push
+                                <button type="button" onclick="if (typeof window.sendTestDeviceNotification === 'function' && window.Notification && window.Notification.permission === 'granted') { window.sendTestDeviceNotification(); } else if (typeof window.requestMentryDeviceNotifications === 'function') { window.requestMentryDeviceNotifications(); } else if (typeof window.enablePushNotifications === 'function') { window.enablePushNotifications(); }" class="text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-0.5 rounded-md transition-colors cursor-pointer" title="Test mobile push alert">
+                                    Test Alert on Phone
                                 </button>
                             </div>
                             <p class="text-xs text-slate-500 mt-0.5">Receive real-time instant alerts on your phone or computer screen when openings match your skills.</p>

@@ -103,6 +103,10 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <span class="material-symbols-outlined text-[16px]">edit</span>
                 Edit Trainer Details
             </button>
+            <button type="button" onclick="sendAdminTestAlertToTrainer('<?= $trainerId ?>', '<?= htmlspecialchars(addslashes($u['name'] ?? 'Trainer')) ?>')" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer" title="Send a real-time push notification test directly to this trainer's phone">
+                <span class="material-symbols-outlined text-[16px]">notifications_active</span>
+                <span>Send Live Alert Test</span>
+            </button>
         </div>
     </div>
 
@@ -1077,6 +1081,24 @@ function closeAdminDocViewer() {
     const iframe = document.getElementById('adminDocViewerIframe');
     if (iframe) iframe.src = 'about:blank';
     if (modal) modal.classList.add('hidden');
+}
+
+function sendAdminTestAlertToTrainer(trainerId, trainerName) {
+    if (!confirm('Send an instant live push alert to ' + trainerName + '\'s phone and account?')) return;
+    fetch('/actions/send-test-trainer-notification.php?trainerId=' + encodeURIComponent(trainerId), {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('✓ Success! Live notification sent to ' + trainerName + '.\nIt will pop on their device and appear in their notifications.');
+        } else {
+            alert('Notice: ' + (data.error || 'Failed to dispatch alert.'));
+        }
+    })
+    .catch(err => {
+        alert('Could not dispatch alert: ' + err.message);
+    });
 }
 </script>
 

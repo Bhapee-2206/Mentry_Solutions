@@ -44,7 +44,68 @@
         }
     }
 
-    // 2. Floating Toast Notification Container
+    // 2. Native Mobile / OS System Notification Trigger (PWA notification drawer & lock screen outside the app)
+    function triggerNativeSystemNotification(options) {
+        if (!('Notification' in window)) return;
+        if (Notification.permission !== 'granted') return;
+
+        const title = options.title || 'Mentry Solutions';
+        const body = options.message || options.body || 'New update on your training portal.';
+        const targetUrl = options.link || options.url || '/trainer/notifications.php';
+        const tag = 'mentry-' + (options.id || Date.now());
+
+        const notifPayload = {
+            title: title,
+            body: body,
+            icon: '/public/icon-192.png',
+            badge: '/public/icon-192.png',
+            tag: tag,
+            renotify: true,
+            vibrate: [200, 100, 200],
+            url: targetUrl
+        };
+
+        // If Service Worker is available, dispatch through SW (required for Android & iOS PWA notification shade outside the app)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then((reg) => {
+                if (reg && reg.showNotification) {
+                    reg.showNotification(title, {
+                        body: body,
+                        icon: '/public/icon-192.png',
+                        badge: '/public/icon-192.png',
+                        tag: tag,
+                        renotify: true,
+                        vibrate: [200, 100, 200],
+                        data: { url: targetUrl },
+                        actions: [{ action: 'open', title: 'Open Mentry' }]
+                    });
+                } else if (reg && reg.active) {
+                    reg.active.postMessage({
+                        type: 'SHOW_NOTIFICATION',
+                        payload: notifPayload
+                    });
+                }
+            }).catch(() => {
+                try {
+                    new Notification(title, {
+                        body: body,
+                        icon: '/public/icon-192.png',
+                        tag: tag
+                    });
+                } catch(e) {}
+            });
+        } else {
+            try {
+                new Notification(title, {
+                    body: body,
+                    icon: '/public/icon-192.png',
+                    tag: tag
+                });
+            } catch(e) {}
+        }
+    }
+
+    // 3. Floating Toast Notification Container
     function getOrCreateToastContainer() {
         let container = document.getElementById('mentryLiveToastContainer');
         if (!container) {
@@ -253,8 +314,6 @@
     // 7. Core Background Poll
     async function pollLiveSync() {
         if (isPolling) return;
-        // If tab is hidden in background, slow down polling to save resources
-        if (document.hidden) return;
 
         isPolling = true;
         try {
@@ -273,19 +332,41 @@
                 // A. Update live badge counts
                 updateNotificationBadges(data.unreadCount);
 
-                // B. Pop live toasts for new notifications
+                // B. Pop live toasts AND native mobile OS notifications
                 if (Array.isArray(data.newNotifications)) {
                     data.newNotifications.forEach(n => {
                         if (!seenNotifIds.has(n.id)) {
                             seenNotifIds.add(n.id);
                             showLiveToast(n);
+                            triggerNativeSystemNotification(n);
                         }
                     });
                 }
 
-                // C. Update application cards live
-                if (data.applicationUpdates) {
+                // C. Update application cards live AND trigger native device notification
+                if (data.applicationUpdates && Array.isArray(data.applicationUpdates)) {
                     handleApplicationUpdates(data.applicationUpdates);
+                    data.applicationUpdates.forEach(app => {
+                        const appKey = 'app_' + app.applicationId + '_' + app.status;
+                        if (!seenNotifIds.has(appKey)) {
+                            seenNotifIds.add(appKey);
+                            let notifTitle = 'Application Status Update';
+                            let notifMsg = `Your application for ${app.opportunityTitle} is now ${app.status}.`;
+                            if (app.status === 'ACCEPTED') {
+                                notifTitle = `🎉 Application Accepted: ${app.opportunityTitle}`;
+                                notifMsg = 'Congratulations! Your application has been ACCEPTED by Mentry Operations.';
+                            } else if (app.status === 'SHORTLISTED') {
+                                notifTitle = `⭐ Shortlisted: ${app.opportunityTitle}`;
+                                notifMsg = 'Great news! You have been SHORTLISTED for this assignment.';
+                            }
+                            triggerNativeSystemNotification({
+                                id: appKey,
+                                title: notifTitle,
+                                message: notifMsg,
+                                link: '/trainer/applications.php'
+                            });
+                        }
+                    });
                 }
 
                 // D. Update new opportunities
@@ -312,9 +393,9 @@
     // Start polling with initial delay
     setTimeout(pollLiveSync, 1500);
 
-    // Dynamic Interval: 7 seconds active, 25 seconds when in background
+    // Dynamic Interval: 6 seconds active, 15 seconds when tab/PWA is in background
     function scheduleNextPoll() {
-        const delay = document.hidden ? 25000 : 7000;
+        const delay = document.hidden ? 15000 : 6000;
         clearTimeout(pollTimer);
         pollTimer = setTimeout(async () => {
             await pollLiveSync();
@@ -332,6 +413,100 @@
         }
     });
 
-    // Expose utility to trigger immediate check
+    // Expose utility to trigger immediate check and test mobile push
     window.triggerLiveSyncCheck = pollLiveSync;
+    window.triggerNativeNotification = triggerNativeSystemNotification;
+
+    window.updateDeviceNotificationUI = function() {
+        const badge = document.getElementById('mobilePushBadge');
+        const desc = document.getElementById('mobilePushDesc');
+        const enableBtn = document.getElementById('enableMobilePushBtn');
+        const testBtn = document.getElementById('testMobilePushBtn');
+        const iconBox = document.getElementById('mobilePushIconBox');
+
+        if (!badge) return;
+
+        if (!('Notification' in window)) {
+            badge.textContent = 'NOT SUPPORTED';
+            badge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-700 text-slate-300';
+            if (desc) desc.textContent = 'This browser does not support web notifications.';
+            if (enableBtn) enableBtn.classList.add('hidden');
+            if (testBtn) testBtn.classList.add('hidden');
+            return;
+        }
+
+        if (Notification.permission === 'granted') {
+            badge.textContent = '✓ ACTIVE ON THIS DEVICE';
+            badge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+            if (desc) desc.textContent = 'Mobile device alerts are active! Real-time notifications will pop on your phone screen outside the app.';
+            if (enableBtn) enableBtn.classList.add('hidden');
+            if (testBtn) testBtn.classList.remove('hidden');
+            if (iconBox) {
+                iconBox.className = 'w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0';
+            }
+        } else if (Notification.permission === 'denied') {
+            badge.textContent = 'BLOCKED IN BROWSER';
+            badge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30';
+            if (desc) desc.textContent = 'Notifications are blocked in your browser settings. Please allow notifications for Mentry in your browser address bar.';
+            if (enableBtn) enableBtn.classList.add('hidden');
+            if (testBtn) testBtn.classList.add('hidden');
+        } else {
+            badge.textContent = 'DISABLED ON THIS DEVICE';
+            badge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
+            if (desc) desc.textContent = 'Tap Enable to receive alerts on your phone lock screen & notification bar outside the app.';
+            if (enableBtn) enableBtn.classList.remove('hidden');
+            if (testBtn) testBtn.classList.add('hidden');
+        }
+    };
+
+    window.requestMentryDeviceNotifications = function() {
+        if (!('Notification' in window)) {
+            alert('Notifications are not supported on this browser.');
+            return;
+        }
+
+        Notification.requestPermission().then((permission) => {
+            if (typeof window.updateDeviceNotificationUI === 'function') {
+                window.updateDeviceNotificationUI();
+            }
+            if (permission === 'granted') {
+                window.sendTestDeviceNotification();
+            } else if (permission === 'denied') {
+                alert('Notifications were blocked. Please tap the lock icon in your browser address bar to allow notifications.');
+            }
+        });
+    };
+
+    window.sendTestDeviceNotification = function() {
+        if (!('Notification' in window)) {
+            alert('Notifications not supported by this browser.');
+            return;
+        }
+
+        if (Notification.permission !== 'granted') {
+            window.requestMentryDeviceNotifications();
+            return;
+        }
+
+        triggerNativeSystemNotification({
+            id: 'test_' + Date.now(),
+            title: '🎉 Mentry Notification Active!',
+            message: 'You will now receive alerts on your phone screen outside the app when selected or matched.',
+            link: '/trainer/notifications.php'
+        });
+
+        showLiveToast({
+            title: 'Mobile Alert Sent',
+            message: 'Check your phone notification drawer or lock screen!',
+            link: '/trainer/notifications.php'
+        });
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof window.updateDeviceNotificationUI === 'function') window.updateDeviceNotificationUI();
+        });
+    } else {
+        if (typeof window.updateDeviceNotificationUI === 'function') window.updateDeviceNotificationUI();
+    }
 })();

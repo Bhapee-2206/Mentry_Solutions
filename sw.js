@@ -152,5 +152,30 @@ self.addEventListener('notificationclick', (event) => {
         return clients.openWindow(targetUrl);
       }
     })
-  );
 });
+
+// 6. Direct Client Notification Dispatch: Show native mobile/desktop notifications
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    const payload = event.data.payload || {};
+    const notificationOptions = {
+      body: payload.body || 'New update on your training portal.',
+      icon: payload.icon || '/public/icon-192.png',
+      badge: payload.badge || '/public/icon-192.png',
+      tag: payload.tag || ('mentry-' + Date.now()),
+      renotify: true,
+      vibrate: [200, 100, 200],
+      data: {
+        url: payload.url || '/'
+      },
+      actions: [
+        { action: 'open', title: 'Open Mentry' }
+      ]
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(payload.title || 'Mentry Solutions', notificationOptions)
+    );
+  }
+});
+

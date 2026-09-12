@@ -327,15 +327,19 @@ if ($isAdminContext) {
                 pushBanner.classList.add('hidden');
                 pushBanner.classList.remove('block');
             }
+            if (typeof window.updateDeviceNotificationUI === 'function') {
+                window.updateDeviceNotificationUI();
+            }
             if (permission === 'granted') {
                 localStorage.removeItem('mentry_push_dismissed');
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.ready.then((reg) => {
                         subscribeUserToPush(reg);
                         reg.showNotification('Mentry Notifications Active! 🔔', {
-                            body: 'You will now receive real-time alerts for opportunities and assignments.',
-                            icon: '/public/mentry.png',
-                            badge: '/public/mentry.png'
+                            body: 'You will now receive real-time alerts on your phone screen for opportunities and selections.',
+                            icon: '/public/icon-192.png',
+                            badge: '/public/icon-192.png',
+                            vibrate: [200, 100, 200]
                         });
                     }).catch(() => {});
                 }
