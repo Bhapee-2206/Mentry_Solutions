@@ -1,5 +1,26 @@
 <?php
 // includes/pwa_install_prompt.php - Progressive Web App (A2HS) Prompt & Push Notification Controller
+
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    @session_start();
+}
+
+$isAdminContext = false;
+$reqUri = $_SERVER['REQUEST_URI'] ?? '';
+if (stripos($reqUri, '/admin') !== false) {
+    $isAdminContext = true;
+}
+if (!empty($_SESSION['user']['role']) && in_array(strtoupper($_SESSION['user']['role']), ['ADMIN', 'SUPER_ADMIN', 'STAFF'])) {
+    $isAdminContext = true;
+}
+if (function_exists('isAdminOrStaff') && isAdminOrStaff()) {
+    $isAdminContext = true;
+}
+
+if ($isAdminContext) {
+    echo '<script>window.promptPWAInstall = function() { /* PWA disabled for Admin */ };</script>';
+    return;
+}
 ?>
 <!-- PWA Install Floating Banner -->
 <div id="mentryPwaBanner" class="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:w-96 z-50 transform translate-y-32 opacity-0 transition-all duration-300 pointer-events-none select-none">
