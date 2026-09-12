@@ -13,9 +13,43 @@ $maintConfig = getMaintenanceConfig();
 $isMaintActive = !empty($maintConfig['maintenance_mode']);
 $maintFlash = $_SESSION['maint_flash'] ?? null;
 unset($_SESSION['maint_flash']);
+
+$notifFlash = null;
+$configCol = getCollection("SystemConfig");
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_admin_notifs') {
+    $masterEnabled = isset($_POST['master_enabled']);
+    $adminNotifPrefs = [
+        'key' => 'notification_settings',
+        'master_enabled' => $masterEnabled,
+        'alert_new_trainers' => $masterEnabled && isset($_POST['alert_new_trainers']),
+        'alert_new_requirements' => $masterEnabled && isset($_POST['alert_new_requirements']),
+        'alert_new_applications' => $masterEnabled && isset($_POST['alert_new_applications']),
+        'alert_sound' => $masterEnabled && isset($_POST['alert_sound']),
+        'updated_at' => date('Y-m-d H:i:s')
+    ];
+    if ($configCol) {
+        $existing = $configCol->findOne(['key' => 'notification_settings']);
+        if ($existing) {
+            $configCol->updateOne(['key' => 'notification_settings'], ['$set' => $adminNotifPrefs]);
+        } else {
+            $configCol->insertOne($adminNotifPrefs);
+        }
+    }
+    $notifFlash = "Platform notification preferences updated successfully!";
+}
+
+$notifConfig = $configCol ? $configCol->findOne(['key' => 'notification_settings']) : null;
+$adminPrefs = array_merge([
+    'master_enabled' => true,
+    'alert_new_trainers' => true,
+    'alert_new_requirements' => true,
+    'alert_new_applications' => true,
+    'alert_sound' => true
+], is_array($notifConfig) ? $notifConfig : []);
 ?>
 
-<div class="space-y-6 max-w-full overflow-hidden">
+<div class="space-y-6 max-w-full overflow-hidden pb-12">
     <div>
         <h1 class="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Platform Settings & Audit Stream</h1>
         <p class="text-xs md:text-sm text-slate-500 mt-0.5">Control live website status, review operational security logs, and environment configuration.</p>
@@ -27,6 +61,13 @@ unset($_SESSION['maint_flash']);
                 <?= $isMaintActive ? 'engineering' : 'check_circle' ?>
             </span>
             <span><?= htmlspecialchars($maintFlash) ?></span>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($notifFlash): ?>
+        <div class="p-4 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs font-bold flex items-center gap-3 animate-in fade-in">
+            <span class="material-symbols-outlined text-xl text-emerald-600">check_circle</span>
+            <span><?= htmlspecialchars($notifFlash) ?></span>
         </div>
     <?php endif; ?>
 
@@ -91,6 +132,107 @@ unset($_SESSION['maint_flash']);
             <span class="text-slate-300">•</span>
             <span class="text-[11px] text-slate-500">Cloud Status: <strong>Supabase Synced</strong></span>
         </div>
+    </div>
+
+    <!-- Platform Operational Notification & Alert Controls -->
+    <div class="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-2xl">campaign</span>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-sm sm:text-base text-slate-900">Platform Notification & Dispatch Settings</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Control live notifications dispatched across the platform to trainers, colleges, and administration.</p>
+                </div>
+            </div>
+
+            <!-- Master Status Badge -->
+            <div class="shrink-0">
+                <?php if (!empty($adminPrefs['master_enabled'])): ?>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Dispatches: ON (Broadcasting)
+                    </span>
+                <?php else: ?>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                        Dispatches: OFF (Muted)
+                    </span>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <form method="POST" action="/admin/settings.php" class="space-y-4">
+            <input type="hidden" name="action" value="save_admin_notifs">
+
+            <!-- Master Switch -->
+            <div class="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div>
+                    <span class="font-bold text-xs sm:text-sm text-slate-900 block">Master Notification Dispatch</span>
+                    <p class="text-[11px] sm:text-xs text-slate-500">Enable or disable all outbound automated emails, web push notifications, and alert badges globally.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input type="checkbox" name="master_enabled" value="1" <?= !empty($adminPrefs['master_enabled']) ? 'checked' : '' ?> class="sr-only peer">
+                    <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FE5E04]"></div>
+                </label>
+            </div>
+
+            <!-- Granular Alerts -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                <div class="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+                    <div>
+                        <h4 class="font-bold text-xs text-slate-900">New Trainer Registration Alerts</h4>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Admin notifications when a new technical trainer signs up.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" name="alert_new_trainers" value="1" <?= !empty($adminPrefs['alert_new_trainers']) ? 'checked' : '' ?> class="sr-only peer">
+                        <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+
+                <div class="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+                    <div>
+                        <h4 class="font-bold text-xs text-slate-900">College Requirement Alerts</h4>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Alerts when an institution submits a training demand.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" name="alert_new_requirements" value="1" <?= !empty($adminPrefs['alert_new_requirements']) ? 'checked' : '' ?> class="sr-only peer">
+                        <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                </div>
+
+                <div class="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+                    <div>
+                        <h4 class="font-bold text-xs text-slate-900">Trainer Proposal Submissions</h4>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Alerts when a trainer submits an application for an opportunity.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" name="alert_new_applications" value="1" <?= !empty($adminPrefs['alert_new_applications']) ? 'checked' : '' ?> class="sr-only peer">
+                        <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                </div>
+
+                <div class="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+                    <div>
+                        <h4 class="font-bold text-xs text-slate-900">Audible Browser Chime Alerts</h4>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Play subtle audio chime on incoming high-priority administrative alerts.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" name="alert_sound" value="1" <?= !empty($adminPrefs['alert_sound']) ? 'checked' : '' ?> class="sr-only peer">
+                        <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="pt-2 flex justify-end">
+                <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-[17px]">save</span>
+                    <span>Save Platform Notification Settings</span>
+                </button>
+            </div>
+        </form>
     </div>
 
     <!-- System Stat Strip -->

@@ -43,6 +43,12 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
             $userEmail = $user['email'] ?? '';
             $userName = $user['name'] ?? 'Trainer';
 
+            // Check trainer's notification preferences from settings
+            $trainerPrefs = $trainer['notificationPreferences'] ?? ($user['notificationPreferences'] ?? null);
+            if ($trainerPrefs && isset($trainerPrefs['all']) && !$trainerPrefs['all']) {
+                continue; // Master notifications toggled OFF by trainer!
+            }
+
             if (!empty($trainerUserId)) {
                 // Check if already notified
                 $existingNotif = $notifCol->findOne([
@@ -67,16 +73,18 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
                     $notifiedCount++;
                     $notifiedNames[] = $userName;
 
-                    // Send Web Push notification to trainer's mobile/desktop PWA
-                    @dispatchWebPushNotification(
-                        ['userId' => (string)$trainerUserId],
-                        'New ' . ($opp['domain'] ?? 'Tech') . ' Match: ' . $opp['title'],
-                        "Your profile scored {$score}% match for a {$opp['durationDays']}-day assignment in {$opp['city']}.",
-                        '/opportunity-details.php?id=' . (string)$opportunityId
-                    );
+                    // Send Web Push notification if enabled
+                    if (!$trainerPrefs || !empty($trainerPrefs['push_notifications'])) {
+                        @dispatchWebPushNotification(
+                            ['userId' => (string)$trainerUserId],
+                            'New ' . ($opp['domain'] ?? 'Tech') . ' Match: ' . $opp['title'],
+                            "Your profile scored {$score}% match for a {$opp['durationDays']}-day assignment in {$opp['city']}.",
+                            '/opportunity-details.php?id=' . (string)$opportunityId
+                        );
+                    }
 
-                    // Send email notification to top 3 matching trainers to avoid request timeout
-                    if ($notifiedCount <= 3 && !empty($userEmail)) {
+                    // Send email notification to top 3 matching trainers if enabled
+                    if ($notifiedCount <= 3 && !empty($userEmail) && (!$trainerPrefs || !empty($trainerPrefs['email_opportunities']))) {
                         @sendOpportunityMatchEmail($userEmail, $userName, $opp);
                     }
                 }
@@ -102,6 +110,15 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
  */
 function notifyAdmin($type, $title, $message, $link = '', $metadata = []) {
     try {
+        // Respect Admin notification master toggle from platform settings
+        $configCol = getCollection("SystemConfig");
+        if ($configCol) {
+            $cfg = $configCol->findOne(['key' => 'notification_settings']);
+            if ($cfg && isset($cfg['master_enabled']) && !$cfg['master_enabled']) {
+                return false; // Master admin notifications globally disabled
+            }
+        }
+
         $notifCol = getCollection("Notification");
         if (!$notifCol) return false;
 
