@@ -65,7 +65,7 @@
 </div>
 
 <!-- Reconnection Success Toast -->
-<div id="mentryOnlineToast" class="fixed top-4 inset-x-0 mx-auto max-w-xs z-[999998] px-3 hidden pointer-events-auto select-none transition-all duration-300">
+<div id="mentryOnlineToast" class="fixed top-4 inset-x-0 mx-auto max-w-xs z-[999998] px-3 hidden opacity-0 -translate-y-2 pointer-events-auto select-none transition-all duration-300">
     <div class="bg-emerald-600 text-white shadow-xl rounded-2xl px-4 py-2.5 flex items-center justify-center gap-2">
         <span class="material-symbols-outlined text-[18px]">wifi</span>
         <span class="text-xs font-bold">Back Online! Connection restored.</span>
@@ -85,11 +85,34 @@
 
     let isOfflineModalOpen = false;
     let isChecking = false;
+    let wasOffline = !navigator.onLine; // Only true if the user was genuinely offline
+    let toastTimer = null;
+    let onlineDebounceTimer = null;
+
+    function showOnlineToast() {
+        if (!onlineToast) return;
+        if (toastTimer) clearTimeout(toastTimer);
+
+        onlineToast.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            onlineToast.classList.remove('opacity-0', '-translate-y-2');
+            onlineToast.classList.add('opacity-100', 'translate-y-0');
+        });
+
+        toastTimer = setTimeout(() => {
+            onlineToast.classList.remove('opacity-100', 'translate-y-0');
+            onlineToast.classList.add('opacity-0', '-translate-y-2');
+            setTimeout(() => {
+                onlineToast.classList.add('hidden');
+            }, 300);
+        }, 3000);
+    }
 
     // Open Offline Modal
     window.showOfflineModal = function() {
         if (!backdrop) return;
         isOfflineModalOpen = true;
+        wasOffline = true;
         if (floatingBanner) floatingBanner.classList.add('hidden');
 
         // If loading splash screen is currently active, dismiss it so user isn't stuck on spinner
@@ -173,22 +196,23 @@
 
         if (retryLabel) retryLabel.textContent = 'Connected!';
 
+        const shouldShowToast = wasOffline;
+        wasOffline = false; // Reset state immediately so it will never repeat or blink
+
         // Smoothly close offline modal
         setTimeout(() => {
             window.dismissOfflineModal();
             if (floatingBanner) floatingBanner.classList.add('hidden');
 
-            // Show green reconnected toast
-            if (onlineToast) {
-                onlineToast.classList.remove('hidden');
-                setTimeout(() => {
-                    onlineToast.classList.add('hidden');
-                }, 3000);
+            // Show green reconnected toast ONCE only if genuinely previously offline
+            if (shouldShowToast) {
+                showOnlineToast();
             }
-        }, 500);
+        }, 400);
     }
 
     function handleConnectionFailed() {
+        wasOffline = true; // Genuinely confirmed offline
         if (statusBadge && statusText) {
             statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/80 transition-all';
             statusText.textContent = 'Still Offline — Network Unreachable';
@@ -203,27 +227,30 @@
 
     // Event listener: browser offline event
     window.addEventListener('offline', function() {
+        wasOffline = true;
         window.showOfflineModal();
     });
 
-    // Event listener: browser online event
+    // Event listener: browser online event (debounced to avoid multiple firings on mobile/Wi-Fi switch)
     window.addEventListener('online', function() {
-        window.checkMentryConnection(false);
+        if (!wasOffline) return; // Ignore if user was never offline
+        if (onlineDebounceTimer) clearTimeout(onlineDebounceTimer);
+        onlineDebounceTimer = setTimeout(() => {
+            window.checkMentryConnection(false);
+        }, 500);
     });
 
     // Check initial connection state on load
     if (!navigator.onLine) {
-        // Immediate launch offline: show modal
+        wasOffline = true;
         setTimeout(window.showOfflineModal, 150);
     }
 
-    // Periodic heartbeat check when offline to auto-recover when user reconnects
+    // Periodic heartbeat check ONLY when offline to auto-recover when user reconnects
     setInterval(function() {
-        if (!navigator.onLine || isOfflineModalOpen) {
-            if (navigator.onLine) {
-                window.checkMentryConnection(false);
-            }
+        if (wasOffline && navigator.onLine && !isChecking) {
+            window.checkMentryConnection(false);
         }
-    }, 4000);
+    }, 5000);
 })();
 </script>
