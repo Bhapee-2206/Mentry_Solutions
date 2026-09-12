@@ -232,7 +232,13 @@ $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => [
         ?>
             <div class="p-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
                 <div class="flex items-center gap-3">
-                    <img src="<?= htmlspecialchars(getUserAvatar($u, 80)) ?>" class="w-10 h-10 rounded-full object-cover border border-slate-200">
+                    <img src="<?= htmlspecialchars(getUserAvatar(!empty($rt['avatar']) ? $rt : ($u ?: 'Trainer'), 80)) ?>" 
+                         alt="<?= htmlspecialchars($u['name'] ?? 'Trainer') ?>"
+                         class="w-10 h-10 rounded-full object-cover border border-slate-200"
+                         style="object-position: center 15%;"
+                         referrerpolicy="no-referrer"
+                         loading="lazy"
+                         onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($u['name'] ?? 'Trainer') ?>&background=FE5E04&color=fff&size=80';">
                     <div>
                         <a href="/admin/trainer-view.php?id=<?= (string)$rt['_id'] ?>" class="font-bold text-xs text-slate-900 hover:text-blue-600">
                             <?= htmlspecialchars($u['name'] ?? 'Trainer') ?>

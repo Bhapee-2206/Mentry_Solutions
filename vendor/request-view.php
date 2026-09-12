@@ -153,8 +153,13 @@ if (!empty($req['skillsRequired'])) {
                     <span class="text-xs font-bold text-emerald-800">Deployment Confirmed ✓</span>
                 </div>
 
-                <div class="flex items-center gap-4 pt-1">
-                    <img src="<?= htmlspecialchars($assignedUser['avatar'] ?? "https://avatar.vercel.sh/" . urlencode($assignedUser['name']) . ".png") ?>" class="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-300">
+                    <img src="<?= htmlspecialchars(getUserAvatar($assignedUser, 120)) ?>" 
+                         alt="<?= htmlspecialchars($assignedUser['name'] ?? 'Faculty') ?>"
+                         class="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-300"
+                         style="object-position: center 15%;"
+                         referrerpolicy="no-referrer"
+                         loading="lazy"
+                         onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($assignedUser['name'] ?? 'Faculty') ?>&background=FE5E04&color=fff&size=120';">
                     <div>
                         <h4 class="font-black text-base text-slate-900"><?= htmlspecialchars($assignedUser['name']) ?></h4>
                         <p class="text-xs text-slate-600 font-medium"><?= htmlspecialchars($assignedTrainer['professionalTitle'] ?? 'Senior Faculty') ?> • <?= htmlspecialchars($assignedTrainer['currentCity'] ?? '') ?></p>

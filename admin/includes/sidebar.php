@@ -160,8 +160,12 @@ $navItems = [
     <!-- Admin User Info & Logout -->
     <div class="mt-auto pt-4 border-t border-slate-800/80 px-4 space-y-3">
         <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-[#FE5E04]/20 border border-[#FE5E04]/40 text-[#FE5E04] font-bold flex items-center justify-center text-xs">
-                <?= substr($adminUser['name'] ?? 'U', 0, 1) ?>
+            <div class="w-9 h-9 rounded-xl bg-[#FE5E04]/20 border border-[#FE5E04]/40 text-[#FE5E04] font-bold flex items-center justify-center text-xs overflow-hidden shrink-0">
+                <?php if (!empty($adminUser['avatar'])): ?>
+                    <img src="<?= htmlspecialchars($adminUser['avatar']) ?>" alt="<?= htmlspecialchars($adminUser['name'] ?? 'User') ?>" class="w-full h-full object-cover" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<?= substr($adminUser['name'] ?? 'U', 0, 1) ?>';">
+                <?php else: ?>
+                    <?= substr($adminUser['name'] ?? 'U', 0, 1) ?>
+                <?php endif; ?>
             </div>
             <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5">
@@ -240,8 +244,12 @@ $navItems = [
     <!-- Admin User Info & Logout -->
     <div class="mt-auto pt-4 border-t border-slate-800/80 px-4 space-y-3">
         <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-[#FE5E04]/20 border border-[#FE5E04]/40 text-[#FE5E04] font-bold flex items-center justify-center text-xs">
-                <?= substr($adminUser['name'] ?? 'U', 0, 1) ?>
+            <div class="w-9 h-9 rounded-xl bg-[#FE5E04]/20 border border-[#FE5E04]/40 text-[#FE5E04] font-bold flex items-center justify-center text-xs overflow-hidden shrink-0">
+                <?php if (!empty($adminUser['avatar'])): ?>
+                    <img src="<?= htmlspecialchars($adminUser['avatar']) ?>" alt="<?= htmlspecialchars($adminUser['name'] ?? 'User') ?>" class="w-full h-full object-cover" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<?= substr($adminUser['name'] ?? 'U', 0, 1) ?>';">
+                <?php else: ?>
+                    <?= substr($adminUser['name'] ?? 'U', 0, 1) ?>
+                <?php endif; ?>
             </div>
             <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5">

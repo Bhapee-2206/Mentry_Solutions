@@ -95,7 +95,13 @@ $acceptedApps = $appCol ? $appCol->countDocuments(['status' => 'ACCEPTED']) : 0;
                             <tr class="hover:bg-slate-50/60 transition-colors">
                                 <td class="py-4 px-5">
                                     <div class="flex items-center gap-3">
-                                        <img src="<?= htmlspecialchars($u['avatar'] ?? "https://avatar.vercel.sh/" . urlencode($u['name'] ?? 'T') . ".png") ?>" class="w-10 h-10 rounded-2xl object-cover border border-slate-200">
+                                        <img src="<?= htmlspecialchars(getUserAvatar(!empty($t['avatar']) ? $t : ($u ?: 'Trainer'), 80)) ?>" 
+                                             alt="<?= htmlspecialchars($u['name'] ?? 'Trainer') ?>"
+                                             class="w-10 h-10 rounded-2xl object-cover border border-slate-200"
+                                             style="object-position: center 15%;"
+                                             referrerpolicy="no-referrer"
+                                             loading="lazy"
+                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($u['name'] ?? 'Trainer') ?>&background=FE5E04&color=fff&size=80';">
                                         <div>
                                             <a href="/admin/trainer-view.php?id=<?= (string)$t['_id'] ?>" class="font-bold text-slate-900 hover:text-blue-600 block">
                                                 <?= htmlspecialchars($u['name'] ?? 'Trainer') ?>

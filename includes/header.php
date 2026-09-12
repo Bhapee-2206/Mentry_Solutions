@@ -328,9 +328,15 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                             <?php endif; ?>
                         </a>
 
-                        <!-- Dashboard Button (Matches Screenshot 2: Dark navy pill with grid icon & Dashboard label) -->
-                        <a href="<?= $dashboardUrl ?>" class="bg-[#182A4A] hover:bg-[#0F1B30] text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl transition-all shadow-sm flex items-center gap-1 sm:gap-1.5 shrink-0">
-                            <span class="material-symbols-outlined text-[16px] sm:text-[17px]">space_dashboard</span>
+                        <!-- Dashboard Button (With user profile avatar) -->
+                        <a href="<?= $dashboardUrl ?>" class="bg-[#182A4A] hover:bg-[#0F1B30] text-white text-[11px] sm:text-xs font-bold pl-1.5 sm:pl-2 pr-2.5 sm:pr-3.5 py-1 sm:py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 sm:gap-2 shrink-0 group">
+                            <img src="<?= htmlspecialchars(getUserAvatar($currentUser, 48)) ?>" 
+                                 alt="<?= htmlspecialchars($currentUser['name'] ?? 'User') ?>" 
+                                 class="w-6 h-6 rounded-full object-cover border border-white/20 bg-white/10 shrink-0"
+                                 style="object-position: center 15%;"
+                                 referrerpolicy="no-referrer"
+                                 loading="lazy"
+                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($currentUser['name'] ?? 'User') ?>&background=FE5E04&color=fff&size=48';">
                             <span>Dashboard</span>
                         </a>
                     <?php else: ?>
@@ -457,10 +463,17 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                 <?php if ($currentUser): ?>
                     <a href="<?= $dashboardUrl ?>" class="w-full flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-[#FE5E04] via-[#FF6A00] to-[#FF7D1A] text-white transition-all shadow-md shadow-orange-500/20 cursor-pointer">
                         <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
-                                <span class="material-symbols-outlined text-[20px] sm:text-[22px]">space_dashboard</span>
+                            <img src="<?= htmlspecialchars(getUserAvatar($currentUser, 64)) ?>" 
+                                 alt="<?= htmlspecialchars($currentUser['name'] ?? 'User') ?>" 
+                                 class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-cover border border-white/30 shrink-0 bg-white/20 shadow-xs"
+                                 style="object-position: center 15%;"
+                                 referrerpolicy="no-referrer"
+                                 loading="lazy"
+                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($currentUser['name'] ?? 'User') ?>&background=FE5E04&color=fff&size=64';">
+                            <div class="text-left leading-tight">
+                                <span class="text-sm sm:text-[15px] font-bold text-white block">Go to Dashboard</span>
+                                <span class="text-[11px] text-white/80 font-medium truncate max-w-[170px] block"><?= htmlspecialchars($currentUser['name'] ?? '') ?></span>
                             </div>
-                            <span class="text-sm sm:text-[15px] font-bold text-white">Go to Dashboard</span>
                         </div>
                         <span class="material-symbols-outlined text-white text-[18px] sm:text-[20px] shrink-0">chevron_right</span>
                     </a>

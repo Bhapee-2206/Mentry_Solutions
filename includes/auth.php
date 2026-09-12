@@ -168,24 +168,29 @@ function restoreSessionFromCookie() {
 function getLiveUserAvatar(string $userId): ?string {
     if (empty($userId)) return null;
     try {
+        $idQueries = [(string)$userId];
+        if (preg_match('/^[a-f\d]{24}$/i', $userId)) {
+            try { $idQueries[] = new MongoDB\BSON\ObjectId($userId); } catch (\Throwable $e) {}
+        }
+
+        // 1. Check Trainer collection by userId or _id
         $trainerCol = getCollection("Trainer");
         if ($trainerCol) {
-            $tQuery = ['userId' => (string)$userId];
-            if (preg_match('/^[a-f\d]{24}$/i', $userId)) {
-                $tQuery = ['$or' => [['userId' => (string)$userId], ['userId' => new MongoDB\BSON\ObjectId($userId)]]];
-            }
-            $tr = $trainerCol->findOne($tQuery);
+            $tr = $trainerCol->findOne([
+                '$or' => [
+                    ['userId' => ['$in' => $idQueries]],
+                    ['_id' => ['$in' => $idQueries]]
+                ]
+            ]);
             if ($tr && !empty($tr['avatar']) && strpos($tr['avatar'], 'ui-avatars.com') === false && strpos($tr['avatar'], 'avatar.vercel.sh') === false) {
                 return (string)$tr['avatar'];
             }
         }
+
+        // 2. Check User collection by _id
         $userCol = getCollection("User");
         if ($userCol) {
-            $uQuery = ['_id' => (string)$userId];
-            if (preg_match('/^[a-f\d]{24}$/i', $userId)) {
-                $uQuery = ['$or' => [['_id' => (string)$userId], ['_id' => new MongoDB\BSON\ObjectId($userId)]]];
-            }
-            $u = $userCol->findOne($uQuery);
+            $u = $userCol->findOne(['_id' => ['$in' => $idQueries]]);
             if ($u && !empty($u['avatar']) && strpos($u['avatar'], 'ui-avatars.com') === false && strpos($u['avatar'], 'avatar.vercel.sh') === false) {
                 return (string)$u['avatar'];
             }

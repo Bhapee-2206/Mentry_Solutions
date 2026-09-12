@@ -657,11 +657,13 @@ if (!empty($recentActivities)) {
                                             <div class="flex items-center gap-3">
                                                 <!-- Logo/Avatar Box -->
                                                 <div class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
-                                                    <?php if (!empty($u['avatar']) && strpos($u['avatar'], 'http') === 0): ?>
-                                                        <img src="<?= htmlspecialchars($u['avatar']) ?>" alt="<?= htmlspecialchars($trainerName) ?>" class="w-full h-full object-cover">
-                                                    <?php else: ?>
-                                                        <img src="/public/mentry.png" alt="Mentry" class="w-7 h-7 object-contain">
-                                                    <?php endif; ?>
+                                                    <img src="<?= htmlspecialchars(getUserAvatar(!empty($t['avatar']) ? $t : ($u ?: ['name' => $trainerName]), 80)) ?>" 
+                                                         alt="<?= htmlspecialchars($trainerName) ?>" 
+                                                         class="w-full h-full object-cover" 
+                                                         style="object-position: center 15%;"
+                                                         referrerpolicy="no-referrer" 
+                                                         loading="lazy" 
+                                                         onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($trainerName) ?>&background=FE5E04&color=fff&size=80';">
                                                 </div>
 
                                                 <div class="min-w-0">

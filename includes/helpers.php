@@ -455,6 +455,17 @@ function getUserAvatar($userOrName, $size = 128) {
         $arr = (array)$userOrName;
         $avatar = $arr['avatar'] ?? ($arr['logo'] ?? null);
         $name = $arr['name'] ?? ($arr['organizationName'] ?? 'Trainer');
+
+        // If avatar is missing or a default placeholder, check database for live uploaded avatar
+        if (empty($avatar) || strpos($avatar, 'ui-avatars.com') !== false || strpos($avatar, 'avatar.vercel.sh') !== false) {
+            $targetId = $arr['id'] ?? ($arr['_id'] ?? ($arr['userId'] ?? null));
+            if (!empty($targetId) && function_exists('getLiveUserAvatar')) {
+                $dbAvatar = getLiveUserAvatar((string)$targetId);
+                if (!empty($dbAvatar)) {
+                    $avatar = $dbAvatar;
+                }
+            }
+        }
     } elseif (is_string($userOrName)) {
         if (strpos($userOrName, 'http') === 0 || strpos($userOrName, '/public/') === 0 || strpos($userOrName, 'data:') === 0) {
             return $userOrName;
@@ -470,8 +481,8 @@ function getUserAvatar($userOrName, $size = 128) {
     $cleanName = trim(preg_replace('/[^a-zA-Z0-9\s]/', '', $name));
     if (empty($cleanName)) $cleanName = 'Trainer';
 
-    // Generates a crisp, elegant initials avatar with rich brand colors
-    return "https://ui-avatars.com/api/?name=" . urlencode($cleanName) . "&background=2563EB&color=ffffff&bold=true&size=" . (int)$size . "&font-size=0.42";
+    // Generates a crisp, elegant initials avatar with rich brand colors (#FE5E04)
+    return "https://ui-avatars.com/api/?name=" . urlencode($cleanName) . "&background=FE5E04&color=ffffff&bold=true&size=" . (int)$size . "&font-size=0.42";
 }
 
 /**

@@ -4,6 +4,14 @@ require_once __DIR__ . '/../../includes/auth.php';
 requireTrainer();
 
 $user = getCurrentUser();
+// Ensure trainer's avatar is synced from database
+if (!empty($user['id'])) {
+    $dbAvatar = getLiveUserAvatar((string)$user['id']);
+    if (!empty($dbAvatar)) {
+        $user['avatar'] = $dbAvatar;
+        $_SESSION['user']['avatar'] = $dbAvatar;
+    }
+}
 $currentPage = basename($_SERVER['PHP_SELF']);
 
 $unreadTrainerNotifs = 0;
@@ -118,19 +126,35 @@ $navItems = [
     </div>
 
     <!-- Bottom Settings & Logout -->
-        <button type="button" onclick="window.promptPWAInstall()" class="w-full text-left rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-[#FE5E04] hover:bg-[#FE5E04]/10 cursor-pointer" title="Install Mentry App">
+    <div class="mt-auto pt-3 border-t border-slate-800/80 px-3 space-y-1">
+        <!-- Trainer Profile Pill Card -->
+        <a href="/trainer/profile.php" class="p-2 rounded-xl bg-slate-800/50 hover:bg-slate-800/90 border border-slate-700/60 flex items-center gap-2.5 transition-all group mb-2">
+            <img src="<?= htmlspecialchars(getUserAvatar($user, 72)) ?>" 
+                 alt="<?= htmlspecialchars($user['name'] ?? 'Trainer') ?>" 
+                 referrerpolicy="no-referrer"
+                 loading="lazy"
+                 onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?= urlencode($user['name'] ?? 'Trainer') ?>&background=FE5E04&color=ffffff&bold=true&size=72';" 
+                 class="w-8 h-8 rounded-lg object-cover border border-slate-600 group-hover:border-[#FE5E04] transition-colors shrink-0">
+            <div class="min-w-0 flex-1 text-left">
+                <p class="text-xs font-bold text-white truncate group-hover:text-[#FE5E04] transition-colors"><?= htmlspecialchars($user['name'] ?? 'Trainer') ?></p>
+                <p class="text-[10px] text-slate-400 truncate"><?= htmlspecialchars($user['email'] ?? '') ?></p>
+            </div>
+            <span class="material-symbols-outlined text-[15px] text-slate-400 group-hover:text-white transition-colors">chevron_right</span>
+        </a>
+
+        <button type="button" onclick="window.promptPWAInstall()" class="w-full text-left rounded-xl flex items-center px-3.5 py-2 transition-all text-xs font-semibold text-[#FE5E04] hover:bg-[#FE5E04]/10 cursor-pointer" title="Install Mentry App">
             <span class="material-symbols-outlined mr-3 text-[18px]">install_mobile</span>
             <span>Install Mobile App</span>
         </button>
-        <a href="/index.php" class="rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white">
+        <a href="/index.php" class="rounded-xl flex items-center px-3.5 py-2 transition-all text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white">
             <span class="material-symbols-outlined mr-3 text-[18px]">home</span>
             <span>Website Home</span>
         </a>
-        <a href="/trainer/settings.php" class="rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white">
+        <a href="/trainer/settings.php" class="rounded-xl flex items-center px-3.5 py-2 transition-all text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white">
             <span class="material-symbols-outlined mr-3 text-[18px]">settings</span>
             <span>Settings</span>
         </a>
-        <a href="/logout.php" class="rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-rose-400 hover:bg-rose-950/40 hover:text-rose-300">
+        <a href="/logout.php" class="rounded-xl flex items-center px-3.5 py-2 transition-all text-xs font-semibold text-rose-400 hover:bg-rose-950/40 hover:text-rose-300">
             <span class="material-symbols-outlined mr-3 text-[18px]">logout</span>
             <span>Sign Out</span>
         </a>
@@ -181,9 +205,14 @@ $navItems = [
 
             <!-- Trainer Profile Pill -->
             <a href="/trainer/profile.php" class="flex items-center gap-2.5 p-1 sm:pr-3 rounded-full hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200">
-                <img src="<?= htmlspecialchars(getUserAvatar($user, 72)) ?>" alt="<?= htmlspecialchars($user['name']) ?>" class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-2xs">
+                <img src="<?= htmlspecialchars(getUserAvatar($user, 72)) ?>" 
+                     alt="<?= htmlspecialchars($user['name'] ?? 'Trainer') ?>" 
+                     referrerpolicy="no-referrer"
+                     loading="lazy"
+                     onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?= urlencode($user['name'] ?? 'Trainer') ?>&background=FE5E04&color=ffffff&bold=true&size=72';" 
+                     class="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-2xs">
                 <div class="hidden sm:block text-left">
-                    <p class="text-xs font-bold text-slate-900 leading-tight truncate max-w-[140px]"><?= htmlspecialchars($user['name']) ?></p>
+                    <p class="text-xs font-bold text-slate-900 leading-tight truncate max-w-[140px]"><?= htmlspecialchars($user['name'] ?? 'Trainer') ?></p>
                     <p class="text-[10px] text-slate-400 font-medium leading-tight"><?= $isAdminViewing ? 'Admin Linked Profile' : 'Trainer Profile' ?></p>
                 </div>
             </a>
@@ -215,10 +244,15 @@ $navItems = [
 
             <!-- Trainer Info Card -->
             <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-3 mb-4 flex items-center gap-3">
-                <img src="<?= htmlspecialchars(getUserAvatar($user, 72)) ?>" alt="<?= htmlspecialchars($user['name']) ?>" class="w-9 h-9 rounded-full object-cover border border-slate-600 shrink-0">
+                <img src="<?= htmlspecialchars(getUserAvatar($user, 72)) ?>" 
+                     alt="<?= htmlspecialchars($user['name'] ?? 'Trainer') ?>" 
+                     referrerpolicy="no-referrer"
+                     loading="lazy"
+                     onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?= urlencode($user['name'] ?? 'Trainer') ?>&background=FE5E04&color=ffffff&bold=true&size=72';" 
+                     class="w-9 h-9 rounded-full object-cover border border-slate-600 shrink-0">
                 <div class="min-w-0 flex-1">
-                    <p class="text-xs font-bold text-white truncate"><?= htmlspecialchars($user['name']) ?></p>
-                    <p class="text-[10px] text-slate-400 truncate"><?= htmlspecialchars($user['email']) ?></p>
+                    <p class="text-xs font-bold text-white truncate"><?= htmlspecialchars($user['name'] ?? 'Trainer') ?></p>
+                    <p class="text-[10px] text-slate-400 truncate"><?= htmlspecialchars($user['email'] ?? '') ?></p>
                 </div>
             </div>
 

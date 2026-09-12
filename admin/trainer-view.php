@@ -64,6 +64,8 @@ if (!$u) {
         'phone' => $trainer['phone'] ?? '+91 98450 00000',
         'avatar' => $trainer['avatar'] ?? null
     ];
+} elseif (!empty($trainer['avatar']) && (empty($u['avatar']) || strpos($u['avatar'], 'ui-avatars.com') !== false || strpos($u['avatar'], 'avatar.vercel.sh') !== false)) {
+    $u['avatar'] = $trainer['avatar'];
 }
 
 $skills = $skillCol ? $skillCol->find(['trainerId' => $trainerId])->toArray() : [];
@@ -107,8 +109,13 @@ require_once __DIR__ . '/includes/sidebar.php';
     <!-- Top Profile Banner -->
     <div class="bg-white rounded-3xl border border-slate-200/90 p-8 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div class="flex items-center gap-5">
-            <div class="shrink-0 relative group cursor-pointer" onclick="openPhotoLightbox()" title="Click to Zoom Trainer Photo">
-                <img src="<?= htmlspecialchars(getUserAvatar($u, 400)) ?>" class="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-2 border-slate-200 shadow-md group-hover:scale-105 transition-all" style="object-position: center 15%;">
+                <img src="<?= htmlspecialchars(getUserAvatar($u, 400)) ?>" 
+                     alt="<?= htmlspecialchars($u['name'] ?? 'Trainer') ?>"
+                     class="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-2 border-slate-200 shadow-md group-hover:scale-105 transition-all" 
+                     style="object-position: center 15%;"
+                     referrerpolicy="no-referrer"
+                     loading="lazy"
+                     onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($u['name'] ?? 'Trainer') ?>&background=FE5E04&color=fff&size=400';">
                 <div class="absolute inset-0 bg-slate-950/65 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold p-1 text-center backdrop-blur-2xs gap-1">
                     <span class="material-symbols-outlined text-lg">zoom_in</span>
                     <span>Click to Zoom</span>
@@ -1000,7 +1007,12 @@ require_once __DIR__ . '/includes/sidebar.php';
             </a>
         </div>
         <div class="overflow-hidden rounded-2xl bg-black/50 border border-slate-800 flex items-center justify-center p-2 w-full max-h-[70vh]">
-            <img id="photoLightboxImg" src="<?= htmlspecialchars(getUserAvatar($u, 800)) ?>" alt="Trainer Headshot" class="max-h-[65vh] w-auto object-contain rounded-xl transition-transform duration-300 shadow-lg">
+            <img id="photoLightboxImg" 
+                 src="<?= htmlspecialchars(getUserAvatar($u, 800)) ?>" 
+                 alt="Trainer Headshot" 
+                 class="max-h-[65vh] w-auto object-contain rounded-xl transition-transform duration-300 shadow-lg"
+                 referrerpolicy="no-referrer"
+                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($u['name'] ?? 'Trainer') ?>&background=FE5E04&color=fff&size=800';">
         </div>
     </div>
 </div>

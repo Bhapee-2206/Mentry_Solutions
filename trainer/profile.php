@@ -2,9 +2,12 @@
 // trainer/profile.php
 $pageTitle = "My Trainer Profile";
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/locations.php';
-require_once __DIR__ . '/includes/sidebar.php';
+
+requireTrainer();
+$user = getCurrentUser();
 
 $trainerCol = getCollection("Trainer");
 $tFindQuery = ['userId' => (string)$user['id']];
@@ -21,6 +24,8 @@ if ($trainer && !empty($trainer['avatar']) && strpos($trainer['avatar'], 'ui-ava
         setPersistentSessionCookie($_SESSION['user']);
     }
 }
+
+require_once __DIR__ . '/includes/sidebar.php';
 
 $saved = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -216,7 +221,12 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
                 <?php 
                 $profileAvatar = (!empty($trainer['avatar']) && strpos($trainer['avatar'], 'ui-avatars.com') === false) ? $trainer['avatar'] : $user;
                 ?>
-                <img src="<?= htmlspecialchars(getUserAvatar($profileAvatar, 200)) ?>" class="w-24 h-24 rounded-3xl object-cover border-2 border-slate-200 shadow-md" style="object-position: center 15%;">
+                <img src="<?= htmlspecialchars(getUserAvatar($profileAvatar, 200)) ?>" 
+                     alt="<?= htmlspecialchars($user['name'] ?? 'Trainer') ?>" 
+                     referrerpolicy="no-referrer"
+                     loading="lazy"
+                     onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?= urlencode($user['name'] ?? 'Trainer') ?>&background=FE5E04&color=ffffff&bold=true&size=200';" 
+                     class="w-24 h-24 rounded-3xl object-cover border-2 border-slate-200 shadow-md" style="object-position: center 15%;">
             </div>
 
             <div class="space-y-2 flex-1 text-center sm:text-left min-w-0 w-full">

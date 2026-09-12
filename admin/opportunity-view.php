@@ -325,7 +325,13 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                 ?>
                     <div class="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div class="flex items-start gap-4">
-                            <img src="<?= htmlspecialchars($u['avatar'] ?? "https://avatar.vercel.sh/" . urlencode($u['name'] ?? 'T') . ".png") ?>" class="w-12 h-12 rounded-2xl object-cover border border-slate-200 shrink-0">
+                            <img src="<?= htmlspecialchars(getUserAvatar(!empty($t['avatar']) ? $t : ($u ?: 'Trainer'), 100)) ?>" 
+                                 alt="<?= htmlspecialchars($u['name'] ?? 'Trainer') ?>"
+                                 class="w-12 h-12 rounded-2xl object-cover border border-slate-200 shrink-0"
+                                 style="object-position: center 15%;"
+                                 referrerpolicy="no-referrer"
+                                 loading="lazy"
+                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($u['name'] ?? 'Trainer') ?>&background=FE5E04&color=fff&size=100';">
                             <div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <h4 class="font-bold text-sm text-slate-900"><?= htmlspecialchars($u['name'] ?? 'Trainer') ?></h4>
@@ -429,7 +435,13 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                 ?>
                     <div class="py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50/50 p-3 rounded-2xl transition-colors">
                         <div class="flex items-start gap-4">
-                            <img src="<?= htmlspecialchars($mu['avatar'] ?? "https://avatar.vercel.sh/" . urlencode($mu['name'] ?? 'T') . ".png") ?>" class="w-12 h-12 rounded-2xl object-cover border border-slate-200 shrink-0 mt-0.5">
+                            <img src="<?= htmlspecialchars(getUserAvatar(!empty($mt['avatar']) ? $mt : ($mu ?: 'Trainer'), 100)) ?>" 
+                                 alt="<?= htmlspecialchars($mu['name'] ?? 'Trainer') ?>"
+                                 class="w-12 h-12 rounded-2xl object-cover border border-slate-200 shrink-0 mt-0.5"
+                                 style="object-position: center 15%;"
+                                 referrerpolicy="no-referrer"
+                                 loading="lazy"
+                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($mu['name'] ?? 'Trainer') ?>&background=FE5E04&color=fff&size=100';">
                             <div class="space-y-1">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <h4 class="font-bold text-sm text-slate-900"><?= htmlspecialchars($mu['name'] ?? 'Trainer') ?></h4>
