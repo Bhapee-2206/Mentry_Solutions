@@ -312,4 +312,6 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
     </script>
 </header>
 
+<?php require_once __DIR__ . '/download_loader.php'; ?>
+
 <main class="flex-grow">

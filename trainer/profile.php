@@ -250,9 +250,13 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
                 $trainerIdStr = (string)($trainer['_id'] ?? '');
             ?>
                 <div class="flex flex-wrap items-center gap-2">
-                    <a href="/actions/download-trainer-profile.php?id=<?= $trainerIdStr ?>" class="bg-[#FE5E04] hover:bg-[#e05202] text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 shrink-0" title="Download Official Trainer Profile Dossier PDF">
+                    <a href="/actions/download-trainer-profile.php?id=<?= $trainerIdStr ?>" class="bg-[#FE5E04] hover:bg-[#e05202] text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 shrink-0" title="Download Official Trainer Profile Dossier PDF (Includes Photo)">
                         <span class="material-symbols-outlined text-[16px]">download</span>
                         Download Profile
+                    </a>
+                    <a href="/actions/download-trainer-profile.php?id=<?= $trainerIdStr ?>&type=pic" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-2.5 rounded-xl transition-colors flex items-center gap-1.5 shrink-0" title="Download Profile Photo">
+                        <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+                        Download Pic
                     </a>
                     <?php if (!empty($resumeUrl)): ?>
                         <button type="button" onclick="openDocumentPreview('<?= htmlspecialchars($resumeUrl) ?>', '<?= htmlspecialchars(addslashes($resumeDoc['title'] ?? 'Technical Trainer Resume')) ?>', '<?= htmlspecialchars(addslashes($trainerResumeDownloadName)) ?>')" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer">

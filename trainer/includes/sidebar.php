@@ -331,4 +331,6 @@ $navItems = [
     </script>
     <?php endif; ?>
 
+    <?php require_once __DIR__ . '/../../includes/download_loader.php'; ?>
+
     <main class="flex-1 w-full max-w-full px-3.5 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16 py-6 md:py-10 space-y-6 md:space-y-8 min-w-0">

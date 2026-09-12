@@ -321,5 +321,7 @@ $navItems = [
         }
     }
     </script>
+ 
+    <?php require_once __DIR__ . '/../../includes/download_loader.php'; ?>
 
     <main class="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 space-y-6 min-w-0">

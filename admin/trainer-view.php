@@ -88,9 +88,13 @@ require_once __DIR__ . '/includes/sidebar.php';
         </a>
 
         <div class="flex flex-wrap items-center gap-2">
-            <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>" class="bg-[#FE5E04] hover:bg-[#e05202] text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5" title="Download Official Trainer Profile Dossier PDF">
+            <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>" class="bg-[#FE5E04] hover:bg-[#e05202] text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5" title="Download Official Trainer Profile Dossier PDF (Includes Photo)">
                 <span class="material-symbols-outlined text-[16px]">download</span>
                 Download Trainer Profile
+            </a>
+            <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>&type=pic" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 border border-slate-200 shadow-2xs" title="Download Trainer Profile Photo / Headshot">
+                <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+                Download Photo
             </a>
             <button onclick="document.getElementById('editProfileModal').classList.remove('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px]">edit</span>
@@ -102,8 +106,12 @@ require_once __DIR__ . '/includes/sidebar.php';
     <!-- Top Profile Banner -->
     <div class="bg-white rounded-3xl border border-slate-200/90 p-8 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div class="flex items-center gap-5">
-            <div class="shrink-0">
+            <div class="shrink-0 relative group">
                 <img src="<?= htmlspecialchars(getUserAvatar($u, 200)) ?>" class="w-20 h-20 rounded-3xl object-cover border-2 border-slate-200 shadow-sm">
+                <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>&type=pic" class="absolute inset-0 bg-slate-950/70 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold p-1 text-center backdrop-blur-2xs" title="Download High-Res Photo">
+                    <span class="material-symbols-outlined text-base">download</span>
+                    <span>Download</span>
+                </a>
             </div>
             <div class="space-y-1">
                 <div class="flex flex-wrap items-center gap-2">

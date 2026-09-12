@@ -61,11 +61,13 @@ $skillCol = getCollection("Skill");
 $docCol = getCollection("Document");
 $expCol = getCollection("Experience");
 
-$hasTitle = !empty($trainer['professionalTitle']);
-$hasSkills = $skillCol ? ($skillCol->countDocuments(['trainerId' => $trainerId]) > 0) : false;
-$hasDoc = $docCol ? ($docCol->countDocuments(['trainerId' => $trainerId]) > 0) : false;
-$hasExp = $expCol ? ($expCol->countDocuments(['trainerId' => $trainerId]) > 0) : false;
-$hasPhoto = !empty($user['avatar']) && strpos($user['avatar'], 'avatar.vercel.sh') === false;
+$hasTitle = !empty($trainer['professionalTitle']) || !empty($trainer['primaryDomain']);
+$hasSkills = ($skillCol ? ($skillCol->countDocuments(['trainerId' => $trainerId]) > 0) : false) || (!empty($trainer['extractedSkills']) && count($trainer['extractedSkills']) > 0);
+$hasDoc = ($docCol ? ($docCol->countDocuments(['trainerId' => $trainerId]) > 0) : false) || !empty($trainer['resumeUrl']);
+$hasExp = ($expCol ? ($expCol->countDocuments(['trainerId' => $trainerId]) > 0) : false) 
+          || (!empty($trainer['totalExperienceYears']) && (int)$trainer['totalExperienceYears'] > 0)
+          || (!empty($trainer['collegeExperienceYears']) && (int)$trainer['collegeExperienceYears'] > 0);
+$hasPhoto = (!empty($user['avatar']) && strpos($user['avatar'], 'avatar.vercel.sh') === false) || (!empty($trainer['avatar']) && strpos($trainer['avatar'], 'avatar.vercel.sh') === false);
 
 $completedSteps = 1; // Basic account info
 if ($hasTitle) $completedSteps++;
@@ -74,11 +76,29 @@ if ($hasDoc) $completedSteps++;
 if ($hasExp) $completedSteps++;
 if ($hasPhoto) $completedSteps++;
 
-$completionPercentage = min(100, round(($completedSteps / 6) * 100));
-if ($completedSteps === 6) $completionPercentage = 100;
+// When the visible required steps are all satisfied, profile is 100% complete
+if ($hasTitle && $hasSkills && $hasDoc && $hasPhoto) {
+    $completionPercentage = 100;
+} else {
+    $completionPercentage = min(100, round(($completedSteps / 5) * 100));
+}
+
+// Automatically sync 100% status to database so it stays consistent everywhere
+if ($completionPercentage >= 100 && (empty($trainer['profileCompletion']) || (int)$trainer['profileCompletion'] < 100)) {
+    try {
+        $trainerCol = getCollection("Trainer");
+        if ($trainerCol && !empty($trainer['_id'])) {
+            $trainerCol->updateOne(
+                ['_id' => $trainer['_id']],
+                ['$set' => ['profileCompletion' => 100, 'updatedAt' => new MongoDB\BSON\UTCDateTime()]]
+            );
+            $trainer['profileCompletion'] = 100;
+        }
+    } catch (\Throwable $e) {}
+}
 
 $isProfileIncomplete = ($completionPercentage < 100);
-$isNewSignup = isset($_GET['new_signup']);
+$isNewSignup = isset($_GET['new_signup']) && $isProfileIncomplete;
 ?>
 
 <div class="space-y-8">
