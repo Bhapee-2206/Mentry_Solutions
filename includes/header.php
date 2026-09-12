@@ -245,68 +245,64 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
 
 <!-- Navigation Header -->
 <header class="sticky top-0 z-50 w-full px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-2 transition-all">
-    <div class="max-w-[1400px] mx-auto">
-        <div class="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl lg:rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.06)] px-3 sm:px-5 lg:px-6 py-2 sm:py-3 transition-all">
-            <div class="flex items-center justify-between gap-2">
-                <!-- Brand Logo with mentry.png -->
-                <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-                    <a href="/index.php" class="flex items-center gap-2 sm:gap-2.5 group">
+    <div class="max-w-[1420px] mx-auto">
+        <div class="bg-white border border-slate-200/90 rounded-2xl lg:rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.06)] px-3.5 sm:px-5 lg:px-6 py-2.5 transition-all">
+            <div class="flex items-center justify-between gap-2 lg:gap-3">
+                <!-- Brand Logo (Matches screenshot: MENTRY Solutions / Managed Trainer Network) -->
+                <div class="flex items-center gap-3 shrink-0">
+                    <a href="/index.php" class="flex items-center gap-2.5 group">
                         <img src="/public/mentry.png" alt="Mentry Solutions Logo" class="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105 shrink-0">
-                        <span class="font-black text-[15px] tracking-wider text-slate-900 leading-none group-hover:text-[#FE5E04] transition-colors uppercase sm:hidden">
-                            MENTRY
-                        </span>
-                        <div class="hidden sm:block">
-                            <span class="font-extrabold text-[14px] sm:text-[17px] text-slate-900 tracking-tight leading-none block group-hover:text-[#FE5E04] transition-colors">
-                                <span class="font-black tracking-wider">MENTRY</span> Solutions
+                        <div class="block">
+                            <span class="font-extrabold text-[14px] sm:text-[15px] text-slate-900 tracking-tight leading-none block group-hover:text-[#FE5E04] transition-colors">
+                                <span class="font-black">MENTRY</span> Solutions
                             </span>
-                            <span class="text-[9px] sm:text-[11px] font-medium text-slate-500 tracking-normal block mt-0.5">
+                            <span class="text-[9.5px] sm:text-[11px] font-medium text-slate-500 tracking-normal block mt-1 leading-none">
                                 Managed Trainer Network
                             </span>
                         </div>
                     </a>
-                    <div class="hidden xl:block h-7 w-px bg-slate-200 mx-1 lg:mx-2"></div>
+                    <div class="hidden lg:block h-6 w-px bg-slate-200 ml-3 mr-1"></div>
                 </div>
 
-                <!-- Desktop Nav Links -->
-                <nav class="hidden lg:flex items-center gap-0.5 xl:gap-1.5">
-                    <a href="/index.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all <?= ($currentPage === 'index.php' || $currentPage === '') ? 'text-[#FE5E04] bg-[#FFF3EC] font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' ?>">
-                        <span class="material-symbols-outlined text-[18px] <?= ($currentPage === 'index.php' || $currentPage === '') ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= ($currentPage === 'index.php' || $currentPage === '') ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>home</span>
+                <!-- Desktop Nav Links (Matches screenshot with icons and soft orange pill active state) -->
+                <nav class="hidden lg:flex items-center gap-0.5 xl:gap-1">
+                    <a href="/index.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all <?= ($currentPage === 'index.php' || $currentPage === '') ? 'text-[#FE5E04] bg-[#FFF2EB] font-bold shadow-2xs' : 'text-slate-600 font-semibold hover:text-slate-900 hover:bg-slate-50' ?>">
+                        <span class="material-symbols-outlined text-[17px] <?= ($currentPage === 'index.php' || $currentPage === '') ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= ($currentPage === 'index.php' || $currentPage === '') ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>home</span>
                         <span>Home</span>
                     </a>
-                    <a href="/opportunities.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all <?= $currentPage === 'opportunities.php' ? 'text-[#FE5E04] bg-[#FFF3EC] font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' ?>">
-                        <span class="material-symbols-outlined text-[18px] <?= $currentPage === 'opportunities.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'opportunities.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>work</span>
+                    <a href="/opportunities.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all <?= $currentPage === 'opportunities.php' ? 'text-[#FE5E04] bg-[#FFF2EB] font-bold shadow-2xs' : 'text-slate-600 font-semibold hover:text-slate-900 hover:bg-slate-50' ?>">
+                        <span class="material-symbols-outlined text-[17px] <?= $currentPage === 'opportunities.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'opportunities.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>work</span>
                         <span>Opportunities</span>
                     </a>
-                    <a href="/trainer-network.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all <?= $currentPage === 'trainer-network.php' ? 'text-[#FE5E04] bg-[#FFF3EC] font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' ?>">
-                        <span class="material-symbols-outlined text-[18px] <?= $currentPage === 'trainer-network.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'trainer-network.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>groups</span>
+                    <a href="/trainer-network.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all <?= $currentPage === 'trainer-network.php' ? 'text-[#FE5E04] bg-[#FFF2EB] font-bold shadow-2xs' : 'text-slate-600 font-semibold hover:text-slate-900 hover:bg-slate-50' ?>">
+                        <span class="material-symbols-outlined text-[17px] <?= $currentPage === 'trainer-network.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'trainer-network.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>groups</span>
                         <span>Trainer Network</span>
                     </a>
-                    <a href="/how-it-works.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all <?= $currentPage === 'how-it-works.php' ? 'text-[#FE5E04] bg-[#FFF3EC] font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' ?>">
-                        <span class="material-symbols-outlined text-[18px] <?= $currentPage === 'how-it-works.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'how-it-works.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>help</span>
+                    <a href="/how-it-works.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all <?= $currentPage === 'how-it-works.php' ? 'text-[#FE5E04] bg-[#FFF2EB] font-bold shadow-2xs' : 'text-slate-600 font-semibold hover:text-slate-900 hover:bg-slate-50' ?>">
+                        <span class="material-symbols-outlined text-[17px] <?= $currentPage === 'how-it-works.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'how-it-works.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>help</span>
                         <span>How It Works</span>
                     </a>
-                    <a href="/submit-requirement.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all <?= $currentPage === 'submit-requirement.php' ? 'text-[#FE5E04] bg-[#FFF3EC] font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' ?>">
-                        <span class="material-symbols-outlined text-[18px] <?= $currentPage === 'submit-requirement.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'submit-requirement.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>school</span>
+                    <a href="/submit-requirement.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all <?= $currentPage === 'submit-requirement.php' ? 'text-[#FE5E04] bg-[#FFF2EB] font-bold shadow-2xs' : 'text-slate-600 font-semibold hover:text-slate-900 hover:bg-slate-50' ?>">
+                        <span class="material-symbols-outlined text-[17px] <?= $currentPage === 'submit-requirement.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'submit-requirement.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>school</span>
                         <span>For Colleges</span>
                     </a>
-                    <a href="/about.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all <?= $currentPage === 'about.php' ? 'text-[#FE5E04] bg-[#FFF3EC] font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' ?>">
-                        <span class="material-symbols-outlined text-[18px] <?= $currentPage === 'about.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'about.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>info</span>
+                    <a href="/about.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all <?= $currentPage === 'about.php' ? 'text-[#FE5E04] bg-[#FFF2EB] font-bold shadow-2xs' : 'text-slate-600 font-semibold hover:text-slate-900 hover:bg-slate-50' ?>">
+                        <span class="material-symbols-outlined text-[17px] <?= $currentPage === 'about.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'about.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>info</span>
                         <span>About</span>
                     </a>
-                    <a href="/contact.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all <?= $currentPage === 'contact.php' ? 'text-[#FE5E04] bg-[#FFF3EC] font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' ?>">
-                        <span class="material-symbols-outlined text-[18px] <?= $currentPage === 'contact.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'contact.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>mail</span>
+                    <a href="/contact.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all <?= $currentPage === 'contact.php' ? 'text-[#FE5E04] bg-[#FFF2EB] font-bold shadow-2xs' : 'text-slate-600 font-semibold hover:text-slate-900 hover:bg-slate-50' ?>">
+                        <span class="material-symbols-outlined text-[17px] <?= $currentPage === 'contact.php' ? 'text-[#FE5E04]' : 'text-slate-500' ?>" <?= $currentPage === 'contact.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>mail</span>
                         <span>Contact</span>
                     </a>
                 </nav>
 
-                <!-- Action CTAs -->
-                <div class="flex items-center gap-1 sm:gap-2 lg:gap-2.5 shrink-0">
-                    <div class="hidden xl:block h-7 w-px bg-slate-200 mx-1"></div>
+                <!-- Action CTAs (Matches screenshot: | Divider, Download icon box, Notification Bell with badge, Navy Dashboard button) -->
+                <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
+                    <div class="hidden lg:block h-6 w-px bg-slate-200 mr-1.5"></div>
 
-                    <!-- Download App Button (Matches Screenshot 2: White card with orange download icon) -->
-                    <button type="button" onclick="window.promptPWAInstall()" class="p-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-[#FE5E04] bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-orange-300 transition-all cursor-pointer shrink-0 shadow-2xs flex items-center justify-center gap-1.5" title="Download & Install Mentry App (Add to Home Screen)">
-                        <span class="material-symbols-outlined text-[19px] sm:text-[18px] text-[#FE5E04]">download</span>
-                        <span class="hidden 2xl:inline font-bold">Download</span>
+                    <!-- Download App Button (Rounded-2xl square card with orange download icon) -->
+                    <button type="button" onclick="window.promptPWAInstall()" class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl text-slate-700 hover:text-[#FE5E04] bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-orange-300 transition-all cursor-pointer shrink-0 shadow-2xs flex items-center justify-center" title="Download & Install Mentry App (Add to Home Screen)">
+                        <span class="material-symbols-outlined text-[20px] text-[#FE5E04]">download</span>
                     </button>
 
                     <?php 
@@ -318,25 +314,19 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                             $dashboardUrl = '/vendor/dashboard.php';
                         }
                     ?>
-                        <!-- Notifications Bell Badge (Matches Screenshot 2: Bell with orange count badge) -->
-                        <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/notifications.php' : '/trainer/notifications.php' ?>" class="relative p-1.5 sm:p-2 text-slate-700 hover:text-[#FE5E04] bg-white border border-slate-200 hover:border-orange-300 rounded-xl transition-all shadow-2xs flex items-center justify-center shrink-0" title="Notifications">
-                            <span class="material-symbols-outlined text-[19px]">notifications</span>
+                        <!-- Notifications Bell Badge (Rounded-2xl white card with orange count badge) -->
+                        <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/notifications.php' : '/trainer/notifications.php' ?>" class="relative w-9 h-9 sm:w-10 sm:h-10 text-slate-700 hover:text-[#FE5E04] bg-white border border-slate-200 hover:border-orange-300 rounded-2xl transition-all shadow-2xs flex items-center justify-center shrink-0" title="Notifications">
+                            <span class="material-symbols-outlined text-[20px]">notifications</span>
                             <?php if ($unreadNotifs > 0): ?>
-                                <span class="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-[#FE5E04] text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs leading-none">
+                                <span class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-[#FE5E04] text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs leading-none">
                                     <?= min(99, $unreadNotifs) ?>
                                 </span>
                             <?php endif; ?>
                         </a>
 
-                        <!-- Dashboard Button (With user profile avatar) -->
-                        <a href="<?= $dashboardUrl ?>" class="bg-[#182A4A] hover:bg-[#0F1B30] text-white text-[11px] sm:text-xs font-bold pl-1.5 sm:pl-2 pr-2.5 sm:pr-3.5 py-1 sm:py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 sm:gap-2 shrink-0 group">
-                            <img src="<?= htmlspecialchars(getUserAvatar($currentUser, 48)) ?>" 
-                                 alt="<?= htmlspecialchars($currentUser['name'] ?? 'User') ?>" 
-                                 class="w-6 h-6 rounded-full object-cover border border-white/20 bg-white/10 shrink-0"
-                                 style="object-position: center 15%;"
-                                 referrerpolicy="no-referrer"
-                                 loading="lazy"
-                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?= urlencode($currentUser['name'] ?? 'User') ?>&background=FE5E04&color=fff&size=48';">
+                        <!-- Dashboard Button (Matches screenshot: Navy rounded-2xl pill with space_dashboard icon & Dashboard label) -->
+                        <a href="<?= $dashboardUrl ?>" class="bg-[#182A4A] hover:bg-[#0F1B30] text-white text-xs font-bold px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl transition-all shadow-sm flex items-center gap-2 shrink-0">
+                            <span class="material-symbols-outlined text-[18px]">space_dashboard</span>
                             <span>Dashboard</span>
                         </a>
                     <?php else: ?>
