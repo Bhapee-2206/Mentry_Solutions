@@ -323,13 +323,11 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                         }
                     ?>
                         <!-- Notifications Bell Badge -->
-                        <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/notifications.php' : '/trainer/notifications.php' ?>" class="relative w-8 h-8 sm:w-10 sm:h-10 text-slate-700 hover:text-[#FE5E04] bg-white border border-slate-200 hover:border-orange-300 rounded-xl sm:rounded-2xl transition-all shadow-2xs flex items-center justify-center shrink-0" title="Notifications">
+                        <a id="headerNotifBellBtn" href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/notifications.php' : '/trainer/notifications.php' ?>" class="relative w-8 h-8 sm:w-10 sm:h-10 text-slate-700 hover:text-[#FE5E04] bg-white border border-slate-200 hover:border-orange-300 rounded-xl sm:rounded-2xl transition-all shadow-2xs flex items-center justify-center shrink-0" title="Notifications">
                             <span class="material-symbols-outlined text-[18px] sm:text-[20px]">notifications</span>
-                            <?php if ($unreadNotifs > 0): ?>
-                                <span class="absolute -top-1 -right-1 min-w-[16px] sm:min-w-[18px] h-4 sm:h-[18px] px-1 bg-[#FE5E04] text-white text-[9px] sm:text-[10px] font-black rounded-full flex items-center justify-center shadow-xs leading-none">
-                                    <?= min(99, $unreadNotifs) ?>
-                                </span>
-                            <?php endif; ?>
+                            <span id="headerNotifBadge" class="<?= ($unreadNotifs > 0) ? '' : 'hidden' ?> absolute -top-1 -right-1 min-w-[16px] sm:min-w-[18px] h-4 sm:h-[18px] px-1 bg-[#FE5E04] text-white text-[9px] sm:text-[10px] font-black rounded-full flex items-center justify-center shadow-xs leading-none transition-transform">
+                                <?= min(99, $unreadNotifs) ?>
+                            </span>
                         </a>
 
                         <!-- Dashboard Button -->
@@ -536,5 +534,7 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
 <?php require_once __DIR__ . '/download_loader.php'; ?>
 <?php if (file_exists(__DIR__ . '/pwa_install_prompt.php')) include_once __DIR__ . '/pwa_install_prompt.php'; ?>
 <?php if (file_exists(__DIR__ . '/offline_popup.php')) include_once __DIR__ . '/offline_popup.php'; ?>
+<!-- Live Real-time Sync Engine -->
+<script src="/assets/js/live-sync.js?v=1" defer></script>
 
 <main class="flex-grow">

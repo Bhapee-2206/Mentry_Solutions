@@ -51,7 +51,7 @@ $applications = $applicationCol ? $applicationCol->find(
                                 } catch (Exception $e) {}
                             }
                         ?>
-                            <tr class="hover:bg-slate-50/60">
+                            <tr class="hover:bg-slate-50/60 transition-colors" data-application-id="<?= (string)$app['_id'] ?>">
                                 <td class="py-4 px-5 font-bold text-slate-900">
                                     <?= htmlspecialchars($opp['title'] ?? 'Training Opportunity') ?>
                                     <span class="text-[10px] text-slate-400 block font-normal"><?= htmlspecialchars($opp['city'] ?? 'Location TBA') ?></span>
@@ -59,7 +59,7 @@ $applications = $applicationCol ? $applicationCol->find(
                                 <td class="py-4 px-4 text-slate-500"><?= formatDate($app['appliedAt'] ?? null) ?></td>
                                 <td class="py-4 px-4 font-bold text-blue-700"><?= formatINR($app['proposedDailyRate'] ?? 0) ?>/day</td>
                                 <td class="py-4 px-4 font-semibold text-slate-700"><?= htmlspecialchars($app['matchScore'] ?? 90) ?>%</td>
-                                <td class="py-4 px-4"><?= getStatusBadge($app['status'] ?? 'PENDING') ?></td>
+                                <td class="py-4 px-4 app-status-badge-cell"><?= getStatusBadge($app['status'] ?? 'PENDING') ?></td>
                                 <td class="py-4 px-5 text-right">
                                     <?php if ($opp): ?>
                                         <a href="/trainer/opportunities.php?id=<?= (string)$opp['_id'] ?>" class="text-blue-600 font-bold hover:underline">View Info</a>

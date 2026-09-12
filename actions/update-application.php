@@ -2,6 +2,7 @@
 // actions/update-application.php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/notifications.php';
 requireAdminOrStaff();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -224,6 +225,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ]]
                         );
                     }
+                }
+            }
+
+            // Dispatch real-time live notification to the trainer about application status change
+            if ($status !== $prevStatus) {
+                try {
+                    $notifCol = getCollection("Notification");
+                    $targetTrainer = $trainerCol ? $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerId)]) : null;
+                    $trainerUserId = (string)($targetTrainer['userId'] ?? '');
+
+                    if ($notifCol && !empty($trainerUserId)) {
+                        $oppObj = ($oppCol && !empty($oppId)) ? $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($oppId)]) : null;
+                        $oppTitle = $oppObj['title'] ?? 'Training Opportunity';
+
+                        $notifTitle = '';
+                        $notifMsg = '';
+                        $notifType = 'APPLICATION_' . $status;
+
+                        if ($status === 'ACCEPTED') {
+                            $notifTitle = "🎉 Application Accepted: {$oppTitle}";
+                            $notifMsg = "Congratulations! Your application has been ACCEPTED by Mentry Operations. Your assignment is scheduled.";
+                        } elseif ($status === 'SHORTLISTED') {
+                            $notifTitle = "⭐ Shortlisted: {$oppTitle}";
+                            $notifMsg = "Great news! You have been SHORTLISTED for this assignment. Operations will finalize details shortly.";
+                        } elseif ($status === 'REJECTED') {
+                            $notifTitle = "Application Update: {$oppTitle}";
+                            $notifMsg = "Your application was not selected for this opportunity. Browse other openings on your dashboard.";
+                        } else {
+                            $notifTitle = "Application Status Update: {$oppTitle}";
+                            $notifMsg = "Your application status is now {$status}.";
+                        }
+
+                        if (!empty($adminNotes)) {
+                            $notifMsg .= " Note from Admin: \"{$adminNotes}\"";
+                        }
+
+                        $notifCol->insertOne([
+                            'userId' => $trainerUserId,
+                            'trainerId' => $trainerId,
+                            'opportunityId' => $oppId,
+                            'applicationId' => (string)$app['_id'],
+                            'type' => $notifType,
+                            'title' => $notifTitle,
+                            'message' => $notifMsg,
+                            'link' => '/trainer/applications.php',
+                            'read' => false,
+                            'createdAt' => new MongoDB\BSON\UTCDateTime()
+                        ]);
+
+                        // Web push notification
+                        if (function_exists('dispatchWebPushNotification')) {
+                            @dispatchWebPushNotification(
+                                ['userId' => $trainerUserId],
+                                $notifTitle,
+                                $notifMsg,
+                                '/trainer/applications.php'
+                            );
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    error_log("Failed to create trainer status notification: " . $e->getMessage());
                 }
             }
         }
