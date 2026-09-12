@@ -199,7 +199,7 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
         <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-3xl p-6 shadow-sm">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-4">
-                    <img src="<?= htmlspecialchars($assignedUser['avatar'] ?? "https://avatar.vercel.sh/" . urlencode($assignedUser['name'] ?? 'T') . ".png") ?>" class="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-300 shadow-sm">
+                    <img src="<?= htmlspecialchars(getUserAvatar($assignedUser, 120)) ?>" class="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-300 shadow-sm" style="object-position: center 15%;">
                     <div>
                         <div class="flex items-center gap-2">
                             <span class="bg-emerald-600 text-white text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md">Assigned Trainer</span>
@@ -219,6 +219,23 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                     </a>
                 </div>
             </div>
+
+            <?php if (!empty($assignment['vendorFeedback']) || !empty($assignment['trainerFeedback'])): ?>
+                <div class="mt-4 pt-3 border-t border-emerald-200/80 grid sm:grid-cols-2 gap-3 text-xs">
+                    <?php if (!empty($assignment['vendorFeedback'])): ?>
+                        <div class="bg-white/80 p-3 rounded-xl border border-emerald-200">
+                            <span class="text-[10px] uppercase font-bold text-slate-500 block">Institution Review: ★ <?= htmlspecialchars($assignment['vendorFeedback']['rating'] ?? 5) ?>/5.0</span>
+                            <p class="text-[11px] text-slate-700 italic mt-0.5">"<?= htmlspecialchars($assignment['vendorFeedback']['comments'] ?? '') ?>"</p>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (!empty($assignment['trainerFeedback'])): ?>
+                        <div class="bg-white/80 p-3 rounded-xl border border-emerald-200">
+                            <span class="text-[10px] uppercase font-bold text-slate-500 block">Trainer Campus Feedback: ★ <?= htmlspecialchars($assignment['trainerFeedback']['rating'] ?? 5) ?>/5.0</span>
+                            <p class="text-[11px] text-slate-700 italic mt-0.5">"<?= htmlspecialchars($assignment['trainerFeedback']['comments'] ?? '') ?>"</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 

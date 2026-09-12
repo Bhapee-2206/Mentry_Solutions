@@ -107,12 +107,12 @@ require_once __DIR__ . '/includes/sidebar.php';
     <!-- Top Profile Banner -->
     <div class="bg-white rounded-3xl border border-slate-200/90 p-8 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div class="flex items-center gap-5">
-            <div class="shrink-0 relative group">
-                <img src="<?= htmlspecialchars(getUserAvatar($u, 200)) ?>" class="w-20 h-20 rounded-3xl object-cover border-2 border-slate-200 shadow-sm">
-                <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>&type=pic" class="absolute inset-0 bg-slate-950/70 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold p-1 text-center backdrop-blur-2xs" title="Download High-Res Photo">
-                    <span class="material-symbols-outlined text-base">download</span>
-                    <span>Download</span>
-                </a>
+            <div class="shrink-0 relative group cursor-pointer" onclick="openPhotoLightbox()" title="Click to Zoom Trainer Photo">
+                <img src="<?= htmlspecialchars(getUserAvatar($u, 400)) ?>" class="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-2 border-slate-200 shadow-md group-hover:scale-105 transition-all" style="object-position: center 15%;">
+                <div class="absolute inset-0 bg-slate-950/65 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold p-1 text-center backdrop-blur-2xs gap-1">
+                    <span class="material-symbols-outlined text-lg">zoom_in</span>
+                    <span>Click to Zoom</span>
+                </div>
             </div>
             <div class="space-y-1">
                 <div class="flex flex-wrap items-center gap-2">
@@ -324,9 +324,9 @@ require_once __DIR__ . '/includes/sidebar.php';
                             <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-100/50 transition-colors">
                                 <div class="space-y-1">
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <h4 class="font-bold text-xs text-slate-900">
+                                        <a href="/admin/opportunity-view.php?id=<?= $oppId ?>" class="font-bold text-xs text-slate-900 hover:text-blue-600 transition-colors">
                                             <?= htmlspecialchars($opp['title'] ?? 'Academic Training Assignment') ?>
-                                        </h4>
+                                        </a>
                                         <span class="bg-emerald-50 text-emerald-700 font-extrabold text-[10px] px-2 py-0.5 rounded border border-emerald-200">
                                             <?= htmlspecialchars($app['matchScore'] ?? 95) ?>% Match
                                         </span>
@@ -341,7 +341,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                                 <div class="flex flex-wrap items-center gap-1.5 shrink-0">
                                     <?php if ($opp): ?>
-                                        <a href="/opportunity-details.php?id=<?= $oppId ?>" target="_blank" class="p-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-colors" title="View Opportunity Details">
+                                        <a href="/admin/opportunity-view.php?id=<?= $oppId ?>" class="p-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-colors" title="View Opportunity in Admin Console">
                                             <span class="material-symbols-outlined text-[16px]">visibility</span>
                                         </a>
                                     <?php endif; ?>
@@ -381,6 +381,130 @@ require_once __DIR__ . '/includes/sidebar.php';
                                             Accepted & Assigned
                                         </span>
                                     <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Confirmed Training Deliveries & Verified Feedback -->
+            <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-emerald-600 text-lg">hotel_class</span>
+                            Training Deliveries & Verified Feedback (<?= count($assignments) ?>)
+                        </h3>
+                        <p class="text-[11px] text-slate-500">Live campus schedules, client ratings, and post-session trainer self-reports.</p>
+                    </div>
+                    <a href="/admin/assignments.php" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
+                        All Logistics <span class="material-symbols-outlined text-xs">arrow_forward</span>
+                    </a>
+                </div>
+
+                <?php if (empty($assignments)): ?>
+                    <div class="p-5 rounded-2xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-400">
+                        No confirmed training assignments recorded yet for this trainer.
+                    </div>
+                <?php else: ?>
+                    <div class="space-y-4">
+                        <?php foreach ($assignments as $asg): 
+                            $asgId = (string)($asg['_id'] ?? '');
+                            $asgOppId = (string)($asg['opportunityId'] ?? '');
+                            $asgOpp = null;
+                            if (!empty($asgOppId) && $oppCol) {
+                                try {
+                                    $asgOpp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($asgOppId)]);
+                                } catch (\Throwable $e) {}
+                            }
+                            $asgStatus = strtoupper($asg['status'] ?? 'SCHEDULED');
+                            $hasVF = !empty($asg['vendorFeedback']);
+                            $hasTF = !empty($asg['trainerFeedback']);
+                        ?>
+                            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200/70">
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <a href="/admin/opportunity-view.php?id=<?= $asgOppId ?>" class="font-black text-xs text-slate-900 hover:text-blue-600 transition-colors">
+                                                <?= htmlspecialchars($asgOpp['title'] ?? 'Custom Campus Training') ?>
+                                            </a>
+                                            <span class="text-[10px] font-mono text-slate-500 uppercase bg-slate-200/70 px-2 py-0.5 rounded">
+                                                #<?= substr($asgId, -6) ?>
+                                            </span>
+                                            <?= getStatusBadge($asgStatus) ?>
+                                        </div>
+                                        <p class="text-[11px] text-slate-500 mt-0.5">
+                                            <?= htmlspecialchars($asg['location'] ?? 'Location TBA') ?> • 
+                                            Duration: <strong><?= htmlspecialchars($asg['durationDays'] ?? 5) ?> Days</strong> • 
+                                            Starts: <?= formatDate($asg['startDate'] ?? null) ?>
+                                            <?php if (!empty($asg['endDate'])): ?>
+                                                • Ends: <?= formatDate($asg['endDate']) ?>
+                                            <?php endif; ?>
+                                        </p>
+                                    </div>
+                                    <div class="text-left sm:text-right shrink-0">
+                                        <span class="text-xs font-black text-emerald-700"><?= formatINR($asg['agreedTotalFee'] ?? 0) ?></span>
+                                        <span class="text-[10px] text-slate-500 block"><?= formatINR($asg['agreedDailyRate'] ?? 0) ?>/day</span>
+                                    </div>
+                                </div>
+
+                                <!-- Dual Feedback Grids: Client/Vendor vs Trainer -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                    <!-- Vendor / College Feedback -->
+                                    <div class="p-3 rounded-xl bg-white border border-slate-200/80 space-y-1.5">
+                                        <div class="flex items-center justify-between">
+                                            <span class="font-bold text-[10px] uppercase text-indigo-700 flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-[14px]">school</span>
+                                                College / Client Evaluation
+                                            </span>
+                                            <?php if ($hasVF): ?>
+                                                <span class="bg-amber-50 text-amber-800 font-extrabold text-[11px] px-2 py-0.5 rounded border border-amber-200 flex items-center gap-0.5">
+                                                    ★ <?= htmlspecialchars($asg['vendorFeedback']['rating'] ?? 5) ?> / 5.0
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="text-[10px] text-slate-400 font-semibold">Pending Review</span>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <?php if ($hasVF): ?>
+                                            <p class="text-[11px] text-slate-600 italic">"<?= htmlspecialchars($asg['vendorFeedback']['comments'] ?? 'Delivered as per syllabus') ?>"</p>
+                                            <div class="flex flex-wrap gap-2 text-[10px] text-slate-500 pt-1">
+                                                <span>Expertise: <strong><?= htmlspecialchars($asg['vendorFeedback']['subjectExpertise'] ?? 5) ?>/5</strong></span> •
+                                                <span>Punctuality: <strong><?= htmlspecialchars($asg['vendorFeedback']['punctuality'] ?? 5) ?>/5</strong></span> •
+                                                <span>Satisfaction: <strong><?= htmlspecialchars($asg['vendorFeedback']['studentSatisfaction'] ?? 5) ?>/5</strong></span>
+                                            </div>
+                                        <?php else: ?>
+                                            <p class="text-[11px] text-slate-400">Client evaluation not yet logged. You can add it directly in <a href="/admin/assignments.php" class="text-blue-600 underline font-semibold">Assignments Manager</a>.</p>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <!-- Trainer Self-Report Feedback -->
+                                    <div class="p-3 rounded-xl bg-white border border-slate-200/80 space-y-1.5">
+                                        <div class="flex items-center justify-between">
+                                            <span class="font-bold text-[10px] uppercase text-emerald-700 flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-[14px]">person</span>
+                                                Trainer Campus Feedback
+                                            </span>
+                                            <?php if ($hasTF): ?>
+                                                <span class="bg-emerald-50 text-emerald-800 font-extrabold text-[11px] px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
+                                                    ★ <?= htmlspecialchars($asg['trainerFeedback']['rating'] ?? 5) ?> / 5.0
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="text-[10px] text-slate-400 font-semibold">Awaiting Report</span>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <?php if ($hasTF): ?>
+                                            <p class="text-[11px] text-slate-600 italic">"<?= htmlspecialchars($asg['trainerFeedback']['comments'] ?? 'All modules delivered smoothly.') ?>"</p>
+                                            <div class="flex flex-wrap gap-2 text-[10px] text-slate-500 pt-1">
+                                                <span>Students: <strong><?= htmlspecialchars($asg['trainerFeedback']['studentEngagement'] ?? 5) ?>/5</strong></span> •
+                                                <span>Campus Labs: <strong><?= htmlspecialchars($asg['trainerFeedback']['infrastructureRating'] ?? 5) ?>/5</strong></span>
+                                            </div>
+                                        <?php else: ?>
+                                            <p class="text-[11px] text-slate-400">Trainer has not yet submitted post-session observations.</p>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -859,7 +983,39 @@ require_once __DIR__ . '/includes/sidebar.php';
     </div>
 </div>
 
+<!-- ================= MODAL: TRAINER PHOTO LIGHTBOX & ZOOM ================= -->
+<div id="photoLightboxModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="relative max-w-2xl w-full bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-700 flex flex-col items-center">
+        <button onclick="closePhotoLightbox()" class="absolute top-4 right-4 p-2 text-slate-400 hover:text-white bg-slate-800/90 rounded-full transition-colors">
+            <span class="material-symbols-outlined text-lg">close</span>
+        </button>
+        <div class="w-full flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#FE5E04]">portrait</span>
+                <span class="text-white font-bold text-sm">Trainer Headshot Preview</span>
+            </div>
+            <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>&type=pic" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1 shadow-sm">
+                <span class="material-symbols-outlined text-[15px]">download</span>
+                Download Photo
+            </a>
+        </div>
+        <div class="overflow-hidden rounded-2xl bg-black/50 border border-slate-800 flex items-center justify-center p-2 w-full max-h-[70vh]">
+            <img id="photoLightboxImg" src="<?= htmlspecialchars(getUserAvatar($u, 800)) ?>" alt="Trainer Headshot" class="max-h-[65vh] w-auto object-contain rounded-xl transition-transform duration-300 shadow-lg">
+        </div>
+    </div>
+</div>
+
 <script>
+function openPhotoLightbox() {
+    const modal = document.getElementById('photoLightboxModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closePhotoLightbox() {
+    const modal = document.getElementById('photoLightboxModal');
+    if (modal) modal.classList.add('hidden');
+}
+
 function openAdminDocViewer(url, title, downloadFilename) {
     const modal = document.getElementById('documentViewerModal');
     const iframe = document.getElementById('adminDocViewerIframe');

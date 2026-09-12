@@ -1,0 +1,46 @@
+# Robots.txt for Mentry Solutions Managed Trainer Network
+User-agent: *
+Allow: /
+Allow: /index.php
+Allow: /opportunities.php
+Allow: /opportunity-details.php
+Allow: /about.php
+Allow: /contact.php
+Allow: /how-it-works.php
+Allow: /trainer-network.php
+Allow: /submit-requirement.php
+Allow: /login.php
+Allow: /register.php
+Allow: /vendor-login.php
+Allow: /vendor-register.php
+Allow: /terms.php
+Allow: /privacy.php
+Allow: /public/
+
+# Disallow Internal Admin, System Data & Actions
+Disallow: /admin/
+Disallow: /actions/
+Disallow: /data/
+Disallow: /scratch/
+Disallow: /scripts/
+Disallow: /config/
+Disallow: /includes/
+Disallow: /vendor/
+
+# AI Crawlers & LLM Search Indexing (Google Gemini, OpenAI GPTBot, Perplexity, Anthropic)
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: https://mentry-solutions.vercel.app/sitemap.xml

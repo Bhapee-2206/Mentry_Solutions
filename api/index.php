@@ -15,8 +15,8 @@ if (file_exists(__DIR__ . '/../includes/db.php')) {
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
-// 1. Static asset bypass (images, icons, styles, fonts)
-if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp)$/i', $uri)) {
+// 1. Static asset bypass (images, icons, styles, fonts, sitemaps, robots)
+if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xml|txt)$/i', $uri)) {
     $cleanUri = ltrim($uri, '/');
     $basename = basename($cleanUri);
 
@@ -44,11 +44,18 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp)$/
                 'webp' => 'image/webp',
                 'woff' => 'font/woff',
                 'woff2' => 'font/woff2',
-                'ttf' => 'font/ttf'
+                'ttf' => 'font/ttf',
+                'xml' => 'application/xml; charset=utf-8',
+                'txt' => 'text/plain; charset=utf-8'
             ];
             $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
             header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
-            header('Cache-Control: public, max-age=31536000, immutable');
+            $isCacheable = !in_array($ext, ['xml', 'txt']);
+            if ($isCacheable) {
+                header('Cache-Control: public, max-age=31536000, immutable');
+            } else {
+                header('Cache-Control: public, max-age=3600');
+            }
             header('Content-Length: ' . filesize($filePath));
             readfile($filePath);
             exit();

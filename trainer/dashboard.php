@@ -258,7 +258,7 @@ $isNewSignup = isset($_GET['new_signup']) && $isProfileIncomplete;
                                     <?= htmlspecialchars($opp['city'] ?? 'India') ?> • <?= formatINR($opp['dailyRateMin'] ?? 0) ?> – <?= formatINR($opp['dailyRateMax'] ?? 0) ?>/day
                                 </p>
                             </div>
-                            <a href="/opportunity-details.php?id=<?= $oppId ?>" class="w-full sm:w-auto text-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs shrink-0">
+                            <a href="/trainer/opportunities.php?id=<?= $oppId ?>" class="w-full sm:w-auto text-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs shrink-0">
                                 Apply →
                             </a>
                         </div>

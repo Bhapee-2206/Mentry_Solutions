@@ -200,7 +200,7 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
     <div class="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card min-w-0">
         <div class="flex flex-col sm:flex-row items-center gap-6">
             <div class="relative group shrink-0">
-                <img src="<?= htmlspecialchars(getUserAvatar($user, 200)) ?>" class="w-24 h-24 rounded-3xl object-cover border-2 border-slate-200 shadow-md">
+                <img src="<?= htmlspecialchars(getUserAvatar($user, 200)) ?>" class="w-24 h-24 rounded-3xl object-cover border-2 border-slate-200 shadow-md" style="object-position: center 15%;">
             </div>
 
             <div class="space-y-2 flex-1 text-center sm:text-left min-w-0 w-full">

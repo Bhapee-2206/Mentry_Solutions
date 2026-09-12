@@ -978,3 +978,267 @@ function getAppUrl(): string {
     }
     return 'https://mentry-solutions.vercel.app';
 }
+
+/**
+ * Automatically evaluates assignment dates and synchronizes assignment & trainer statuses:
+ * - If past end date (time() > endDate) => status becomes COMPLETED
+ * - If current (startDate <= time() <= endDate) => status becomes IN_PROGRESS
+ * - If future (time() < startDate) => status remains SCHEDULED
+ * - Syncs trainer availability: if all assignments for trainer are COMPLETED or CANCELLED,
+ *   trainer is marked AVAILABLE_NOW and busy notes/dates cleared.
+ */
+function syncAssignmentStatuses() {
+    static $synced = false;
+    if ($synced) return;
+    $synced = true;
+
+    $asgCol = getCollection("Assignment");
+    $trainerCol = getCollection("Trainer");
+    if (!$asgCol) return;
+
+    $now = time();
+
+    try {
+        $assignments = $asgCol->find([])->toArray();
+    } catch (\Throwable $e) {
+        return;
+    }
+
+    $affectedTrainers = [];
+
+    foreach ($assignments as $asg) {
+        $asgId = (string)($asg['_id'] ?? '');
+        if (empty($asgId)) continue;
+
+        $currentStatus = strtoupper($asg['status'] ?? 'SCHEDULED');
+        if ($currentStatus === 'CANCELLED') continue;
+
+        $startDate = $asg['startDate'] ?? null;
+        $startTs = null;
+        if ($startDate instanceof MongoDB\BSON\UTCDateTime) {
+            $startTs = round($startDate->toDateTime()->getTimestamp());
+        } elseif (is_numeric($startDate)) {
+            $val = (float)$startDate;
+            $startTs = ($val > 20000000000) ? round($val / 1000) : (int)$val;
+        } elseif (is_string($startDate)) {
+            $startTs = strtotime($startDate);
+        }
+
+        if (!$startTs) continue;
+
+        $durationDays = max(1, (int)($asg['durationDays'] ?? 1));
+        // End of the last day of training (23:59:59)
+        $endTs = strtotime(date('Y-m-d', $startTs) . " +{$durationDays} days") - 1;
+
+        $newStatus = $currentStatus;
+        if ($now > $endTs) {
+            $newStatus = 'COMPLETED';
+        } elseif ($now >= $startTs) {
+            $newStatus = 'IN_PROGRESS';
+        } else {
+            $newStatus = 'SCHEDULED';
+        }
+
+        $needsUpdate = ($newStatus !== $currentStatus) || empty($asg['endDate']);
+        if ($needsUpdate) {
+            $updateFields = [
+                'status' => $newStatus,
+                'endDate' => new MongoDB\BSON\UTCDateTime($endTs * 1000),
+                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+            ];
+            try {
+                $asgCol->updateOne(
+                    ['_id' => new MongoDB\BSON\ObjectId($asgId)],
+                    ['$set' => $updateFields]
+                );
+            } catch (\Throwable $e) {
+                $asgCol->updateOne(['_id' => $asgId], ['$set' => $updateFields]);
+            }
+
+            if (!empty($asg['trainerId'])) {
+                $affectedTrainers[] = (string)$asg['trainerId'];
+            }
+        }
+    }
+
+    // Now reconcile availability status for affected trainers
+    if ($trainerCol && !empty($affectedTrainers)) {
+        $uniqueTrainers = array_unique($affectedTrainers);
+        foreach ($uniqueTrainers as $tId) {
+            try {
+                $activeAsg = $asgCol->findOne([
+                    'trainerId' => $tId,
+                    'status' => ['$in' => ['IN_PROGRESS', 'SCHEDULED']]
+                ]);
+
+                $tFilter = preg_match('/^[a-f0-9]{24}$/i', $tId) 
+                    ? ['_id' => new MongoDB\BSON\ObjectId($tId)] 
+                    : ['_id' => $tId];
+
+                if (!$activeAsg) {
+                    // All assignments completed/cancelled! Free trainer to AVAILABLE_NOW
+                    $trainerCol->updateOne(
+                        $tFilter,
+                        [
+                            '$set' => [
+                                'availabilityStatus' => 'AVAILABLE_NOW',
+                                'availabilityNotes' => '',
+                                'availabilityUpdatedAt' => new MongoDB\BSON\UTCDateTime(),
+                                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                            ],
+                            '$unset' => [
+                                'availableFromDate' => ''
+                            ]
+                        ]
+                    );
+                } elseif (($activeAsg['status'] ?? '') === 'IN_PROGRESS') {
+                    $asgEndTs = null;
+                    if (!empty($activeAsg['endDate'])) {
+                        if ($activeAsg['endDate'] instanceof MongoDB\BSON\UTCDateTime) {
+                            $asgEndTs = round($activeAsg['endDate']->toDateTime()->getTimestamp());
+                        } elseif (is_numeric($activeAsg['endDate'])) {
+                            $asgEndTs = round((float)$activeAsg['endDate'] / 1000);
+                        }
+                    }
+
+                    $trainerCol->updateOne(
+                        $tFilter,
+                        [
+                            '$set' => [
+                                'availabilityStatus' => 'BUSY_ON_ASSIGNMENT',
+                                'availabilityNotes' => 'Delivering live campus workshop',
+                                'availableFromDate' => $asgEndTs ? new MongoDB\BSON\UTCDateTime($asgEndTs * 1000) : null,
+                                'availabilityUpdatedAt' => new MongoDB\BSON\UTCDateTime(),
+                                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                            ]
+                        ]
+                    );
+                }
+            } catch (\Throwable $e) {}
+        }
+    }
+}
+
+// Auto-heal assignment dates and status on load
+syncAssignmentStatuses();
+
+/**
+ * Sanitizes input to prevent NoSQL operator injection and string poisoning
+ * Ensures scalar string return value.
+ */
+function cleanString($val, $maxLen = 1000): string {
+    if (is_array($val) || is_object($val)) {
+        return '';
+    }
+    $str = trim((string)$val);
+    if (strlen($str) > $maxLen) {
+        $str = substr($str, 0, $maxLen);
+    }
+    return $str;
+}
+
+/**
+ * Centralized System Logging & Error Monitoring Engine
+ * Logs events to SystemLog collection and auto-alerts administrators for critical issues.
+ */
+function logSystemEvent($type, $level, $message, $context = []) {
+    try {
+        $logCol = getCollection("SystemLog");
+        $user = function_exists('getCurrentUser') ? getCurrentUser() : null;
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $uri = $_SERVER['REQUEST_URI'] ?? '/';
+
+        $entry = [
+            'type' => $type,
+            'level' => strtoupper($level), // 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+            'message' => $message,
+            'context' => $context,
+            'ip' => $ip,
+            'url' => $uri,
+            'userId' => $user['id'] ?? null,
+            'userRole' => $user['role'] ?? 'GUEST',
+            'createdAt' => new MongoDB\BSON\UTCDateTime()
+        ];
+
+        if ($logCol) {
+            $logCol->insertOne($entry);
+        }
+
+        // If error or critical, dispatch real-time alert to Admin Notifications
+        if (in_array(strtoupper($level), ['ERROR', 'CRITICAL']) && function_exists('notifyAdmin')) {
+            static $notifying = false;
+            if (!$notifying) {
+                $notifying = true;
+                notifyAdmin(
+                    'SYSTEM_FAILURE',
+                    "System Alert [{$level}]: " . substr($message, 0, 70),
+                    "Incident logged on {$uri}: {$message}",
+                    '/admin/notifications.php',
+                    ['incidentType' => $type, 'level' => $level, 'ip' => $ip]
+                );
+                $notifying = false;
+            }
+        }
+    } catch (\Throwable $e) {
+        error_log("Mentry logSystemEvent failure: " . $e->getMessage());
+    }
+}
+
+/**
+ * Global Uncaught Exception Handler
+ */
+function mentryExceptionHandler(\Throwable $ex) {
+    $ref = substr(md5(uniqid((string)mt_rand(), true)), 0, 8);
+    logSystemEvent('UNCAUGHT_EXCEPTION', 'CRITICAL', $ex->getMessage(), [
+        'file' => basename($ex->getFile()),
+        'line' => $ex->getLine(),
+        'trace' => substr($ex->getTraceAsString(), 0, 1000),
+        'ref' => $ref
+    ]);
+
+    $isApi = (!empty($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+             || (strpos($_SERVER['REQUEST_URI'] ?? '', '/actions/') !== false)
+             || (strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false);
+
+    if (!headers_sent()) {
+        http_response_code(500);
+        if ($isApi) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'A system error occurred. Reference: ' . $ref]);
+            exit();
+        }
+    }
+
+    if (!$isApi && file_exists(__DIR__ . '/../500.php')) {
+        include __DIR__ . '/../500.php';
+        exit();
+    }
+}
+
+/**
+ * Global Fatal Shutdown Handler
+ */
+function mentryShutdownHandler() {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        $ref = substr(md5(uniqid((string)mt_rand(), true)), 0, 8);
+        logSystemEvent('FATAL_PHP_ERROR', 'CRITICAL', $error['message'], [
+            'file' => basename($error['file']),
+            'line' => $error['line'],
+            'ref' => $ref
+        ]);
+
+        if (!headers_sent()) {
+            http_response_code(500);
+            if (file_exists(__DIR__ . '/../500.php')) {
+                include __DIR__ . '/../500.php';
+            }
+        }
+    }
+}
+
+// Register global handlers if not in CLI mode
+if (php_sapi_name() !== 'cli') {
+    set_exception_handler('mentryExceptionHandler');
+    register_shutdown_function('mentryShutdownHandler');
+}

@@ -39,7 +39,104 @@ if ($currentUser) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Mentry Solutions - Managed Trainer Network</title>
-    
+
+    <!-- Search Engine & AI Discovery Metadata -->
+    <meta name="description" content="Mentry Solutions is India's premier AI-powered managed trainer network. We connect verified technical trainers with engineering colleges, universities, and corporate institutions for on-campus and remote technical workshops, placement training, and bootcamps.">
+    <meta name="keywords" content="technical trainer network, campus placement trainer, IT faculty hiring, college training vendors, corporate trainer India, Python DSA trainer, DevOps trainer, AI ML bootcamps, Chennai technical trainers, Bangalore campus training">
+    <meta name="author" content="Mentry Solutions">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <link rel="canonical" href="https://mentry-solutions.vercel.app<?= htmlspecialchars(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH)) ?>">
+
+    <!-- Geographic & Regional Metadata for AI Search (Gemini, ChatGPT, Perplexity, Google SGE) -->
+    <meta name="geo.region" content="IN-TN">
+    <meta name="geo.placename" content="Chennai, Tamil Nadu, India">
+    <meta name="geo.position" content="13.0827;80.2707">
+    <meta name="ICBM" content="13.0827, 80.2707">
+    <meta name="country" content="India">
+    <meta name="coverage" content="India, South India, Tamil Nadu, Karnataka, Telangana, Kerala, Andhra Pradesh, Maharashtra">
+
+    <!-- Open Graph (Facebook, LinkedIn, AI Social Previews) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Mentry Solutions">
+    <meta property="og:title" content="<?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Mentry Solutions - Managed Trainer Network">
+    <meta property="og:description" content="India's premier AI-powered technical trainer network and faculty deployment platform for engineering colleges, universities, and enterprises.">
+    <meta property="og:url" content="https://mentry-solutions.vercel.app<?= htmlspecialchars(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH)) ?>">
+    <meta property="og:image" content="https://mentry-solutions.vercel.app/public/mentry.png">
+    <meta property="og:locale" content="en_IN">
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Mentry Solutions">
+    <meta name="twitter:description" content="Empowering colleges and institutions with verified technical faculty, campus bootcamps, and curriculum delivery across India.">
+    <meta name="twitter:image" content="https://mentry-solutions.vercel.app/public/mentry.png">
+
+    <!-- Schema.org JSON-LD Structured Data for AI & Search Engine Rich Snippets -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "EducationalOrganization",
+          "@id": "https://mentry-solutions.vercel.app/#organization",
+          "name": "Mentry Solutions",
+          "alternateName": ["Mentry", "Mentry Managed Trainer Network", "Mentry India"],
+          "url": "https://mentry-solutions.vercel.app",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://mentry-solutions.vercel.app/public/mentry.png"
+          },
+          "description": "India's premier AI-driven technical trainer network and managed faculty deployment ecosystem connecting vetted industry instructors with universities, colleges, and corporations.",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Chennai",
+            "addressRegion": "Tamil Nadu",
+            "addressCountry": "IN"
+          },
+          "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": "13.0827",
+            "longitude": "80.2707"
+          },
+          "areaServed": [
+            {"@type": "AdministrativeArea", "name": "Tamil Nadu"},
+            {"@type": "AdministrativeArea", "name": "Karnataka"},
+            {"@type": "AdministrativeArea", "name": "Telangana"},
+            {"@type": "AdministrativeArea", "name": "Kerala"},
+            {"@type": "AdministrativeArea", "name": "Andhra Pradesh"},
+            {"@type": "AdministrativeArea", "name": "Maharashtra"},
+            {"@type": "Country", "name": "India"}
+          ],
+          "knowsAbout": [
+            "Technical Training Delivery",
+            "Python Data Structures & Algorithms",
+            "Full Stack Web Development",
+            "Cloud Computing and DevOps",
+            "Artificial Intelligence & Machine Learning",
+            "Cybersecurity & Ethical Hacking",
+            "Campus Placement Preparation",
+            "Corporate Upskilling"
+          ],
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "email": "mentry.training@gmail.com",
+            "contactType": "customer service",
+            "areaServed": "IN",
+            "availableLanguage": ["English", "Tamil", "Hindi"]
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://mentry-solutions.vercel.app/#website",
+          "url": "https://mentry-solutions.vercel.app",
+          "name": "Mentry Solutions",
+          "publisher": {
+            "@id": "https://mentry-solutions.vercel.app/#organization"
+          }
+        }
+      ]
+    }
+    </script>
+
     <!-- Favicon & Brand Icons -->
     <link rel="icon" type="image/png" href="/public/mentry.png?v=2">
     <link rel="shortcut icon" href="/favicon.ico?v=2">

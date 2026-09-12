@@ -36,13 +36,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } elseif (empty($code) || strlen($code) < 4) {
         $msg = "Please enter the 6-digit verification code.";
     } elseif (!$record) {
-        $msg = "Invalid verification code. Please check the code in your email or request a new one.";
+        $pending = $resetCol ? $resetCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i'), 'used' => false]) : null;
+        if ($pending) {
+            $failedCount = (int)($pending['failedAttempts'] ?? 0) + 1;
+            if ($failedCount >= 5) {
+                $resetCol->updateOne(['_id' => $pending['_id']], ['$set' => ['used' => true, 'invalidatedReason' => 'TOO_MANY_FAILED_ATTEMPTS']]);
+                $msg = "Too many incorrect code attempts. For security, this verification code has been deactivated. Please request a new one.";
+            } else {
+                $resetCol->updateOne(['_id' => $pending['_id']], ['$set' => ['failedAttempts' => $failedCount]]);
+                $remaining = 5 - $failedCount;
+                $msg = "Incorrect verification code. {$remaining} attempt" . ($remaining > 1 ? 's' : '') . " remaining.";
+            }
+        } else {
+            $msg = "Invalid or expired verification code. Please check the code in your email or request a new one.";
+        }
     } else {
         $expired = false;
-        if (isset($record['expiresAt']) && $record['expiresAt'] instanceof MongoDB\BSON\UTCDateTime) {
-            if (time() > ($record['expiresAt']->toDateTime()->getTimestamp())) {
-                $expired = true;
+        $expTime = null;
+        if (isset($record['expiresAt'])) {
+            $exp = $record['expiresAt'];
+            if ($exp instanceof MongoDB\BSON\UTCDateTime) {
+                $expTime = round($exp->toDateTime()->getTimestamp());
+            } elseif (is_numeric($exp)) {
+                $expTime = ($exp > 20000000000) ? round($exp / 1000) : (int)$exp;
+            } elseif (is_string($exp)) {
+                $expTime = strtotime($exp) ?: (is_numeric($exp) ? (int)$exp : null);
             }
+        }
+        if (!$expTime || time() > $expTime) {
+            $expired = true;
         }
 
         if ($expired) {
@@ -193,22 +215,40 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]) : null;
 
         if ($user) {
-            $code = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
-            $token = bin2hex(random_bytes(24));
-            $expiresAt = new MongoDB\BSON\UTCDateTime((time() + 1800) * 1000); // 30 mins
-
             $resetCol = getCollection("PasswordReset");
+
+            // Rate Limit Check: max 4 requests per email per 15 minutes
+            $fifteenMinsAgo = new MongoDB\BSON\UTCDateTime((time() - 900) * 1000);
+            $recentCount = 0;
             if ($resetCol) {
-                $resetCol->deleteMany(['email' => $email]);
-                $resetCol->insertOne([
-                    'email' => $email,
-                    'code' => $code,
-                    'token' => $token,
-                    'expiresAt' => $expiresAt,
-                    'used' => false,
-                    'createdAt' => new MongoDB\BSON\UTCDateTime()
-                ]);
+                try {
+                    $recentCount = $resetCol->countDocuments([
+                        'email' => $email,
+                        'createdAt' => ['$gte' => $fifteenMinsAgo]
+                    ]);
+                } catch (\Throwable $e) {}
             }
+
+            if ($recentCount >= 4) {
+                $error = "Too many reset code requests for this email address. For security, please wait 15 minutes before requesting again.";
+                $step = 1;
+            } else {
+                $code = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+                $token = bin2hex(random_bytes(24));
+                $expiresAt = new MongoDB\BSON\UTCDateTime((time() + 1800) * 1000); // 30 mins
+
+                if ($resetCol) {
+                    $resetCol->deleteMany(['email' => $email]);
+                    $resetCol->insertOne([
+                        'email' => $email,
+                        'code' => $code,
+                        'token' => $token,
+                        'expiresAt' => $expiresAt,
+                        'used' => false,
+                        'failedAttempts' => 0,
+                        'createdAt' => new MongoDB\BSON\UTCDateTime()
+                    ]);
+                }
 
             $appBaseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
             $resetLink = rtrim($appBaseUrl, '/') . "/reset-password.php?token=" . $token . "&email=" . urlencode($email);
@@ -224,7 +264,8 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mailErrDetail = !empty($mailResult['error']) ? ' (' . htmlspecialchars($mailResult['error']) . ')' : '';
                 $error = "Unable to send verification email to " . htmlspecialchars($email) . "{$mailErrDetail}. Please verify that your email address is correct and try again.";
             }
-        } else {
+        }
+    } else {
             // Non-existent email
             $error = "No account found matching this email address. Please verify your email or register.";
             $step = 1;

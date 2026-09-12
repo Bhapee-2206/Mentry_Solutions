@@ -32,11 +32,26 @@ if (!$skills) $skills = explode(',', (string)$opp['skillsRequired']);
 
 $user = getCurrentUser();
 
-// If the visitor is a logged-in trainer, redirect them into the Trainer Dashboard view
-if ($user && ($user['role'] ?? '') === 'TRAINER') {
+// If user is logged in, redirect them inside their portal dashboard view
+if ($user) {
+    $role = strtoupper($user['role'] ?? '');
     $oppIdentifier = (string)($opp['_id'] ?? $id);
-    header("Location: /trainer/opportunities.php?id=" . urlencode($oppIdentifier));
-    exit();
+
+    if (in_array($role, ['ADMIN', 'STAFF', 'SUPERADMIN'])) {
+        header("Location: /admin/opportunity-view.php?id=" . urlencode($oppIdentifier));
+        exit();
+    } elseif ($role === 'TRAINER') {
+        header("Location: /trainer/opportunities.php?id=" . urlencode($oppIdentifier));
+        exit();
+    } elseif ($role === 'VENDOR') {
+        $reqId = $opp['vendorRequestId'] ?? '';
+        if (!empty($reqId)) {
+            header("Location: /vendor/request-view.php?id=" . urlencode($reqId));
+            exit();
+        }
+        header("Location: /vendor/assignments.php");
+        exit();
+    }
 }
 
 $existingApp = null;

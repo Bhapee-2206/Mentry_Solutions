@@ -42,11 +42,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Invalid or expired verification code / reset link.";
         } else {
             $recordTime = null;
-            if (isset($resetRecord['expiresAt']) && $resetRecord['expiresAt'] instanceof MongoDB\BSON\UTCDateTime) {
-                $recordTime = $resetRecord['expiresAt']->toDateTime()->getTimestamp();
+            if (isset($resetRecord['expiresAt'])) {
+                $exp = $resetRecord['expiresAt'];
+                if ($exp instanceof MongoDB\BSON\UTCDateTime) {
+                    $recordTime = round($exp->toDateTime()->getTimestamp());
+                } elseif (is_numeric($exp)) {
+                    $recordTime = ($exp > 20000000000) ? round($exp / 1000) : (int)$exp;
+                } elseif (is_string($exp)) {
+                    $recordTime = strtotime($exp) ?: (is_numeric($exp) ? (int)$exp : null);
+                }
             }
-            if ($recordTime && time() > $recordTime) {
-                $error = "This verification code has expired. Please request a new one.";
+            if (!$recordTime || time() > $recordTime) {
+                $error = "This verification code / reset link has expired (valid for 30 minutes). Please request a new code.";
             } else {
                 // Update User password
                 $targetEmail = $resetRecord['email'];

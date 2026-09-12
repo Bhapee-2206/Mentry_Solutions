@@ -39,6 +39,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $startDate = $opp['startDate'] ?? new MongoDB\BSON\UTCDateTime();
 
                 // Check if assignment already exists for this opportunity & trainer
+                $startTs = time();
+                if ($startDate instanceof MongoDB\BSON\UTCDateTime) {
+                    $startTs = round($startDate->toDateTime()->getTimestamp());
+                } elseif (is_numeric($startDate)) {
+                    $startTs = ($startDate > 20000000000) ? round($startDate / 1000) : (int)$startDate;
+                } elseif (is_string($startDate)) {
+                    $startTs = strtotime($startDate) ?: time();
+                }
+                $durationDays = max(1, (int)$duration);
+                $endTs = strtotime(date('Y-m-d', $startTs) . " +{$durationDays} days") - 1;
+                $endDateBson = new MongoDB\BSON\UTCDateTime($endTs * 1000);
+
+                $now = time();
+                if ($now > $endTs) {
+                    $asgStatus = 'COMPLETED';
+                } elseif ($now >= $startTs) {
+                    $asgStatus = 'IN_PROGRESS';
+                } else {
+                    $asgStatus = 'SCHEDULED';
+                }
+
                 if ($asgCol) {
                     $existingAsg = $asgCol->findOne([
                         'opportunityId' => $oppId,
@@ -50,11 +71,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'opportunityId' => $oppId,
                             'trainerId' => $trainerId,
                             'applicationId' => (string)$app['_id'],
-                            'status' => 'SCHEDULED',
+                            'status' => $asgStatus,
                             'agreedDailyRate' => (float)$dailyRate,
                             'agreedTotalFee' => (float)$totalFee,
                             'startDate' => $startDate,
-                            'durationDays' => (int)$duration,
+                            'endDate' => $endDateBson,
+                            'durationDays' => $durationDays,
                             'location' => ($opp['city'] ?? '') . ', ' . ($opp['state'] ?? ''),
                             'accommodationDetails' => 'Campus Guest House Reserved with standard amenities',
                             'travelDetails' => 'Travel itinerary to be shared prior to batch start date',
@@ -64,7 +86,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         $asgCol->updateOne(
                             ['_id' => $existingAsg['_id']],
-                            ['$set' => ['status' => 'SCHEDULED', 'updatedAt' => new MongoDB\BSON\UTCDateTime()]]
+                            ['$set' => [
+                                'status' => $asgStatus,
+                                'endDate' => $endDateBson,
+                                'durationDays' => $durationDays,
+                                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                            ]]
                         );
                     }
                 }
@@ -115,28 +142,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                // Update Trainer: set to BUSY_ON_ASSIGNMENT and mark APPROVED
+                // Update Trainer: set to BUSY_ON_ASSIGNMENT only if not already completed
                 if ($trainerCol && !empty($trainerId)) {
                     $oppTitle = $opp['title'] ?? 'Campus Training';
-                    $startTs = time();
-                    if ($startDate instanceof MongoDB\BSON\UTCDateTime) {
-                        $startTs = round($startDate->toDateTime()->getTimestamp());
-                    } elseif (is_numeric($startDate)) {
-                        $startTs = ($startDate > 20000000000) ? round($startDate / 1000) : (int)$startDate;
-                    }
-                    $freeAfterMs = ($startTs + ($duration * 86400)) * 1000;
 
-                    $trainerCol->updateOne(
-                        ['_id' => new MongoDB\BSON\ObjectId($trainerId)],
-                        ['$set' => [
-                            'availabilityStatus' => 'BUSY_ON_ASSIGNMENT',
-                            'availabilityNotes' => 'Delivering: ' . $oppTitle,
-                            'availableFromDate' => new MongoDB\BSON\UTCDateTime($freeAfterMs),
-                            'status' => 'APPROVED',
-                            'availabilityUpdatedAt' => new MongoDB\BSON\UTCDateTime(),
-                            'updatedAt' => new MongoDB\BSON\UTCDateTime()
-                        ]]
-                    );
+                    if ($asgStatus === 'COMPLETED') {
+                        // Training dates already passed; keep trainer available
+                        $trainerCol->updateOne(
+                            ['_id' => new MongoDB\BSON\ObjectId($trainerId)],
+                            ['$set' => [
+                                'availabilityStatus' => 'AVAILABLE_NOW',
+                                'availabilityNotes' => 'Completed delivery: ' . $oppTitle,
+                                'status' => 'APPROVED',
+                                'availabilityUpdatedAt' => new MongoDB\BSON\UTCDateTime(),
+                                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                            ], '$unset' => ['availableFromDate' => '']]
+                        );
+                    } else {
+                        $trainerCol->updateOne(
+                            ['_id' => new MongoDB\BSON\ObjectId($trainerId)],
+                            ['$set' => [
+                                'availabilityStatus' => 'BUSY_ON_ASSIGNMENT',
+                                'availabilityNotes' => 'Delivering: ' . $oppTitle,
+                                'availableFromDate' => $endDateBson,
+                                'status' => 'APPROVED',
+                                'availabilityUpdatedAt' => new MongoDB\BSON\UTCDateTime(),
+                                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                            ]]
+                        );
+                    }
                 }
             } elseif ($prevStatus === 'ACCEPTED' && $status !== 'ACCEPTED') {
                 // Application was previously accepted but now revoked/rejected
