@@ -1825,6 +1825,234 @@
         "recipientRole": "ADMIN"
     },
     {
+        "_id": "6aa2451bf1624b69330f5718",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55f7",
+        "read": false,
+        "type": "OPPORTUNITY_AUTO_CLOSED",
+        "title": "Opportunity Closed: Python Full Stack & Django Pre-Placement Bootcamp (Start Date Cutoff Passed)",
+        "message": "The opportunity 'Python Full Stack & Django Pre-Placement Bootcamp' in Bangalore scheduled for Sep 10, 2026 has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
+        "metadata": {
+            "jobId": "MEN-OPP-1001",
+            "title": "Python Full Stack & Django Pre-Placement Bootcamp",
+            "startDate": "2026-09-10",
+            "opportunityId": "6a99b57af1624b69330f55f7",
+            "autoClosedReason": "START_DATE_PASSED"
+        },
+        "createdAt": "1789019419739",
+        "milestone": null,
+        "updatedAt": "1789019419739",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57af1624b69330f55f7",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "6aa2451df1624b69330f5719",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55fc",
+        "read": false,
+        "type": "OPPORTUNITY_STARTING_SOON",
+        "title": "Urgent: Unassigned Opportunity Starts Tomorrow!",
+        "message": "Training opportunity 'Cybersecurity, Ethical Hacking & SOC Analyst Training' in Delhi is scheduled to start tomorrow (Sep 11, 2026). No faculty is assigned yet — please review matching trainers before the 6:00 PM cutoff!",
+        "metadata": {
+            "jobId": "MEN-OPP-1006",
+            "title": "Cybersecurity, Ethical Hacking & SOC Analyst Training",
+            "diffDays": 1,
+            "milestone": "TOMORROW",
+            "startDate": "2026-09-11",
+            "isAssigned": false,
+            "opportunityId": "6a99b57af1624b69330f55fc"
+        },
+        "createdAt": "1789019421070",
+        "milestone": "TOMORROW",
+        "updatedAt": "1789019421070",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57af1624b69330f55fc",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "6aa2451df1624b69330f571a",
+        "link": "/admin/opportunity-view.php?id=6a99b57bf1624b69330f55fe",
+        "read": false,
+        "type": "OPPORTUNITY_STARTING_SOON",
+        "title": "Reminder: Training Starts in 2 Days",
+        "message": "Training engagement 'Corporate Soft Skills & GD / Personal Interview Mastery' in Bangalore starts on Sep 12, 2026 (in 2 days). Ensure course materials and logistics are finalized.",
+        "metadata": {
+            "jobId": "MEN-OPP-1008",
+            "title": "Corporate Soft Skills & GD / Personal Interview Mastery",
+            "diffDays": 2,
+            "milestone": "IN_2_DAYS",
+            "startDate": "2026-09-12",
+            "isAssigned": true,
+            "opportunityId": "6a99b57bf1624b69330f55fe"
+        },
+        "createdAt": "1789019421616",
+        "milestone": "IN_2_DAYS",
+        "updatedAt": "1789019421616",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57bf1624b69330f55fe",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "9f5c9320beeaf56550c2c324",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55fc",
+        "read": false,
+        "type": "OPPORTUNITY_AUTO_CLOSED",
+        "title": "Opportunity Closed: Cybersecurity, Ethical Hacking & SOC Analyst Training (Start Date Cutoff Passed)",
+        "message": "The opportunity 'Cybersecurity, Ethical Hacking & SOC Analyst Training' in Delhi scheduled for Sep 11, 2026 has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
+        "metadata": {
+            "jobId": "MEN-OPP-1006",
+            "title": "Cybersecurity, Ethical Hacking & SOC Analyst Training",
+            "startDate": "2026-09-11",
+            "opportunityId": "6a99b57af1624b69330f55fc",
+            "autoClosedReason": "START_DATE_PASSED"
+        },
+        "createdAt": "1789123206828",
+        "milestone": null,
+        "updatedAt": "1789123206828",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57af1624b69330f55fc",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "da67e1a576ad1508d948c2e1",
+        "link": "/admin/opportunity-view.php?id=6a99b57bf1624b69330f55fe",
+        "read": false,
+        "type": "OPPORTUNITY_STARTING_SOON",
+        "title": "Confirmed Training Starts Tomorrow!",
+        "message": "Confirmed training program 'Corporate Soft Skills & GD / Personal Interview Mastery' in Bangalore commences tomorrow (Sep 12, 2026). Please verify faculty travel, lodging, and campus reporting schedule.",
+        "metadata": {
+            "jobId": "MEN-OPP-1008",
+            "title": "Corporate Soft Skills & GD / Personal Interview Mastery",
+            "diffDays": 1,
+            "milestone": "TOMORROW",
+            "startDate": "2026-09-12",
+            "isAssigned": true,
+            "opportunityId": "6a99b57bf1624b69330f55fe"
+        },
+        "createdAt": "1789123207904",
+        "milestone": "TOMORROW",
+        "updatedAt": "1789123207904",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57bf1624b69330f55fe",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "cec1898c9af1b94fbbb74d6f",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55f8",
+        "read": false,
+        "type": "OPPORTUNITY_STARTING_SOON",
+        "title": "Urgent: Unassigned Opportunity Starts Tomorrow!",
+        "message": "Training opportunity 'Enterprise Java Spring Boot & Microservices Training' in Chennai is scheduled to start tomorrow (Sep 13, 2026). No faculty is assigned yet — please review matching trainers before the 6:00 PM cutoff!",
+        "metadata": {
+            "jobId": "MEN-OPP-1002",
+            "title": "Enterprise Java Spring Boot & Microservices Training",
+            "diffDays": 1,
+            "milestone": "TOMORROW",
+            "startDate": "2026-09-13",
+            "isAssigned": false,
+            "opportunityId": "6a99b57af1624b69330f55f8"
+        },
+        "createdAt": "1789194494797",
+        "milestone": "TOMORROW",
+        "updatedAt": "1789194494797",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57af1624b69330f55f8",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "1acebb61b2d0f669d6fc67ab",
+        "link": "/admin/opportunity-view.php?id=6a99b57bf1624b69330f55ff",
+        "read": false,
+        "type": "OPPORTUNITY_STARTING_SOON",
+        "title": "Reminder: Training Starts in 2 Days",
+        "message": "Training engagement 'React 18 & Next.js 14 Full Stack Development' in Kochi starts on Sep 14, 2026 (in 2 days). Ensure course materials and logistics are finalized.",
+        "metadata": {
+            "jobId": "MEN-OPP-1009",
+            "title": "React 18 & Next.js 14 Full Stack Development",
+            "diffDays": 2,
+            "milestone": "IN_2_DAYS",
+            "startDate": "2026-09-14",
+            "isAssigned": true,
+            "opportunityId": "6a99b57bf1624b69330f55ff"
+        },
+        "createdAt": "1789194496346",
+        "milestone": "IN_2_DAYS",
+        "updatedAt": "1789194496346",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57bf1624b69330f55ff",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "d92ed7caa63e8680c2d2ca24",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55f8",
+        "read": false,
+        "type": "OPPORTUNITY_STARTING_SOON",
+        "title": "Reminder: Opportunity Starts in 2 Days (Unassigned)",
+        "message": "Opportunity 'Enterprise Java Spring Boot & Microservices Training' in Chennai starts on Sep 13, 2026 (in 2 days) and still requires faculty assignment.",
+        "metadata": {
+            "jobId": "MEN-OPP-1002",
+            "title": "Enterprise Java Spring Boot & Microservices Training",
+            "diffDays": 2,
+            "milestone": "IN_2_DAYS",
+            "startDate": "2026-09-13",
+            "isAssigned": false,
+            "opportunityId": "6a99b57af1624b69330f55f8"
+        },
+        "createdAt": "1789123205072",
+        "milestone": "IN_2_DAYS",
+        "updatedAt": "1789123205072",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "6a99b57af1624b69330f55f8",
+        "recipientRole": "ADMIN"
+    },
+    {
         "recipientRole": "ADMIN",
         "isAdminAlert": true,
         "isStaffAlert": true,
@@ -1834,79 +2062,21 @@
             "STAFF"
         ],
         "type": "OPPORTUNITY_AUTO_CLOSED",
-        "opportunityId": "6a99b57af1624b69330f55f7",
+        "opportunityId": "6a99b57af1624b69330f55f8",
         "milestone": null,
-        "title": "Opportunity Closed: Python Full Stack & Django Pre-Placement Bootcamp (Start Date Cutoff Passed)",
-        "message": "The opportunity 'Python Full Stack & Django Pre-Placement Bootcamp' in Bangalore scheduled for Sep 10, 2026 has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
-        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55f7",
+        "title": "Opportunity Closed: Enterprise Java Spring Boot & Microservices Training (Start Date Cutoff Passed)",
+        "message": "The opportunity 'Enterprise Java Spring Boot & Microservices Training' in Chennai scheduled for Sep 13, 2026 has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55f8",
         "metadata": {
-            "opportunityId": "6a99b57af1624b69330f55f7",
-            "jobId": "MEN-OPP-1001",
-            "title": "Python Full Stack & Django Pre-Placement Bootcamp",
-            "startDate": "2026-09-10",
+            "opportunityId": "6a99b57af1624b69330f55f8",
+            "jobId": "MEN-OPP-1002",
+            "title": "Enterprise Java Spring Boot & Microservices Training",
+            "startDate": "2026-09-13",
             "autoClosedReason": "START_DATE_PASSED"
         },
         "read": false,
-        "createdAt": "1789019419739",
-        "_id": "6aa2451bf1624b69330f5718",
-        "updatedAt": "1789019419739"
-    },
-    {
-        "recipientRole": "ADMIN",
-        "isAdminAlert": true,
-        "isStaffAlert": true,
-        "targetRoles": [
-            "ADMIN",
-            "SUPER_ADMIN",
-            "STAFF"
-        ],
-        "type": "OPPORTUNITY_STARTING_SOON",
-        "opportunityId": "6a99b57af1624b69330f55fc",
-        "milestone": "TOMORROW",
-        "title": "Urgent: Unassigned Opportunity Starts Tomorrow!",
-        "message": "Training opportunity 'Cybersecurity, Ethical Hacking & SOC Analyst Training' in Delhi is scheduled to start tomorrow (Sep 11, 2026). No faculty is assigned yet — please review matching trainers before the 6:00 PM cutoff!",
-        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55fc",
-        "metadata": {
-            "opportunityId": "6a99b57af1624b69330f55fc",
-            "jobId": "MEN-OPP-1006",
-            "title": "Cybersecurity, Ethical Hacking & SOC Analyst Training",
-            "milestone": "TOMORROW",
-            "diffDays": 1,
-            "isAssigned": false,
-            "startDate": "2026-09-11"
-        },
-        "read": false,
-        "createdAt": "1789019421070",
-        "_id": "6aa2451df1624b69330f5719",
-        "updatedAt": "1789019421070"
-    },
-    {
-        "recipientRole": "ADMIN",
-        "isAdminAlert": true,
-        "isStaffAlert": true,
-        "targetRoles": [
-            "ADMIN",
-            "SUPER_ADMIN",
-            "STAFF"
-        ],
-        "type": "OPPORTUNITY_STARTING_SOON",
-        "opportunityId": "6a99b57bf1624b69330f55fe",
-        "milestone": "IN_2_DAYS",
-        "title": "Reminder: Training Starts in 2 Days",
-        "message": "Training engagement 'Corporate Soft Skills & GD / Personal Interview Mastery' in Bangalore starts on Sep 12, 2026 (in 2 days). Ensure course materials and logistics are finalized.",
-        "link": "/admin/opportunity-view.php?id=6a99b57bf1624b69330f55fe",
-        "metadata": {
-            "opportunityId": "6a99b57bf1624b69330f55fe",
-            "jobId": "MEN-OPP-1008",
-            "title": "Corporate Soft Skills & GD / Personal Interview Mastery",
-            "milestone": "IN_2_DAYS",
-            "diffDays": 2,
-            "isAssigned": true,
-            "startDate": "2026-09-12"
-        },
-        "read": false,
-        "createdAt": "1789019421616",
-        "_id": "6aa2451df1624b69330f571a",
-        "updatedAt": "1789019421616"
+        "createdAt": "1789220526807",
+        "_id": "6aa556aef1624b69330f571b",
+        "updatedAt": "1789220526820"
     }
 ]

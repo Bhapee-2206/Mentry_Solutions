@@ -22,6 +22,9 @@ if ($isExplicitProd || !$isLocalEnv) {
 if (file_exists(__DIR__ . '/mongo_polyfill.php')) {
     require_once __DIR__ . '/mongo_polyfill.php';
 }
+if (file_exists(__DIR__ . '/db.php')) {
+    require_once __DIR__ . '/db.php';
+}
 
 function formatINR($amount) {
     if ($amount === null || $amount === '') return '₹0';
@@ -992,6 +995,8 @@ function syncAssignmentStatuses() {
     if ($synced) return;
     $synced = true;
 
+    if (!function_exists('getCollection')) return;
+
     $asgCol = getCollection("Assignment");
     $trainerCol = getCollection("Trainer");
     if (!$asgCol) return;
@@ -1116,11 +1121,7 @@ function syncAssignmentStatuses() {
                 }
             } catch (\Throwable $e) {}
         }
-    }
 }
-
-// Auto-heal assignment dates and status on load
-syncAssignmentStatuses();
 
 /**
  * Sanitizes input to prevent NoSQL operator injection and string poisoning
@@ -1235,10 +1236,4 @@ function mentryShutdownHandler() {
             }
         }
     }
-}
-
-// Register global handlers if not in CLI mode
-if (php_sapi_name() !== 'cli') {
-    set_exception_handler('mentryExceptionHandler');
-    register_shutdown_function('mentryShutdownHandler');
 }

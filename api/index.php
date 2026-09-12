@@ -6,11 +6,11 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_WARNING);
 if (file_exists(__DIR__ . '/../includes/mongo_polyfill.php')) {
     require_once __DIR__ . '/../includes/mongo_polyfill.php';
 }
-if (file_exists(__DIR__ . '/../includes/helpers.php')) {
-    require_once __DIR__ . '/../includes/helpers.php';
-}
 if (file_exists(__DIR__ . '/../includes/db.php')) {
     require_once __DIR__ . '/../includes/db.php';
+}
+if (file_exists(__DIR__ . '/../includes/helpers.php')) {
+    require_once __DIR__ . '/../includes/helpers.php';
 }
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);

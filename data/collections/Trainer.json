@@ -55,7 +55,7 @@
         "mentryId": "MEN-TRN-1002",
         "verified": true,
         "createdAt": "1788458360882",
-        "updatedAt": "1789215409225",
+        "updatedAt": "1789220525238",
         "currentCity": "Chennai",
         "trainerCode": "MEN-TRN-1002",
         "currentState": "Tamil Nadu",
@@ -65,7 +65,8 @@
         "professionalTitle": "AWS Certified Solutions Architect & DevOps Master Trainer",
         "availabilityStatus": "AVAILABLE_NOW",
         "totalExperienceYears": 10,
-        "availabilityUpdatedAt": "1789215409225"
+        "availabilityUpdatedAt": "1789220525238",
+        "availabilityNotes": ""
     },
     {
         "_id": "6a99b579f1624b69330f55d1",
@@ -87,7 +88,7 @@
         "mentryId": "MEN-TRN-1003",
         "verified": true,
         "createdAt": "1788458361353",
-        "updatedAt": "1789215410350",
+        "updatedAt": "1789220525650",
         "currentCity": "Hyderabad",
         "trainerCode": "MEN-TRN-1003",
         "currentState": "Telangana",
@@ -97,7 +98,8 @@
         "professionalTitle": "AI Research Scientist & Deep Learning Specialist",
         "availabilityStatus": "AVAILABLE_NOW",
         "totalExperienceYears": 12,
-        "availabilityUpdatedAt": "1789215410350"
+        "availabilityUpdatedAt": "1789220525650",
+        "availabilityNotes": ""
     },
     {
         "_id": "6a99b579f1624b69330f55dc",
@@ -298,7 +300,7 @@
         "mentryId": "MEN-TRN-1558",
         "createdAt": "1788523244656",
         "resumeUrl": "/public/uploads/documents/doc_6a9ab2ecf1624b69330f5679_1788526959_407.pdf",
-        "updatedAt": "1789215474475",
+        "updatedAt": "1789220523644",
         "currentCity": "chengalpattu",
         "trainerCode": "MEN-TRN-1558",
         "currentState": "India",
@@ -316,11 +318,13 @@
         "travelPreference": "PAN_INDIA",
         "professionalTitle": "Programming Technical Trainer",
         "profileCompletion": 100,
-        "availabilityStatus": "AVAILABLE_NOW",
+        "availabilityStatus": "BUSY_ON_ASSIGNMENT",
         "extractedSkillsCount": 6,
         "totalExperienceYears": 6,
-        "availabilityUpdatedAt": "1789215472833",
-        "collegeExperienceYears": 1
+        "availabilityUpdatedAt": "1789220523644",
+        "collegeExperienceYears": 1,
+        "availabilityNotes": "Delivering live campus workshop",
+        "availableFromDate": "1789237799000"
     },
     {
         "_id": "6a9ba701f1624b69330f5692",
@@ -334,7 +338,7 @@
         "mentryId": "MEN-TRN-1559",
         "createdAt": "1788585729800",
         "resumeUrl": "https://bmqzwrkhxyptdhqwvhob.supabase.co/storage/v1/object/public/documents/documents/doc_6a9ba701f1624b69330f5692_1788595308_960.pdf",
-        "updatedAt": "1788595493039",
+        "updatedAt": "1789220524092",
         "currentCity": "Chengalpattu",
         "trainerCode": "MEN-TRN-1559",
         "currentState": "India",
@@ -343,14 +347,14 @@
         "resumeParsedAt": "1788595308980",
         "extractedSkills": [],
         "travelPreference": "PAN_INDIA",
-        "availabilityNotes": "Delivering: React 18 & Next.js 14 Full Stack Development",
-        "availableFromDate": "1789286693000",
+        "availabilityNotes": "Delivering live campus workshop",
+        "availableFromDate": "1789237799000",
         "professionalTitle": "Programming Technical Trainer",
         "profileCompletion": 50,
         "availabilityStatus": "BUSY_ON_ASSIGNMENT",
         "extractedSkillsCount": 0,
         "totalExperienceYears": 3,
-        "availabilityUpdatedAt": "1788595493036",
+        "availabilityUpdatedAt": "1789220524092",
         "collegeExperienceYears": 1
     },
     {
@@ -435,7 +439,7 @@
         "mentryId": "MEN-TRN-1561",
         "createdAt": "1788688413346",
         "resumeUrl": "https://bmqzwrkhxyptdhqwvhob.supabase.co/storage/v1/object/public/documents/documents/doc_7d6017cad62cbd42daa58efd_1788688751_905.pdf",
-        "updatedAt": "1789215412079",
+        "updatedAt": "1789220524766",
         "currentCity": "PIDAGAM",
         "trainerCode": "MEN-TRN-1561",
         "currentState": "VILUPPURAM, India",
@@ -446,11 +450,13 @@
         "travelPreference": "PAN_INDIA",
         "professionalTitle": "Programming Technical Trainer",
         "profileCompletion": 50,
-        "availabilityStatus": "AVAILABLE_NOW",
+        "availabilityStatus": "BUSY_ON_ASSIGNMENT",
         "extractedSkillsCount": 0,
         "totalExperienceYears": 3,
-        "availabilityUpdatedAt": "1789215412079",
-        "collegeExperienceYears": 1
+        "availabilityUpdatedAt": "1789220524766",
+        "collegeExperienceYears": 1,
+        "availabilityNotes": "Delivering live campus workshop",
+        "availableFromDate": "1789756199000"
     },
     {
         "_id": "6a9d871cf1624b69330f56fa",

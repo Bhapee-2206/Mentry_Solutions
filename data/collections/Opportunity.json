@@ -9,6 +9,7 @@
         "domain": "Programming",
         "status": "CLOSED",
         "endDate": "2026-09-20",
+        "closedAt": "1789019418739",
         "mentryId": "MEN-OPP-1001",
         "createdAt": "1788458362711",
         "startDate": "2026-09-10",
@@ -26,9 +27,8 @@
             "REST APIs",
             "React"
         ],
-        "minExperienceYears": 5,
-        "closedAt": "1789019418739",
-        "autoClosedReason": "START_DATE_PASSED"
+        "autoClosedReason": "START_DATE_PASSED",
+        "minExperienceYears": 5
     },
     {
         "_id": "6a99b57af1624b69330f55f8",
@@ -38,12 +38,12 @@
         "state": "Tamil Nadu",
         "title": "Enterprise Java Spring Boot & Microservices Training",
         "domain": "Programming",
-        "status": "PUBLISHED",
+        "status": "CLOSED",
         "endDate": "2026-09-25",
         "mentryId": "MEN-OPP-1002",
         "createdAt": "1788458362728",
         "startDate": "2026-09-13",
-        "updatedAt": "1788458362728",
+        "updatedAt": "1789220526128",
         "collegeName": "SRM Institute of Science and Technology",
         "description": "Full-spectrum backend microservices development course including hands-on project creation, API testing, and deployment containerization.",
         "dailyRateMax": 9500,
@@ -57,7 +57,9 @@
             "Docker",
             "Kafka"
         ],
-        "minExperienceYears": 6
+        "minExperienceYears": 6,
+        "closedAt": "1789220526128",
+        "autoClosedReason": "START_DATE_PASSED"
     },
     {
         "_id": "6a99b57af1624b69330f55f9",
@@ -157,12 +159,13 @@
         "state": "NCR",
         "title": "Cybersecurity, Ethical Hacking & SOC Analyst Training",
         "domain": "Cybersecurity",
-        "status": "PUBLISHED",
+        "status": "CLOSED",
         "endDate": "2026-09-25",
+        "closedAt": "1789123206091",
         "mentryId": "MEN-OPP-1006",
         "createdAt": "1788458362890",
         "startDate": "2026-09-11",
-        "updatedAt": "1788458362890",
+        "updatedAt": "1789123206091",
         "collegeName": "Amity University Institute of Technology",
         "description": "Practical virtual bootcamp covering vulnerability assessment, network packet dissection, CTF challenges, and SOC operations.",
         "dailyRateMax": 8000,
@@ -176,6 +179,7 @@
             "OWASP Top 10",
             "SOC"
         ],
+        "autoClosedReason": "START_DATE_PASSED",
         "minExperienceYears": 4
     },
     {
