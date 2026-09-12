@@ -109,20 +109,26 @@ if ($isAdminContext) {
 </div>
 
 <!-- Push Notification Permission Banner -->
-<div id="mentryPushBanner" class="fixed top-20 right-4 md:right-6 max-w-sm w-[calc(100%-2rem)] z-40 bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 shadow-xl backdrop-blur-md hidden select-none animate-in fade-in slide-in-from-top-4 duration-300">
-    <div class="flex items-start gap-3">
-        <div class="w-9 h-9 rounded-xl bg-[#FE5E04]/20 text-[#FE5E04] flex items-center justify-center shrink-0">
-            <span class="material-symbols-outlined text-[20px]">notifications_active</span>
+<div id="mentryPushBanner" class="fixed top-20 right-4 md:right-6 max-w-sm w-[calc(100%-2rem)] z-[70] bg-slate-950/95 text-white p-4 rounded-2xl border border-slate-800/90 shadow-2xl backdrop-blur-xl hidden select-none animate-in fade-in slide-in-from-top-4 duration-300">
+    <div class="flex items-start gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-[#FE5E04]/20 border border-[#FE5E04]/30 text-[#FE5E04] flex items-center justify-center shrink-0 shadow-xs">
+            <span class="material-symbols-outlined text-[22px] animate-pulse">notifications_active</span>
         </div>
-        <div class="flex-1">
-            <h4 class="font-bold text-xs text-white">Enable Real-Time Alerts</h4>
-            <p class="text-[11px] text-slate-400 mt-0.5">Get instant notifications for new training opportunities, confirmed assignments, and urgent requirements.</p>
-            <div class="flex items-center gap-2 mt-3">
-                <button type="button" onclick="enablePushNotifications()" class="bg-[#FE5E04] hover:bg-[#e04e00] text-white font-bold text-[11px] px-3.5 py-1.5 rounded-lg transition-colors">
-                    Enable Alerts
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+                <h4 class="font-extrabold text-xs text-white">Enable Real-Time Alerts</h4>
+                <button type="button" onclick="dismissPushBanner()" class="text-slate-400 hover:text-white p-0.5 -mr-1 rounded-md cursor-pointer" aria-label="Dismiss">
+                    <span class="material-symbols-outlined text-[16px]">close</span>
                 </button>
-                <button type="button" onclick="dismissPushBanner()" class="text-slate-400 hover:text-white font-semibold text-[11px] px-2 py-1.5">
-                    Not Now
+            </div>
+            <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">Stay updated with instant push notifications for new training opportunities, confirmed assignments, and schedule alerts.</p>
+            <div class="flex items-center gap-2 mt-3.5">
+                <button type="button" onclick="enablePushNotifications()" class="flex-1 bg-[#FE5E04] hover:bg-[#e04e00] text-white font-bold text-xs py-2 px-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer">
+                    <span class="material-symbols-outlined text-[15px]">notifications</span>
+                    <span>Enable Alerts</span>
+                </button>
+                <button type="button" onclick="dismissPushBanner()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs py-2 px-3 rounded-xl transition-colors cursor-pointer">
+                    Later
                 </button>
             </div>
         </div>
@@ -132,6 +138,7 @@ if ($isAdminContext) {
 <script>
 (function() {
     let deferredPrompt = null;
+    let activeSwReg = null;
     const banner = document.getElementById('mentryPwaBanner');
     const iosModal = document.getElementById('mentryIosModal');
     const pushBanner = document.getElementById('mentryPushBanner');
@@ -139,18 +146,41 @@ if ($isAdminContext) {
     const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
-    // 1. Service Worker Registration
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
+    // Check if user already installed / downloaded the PWA
+    function isAppAlreadyInstalled() {
+        return isStandalone || localStorage.getItem('mentry_pwa_installed') === 'true';
+    }
+
+    // Query browser for installed related apps if API is supported
+    if ('getInstalledRelatedApps' in navigator) {
+        navigator.getInstalledRelatedApps().then((apps) => {
+            if (apps && apps.length > 0) {
+                localStorage.setItem('mentry_pwa_installed', 'true');
+            }
+        }).catch(() => {});
+    }
+
+    // 1. Service Worker & Push Notification Initialization
+    function initPwaAndPush() {
+        if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js', { scope: '/' })
                 .then((reg) => {
-                    // Check push subscription after registration
+                    activeSwReg = reg;
                     checkPushPermission(reg);
                 })
                 .catch((err) => {
-                    console.log('[Mentry PWA] SW registration notice:', err);
+                    console.log('[Mentry PWA] SW notice:', err);
+                    checkPushPermission(null);
                 });
-        });
+        } else {
+            checkPushPermission(null);
+        }
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initPwaAndPush();
+    } else {
+        window.addEventListener('DOMContentLoaded', initPwaAndPush);
     }
 
     // 2. Capture Chrome/Android/Edge beforeinstallprompt
@@ -158,9 +188,14 @@ if ($isAdminContext) {
         e.preventDefault();
         deferredPrompt = e;
 
+        // If user already downloaded the PWA, DO NOT SHOW POPUP
+        if (isAppAlreadyInstalled()) {
+            return;
+        }
+
         // Show banner after 3 seconds if not recently dismissed
         const dismissed = localStorage.getItem('mentry_pwa_dismissed');
-        if (!dismissed && !isStandalone && banner) {
+        if (!dismissed && banner) {
             setTimeout(() => {
                 showPwaBanner();
             }, 3000);
@@ -177,7 +212,8 @@ if ($isAdminContext) {
     });
 
     window.showPwaBanner = function() {
-        if (!banner || isStandalone) return;
+        // Guarantee: never show download popup if user already installed the app
+        if (!banner || isAppAlreadyInstalled()) return;
         banner.classList.remove('translate-y-32', 'opacity-0', 'pointer-events-none');
         banner.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
     };
@@ -206,11 +242,11 @@ if ($isAdminContext) {
             deferredPrompt.userChoice.then((choiceResult) => {
                 if (choiceResult.outcome === 'accepted') {
                     dismissPwaBanner();
+                    localStorage.setItem('mentry_pwa_installed', 'true');
                 }
                 deferredPrompt = null;
             });
         } else {
-            // Fallback for browsers without direct prompt access
             alert('To install Mentry on your device, tap your browser menu (⋮ or Share) and choose "Install App" or "Add to Home Screen".');
         }
     };
@@ -222,7 +258,7 @@ if ($isAdminContext) {
         }
     };
 
-    // Public hook for button triggers (e.g. sidebar "Install Mobile App")
+    // Public hook for button triggers (e.g. header download button)
     window.promptPWAInstall = function() {
         if (isStandalone) {
             alert('Mentry is already installed and running in App Mode!');
@@ -246,18 +282,37 @@ if ($isAdminContext) {
 
         if (Notification.permission === 'default') {
             const pushDismissed = localStorage.getItem('mentry_push_dismissed');
-            if (!pushDismissed && pushBanner) {
+            const now = Date.now();
+            const dismissedTime = parseInt(pushDismissed || '0', 10);
+            // Re-prompt after 24h if dismissed
+            if (!pushDismissed || (now - dismissedTime > 24 * 60 * 60 * 1000)) {
                 setTimeout(() => {
-                    pushBanner.classList.remove('hidden');
-                }, 5000);
+                    showPushBanner();
+                }, 2000);
             }
-        } else if (Notification.permission === 'granted') {
+        } else if (Notification.permission === 'granted' && swReg) {
             subscribeUserToPush(swReg);
         }
     }
 
+    window.showPushBanner = function(force = false) {
+        if (!pushBanner) return;
+        if (!('Notification' in window)) {
+            if (force) alert('Push notifications are not supported by this browser.');
+            return;
+        }
+        if (Notification.permission === 'granted' && !force) {
+            return;
+        }
+        pushBanner.classList.remove('hidden');
+        pushBanner.classList.add('block');
+    };
+
     window.dismissPushBanner = function() {
-        if (pushBanner) pushBanner.classList.add('hidden');
+        if (pushBanner) {
+            pushBanner.classList.add('hidden');
+            pushBanner.classList.remove('block');
+        }
         localStorage.setItem('mentry_push_dismissed', Date.now().toString());
     };
 
@@ -268,20 +323,28 @@ if ($isAdminContext) {
         }
 
         Notification.requestPermission().then((permission) => {
-            if (pushBanner) pushBanner.classList.add('hidden');
+            if (pushBanner) {
+                pushBanner.classList.add('hidden');
+                pushBanner.classList.remove('block');
+            }
             if (permission === 'granted') {
+                localStorage.removeItem('mentry_push_dismissed');
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.ready.then((reg) => {
                         subscribeUserToPush(reg);
-                        // Display welcome notification
                         reg.showNotification('Mentry Notifications Active! 🔔', {
                             body: 'You will now receive real-time alerts for opportunities and assignments.',
                             icon: '/public/mentry.png',
                             badge: '/public/mentry.png'
                         });
-                    });
+                    }).catch(() => {});
                 }
+            } else if (permission === 'denied') {
+                localStorage.setItem('mentry_push_dismissed', Date.now().toString());
+                alert('Notifications are blocked in your browser settings. To receive alerts, please enable notifications for Mentry in your browser address bar.');
             }
+        }).catch((e) => {
+            console.warn('[Mentry Push] Permission error:', e);
         });
     };
 
@@ -294,14 +357,12 @@ if ($isAdminContext) {
                 return existingSub;
             }
 
-            // Public application server key (VAPID) placeholder or default
             return swReg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlB64ToUint8Array('BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U')
             }).then((newSub) => {
                 sendSubscriptionToServer(newSub);
             }).catch((err) => {
-                // Browsers in dev or sandbox without VAPID will catch cleanly
                 console.log('[Mentry Push] Subscription notice:', err.message);
             });
         });
