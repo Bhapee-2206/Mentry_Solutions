@@ -143,6 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body class="min-h-screen mesh-bg py-8 sm:py-12 px-3.5 sm:px-6 lg:px-8 w-full max-w-full overflow-x-hidden">
+<?php if (file_exists(__DIR__ . '/includes/loading_screen.php')) include __DIR__ . '/includes/loading_screen.php'; ?>
     <div class="max-w-2xl mx-auto space-y-6 min-w-0">
         <!-- Logo & Title -->
         <div class="text-center space-y-3">

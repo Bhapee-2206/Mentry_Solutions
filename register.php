@@ -172,6 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body class="min-h-screen mesh-bg py-8 sm:py-12 px-3.5 sm:px-4 flex flex-col justify-center items-center w-full max-w-full overflow-x-hidden">
+<?php if (file_exists(__DIR__ . '/includes/loading_screen.php')) include __DIR__ . '/includes/loading_screen.php'; ?>
     <div class="max-w-xl w-full bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-2xl space-y-6 min-w-0">
         <div class="text-center space-y-2">
             <a href="/index.php" class="inline-block">

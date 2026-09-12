@@ -211,6 +211,7 @@ if ($currentUser) {
     </style>
 </head>
 <body class="min-h-screen flex flex-col bg-white text-slate-900 w-full max-w-full overflow-x-clip">
+<?php if (file_exists(__DIR__ . '/loading_screen.php')) include __DIR__ . '/loading_screen.php'; ?>
 
 <?php 
 $headerMaint = getMaintenanceConfig();
