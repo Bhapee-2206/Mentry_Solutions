@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'email' => $user['email'],
                         'name' => $user['name'],
                         'role' => $user['role'] ?? 'TRAINER',
-                        'avatar' => $user['avatar'] ?? null,
+                        'avatar' => $user['avatar'] ?? ($trainer['avatar'] ?? null),
                         'trainerCode' => $trainer['trainerCode'] ?? ($user['trainerCode'] ?? null),
                         'mentryId' => $trainer['mentryId'] ?? ($user['mentryId'] ?? null),
                         'trainerId' => $trainer ? (string)$trainer['_id'] : null,

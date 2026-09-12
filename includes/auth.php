@@ -138,23 +138,66 @@ function restoreSessionFromCookie() {
         clearPersistentSessionCookie();
         return null;
     }
+
+    $restoredAvatar = $data['avatar'] ?? '';
+    if (empty($restoredAvatar) || strpos($restoredAvatar, 'ui-avatars.com') !== false || strpos($restoredAvatar, 'avatar.vercel.sh') !== false) {
+        $liveAvatar = getLiveUserAvatar((string)$data['id']);
+        if (!empty($liveAvatar)) {
+            $restoredAvatar = $liveAvatar;
+        }
+    }
+    if (empty($restoredAvatar)) {
+        $restoredAvatar = 'https://ui-avatars.com/api/?name=' . urlencode($data['name'] ?? 'User');
+    }
+
     $_SESSION['user'] = [
         'id' => (string)$data['id'],
         'email' => $data['email'] ?? '',
         'name' => $data['name'] ?? '',
         'role' => $data['role'] ?? 'TRAINER',
-        'avatar' => $data['avatar'] ?? ('https://ui-avatars.com/api/?name=' . urlencode($data['name'] ?? 'User')),
+        'avatar' => $restoredAvatar,
         'trainerCode' => $data['trainerCode'] ?? '',
         'mentryId' => $data['mentryId'] ?? ''
     ];
     return $_SESSION['user'];
 }
 
+/**
+ * Resolves the freshest saved avatar from DB for persistent across refreshes
+ */
+function getLiveUserAvatar(string $userId): ?string {
+    if (empty($userId)) return null;
+    try {
+        $trainerCol = getCollection("Trainer");
+        if ($trainerCol) {
+            $tQuery = ['userId' => (string)$userId];
+            if (preg_match('/^[a-f\d]{24}$/i', $userId)) {
+                $tQuery = ['$or' => [['userId' => (string)$userId], ['userId' => new MongoDB\BSON\ObjectId($userId)]]];
+            }
+            $tr = $trainerCol->findOne($tQuery);
+            if ($tr && !empty($tr['avatar']) && strpos($tr['avatar'], 'ui-avatars.com') === false && strpos($tr['avatar'], 'avatar.vercel.sh') === false) {
+                return (string)$tr['avatar'];
+            }
+        }
+        $userCol = getCollection("User");
+        if ($userCol) {
+            $uQuery = ['_id' => (string)$userId];
+            if (preg_match('/^[a-f\d]{24}$/i', $userId)) {
+                $uQuery = ['$or' => [['_id' => (string)$userId], ['_id' => new MongoDB\BSON\ObjectId($userId)]]];
+            }
+            $u = $userCol->findOne($uQuery);
+            if ($u && !empty($u['avatar']) && strpos($u['avatar'], 'ui-avatars.com') === false && strpos($u['avatar'], 'avatar.vercel.sh') === false) {
+                return (string)$u['avatar'];
+            }
+        }
+    } catch (\Throwable $e) {}
+    return null;
+}
+
 // Auto-restore session immediately on file load if session is empty
 if (empty($_SESSION['user']) || empty($_SESSION['user']['id'])) {
     restoreSessionFromCookie();
 }
-
 
 function hashPassword($password) {
     return password_hash($password, PASSWORD_BCRYPT);
@@ -173,6 +216,16 @@ function getCurrentUser() {
         return null;
     }
 
+    // Live avatar synchronization: if session avatar is empty or placeholder, check DB for uploaded avatar
+    if (empty($user['avatar']) || strpos($user['avatar'], 'ui-avatars.com') !== false || strpos($user['avatar'], 'avatar.vercel.sh') !== false) {
+        $liveAvatar = getLiveUserAvatar((string)$user['id']);
+        if (!empty($liveAvatar)) {
+            $user['avatar'] = $liveAvatar;
+            $_SESSION['user']['avatar'] = $liveAvatar;
+            setPersistentSessionCookie($_SESSION['user']);
+        }
+    }
+
     // Live suspension check: If trainer account is suspended, invalidate session immediately!
     if (($user['role'] ?? '') === 'TRAINER') {
         $isSuspended = false;
@@ -181,7 +234,11 @@ function getCurrentUser() {
         } else {
             $trainerCol = getCollection("Trainer");
             if ($trainerCol) {
-                $tr = $trainerCol->findOne(['userId' => (string)$user['id']]);
+                $tQuery = ['userId' => (string)$user['id']];
+                if (preg_match('/^[a-f\d]{24}$/i', (string)$user['id'])) {
+                    $tQuery = ['$or' => [['userId' => (string)$user['id']], ['userId' => new MongoDB\BSON\ObjectId((string)$user['id'])]]];
+                }
+                $tr = $trainerCol->findOne($tQuery);
                 if ($tr && ($tr['status'] ?? '') === 'SUSPENDED') {
                     $isSuspended = true;
                 }
@@ -189,7 +246,11 @@ function getCurrentUser() {
             if (!$isSuspended) {
                 $userCol = getCollection("User");
                 if ($userCol) {
-                    $u = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$user['id'])]);
+                    $uQuery = ['_id' => (string)$user['id']];
+                    if (preg_match('/^[a-f\d]{24}$/i', (string)$user['id'])) {
+                        $uQuery = ['$or' => [['_id' => (string)$user['id']], ['_id' => new MongoDB\BSON\ObjectId((string)$user['id'])]]];
+                    }
+                    $u = $userCol->findOne($uQuery);
                     if ($u && (($u['status'] ?? '') === 'SUSPENDED' || !empty($u['isSuspended']))) {
                         $isSuspended = true;
                     }

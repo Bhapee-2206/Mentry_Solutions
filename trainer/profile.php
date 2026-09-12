@@ -7,7 +7,20 @@ require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/includes/sidebar.php';
 
 $trainerCol = getCollection("Trainer");
-$trainer = $trainerCol ? $trainerCol->findOne(['userId' => $user['id']]) : null;
+$tFindQuery = ['userId' => (string)$user['id']];
+if (preg_match('/^[a-f\d]{24}$/i', (string)$user['id'])) {
+    $tFindQuery = ['$or' => [['userId' => (string)$user['id']], ['userId' => new MongoDB\BSON\ObjectId((string)$user['id'])]]];
+}
+$trainer = $trainerCol ? $trainerCol->findOne($tFindQuery) : null;
+
+// Ensure uploaded avatar persists across reloads and syncs to session cookie immediately
+if ($trainer && !empty($trainer['avatar']) && strpos($trainer['avatar'], 'ui-avatars.com') === false && strpos($trainer['avatar'], 'avatar.vercel.sh') === false) {
+    if (empty($_SESSION['user']['avatar']) || $_SESSION['user']['avatar'] !== $trainer['avatar']) {
+        $_SESSION['user']['avatar'] = $trainer['avatar'];
+        $user['avatar'] = $trainer['avatar'];
+        setPersistentSessionCookie($_SESSION['user']);
+    }
+}
 
 $saved = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -200,7 +213,10 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
     <div class="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card min-w-0">
         <div class="flex flex-col sm:flex-row items-center gap-6">
             <div class="relative group shrink-0">
-                <img src="<?= htmlspecialchars(getUserAvatar($user, 200)) ?>" class="w-24 h-24 rounded-3xl object-cover border-2 border-slate-200 shadow-md" style="object-position: center 15%;">
+                <?php 
+                $profileAvatar = (!empty($trainer['avatar']) && strpos($trainer['avatar'], 'ui-avatars.com') === false) ? $trainer['avatar'] : $user;
+                ?>
+                <img src="<?= htmlspecialchars(getUserAvatar($profileAvatar, 200)) ?>" class="w-24 h-24 rounded-3xl object-cover border-2 border-slate-200 shadow-md" style="object-position: center 15%;">
             </div>
 
             <div class="space-y-2 flex-1 text-center sm:text-left min-w-0 w-full">

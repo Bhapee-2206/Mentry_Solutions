@@ -18,24 +18,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($_POST['avatarUrl'])) {
         $avatarUrl = trim($_POST['avatarUrl']);
         if (filter_var($avatarUrl, FILTER_VALIDATE_URL) || strpos($avatarUrl, '/public/') === 0) {
+            $userQuery = ['_id' => (string)$userId];
+            if (preg_match('/^[a-f\d]{24}$/i', (string)$userId)) {
+                try {
+                    $userQuery = ['$or' => [['_id' => (string)$userId], ['_id' => new MongoDB\BSON\ObjectId((string)$userId)]]];
+                } catch (\Throwable $e) {}
+            }
+
             $userCol = getCollection("User");
             if ($userCol) {
-                $userCol->updateOne(
-                    ['_id' => new MongoDB\BSON\ObjectId($userId)],
-                    ['$set' => [
-                        'avatar' => $avatarUrl,
-                        'updatedAt' => new MongoDB\BSON\UTCDateTime()
-                    ]]
-                );
+                $updateData = [
+                    'avatar' => $avatarUrl,
+                    'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                ];
+                if ($currentUser['role'] === 'VENDOR' || $currentUser['role'] === 'COLLEGE') {
+                    $updateData['logo'] = $avatarUrl;
+                }
+                $userCol->updateOne($userQuery, ['$set' => $updateData]);
+
                 $trainerCol = getCollection("Trainer");
                 if ($trainerCol) {
+                    $trainerQuery = ['userId' => (string)$userId];
+                    if (preg_match('/^[a-f\d]{24}$/i', (string)$userId)) {
+                        try {
+                            $trainerQuery = ['$or' => [['userId' => (string)$userId], ['userId' => new MongoDB\BSON\ObjectId((string)$userId)]]];
+                        } catch (\Throwable $e) {}
+                    }
                     $trainerCol->updateOne(
-                        ['userId' => (string)$userId],
+                        $trainerQuery,
                         ['$set' => ['avatar' => $avatarUrl, 'updatedAt' => new MongoDB\BSON\UTCDateTime()]]
                     );
                 }
+
                 if ($userId === $currentUser['id']) {
                     $_SESSION['user']['avatar'] = $avatarUrl;
+                    if ($currentUser['role'] === 'VENDOR' || $currentUser['role'] === 'COLLEGE') {
+                        $_SESSION['user']['logo'] = $avatarUrl;
+                    }
+                    setPersistentSessionCookie($_SESSION['user']);
                 }
                 $_SESSION['avatar_success'] = "Profile photo updated successfully!";
             }
@@ -69,6 +89,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($uploadRes['success']) {
                     $avatarUrl = $uploadRes['url'];
 
+                    $userQuery = ['_id' => (string)$userId];
+                    if (preg_match('/^[a-f\d]{24}$/i', (string)$userId)) {
+                        try {
+                            $userQuery = ['$or' => [['_id' => (string)$userId], ['_id' => new MongoDB\BSON\ObjectId((string)$userId)]]];
+                        } catch (\Throwable $e) {}
+                    }
+
                     $userCol = getCollection("User");
                     if ($userCol) {
                         $updateData = [
@@ -80,21 +107,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $updateData['logo'] = $avatarUrl;
                         }
 
-                        $userCol->updateOne(
-                            ['_id' => new MongoDB\BSON\ObjectId($userId)],
-                            ['$set' => $updateData]
-                        );
+                        $userCol->updateOne($userQuery, ['$set' => $updateData]);
 
                         $trainerCol = getCollection("Trainer");
                         if ($trainerCol) {
+                            $trainerQuery = ['userId' => (string)$userId];
+                            if (preg_match('/^[a-f\d]{24}$/i', (string)$userId)) {
+                                try {
+                                    $trainerQuery = ['$or' => [['userId' => (string)$userId], ['userId' => new MongoDB\BSON\ObjectId((string)$userId)]]];
+                                } catch (\Throwable $e) {}
+                            }
                             $trainerCol->updateOne(
-                                ['userId' => (string)$userId],
+                                $trainerQuery,
                                 ['$set' => ['avatar' => $avatarUrl, 'updatedAt' => new MongoDB\BSON\UTCDateTime()]]
                             );
                         }
 
                         if ($userId === $currentUser['id']) {
                             $_SESSION['user']['avatar'] = $avatarUrl;
+                            if ($currentUser['role'] === 'VENDOR' || $currentUser['role'] === 'COLLEGE') {
+                                $_SESSION['user']['logo'] = $avatarUrl;
+                            }
+                            setPersistentSessionCookie($_SESSION['user']);
                         }
                         $_SESSION['avatar_success'] = "Profile photo updated successfully!";
                     }
