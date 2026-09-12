@@ -108,15 +108,16 @@ if (file_exists(__DIR__ . '/offline_popup.php')) include_once __DIR__ . '/offlin
     }
 
     const splashStartTime = Date.now();
-    // Timing: On fresh visits ~2000ms. On page navigation ~1200ms
+    // Timing: On standalone PWA ~1200ms on first launch. On regular mobile/desktop browser: ~250ms max so scrolling is immediate!
     const isFirstVisit = !sessionStorage.getItem('mentry_visited_session');
     sessionStorage.setItem('mentry_visited_session', '1');
-    const MIN_SPLASH_DISPLAY_MS = isFirstVisit ? 2000 : 1200;
+    const MIN_SPLASH_DISPLAY_MS = isPwa ? (isFirstVisit ? 1400 : 700) : 250;
 
     window.showMentryLoader = function(msg) {
         if (!loader) return;
         if (msg && msgEl) msgEl.textContent = msg;
         loader.style.display = 'flex';
+        loader.style.pointerEvents = 'auto';
         requestAnimationFrame(() => {
             loader.classList.remove('opacity-0', 'pointer-events-none');
             loader.classList.add('opacity-100', 'pointer-events-auto');
@@ -125,23 +126,22 @@ if (file_exists(__DIR__ . '/offline_popup.php')) include_once __DIR__ . '/offlin
 
     window.hideMentryLoader = function() {
         if (!loader) return;
+        loader.style.pointerEvents = 'none';
         loader.classList.remove('opacity-100', 'pointer-events-auto');
         loader.classList.add('opacity-0', 'pointer-events-none');
         setTimeout(() => {
-            if (loader && loader.classList.contains('opacity-0')) {
+            if (loader) {
                 loader.style.display = 'none';
             }
-        }, 320);
+        }, 220);
     };
 
     // If opened with no network connection: dismiss splash and show offline modal immediately
     if (!navigator.onLine) {
-        setTimeout(() => {
-            window.hideMentryLoader();
-            if (window.showOfflineModal) {
-                window.showOfflineModal();
-            }
-        }, 500);
+        window.hideMentryLoader();
+        if (window.showOfflineModal) {
+            window.showOfflineModal();
+        }
         return;
     }
 
@@ -151,32 +151,31 @@ if (file_exists(__DIR__ . '/offline_popup.php')) include_once __DIR__ . '/offlin
         setTimeout(window.hideMentryLoader, remaining);
     }
 
-    // Auto-hide after minimum display duration so user can actually enjoy the branded splash screen
-    if (document.readyState === 'complete') {
+    // Auto-hide when DOM is ready or after brief display
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
         dismissSplashWithMinimumDelay();
     } else {
+        document.addEventListener('DOMContentLoaded', dismissSplashWithMinimumDelay);
         window.addEventListener('load', dismissSplashWithMinimumDelay);
-        // Safety timeout in case external assets or scripts hang
-        setTimeout(dismissSplashWithMinimumDelay, MIN_SPLASH_DISPLAY_MS + 800);
     }
+
+    // Hard safety timeout: Guaranteed dismissal so scrolling is NEVER locked
+    setTimeout(window.hideMentryLoader, isPwa ? 2000 : 600);
 
     // Auto-hide on bfcache restore (browser back/forward buttons)
     window.addEventListener('pageshow', () => {
         window.hideMentryLoader();
     });
 
-    // Smooth page transitions for internal links
+    // Offline check on internal links (without locking the screen with loader)
     document.addEventListener('click', function(e) {
         const link = e.target.closest('a');
         if (!link) return;
         const href = link.getAttribute('href');
-        const target = link.getAttribute('target');
-        const download = link.hasAttribute('download');
 
-        if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:') || target === '_blank' || download) {
+        if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:') || link.getAttribute('target') === '_blank') {
             return;
         }
-        if (e.ctrlKey || e.metaKey || e.shiftKey) return;
 
         // If offline when clicking a link: prevent navigation hang and show offline modal
         if (!navigator.onLine) {
@@ -184,12 +183,7 @@ if (file_exists(__DIR__ . '/offline_popup.php')) include_once __DIR__ . '/offlin
             if (window.showOfflineModal) {
                 window.showOfflineModal();
             }
-            return;
         }
-
-        setTimeout(() => {
-            window.showMentryLoader("Loading...");
-        }, 60);
     });
 
     // Smooth transitions on form submissions
@@ -205,6 +199,8 @@ if (file_exists(__DIR__ . '/offline_popup.php')) include_once __DIR__ . '/offlin
         }
 
         window.showMentryLoader("Processing...");
+        // Safety timeout so form submission never permanently freezes the screen
+        setTimeout(window.hideMentryLoader, 5000);
     });
 })();
 </script>

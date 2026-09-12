@@ -49,10 +49,10 @@ $navItems = [
         }
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400; vertical-align: middle; }
         .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
-        .vendor-canvas-scroll {
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior-y: contain;
-            touch-action: pan-y;
+        @media (min-width: 768px) {
+            .vendor-canvas-scroll {
+                -webkit-overflow-scrolling: touch;
+            }
         }
     </style>
 </head>

@@ -187,18 +187,21 @@ if ($currentUser) {
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     
     <style>
-        html, body {
+        html {
             max-width: 100%;
-            overflow-x: clip;
-        }
-        *, *::before, *::after {
-            box-sizing: border-box;
         }
         body {
+            max-width: 100%;
+            overflow-x: hidden;
+            position: relative;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: #ffffff;
             color: #0f172a;
             -webkit-font-smoothing: antialiased;
+            -webkit-overflow-scrolling: touch;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -219,8 +222,8 @@ if ($currentUser) {
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col bg-white text-slate-900 w-full max-w-full overflow-x-clip">
-<?php if (file_exists(__DIR__ . '/loading_screen.php')) include __DIR__ . '/loading_screen.php'; ?>
+<body class="min-h-screen flex flex-col bg-white text-slate-900 w-full max-w-full overflow-x-hidden">
+<?php if (file_exists(__DIR__ . '/loading_screen.php')) include_once __DIR__ . '/loading_screen.php'; ?>
 
 <?php 
 $headerMaint = getMaintenanceConfig();
@@ -531,7 +534,7 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
 </header>
 
 <?php require_once __DIR__ . '/download_loader.php'; ?>
-<?php if (file_exists(__DIR__ . '/pwa_install_prompt.php')) include __DIR__ . '/pwa_install_prompt.php'; ?>
-<?php if (file_exists(__DIR__ . '/offline_popup.php')) include __DIR__ . '/offline_popup.php'; ?>
+<?php if (file_exists(__DIR__ . '/pwa_install_prompt.php')) include_once __DIR__ . '/pwa_install_prompt.php'; ?>
+<?php if (file_exists(__DIR__ . '/offline_popup.php')) include_once __DIR__ . '/offline_popup.php'; ?>
 
 <main class="flex-grow">
