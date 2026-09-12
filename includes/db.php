@@ -699,6 +699,12 @@ class PersistentDocumentStore {
                     }
                     $modified++;
                 }
+                if (isset($update['$unset']) && is_array($update['$unset'])) {
+                    foreach ($update['$unset'] as $k => $v) {
+                        unset($docs[$i][$k]);
+                    }
+                    $modified++;
+                }
                 break;
             }
         }

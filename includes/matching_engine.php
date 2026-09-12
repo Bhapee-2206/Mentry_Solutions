@@ -176,7 +176,8 @@ class MatchingEngine {
         }
 
         // 4. Logistics & Availability Match (10 pts max)
-        $availStatus = $trainer['availabilityStatus'] ?? 'AVAILABLE_NOW';
+        $effAvail = getTrainerEffectiveAvailability($trainer);
+        $availStatus = $effAvail['status'];
         if ($availStatus === 'AVAILABLE_NOW') {
             $details['logisticsScore'] += 6;
         } elseif ($availStatus === 'FREE_FROM_DATE') {

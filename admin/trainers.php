@@ -18,6 +18,9 @@ $locationFilter = $_GET['location'] ?? 'ALL';
 $expFilter      = $_GET['exp'] ?? 'ALL';
 $search         = trim($_GET['search'] ?? '');
 
+// Self-heal any trainers whose busy end date has passed to Available Now
+syncExpiredTrainerAvailabilities();
+
 $conditions = [];
 
 if ($domainFilter !== 'ALL') {
@@ -612,35 +615,10 @@ if (!empty($recentActivities)) {
                                     $trainerCode = getMentryCode('TRAINER', $t);
                                     $trainerName = $u['name'] ?? ($t['name'] ?? 'Trainer');
                                     $trainerEmail = $u['email'] ?? ($t['email'] ?? 'trainer@mentry.test');
-                                    $avail = $t['availabilityStatus'] ?? 'AVAILABLE_NOW';
                                     
-                                    // Bulletproof date formatting: eliminates "Jan 01, 1970"
-                                    $availUntil = '';
-                                    if (!empty($t['availableFromDate'])) {
-                                        $rawDate = $t['availableFromDate'];
-                                        if ($rawDate instanceof MongoDB\BSON\UTCDateTime) {
-                                            $availUntil = $rawDate->toDateTime()->format('M d, Y');
-                                        } elseif (is_numeric($rawDate)) {
-                                            $ts = (float)$rawDate;
-                                            if ($ts > 20000000000) $ts = round($ts / 1000);
-                                            if ($ts > 946684800) { // Year 2000 or later
-                                                $availUntil = date('M d, Y', (int)$ts);
-                                            }
-                                        } elseif (is_string($rawDate)) {
-                                            if (is_numeric($rawDate)) {
-                                                $ts = (float)$rawDate;
-                                                if ($ts > 20000000000) $ts = round($ts / 1000);
-                                                if ($ts > 946684800) {
-                                                    $availUntil = date('M d, Y', (int)$ts);
-                                                }
-                                            } else {
-                                                $parsed = strtotime($rawDate);
-                                                if ($parsed !== false && $parsed > 946684800) {
-                                                    $availUntil = date('M d, Y', $parsed);
-                                                }
-                                            }
-                                        }
-                                    }
+                                    $effectiveAvail = getTrainerEffectiveAvailability($t);
+                                    $avail = $effectiveAvail['status'];
+                                    $availUntil = !empty($effectiveAvail['date']) ? formatDate($effectiveAvail['date']) : '';
                                     
                                     $city = $t['currentCity'] ?? 'Chengalpattu';
                                     $state = $t['currentState'] ?? 'India';

@@ -143,13 +143,27 @@ function getStatusBadge($status) {
 
 function getAvailabilityBadge($availabilityStatus, $availableFromDate = null) {
     $status = strtoupper($availabilityStatus ?? 'AVAILABLE_NOW');
+
+    // Auto-resolve past dates: if commitment date has passed, trainer is Available Now!
+    if (in_array($status, ['BUSY_ON_ASSIGNMENT', 'FREE_FROM_DATE', 'DELIVERING']) && !empty($availableFromDate)) {
+        $ts = parseDateToTimestamp($availableFromDate);
+        if ($ts) {
+            $endOfDayTs = strtotime('tomorrow -1 second', $ts);
+            if (time() > $endOfDayTs || time() > $ts) {
+                $status = 'AVAILABLE_NOW';
+                $availableFromDate = null;
+            }
+        }
+    }
+
     switch ($status) {
         case 'AVAILABLE_NOW':
-            return '<span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Available Now</span>';
+            return '<span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-2xs"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Available Now</span>';
         case 'FREE_FROM_DATE':
             $dateText = $availableFromDate ? formatDate($availableFromDate) : 'Upcoming Date';
             return '<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full"><span class="material-symbols-outlined text-[13px] text-amber-600">event</span> Free from ' . htmlspecialchars($dateText) . '</span>';
         case 'BUSY_ON_ASSIGNMENT':
+        case 'DELIVERING':
             $busyUntilText = $availableFromDate ? ' (until ' . formatDate($availableFromDate) . ')' : '';
             return '<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full"><span class="material-symbols-outlined text-[13px] text-blue-600">school</span> Delivering Workshop' . htmlspecialchars($busyUntilText) . '</span>';
         case 'UNAVAILABLE':
@@ -157,6 +171,113 @@ function getAvailabilityBadge($availabilityStatus, $availableFromDate = null) {
         default:
             return '<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Available</span>';
     }
+}
+
+/**
+ * Resolves the effective real-time availability of a trainer.
+ * If the trainer's availableFromDate has passed (prior to today/now),
+ * their status automatically transitions to AVAILABLE_NOW, preventing outdated past-date displays.
+ * If $autoSync is true, automatically writes the healed status back to MongoDB/JSON.
+ */
+function getTrainerEffectiveAvailability(&$trainer, $autoSync = false) {
+    if (empty($trainer)) {
+        return ['status' => 'AVAILABLE_NOW', 'date' => null, 'isPast' => false];
+    }
+
+    $rawStatus = strtoupper($trainer['availabilityStatus'] ?? 'AVAILABLE_NOW');
+    $availDate = $trainer['availableFromDate'] ?? null;
+
+    if (in_array($rawStatus, ['BUSY_ON_ASSIGNMENT', 'FREE_FROM_DATE', 'DELIVERING']) && !empty($availDate)) {
+        $ts = parseDateToTimestamp($availDate);
+        if ($ts) {
+            $endOfDayTs = strtotime('tomorrow -1 second', $ts);
+            if (time() > $endOfDayTs || time() > $ts) {
+                if ($autoSync && !empty($trainer['_id'])) {
+                    try {
+                        $trainerCol = getCollection("Trainer");
+                        if ($trainerCol) {
+                            $idQuery = [(string)$trainer['_id']];
+                            try { $idQuery[] = new MongoDB\BSON\ObjectId((string)$trainer['_id']); } catch (\Throwable $e) {}
+                            $trainerCol->updateOne(
+                                ['_id' => ['$in' => $idQuery]],
+                                [
+                                    '$set' => [
+                                        'availabilityStatus' => 'AVAILABLE_NOW',
+                                        'availabilityUpdatedAt' => new MongoDB\BSON\UTCDateTime()
+                                    ],
+                                    '$unset' => [
+                                        'availableFromDate' => '',
+                                        'availabilityNotes' => ''
+                                    ]
+                                ]
+                            );
+                        }
+                    } catch (\Throwable $e) {}
+                }
+
+                $trainer['availabilityStatus'] = 'AVAILABLE_NOW';
+                $trainer['availableFromDate'] = null;
+                $trainer['availabilityNotes'] = '';
+
+                return [
+                    'status' => 'AVAILABLE_NOW',
+                    'date' => null,
+                    'isPast' => true,
+                    'previousDate' => $availDate
+                ];
+            }
+        }
+    }
+
+    return [
+        'status' => $rawStatus,
+        'date' => $availDate,
+        'isPast' => false
+    ];
+}
+
+/**
+ * Inspects all trainers with BUSY_ON_ASSIGNMENT or FREE_FROM_DATE whose
+ * availableFromDate has passed, and transitions them to AVAILABLE_NOW.
+ */
+function syncExpiredTrainerAvailabilities() {
+    $trainerCol = getCollection("Trainer");
+    if (!$trainerCol) return 0;
+
+    $updatedCount = 0;
+    try {
+        $trainers = $trainerCol->find([
+            'availabilityStatus' => ['$in' => ['BUSY_ON_ASSIGNMENT', 'FREE_FROM_DATE', 'DELIVERING']]
+        ])->toArray();
+
+        $now = time();
+        foreach ($trainers as $t) {
+            $date = $t['availableFromDate'] ?? null;
+            if ($date) {
+                $ts = parseDateToTimestamp($date);
+                if ($ts && $now > $ts) {
+                    $idQuery = [(string)$t['_id']];
+                    try { $idQuery[] = new MongoDB\BSON\ObjectId((string)$t['_id']); } catch (\Throwable $e) {}
+                    $trainerCol->updateOne(
+                        ['_id' => ['$in' => $idQuery]],
+                        [
+                            '$set' => [
+                                'availabilityStatus' => 'AVAILABLE_NOW',
+                                'availabilityUpdatedAt' => new MongoDB\BSON\UTCDateTime()
+                            ],
+                            '$unset' => [
+                                'availableFromDate' => '',
+                                'availabilityNotes' => ''
+                            ]
+                        ]
+                    );
+                    $updatedCount++;
+                }
+            }
+        }
+    } catch (\Throwable $e) {}
+
+    return $updatedCount;
 }
 
 /**

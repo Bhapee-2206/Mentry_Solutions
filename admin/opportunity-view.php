@@ -244,12 +244,13 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                         if (!empty($at['userId'])) {
                             try { $atu = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$at['userId'])]); } catch (Exception $e) {}
                         }
+                        $atEff = getTrainerEffectiveAvailability($at);
                         $atAvail = '🟢 Available Now';
-                        if (($at['availabilityStatus'] ?? '') === 'FREE_FROM_DATE' && !empty($at['availableFromDate'])) {
-                            $atAvail = '🟡 Free from ' . formatDate($at['availableFromDate']);
-                        } elseif (($at['availabilityStatus'] ?? '') === 'BUSY_ON_ASSIGNMENT') {
-                            $atAvail = '🔵 Delivering' . (!empty($at['availableFromDate']) ? ' (until ' . formatDate($at['availableFromDate']) . ')' : '');
-                        } elseif (($at['availabilityStatus'] ?? '') === 'UNAVAILABLE') {
+                        if ($atEff['status'] === 'FREE_FROM_DATE' && !empty($atEff['date'])) {
+                            $atAvail = '🟡 Free from ' . formatDate($atEff['date']);
+                        } elseif (($atEff['status'] === 'BUSY_ON_ASSIGNMENT' || $atEff['status'] === 'DELIVERING') && !empty($atEff['date'])) {
+                            $atAvail = '🔵 Delivering (until ' . formatDate($atEff['date']) . ')';
+                        } elseif ($atEff['status'] === 'UNAVAILABLE') {
                             $atAvail = '⚪ Unavailable';
                         }
                     ?>

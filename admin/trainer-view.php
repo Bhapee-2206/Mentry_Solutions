@@ -49,6 +49,7 @@ if (!$trainer) {
 }
 
 $trainerId = (string)($trainer['_id'] ?? ($trainer['id'] ?? $id));
+$effectiveAvail = getTrainerEffectiveAvailability($trainer, true);
 
 $u = null;
 if (!empty($trainer['userId'])) {
@@ -203,13 +204,21 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <div class="space-y-2">
                     <div class="flex items-center justify-between">
                         <span class="text-xs text-slate-500 font-medium">Current Status</span>
-                        <?= getAvailabilityBadge($trainer['availabilityStatus'] ?? 'AVAILABLE_NOW', $trainer['availableFromDate'] ?? null) ?>
+                        <?= getAvailabilityBadge($effectiveAvail['status'], $effectiveAvail['date']) ?>
                     </div>
 
-                    <?php if (!empty($trainer['availableFromDate'])): ?>
+                    <?php if (!empty($effectiveAvail['date'])): ?>
                         <div class="flex items-center justify-between text-xs py-1 border-t border-slate-50">
                             <span class="text-slate-500 font-medium">Free After Date</span>
-                            <span class="font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200"><?= formatDate($trainer['availableFromDate']) ?></span>
+                            <span class="font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200"><?= formatDate($effectiveAvail['date']) ?></span>
+                        </div>
+                    <?php else: ?>
+                        <div class="flex items-center justify-between text-xs py-1 border-t border-slate-50">
+                            <span class="text-slate-500 font-medium">Availability Schedule</span>
+                            <span class="font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 text-[11px] flex items-center gap-1.5 shadow-2xs">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Immediate Booking
+                            </span>
                         </div>
                     <?php endif; ?>
 
@@ -218,7 +227,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <span class="font-bold text-slate-800"><?= htmlspecialchars(str_replace('_', ' ', $trainer['travelPreference'] ?? 'PAN_INDIA')) ?></span>
                     </div>
 
-                    <?php if (!empty($trainer['availabilityNotes'])): ?>
+                    <?php if (!empty($trainer['availabilityNotes']) && empty($effectiveAvail['isPast'])): ?>
                         <div class="p-3 bg-slate-50 rounded-xl text-xs text-slate-600 border border-slate-100 italic mt-1">
                             "<?= htmlspecialchars($trainer['availabilityNotes']) ?>"
                         </div>

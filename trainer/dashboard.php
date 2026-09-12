@@ -37,23 +37,17 @@ foreach ($allPublishedOpps as $op) {
     if (count($recommendedOpportunities) >= 3) break;
 }
 
-$availStatus = $trainer['availabilityStatus'] ?? 'AVAILABLE_NOW';
-$availFromDate = $trainer['availableFromDate'] ?? null;
-if ($availFromDate instanceof MongoDB\BSON\UTCDateTime) {
-    $availFromDateStr = $availFromDate->toDateTime()->format('Y-m-d');
-} elseif (!empty($availFromDate)) {
-    if (is_numeric($availFromDate)) {
-        $ts = (float)$availFromDate;
-        if ($ts > 20000000000) $ts = round($ts / 1000);
-        if ($ts > 946684800) $availFromDateStr = date('Y-m-d', (int)$ts);
-    } else {
-        $parsed = strtotime((string)$availFromDate);
-        if ($parsed !== false && $parsed > 946684800) {
-            $availFromDateStr = date('Y-m-d', $parsed);
-        }
+$effectiveAvail = getTrainerEffectiveAvailability($trainer, true);
+$availStatus = $effectiveAvail['status'];
+$availFromDate = $effectiveAvail['date'];
+$availFromDateStr = '';
+if (!empty($availFromDate)) {
+    $ts = parseDateToTimestamp($availFromDate);
+    if ($ts && $ts > time()) {
+        $availFromDateStr = date('Y-m-d', $ts);
     }
 }
-$availNotes = $trainer['availabilityNotes'] ?? '';
+$availNotes = empty($effectiveAvail['isPast']) ? ($trainer['availabilityNotes'] ?? '') : '';
 $mobilityPref = $trainer['travelPreference'] ?? 'PAN_INDIA';
 $availUpdatedTime = $trainer['availabilityUpdatedAt'] ?? null;
 
