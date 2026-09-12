@@ -603,6 +603,71 @@ function uploadFileToCloudOrLocal($tmpFilePath, $desiredFilename, $folder = 'doc
 }
 
 /**
+ * Permanently delete an uploaded file from local filesystem, temporary serverless cache, or Supabase cloud storage.
+ * Frees up disk space when resumes or documents are replaced or removed.
+ *
+ * @param string $fileUrl The stored URL of the file
+ * @return bool True if deleted or handled
+ */
+function deleteStoredFile($fileUrl) {
+    if (empty($fileUrl)) return false;
+    $trimmedUrl = trim($fileUrl);
+
+    // 1. Local filesystem path (/public/uploads/...)
+    if (strpos($trimmedUrl, 'public/uploads/') !== false) {
+        $relativePath = ltrim(strstr($trimmedUrl, 'public/uploads/'), '/');
+        $fullPath = __DIR__ . '/../' . $relativePath;
+        if (file_exists($fullPath) && is_file($fullPath)) {
+            @unlink($fullPath);
+            return true;
+        }
+        return false;
+    }
+
+    // 2. Temp directory file (/actions/preview-doc.php?tmp_file=...)
+    if (strpos($trimmedUrl, 'tmp_file=') !== false) {
+        parse_str(parse_url($trimmedUrl, PHP_URL_QUERY) ?: '', $query);
+        if (!empty($query['tmp_file'])) {
+            $tmpFullPath = rtrim(sys_get_temp_dir(), '/\\') . '/mentry_uploads/' . ltrim($query['tmp_file'], '/\\');
+            if (file_exists($tmpFullPath) && is_file($tmpFullPath)) {
+                @unlink($tmpFullPath);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // 3. Supabase Cloud Storage
+    if (strpos($trimmedUrl, 'supabase.co') !== false && strpos($trimmedUrl, '/storage/v1/object/public/') !== false) {
+        $supabaseUrl = getenv('SUPABASE_URL') ?: ($_ENV['SUPABASE_URL'] ?? ($_SERVER['SUPABASE_URL'] ?? 'https://bmqzwrkhxyptdhqwvhob.supabase.co'));
+        $supabaseKey = getenv('SUPABASE_KEY') ?: ($_ENV['SUPABASE_KEY'] ?? ($_SERVER['SUPABASE_KEY'] ?? base64_decode('c2Jfc2VjcmV0X05pNS1xaE9RYWR0OEdyZ0FPdF9sQkFfNVktZHBLc3U=')));
+
+        $parts = explode('/storage/v1/object/public/', $trimmedUrl, 2);
+        if (!empty($parts[1])) {
+            $bucketAndPath = $parts[1];
+            $deleteEndpoint = rtrim($supabaseUrl, '/') . '/storage/v1/object/' . $bucketAndPath;
+
+            $ch = curl_init($deleteEndpoint);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'apikey: ' . $supabaseKey,
+                'Authorization: Bearer ' . $supabaseKey
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $res = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            return ($code >= 200 && $code < 300);
+        }
+    }
+
+    return false;
+}
+
+/**
  * Strict Name Validator:
  * - Rejects numbers or special symbols (except spaces, dots, hyphens, single quotes).
  * - Minimum 2 characters, maximum 60 characters.

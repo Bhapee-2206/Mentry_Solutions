@@ -547,33 +547,55 @@ require_once __DIR__ . '/includes/sidebar.php';
                         $cleanTrainerName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($u['name'] ?? 'Trainer'));
                         $cleanTrainerCode = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim(getMentryCode('TRAINER', $trainer)));
                         $trainerDocPrefix = $cleanTrainerName . '_' . $cleanTrainerCode;
+                        // Separate single active resume document from additional credentials/certifications
+                        $primaryResumeDoc = null;
+                        $otherCredentials = [];
+                        foreach ($documents as $d) {
+                            if (($d['type'] ?? '') === 'RESUME' && empty($primaryResumeDoc)) {
+                                $primaryResumeDoc = $d;
+                            } elseif (($d['type'] ?? '') !== 'RESUME' || (!empty($trainer['resumeUrl']) && ($d['fileUrl'] ?? '') !== $trainer['resumeUrl'])) {
+                                $otherCredentials[] = $d;
+                            }
+                        }
 
-                        if (!empty($trainer['resumeUrl'])): 
-                            $primaryResumeExt = strtolower(pathinfo($trainer['resumeUrl'] ?? '', PATHINFO_EXTENSION)) ?: 'pdf';
+                        $activeResumeUrl = $trainer['resumeUrl'] ?? ($primaryResumeDoc['fileUrl'] ?? '');
+                        if (!empty($activeResumeUrl)): 
+                            $primaryResumeExt = strtolower(pathinfo($activeResumeUrl, PATHINFO_EXTENSION)) ?: 'pdf';
                             $primaryResumeDownloadName = $cleanTrainerName . '_Resume_' . $cleanTrainerCode . '.' . $primaryResumeExt;
-                            $primaryResumeDownloadUrl = '/actions/download-document.php?url=' . urlencode($trainer['resumeUrl'] ?? '') . '&filename=' . urlencode($primaryResumeDownloadName);
+                            $primaryResumeDownloadUrl = '/actions/download-document.php?url=' . urlencode($activeResumeUrl) . '&filename=' . urlencode($primaryResumeDownloadName);
+                            $primaryResumeDocId = (string)($primaryResumeDoc['_id'] ?? ($primaryResumeDoc['id'] ?? ''));
                         ?>
                             <div class="p-3.5 rounded-2xl bg-blue-50/50 border border-blue-200/70 flex items-center justify-between">
                                 <div class="flex items-center gap-3">
                                     <span class="material-symbols-outlined text-blue-600 text-2xl">description</span>
                                     <div>
-                                        <h4 class="font-bold text-xs text-slate-900">Primary Candidate Resume</h4>
-                                        <p class="text-[10px] text-blue-600 font-semibold">Active Verified CV</p>
+                                        <h4 class="font-bold text-xs text-slate-900"><?= htmlspecialchars($primaryResumeDoc['title'] ?? 'Primary Candidate Resume') ?></h4>
+                                        <p class="text-[10px] text-blue-600 font-semibold">Active Verified Resume <?= !empty($primaryResumeDoc['uploadedAt']) ? '• ' . formatDate($primaryResumeDoc['uploadedAt']) : '' ?></p>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" onclick="openAdminDocViewer('<?= htmlspecialchars($trainer['resumeUrl']) ?>', 'Primary Candidate Resume - <?= htmlspecialchars(addslashes($u['name'] ?? 'Trainer')) ?>', '<?= htmlspecialchars(addslashes($primaryResumeDownloadName)) ?>')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                                    <button type="button" onclick="openAdminDocViewer('<?= htmlspecialchars($activeResumeUrl) ?>', 'Primary Candidate Resume - <?= htmlspecialchars(addslashes($u['name'] ?? 'Trainer')) ?>', '<?= htmlspecialchars(addslashes($primaryResumeDownloadName)) ?>')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
                                         <span class="material-symbols-outlined text-[15px]">visibility</span>
                                         Preview Document
                                     </button>
                                     <a href="<?= htmlspecialchars($primaryResumeDownloadUrl) ?>" download="<?= htmlspecialchars($primaryResumeDownloadName) ?>" class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold p-1.5 rounded-xl transition-all" title="Download <?= htmlspecialchars($primaryResumeDownloadName) ?>">
                                         <span class="material-symbols-outlined text-[15px]">download</span>
                                     </a>
+                                    <?php if (!empty($primaryResumeDocId)): ?>
+                                    <form action="/actions/update-trainer.php" method="POST" class="inline" onsubmit="return confirm('Delete this resume?');">
+                                        <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
+                                        <input type="hidden" name="action_type" value="delete_document">
+                                        <input type="hidden" name="docId" value="<?= $primaryResumeDocId ?>">
+                                        <button type="submit" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Delete resume">
+                                            <span class="material-symbols-outlined text-[16px]">delete</span>
+                                        </button>
+                                    </form>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endif; ?>
 
-                        <?php foreach ($documents as $d): 
+                        <?php foreach ($otherCredentials as $d): 
                             $docId = (string)($d['_id'] ?? ($d['id'] ?? ''));
                             $docExt = strtolower(pathinfo($d['fileUrl'] ?? '', PATHINFO_EXTENSION)) ?: 'pdf';
                             $cleanDocTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($d['title'] ?? ($d['type'] ?? 'Document')));
@@ -585,7 +607,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     <span class="material-symbols-outlined text-slate-600 text-2xl">picture_as_pdf</span>
                                     <div>
                                         <h4 class="font-bold text-xs text-slate-900"><?= htmlspecialchars($d['title'] ?? 'Document') ?></h4>
-                                        <p class="text-[10px] text-slate-400"><?= htmlspecialchars($d['type'] ?? 'RESUME') ?> • <?= formatDate($d['uploadedAt'] ?? null) ?></p>
+                                        <p class="text-[10px] text-slate-400"><?= htmlspecialchars($d['type'] ?? 'DOCUMENT') ?> • <?= formatDate($d['uploadedAt'] ?? null) ?></p>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">

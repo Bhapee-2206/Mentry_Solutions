@@ -1,6 +1,7 @@
 <?php
 // actions/update-trainer.php
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
 requireAdminOrStaff();
 
@@ -191,7 +192,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $docId = $_POST['docId'] ?? '';
             if (!empty($docId) && $docCol) {
                 try {
-                    $docCol->deleteOne(['_id' => new MongoDB\BSON\ObjectId($docId)]);
+                    $docToDelete = $docCol->findOne(['_id' => new MongoDB\BSON\ObjectId($docId)]);
+                    if ($docToDelete) {
+                        if (!empty($docToDelete['fileUrl'])) {
+                            deleteStoredFile($docToDelete['fileUrl']);
+                        }
+                        // If this was the trainer's primary resumeUrl, unset it or point to remaining resume
+                        if (($docToDelete['type'] ?? '') === 'RESUME' && $trainerCol && !empty($trainerId)) {
+                            $t = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerId)]);
+                            if ($t && ($t['resumeUrl'] ?? '') === ($docToDelete['fileUrl'] ?? '')) {
+                                $trainerCol->updateOne(
+                                    ['_id' => new MongoDB\BSON\ObjectId($trainerId)],
+                                    ['$unset' => ['resumeUrl' => '']]
+                                );
+                            }
+                        }
+                        $docCol->deleteOne(['_id' => new MongoDB\BSON\ObjectId($docId)]);
+                    }
                 } catch (Exception $e) {}
             }
         }

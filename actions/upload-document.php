@@ -62,6 +62,37 @@ if (!empty($trainerId) && isset($_FILES['document'])) {
                     $finalFileUrl = $uploadRes['url'];
 
                     $docCol = getCollection("Document");
+
+                    // Strict Resume Policy: Only ONE active resume per trainer to prevent clutter & save storage space.
+                    // If uploading/updating a resume, permanently delete previous resume files from disk/cloud
+                    // and remove old resume records from Document collection.
+                    // This does NOT delete other document types (Certifications, Degree proofs, ID, etc.).
+                    if ($docType === 'RESUME') {
+                        if ($docCol) {
+                            $oldResumes = $docCol->find([
+                                'trainerId' => $trainerId,
+                                'type' => 'RESUME'
+                            ])->toArray();
+
+                            foreach ($oldResumes as $oldDoc) {
+                                if (!empty($oldDoc['fileUrl']) && $oldDoc['fileUrl'] !== $finalFileUrl) {
+                                    deleteStoredFile($oldDoc['fileUrl']);
+                                }
+                                try {
+                                    $docCol->deleteOne(['_id' => $oldDoc['_id']]);
+                                } catch (\Throwable $e) {}
+                            }
+                        }
+
+                        // Also delete old trainer resumeUrl if different
+                        if ($trainerCol) {
+                            $tDoc = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerId)]);
+                            if ($tDoc && !empty($tDoc['resumeUrl']) && $tDoc['resumeUrl'] !== $finalFileUrl) {
+                                deleteStoredFile($tDoc['resumeUrl']);
+                            }
+                        }
+                    }
+
                     if ($docCol) {
                         $docCol->insertOne([
                             'trainerId' => $trainerId,
