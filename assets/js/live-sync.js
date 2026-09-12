@@ -232,29 +232,33 @@
             if (count > 0) {
                 headerBadge.textContent = displayCount;
                 headerBadge.classList.remove('hidden');
-                // Trigger pop animation
                 headerBadge.classList.add('scale-125');
                 setTimeout(() => headerBadge.classList.remove('scale-125'), 250);
             } else {
                 headerBadge.classList.add('hidden');
             }
         } else {
-            // Fallback: If header badge wasn't rendered initially because count was 0
-            const bellBtn = document.getElementById('headerNotifBellBtn') || document.querySelector('a[href*="notifications.php"]');
-            if (bellBtn && count > 0 && !bellBtn.querySelector('#headerNotifBadge')) {
-                const newBadge = document.createElement('span');
-                newBadge.id = 'headerNotifBadge';
-                newBadge.className = 'absolute -top-1 -right-1 min-w-[16px] sm:min-w-[18px] h-4 sm:h-[18px] px-1 bg-[#FE5E04] text-white text-[9px] sm:text-[10px] font-black rounded-full flex items-center justify-center shadow-xs leading-none transition-transform scale-125';
-                newBadge.textContent = displayCount;
-                bellBtn.appendChild(newBadge);
-                setTimeout(() => newBadge.classList.remove('scale-125'), 250);
+            // Explicit header bell button only
+            const bellBtn = document.getElementById('headerNotifBellBtn');
+            if (bellBtn && count > 0) {
+                let badge = bellBtn.querySelector('#headerNotifBadge');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.id = 'headerNotifBadge';
+                    badge.className = 'absolute -top-1 -right-1 min-w-[16px] sm:min-w-[18px] h-4 sm:h-[18px] px-1 bg-[#FE5E04] text-white text-[9px] sm:text-[10px] font-black rounded-full flex items-center justify-center shadow-xs leading-none transition-transform scale-125';
+                    bellBtn.appendChild(badge);
+                }
+                badge.textContent = displayCount;
+                badge.classList.remove('hidden');
+                setTimeout(() => badge.classList.remove('scale-125'), 250);
             }
         }
 
-        // B. Sidebar notification badges in Trainer / Admin portals
-        const sidebarLinks = document.querySelectorAll('a[href$="/notifications.php"]');
-        sidebarLinks.forEach(link => {
-            let badge = link.querySelector('span.bg-\\[\\#FE5E04\\], span[data-live-notif-badge]');
+        // B. Sidebar notification badges in Trainer / Admin portals (strictly excluding header bell buttons)
+        const sidebarNavItems = document.querySelectorAll('aside a[href*="notifications.php"], #adminSidebar a[href*="notifications.php"], nav a[href*="notifications.php"]');
+        sidebarNavItems.forEach(link => {
+            if (link.id === 'headerNotifBellBtn' || link.closest('header') || link.classList.contains('rounded-full')) return;
+            let badge = link.querySelector('span[data-live-notif-badge], span.bg-\\[\\#FE5E04\\]');
             if (count > 0) {
                 if (badge) {
                     badge.textContent = displayCount;
@@ -262,7 +266,7 @@
                 } else {
                     badge = document.createElement('span');
                     badge.setAttribute('data-live-notif-badge', '1');
-                    badge.className = 'bg-[#FE5E04] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1.5 shrink-0 transition-transform scale-125';
+                    badge.className = 'bg-[#FE5E04] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-auto shrink-0 transition-transform scale-125';
                     badge.textContent = displayCount;
                     link.appendChild(badge);
                     setTimeout(() => badge.classList.remove('scale-125'), 250);

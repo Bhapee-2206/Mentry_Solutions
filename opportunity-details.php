@@ -254,14 +254,23 @@ require_once __DIR__ . '/includes/header.php';
                         <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Digital Lab Environment</span>
                         <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Zero Travel Required</span>
                     <?php else: ?>
-                        <?php if ($opp['travelCovered'] ?? true): ?>
+                        <?php 
+                        $hasAnyLogistics = false;
+                        $tCovered = array_key_exists('travelCovered', (array)$opp) ? filter_var($opp['travelCovered'], FILTER_VALIDATE_BOOLEAN) : true;
+                        $aCovered = array_key_exists('accommodationCovered', (array)$opp) ? filter_var($opp['accommodationCovered'], FILTER_VALIDATE_BOOLEAN) : true;
+                        $dCovered = array_key_exists('diningCovered', (array)$opp) ? filter_var($opp['diningCovered'], FILTER_VALIDATE_BOOLEAN) : true;
+                        ?>
+                        <?php if ($tCovered): $hasAnyLogistics = true; ?>
                             <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Travel Logistics Covered</span>
                         <?php endif; ?>
-                        <?php if ($opp['accommodationCovered'] ?? true): ?>
+                        <?php if ($aCovered): $hasAnyLogistics = true; ?>
                             <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ On-Campus Accommodation</span>
                         <?php endif; ?>
-                        <?php if ($opp['diningCovered'] ?? true): ?>
+                        <?php if ($dCovered): $hasAnyLogistics = true; ?>
                             <span class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">✓ Guest House Dining</span>
+                        <?php endif; ?>
+                        <?php if (!$hasAnyLogistics): ?>
+                            <span class="bg-slate-50 text-slate-600 px-3 py-1.5 rounded-xl border border-slate-200">Standard Assignment (No Campus Logistics Covered)</span>
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>

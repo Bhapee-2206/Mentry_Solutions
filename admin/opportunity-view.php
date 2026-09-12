@@ -188,6 +188,35 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
             </div>
         </div>
 
+        <!-- Campus Logistics Covered -->
+        <div class="space-y-2 pt-1">
+            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Campus Logistics Covered</h4>
+            <div class="flex flex-wrap gap-2 text-xs">
+                <?php if (($opp['mode'] ?? '') === 'ONLINE'): ?>
+                    <span class="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl font-semibold">✓ Virtual Live Delivery (Zero Travel Required)</span>
+                <?php else: ?>
+                    <?php
+                    $hasAnyLog = false;
+                    $isTravel = array_key_exists('travelCovered', (array)$opp) ? filter_var($opp['travelCovered'], FILTER_VALIDATE_BOOLEAN) : true;
+                    $isAccom = array_key_exists('accommodationCovered', (array)$opp) ? filter_var($opp['accommodationCovered'], FILTER_VALIDATE_BOOLEAN) : true;
+                    $isDining = array_key_exists('diningCovered', (array)$opp) ? filter_var($opp['diningCovered'], FILTER_VALIDATE_BOOLEAN) : true;
+                    ?>
+                    <?php if ($isTravel): $hasAnyLog = true; ?>
+                        <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-semibold">✓ Travel Logistics Covered</span>
+                    <?php endif; ?>
+                    <?php if ($isAccom): $hasAnyLog = true; ?>
+                        <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-semibold">✓ On-Campus Accommodation</span>
+                    <?php endif; ?>
+                    <?php if ($isDining): $hasAnyLog = true; ?>
+                        <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-semibold">✓ Guest House Dining</span>
+                    <?php endif; ?>
+                    <?php if (!$hasAnyLog): ?>
+                        <span class="bg-slate-50 text-slate-500 border border-slate-200 px-3 py-1.5 rounded-xl font-medium">Standard Assignment (No Campus Logistics Arranged)</span>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+
         <div class="space-y-1 pt-2">
             <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Syllabus & Assignment Description</h4>
             <p class="text-xs text-slate-600 leading-relaxed bg-slate-50/50 p-4 rounded-2xl border border-slate-100"><?= nl2br(htmlspecialchars($opp['description'] ?? '')) ?></p>

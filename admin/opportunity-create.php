@@ -25,9 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $minExperienceYears = (int)($_POST['minExperienceYears'] ?? 3);
     $skillsRequired = trim($_POST['skillsRequired'] ?? '');
     $description = trim($_POST['description'] ?? '');
-    $travelCovered = isset($_POST['travelCovered']) ? true : ($mode !== 'ONLINE');
-    $accommodationCovered = isset($_POST['accommodationCovered']) ? true : ($mode !== 'ONLINE');
-    $diningCovered = isset($_POST['diningCovered']) ? true : ($mode !== 'ONLINE');
+    $travelCovered = !empty($_POST['travelCovered']);
+    $accommodationCovered = !empty($_POST['accommodationCovered']);
+    $diningCovered = !empty($_POST['diningCovered']);
 
     if (empty($title) || empty($city) || empty($startDate) || empty($endDate)) {
         $error = "Please fill in all mandatory fields including Start Date and End Date.";
@@ -175,15 +175,15 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <p class="text-[11px] text-slate-500 mb-2">Select the logistics perks arranged for the trainer by Mentry / host institution:</p>
                 <div class="flex flex-wrap gap-4 text-xs font-semibold text-slate-700">
                     <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="travelCovered" value="1" checked class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <input type="checkbox" name="travelCovered" value="1" <?= (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' ? !empty($_POST['travelCovered']) : true) ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
                         <span>✓ Travel Logistics Covered</span>
                     </label>
                     <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="accommodationCovered" value="1" checked class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <input type="checkbox" name="accommodationCovered" value="1" <?= (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' ? !empty($_POST['accommodationCovered']) : true) ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
                         <span>✓ On-Campus Accommodation</span>
                     </label>
                     <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="diningCovered" value="1" checked class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <input type="checkbox" name="diningCovered" value="1" <?= (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' ? !empty($_POST['diningCovered']) : true) ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
                         <span>✓ Guest House Dining</span>
                     </label>
                 </div>

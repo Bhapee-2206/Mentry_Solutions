@@ -172,17 +172,22 @@ $endDateVal = $endTs ? date('Y-m-d', $endTs) : '';
             <div class="sm:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
                 <label class="block text-xs font-bold text-slate-900 uppercase">Campus Logistics Covered</label>
                 <p class="text-[11px] text-slate-500 mb-2">Select the logistics perks arranged for the trainer by Mentry / host institution:</p>
+                <?php
+                $isTravel = array_key_exists('travelCovered', (array)$opp) ? filter_var($opp['travelCovered'], FILTER_VALIDATE_BOOLEAN) : (($opp['mode'] ?? '') !== 'ONLINE');
+                $isAccom = array_key_exists('accommodationCovered', (array)$opp) ? filter_var($opp['accommodationCovered'], FILTER_VALIDATE_BOOLEAN) : (($opp['mode'] ?? '') !== 'ONLINE');
+                $isDining = array_key_exists('diningCovered', (array)$opp) ? filter_var($opp['diningCovered'], FILTER_VALIDATE_BOOLEAN) : (($opp['mode'] ?? '') !== 'ONLINE');
+                ?>
                 <div class="flex flex-wrap gap-4 text-xs font-semibold text-slate-700">
                     <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="travelCovered" value="1" <?= ($opp['travelCovered'] ?? ($opp['mode'] !== 'ONLINE')) ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <input type="checkbox" name="travelCovered" value="1" <?= $isTravel ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
                         <span>✓ Travel Logistics Covered</span>
                     </label>
                     <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="accommodationCovered" value="1" <?= ($opp['accommodationCovered'] ?? ($opp['mode'] !== 'ONLINE')) ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <input type="checkbox" name="accommodationCovered" value="1" <?= $isAccom ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
                         <span>✓ On-Campus Accommodation</span>
                     </label>
                     <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="diningCovered" value="1" <?= ($opp['diningCovered'] ?? ($opp['mode'] !== 'ONLINE')) ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                        <input type="checkbox" name="diningCovered" value="1" <?= $isDining ? 'checked' : '' ?> class="w-4 h-4 text-blue-600 rounded border-slate-300">
                         <span>✓ Guest House Dining</span>
                     </label>
                 </div>

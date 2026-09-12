@@ -298,13 +298,11 @@ $navItems = [
 
         <div class="flex items-center gap-2 sm:gap-3 shrink-0">
             <!-- Admin Real-Time Notification Bell -->
-            <a href="/admin/notifications.php" class="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors flex items-center justify-center cursor-pointer" title="Notification Logs & Alerts">
+            <a id="headerNotifBellBtn" href="/admin/notifications.php" class="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors flex items-center justify-center cursor-pointer" title="Notification Logs & Alerts">
                 <span class="material-symbols-outlined text-[22px]">notifications</span>
-                <?php if ($unreadAdminNotifCount > 0): ?>
-                    <span class="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-[#FE5E04] text-white font-black text-[10px] rounded-full flex items-center justify-center shadow-xs animate-pulse leading-none">
-                        <?= $unreadAdminNotifCount > 99 ? '99+' : $unreadAdminNotifCount ?>
-                    </span>
-                <?php endif; ?>
+                <span id="headerNotifBadge" class="<?= ($unreadAdminNotifCount > 0) ? '' : 'hidden' ?> absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-[#FE5E04] text-white font-black text-[10px] rounded-full flex items-center justify-center shadow-xs leading-none">
+                    <?= $unreadAdminNotifCount > 99 ? '99+' : $unreadAdminNotifCount ?>
+                </span>
             </a>
 
             <?php 

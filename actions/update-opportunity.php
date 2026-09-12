@@ -26,9 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $minExperienceYears = (int)($_POST['minExperienceYears'] ?? 3);
     $skillsRequired = trim($_POST['skillsRequired'] ?? '');
     $description = trim($_POST['description'] ?? '');
-    $travelCovered = isset($_POST['travelCovered']) ? true : false;
-    $accommodationCovered = isset($_POST['accommodationCovered']) ? true : false;
-    $diningCovered = isset($_POST['diningCovered']) ? true : false;
+    $travelCovered = !empty($_POST['travelCovered']);
+    $accommodationCovered = !empty($_POST['accommodationCovered']);
+    $diningCovered = !empty($_POST['diningCovered']);
 
     if (!empty($id) && !empty($title)) {
         if (!empty($startDate) && strtotime($startDate) !== false && strtotime($startDate) < strtotime(date('Y-m-d'))) {
