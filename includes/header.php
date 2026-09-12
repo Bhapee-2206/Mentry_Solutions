@@ -298,6 +298,13 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                 <!-- Action CTAs -->
                 <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
                     <div class="hidden xl:block h-7 w-px bg-slate-200 mx-1"></div>
+
+                    <!-- Download App Button -->
+                    <button type="button" onclick="window.promptPWAInstall()" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-[#FE5E04] bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-orange-300 transition-all cursor-pointer shrink-0 shadow-2xs" title="Download & Install Mentry App (Add to Home Screen)">
+                        <span class="material-symbols-outlined text-[17px] text-[#FE5E04]">download</span>
+                        <span class="hidden 2xl:inline font-bold">Download</span>
+                    </button>
+
                     <?php 
                     if ($currentUser): 
                         $dashboardUrl = '/trainer/dashboard.php';
@@ -380,8 +387,8 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
             </a>
             <div class="pt-2.5 border-t border-slate-100 flex flex-col gap-2">
                 <button type="button" onclick="window.promptPWAInstall(); document.getElementById('mobileMenu').classList.add('hidden');" class="w-full bg-slate-900 text-white font-bold text-center py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2 border border-slate-800">
-                    <span class="material-symbols-outlined text-[18px] text-[#FE5E04]">install_mobile</span>
-                    <span>Install Mentry App (Add to Home Screen)</span>
+                    <span class="material-symbols-outlined text-[18px] text-[#FE5E04]">download</span>
+                    <span>Download Mentry App (Add to Home Screen)</span>
                 </button>
                 <?php if ($currentUser): ?>
                     <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/index.php' : '/trainer/dashboard.php' ?>" class="w-full bg-[#FE5E04] text-white font-bold text-center py-2.5 rounded-xl text-sm">Go to Dashboard</a>
