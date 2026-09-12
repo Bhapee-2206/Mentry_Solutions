@@ -125,6 +125,7 @@ if (!empty($opportunityIds) && $asgCol) {
                     </div>
 
                     <div class="grid sm:grid-cols-3 gap-4 text-xs">
+                        <div class="bg-slate-50 p-4 rounded-2xl flex items-center gap-3">
                             <img src="<?= htmlspecialchars(getUserAvatar($trainerUser, 80)) ?>" 
                                  alt="<?= htmlspecialchars($trainerUser['name'] ?? 'Faculty') ?>"
                                  class="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0" 

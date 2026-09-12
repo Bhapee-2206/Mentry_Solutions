@@ -97,6 +97,7 @@ $assignments = $asgCol ? $asgCol->find($filter, ['sort' => ['createdAt' => -1]])
                         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
                             <span class="text-slate-400 block font-bold uppercase text-[10px]">Assigned Faculty</span>
                             <?php if ($trainer && $trainerUser): ?>
+                                <div class="flex items-center gap-3">
                                     <img src="<?= htmlspecialchars(getUserAvatar($trainerUser, 80)) ?>" 
                                          alt="<?= htmlspecialchars($trainerUser['name'] ?? 'Faculty') ?>"
                                          class="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0" 
