@@ -64,15 +64,46 @@ if ($currentUser) {
                     'createdAt' => ['$gt' => $sinceBson]
                 ], ['sort' => ['createdAt' => -1], 'limit' => 5]);
             } else {
+                $userQueries = [$userId];
+                try {
+                    $userQueries[] = new MongoDB\BSON\ObjectId($userId);
+                } catch (\Throwable $e) {}
+
+                $trainerId = null;
+                if ($userRole === 'TRAINER') {
+                    $trainerCol = getCollection("Trainer");
+                    $t = $trainerCol ? $trainerCol->findOne(['userId' => $userId]) : null;
+                    if ($t) {
+                        $trainerId = (string)$t['_id'];
+                    }
+                }
+
+                $userFilterOr = [
+                    ['userId' => ['$in' => $userQueries]]
+                ];
+                if (!empty($trainerId)) {
+                    $userFilterOr[] = ['trainerId' => $trainerId];
+                }
+
                 $response['unreadCount'] = $notifCol->countDocuments([
-                    'userId' => $userId,
-                    'read' => false
+                    '$and' => [
+                        ['$or' => $userFilterOr],
+                        ['$or' => [['read' => false], ['read' => ['$exists' => false]]]]
+                    ]
                 ]);
 
-                // Stream newly created notifications for trainer / college
+                // Stream newly created notifications since lastSync OR recent unread notifications in last 24h
+                $oneDayAgoBson = new MongoDB\BSON\UTCDateTime((time() - 86400) * 1000);
                 $newNotifsCursor = $notifCol->find([
-                    'userId' => $userId,
-                    'createdAt' => ['$gt' => $sinceBson]
+                    '$and' => [
+                        ['$or' => $userFilterOr],
+                        [
+                            '$or' => [
+                                ['createdAt' => ['$gt' => $sinceBson]],
+                                ['read' => false, 'createdAt' => ['$gt' => $oneDayAgoBson]]
+                            ]
+                        ]
+                    ]
                 ], ['sort' => ['createdAt' => -1], 'limit' => 5]);
             }
 

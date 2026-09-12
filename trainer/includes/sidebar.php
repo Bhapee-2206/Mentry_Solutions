@@ -394,6 +394,6 @@ $navItems = [
     <?php if (file_exists(__DIR__ . '/../../includes/pwa_install_prompt.php')) include __DIR__ . '/../../includes/pwa_install_prompt.php'; ?>
     <?php if (file_exists(__DIR__ . '/../../includes/offline_popup.php')) include_once __DIR__ . '/../../includes/offline_popup.php'; ?>
     <!-- Live Real-time Sync Engine -->
-    <script src="/assets/js/live-sync.js?v=1" defer></script>
+    <script src="/assets/js/live-sync.js?v=20260913_pwa5" defer></script>
 
     <main class="flex-1 w-full max-w-full px-3.5 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16 py-6 md:py-10 space-y-6 md:space-y-8 min-w-0">

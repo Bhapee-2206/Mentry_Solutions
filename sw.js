@@ -1,5 +1,5 @@
 // sw.js - Mentry Solutions PWA Service Worker & Web Push Engine
-const CACHE_NAME = 'mentry-pwa-v3';
+const CACHE_NAME = 'mentry-pwa-v4';
 const ASSETS_TO_PRECACHE = [
   '/',
   '/manifest.json',

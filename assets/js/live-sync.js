@@ -7,8 +7,22 @@
     if (window._mentryLiveSyncInitialized) return;
     window._mentryLiveSyncInitialized = true;
 
+    // Ensure Service Worker is registered immediately for mobile PWA push & notifications
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(err) {
+            console.warn('[Mentry LiveSync] SW registration note:', err);
+        });
+    }
+
     let lastSyncTs = Date.now() - 30000; // Start with last 30 seconds
     const seenNotifIds = new Set();
+    try {
+        const storedSeen = JSON.parse(sessionStorage.getItem('mentry_seen_notif_ids') || '[]');
+        if (Array.isArray(storedSeen)) {
+            storedSeen.forEach(id => seenNotifIds.add(id));
+        }
+    } catch(e) {}
+
     let pollTimer = null;
     let isPolling = false;
 
@@ -45,9 +59,9 @@
     }
 
     // 2. Native Mobile / OS System Notification Trigger (PWA notification drawer & lock screen outside the app)
-    function triggerNativeSystemNotification(options) {
-        if (!('Notification' in window)) return;
-        if (Notification.permission !== 'granted') return;
+    async function triggerNativeSystemNotification(options) {
+        if (!('Notification' in window)) return false;
+        if (Notification.permission !== 'granted') return false;
 
         const title = options.title || 'Mentry Solutions';
         const body = options.message || options.body || 'New update on your training portal.';
@@ -65,44 +79,58 @@
             url: targetUrl
         };
 
-        // If Service Worker is available, dispatch through SW (required for Android & iOS PWA notification shade outside the app)
+        let displayed = false;
+
+        // A. Primary: Service Worker Registration showNotification (works in Android & iOS PWA notification shade outside the app)
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then((reg) => {
+            try {
+                let reg = await navigator.serviceWorker.getRegistration('/');
+                if (!reg) {
+                    reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                }
                 if (reg && reg.showNotification) {
-                    reg.showNotification(title, {
+                    await reg.showNotification(title, {
                         body: body,
                         icon: '/public/icon-192.png',
                         badge: '/public/icon-192.png',
                         tag: tag,
                         renotify: true,
                         vibrate: [200, 100, 200],
-                        data: { url: targetUrl },
-                        actions: [{ action: 'open', title: 'Open Mentry' }]
+                        data: { url: targetUrl }
                     });
-                } else if (reg && reg.active) {
-                    reg.active.postMessage({
+                    displayed = true;
+                }
+                // Also broadcast message to SW
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
                         type: 'SHOW_NOTIFICATION',
                         payload: notifPayload
                     });
                 }
-            }).catch(() => {
-                try {
-                    new Notification(title, {
-                        body: body,
-                        icon: '/public/icon-192.png',
-                        tag: tag
-                    });
-                } catch(e) {}
-            });
-        } else {
+            } catch (err) {
+                console.warn('[Mentry LiveSync] SW showNotification error:', err);
+            }
+        }
+
+        // B. Secondary: Notification constructor fallback (Desktop Chrome/Firefox/Safari)
+        if (!displayed) {
             try {
-                new Notification(title, {
+                const n = new Notification(title, {
                     body: body,
                     icon: '/public/icon-192.png',
                     tag: tag
                 });
-            } catch(e) {}
+                n.onclick = function() {
+                    window.focus();
+                    window.location.href = targetUrl;
+                };
+                displayed = true;
+            } catch (err) {
+                // Illegal constructor on mobile Chrome is expected
+            }
         }
+
+        return displayed;
     }
 
     // 3. Floating Toast Notification Container
@@ -418,44 +446,52 @@
     window.triggerNativeNotification = triggerNativeSystemNotification;
 
     window.updateDeviceNotificationUI = function() {
-        const badge = document.getElementById('mobilePushBadge');
-        const desc = document.getElementById('mobilePushDesc');
-        const enableBtn = document.getElementById('enableMobilePushBtn');
-        const testBtn = document.getElementById('testMobilePushBtn');
-        const iconBox = document.getElementById('mobilePushIconBox');
+        const badges = document.querySelectorAll('#mobilePushBadge, [data-push-badge]');
+        const descs = document.querySelectorAll('#mobilePushDesc, [data-push-desc]');
+        const enableBtns = document.querySelectorAll('#enableMobilePushBtn, [data-push-enable-btn]');
+        const testBtns = document.querySelectorAll('#testMobilePushBtn, [data-push-test-btn]');
+        const iconBoxes = document.querySelectorAll('#mobilePushIconBox, [data-push-icon]');
 
-        if (!badge) return;
+        if (badges.length === 0) return;
 
         if (!('Notification' in window)) {
-            badge.textContent = 'NOT SUPPORTED';
-            badge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-700 text-slate-300';
-            if (desc) desc.textContent = 'This browser does not support web notifications.';
-            if (enableBtn) enableBtn.classList.add('hidden');
-            if (testBtn) testBtn.classList.add('hidden');
+            badges.forEach(b => {
+                b.textContent = 'NOT SUPPORTED';
+                b.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-slate-700 text-slate-300';
+            });
+            descs.forEach(d => d.textContent = 'This browser does not support web notifications.');
+            enableBtns.forEach(btn => btn.classList.add('hidden'));
+            testBtns.forEach(btn => btn.classList.add('hidden'));
             return;
         }
 
         if (Notification.permission === 'granted') {
-            badge.textContent = '✓ ACTIVE ON THIS DEVICE';
-            badge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-            if (desc) desc.textContent = 'Mobile device alerts are active! Real-time notifications will pop on your phone screen outside the app.';
-            if (enableBtn) enableBtn.classList.add('hidden');
-            if (testBtn) testBtn.classList.remove('hidden');
-            if (iconBox) {
-                iconBox.className = 'w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0';
-            }
+            badges.forEach(b => {
+                b.textContent = '✓ ACTIVE ON THIS DEVICE';
+                b.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+            });
+            descs.forEach(d => d.textContent = 'Mobile push alerts are active! Real-time notifications will pop on your phone screen outside the app.');
+            enableBtns.forEach(btn => btn.classList.add('hidden'));
+            testBtns.forEach(btn => btn.classList.remove('hidden'));
+            iconBoxes.forEach(box => {
+                box.className = 'w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0';
+            });
         } else if (Notification.permission === 'denied') {
-            badge.textContent = 'BLOCKED IN BROWSER';
-            badge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30';
-            if (desc) desc.textContent = 'Notifications are blocked in your browser settings. Please allow notifications for Mentry in your browser address bar.';
-            if (enableBtn) enableBtn.classList.add('hidden');
-            if (testBtn) testBtn.classList.add('hidden');
+            badges.forEach(b => {
+                b.textContent = 'BLOCKED IN BROWSER';
+                b.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30';
+            });
+            descs.forEach(d => d.textContent = 'Notifications are blocked in your browser settings. Please tap your browser address bar (lock/settings icon) to allow notifications.');
+            enableBtns.forEach(btn => btn.classList.add('hidden'));
+            testBtns.forEach(btn => btn.classList.add('hidden'));
         } else {
-            badge.textContent = 'DISABLED ON THIS DEVICE';
-            badge.className = 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
-            if (desc) desc.textContent = 'Tap Enable to receive alerts on your phone lock screen & notification bar outside the app.';
-            if (enableBtn) enableBtn.classList.remove('hidden');
-            if (testBtn) testBtn.classList.add('hidden');
+            badges.forEach(b => {
+                b.textContent = 'ACTION REQUIRED';
+                b.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
+            });
+            descs.forEach(d => d.textContent = 'Tap Enable to receive alerts on your phone lock screen & notification bar outside the app.');
+            enableBtns.forEach(btn => btn.classList.remove('hidden'));
+            testBtns.forEach(btn => btn.classList.add('hidden'));
         }
     };
 
@@ -465,19 +501,24 @@
             return;
         }
 
-        Notification.requestPermission().then((permission) => {
+        Notification.requestPermission().then(async (permission) => {
             if (typeof window.updateDeviceNotificationUI === 'function') {
                 window.updateDeviceNotificationUI();
             }
             if (permission === 'granted') {
+                if ('serviceWorker' in navigator) {
+                    try {
+                        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                    } catch(e) {}
+                }
                 window.sendTestDeviceNotification();
             } else if (permission === 'denied') {
-                alert('Notifications were blocked. Please tap the lock icon in your browser address bar to allow notifications.');
+                alert('Notifications are blocked in browser settings. Please tap the lock icon in your address bar to allow notifications.');
             }
         });
     };
 
-    window.sendTestDeviceNotification = function() {
+    window.sendTestDeviceNotification = async function() {
         if (!('Notification' in window)) {
             alert('Notifications not supported by this browser.');
             return;
@@ -488,7 +529,7 @@
             return;
         }
 
-        triggerNativeSystemNotification({
+        await triggerNativeSystemNotification({
             id: 'test_' + Date.now(),
             title: '🎉 Mentry Notification Active!',
             message: 'You will now receive alerts on your phone screen outside the app when selected or matched.',
@@ -497,7 +538,7 @@
 
         showLiveToast({
             title: 'Mobile Alert Sent',
-            message: 'Check your phone notification drawer or lock screen!',
+            message: 'Check your phone notification drawer or lock screen outside the app!',
             link: '/trainer/notifications.php'
         });
     };

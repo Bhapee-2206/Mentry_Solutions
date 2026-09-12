@@ -350,6 +350,6 @@ $navItems = [
     <?php require_once __DIR__ . '/../../includes/download_loader.php'; ?>
     <?php if (file_exists(__DIR__ . '/../../includes/offline_popup.php')) include_once __DIR__ . '/../../includes/offline_popup.php'; ?>
     <!-- Live Real-time Sync Engine -->
-    <script src="/assets/js/live-sync.js?v=1" defer></script>
+    <script src="/assets/js/live-sync.js?v=20260913_pwa5" defer></script>
 
     <main class="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 space-y-6 min-w-0">
