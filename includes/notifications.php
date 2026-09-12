@@ -83,10 +83,8 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
                         );
                     }
 
-                    // Send email notification to top 3 matching trainers if enabled
-                    if ($notifiedCount <= 3 && !empty($userEmail) && (!$trainerPrefs || !empty($trainerPrefs['email_opportunities']))) {
-                        @sendOpportunityMatchEmail($userEmail, $userName, $opp);
-                    }
+                    // Email dispatch disabled by policy (reserved strictly for password reset)
+                    // Real-time in-app live sync and PWA device notifications are used exclusively
                 }
             }
         }

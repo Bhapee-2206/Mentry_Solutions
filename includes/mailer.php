@@ -292,6 +292,17 @@ class MentryMailer {
 
 // Global Helper Functions
 function sendMentryEmail($toEmail, $toName, $subject, $htmlBody, $plainText = '', $meta = []) {
+    // Policy: Outbound email service is strictly restricted to password reset verification codes.
+    $emailType = $meta['type'] ?? '';
+    $allowedTypes = ['PASSWORD_RESET', 'ACCOUNT_CONFIRMATION'];
+    if (!in_array($emailType, $allowedTypes, true)) {
+        return [
+            'success' => false,
+            'suppressed' => true,
+            'message' => 'Automated mail disabled. Mail service is strictly reserved for password reset.'
+        ];
+    }
+
     $mailer = new MentryMailer();
     return $mailer->send($toEmail, $toName, $subject, $htmlBody, $plainText, $meta);
 }
@@ -381,76 +392,11 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
 }
 
 function sendOpportunityMatchEmail($toEmail, $toName, $opp) {
-    $subject = "Training Assignment Notice: " . ($opp['title'] ?? 'Campus Workshop');
-    $domain = htmlspecialchars($opp['domain'] ?? 'Technology');
-    $city = htmlspecialchars($opp['city'] ?? 'India');
-    $rateMin = number_format($opp['dailyRateMin'] ?? 5000);
-    $rateMax = number_format($opp['dailyRateMax'] ?? 7000);
-    $oppId = (string)($opp['_id'] ?? '');
-
-    $baseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
-    $oppUrl = rtrim($baseUrl, '/') . '/opportunity-details.php?id=' . urlencode($oppId);
-
-    $plainText = "Dear " . $toName . ",\n\n" .
-                 "A new academic training requirement matching your subject specialization has been published on the Mentry portal.\n\n" .
-                 "Title: " . ($opp['title'] ?? 'Campus Workshop') . "\n" .
-                 "Domain: " . ($opp['domain'] ?? 'Technology') . " (" . ($opp['mode'] ?? 'OFFLINE') . ")\n" .
-                 "Location: " . $city . " • Duration: " . ($opp['durationDays'] ?? 5) . " Days\n" .
-                 "Honorarium Range: ₹" . $rateMin . " – ₹" . $rateMax . " / day\n\n" .
-                 "Review requirement details here:\n" .
-                 $oppUrl . "\n\n" .
-                 "---\n" .
-                 "Mentry Solutions • Managed Trainer Network\n" .
-                 "Support: mentry.training@gmail.com\n";
-
-    $html = '
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title>Campus Training Schedule Notice</title>
-        <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
-            .container { max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
-            .header { background: #070D18; padding: 26px 24px; text-align: center; border-bottom: 3px solid #FE5E04; }
-            .content { padding: 28px 24px; }
-            .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 16px 0; }
-            .btn { display: inline-block; background-color: #FE5E04; color: #ffffff !important; font-weight: 700; font-size: 13px; padding: 12px 24px; border-radius: 10px; text-decoration: none; }
-            .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 18px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.5; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800;">Mentry Solutions</h1>
-                <p style="color: #FE5E04; margin: 4px 0 0 0; font-size: 11px; font-weight: 700; text-transform: uppercase;">Faculty Assignment Notification</p>
-            </div>
-            <div class="content">
-                <p style="font-size: 14px; margin-top: 0; color: #334155;">
-                    Dear <strong>' . htmlspecialchars($toName) . '</strong>,
-                </p>
-                <p style="font-size: 13px; color: #475569; line-height: 1.6;">
-                    A new academic training requirement matching your subject specialization has been published on the Mentry portal.
-                </p>
-
-                <div class="card">
-                    <div style="font-size: 11px; font-weight: 700; color: #FE5E04; text-transform: uppercase; margin-bottom: 4px;">' . $domain . ' • ' . htmlspecialchars($opp['mode'] ?? 'OFFLINE') . '</div>
-                    <h3 style="margin: 0 0 8px 0; font-size: 15px; color: #0f172a;">' . htmlspecialchars($opp['title']) . '</h3>
-                    <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;"><strong>Location:</strong> ' . $city . ' • <strong>Duration:</strong> ' . htmlspecialchars($opp['durationDays'] ?? 5) . ' Days</div>
-                    <div style="font-size: 12px; color: #64748b;"><strong>Honorarium Range:</strong> ₹' . $rateMin . ' – ₹' . $rateMax . ' / day</div>
-                </div>
-
-                <div style="text-align: center; margin: 20px 0 10px 0;">
-                    <a href="' . htmlspecialchars($oppUrl) . '" class="btn">Review Requirement Details</a>
-                </div>
-            </div>
-            <div class="footer">
-                You received this notice because your trainer profile is registered for ' . $domain . ' curriculum assignments.<br>
-                Mentry Solutions • Managed Trainer Network • <a href="mailto:mentry.training@gmail.com" style="color: #FE5E04; text-decoration: none;">mentry.training@gmail.com</a>
-            </div>
-        </div>
-    </body>
-    </html>
-    ';
-    return sendMentryEmail($toEmail, $toName, $subject, $html, $plainText, ['oppId' => $oppId, 'type' => 'OPPORTUNITY_MATCH']);
+    // Suppressed by policy - email service is strictly reserved for password reset.
+    // Real-time live notifications and in-app alerts are used for opportunity matching.
+    return [
+        'success' => false,
+        'suppressed' => true,
+        'message' => 'Opportunity match emails disabled by policy. Mail is reserved strictly for password reset.'
+    ];
 }

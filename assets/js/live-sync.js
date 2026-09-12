@@ -133,56 +133,89 @@
         return displayed;
     }
 
-    // 3. Floating Toast Notification Container
+    // 3. Modern Floating Toast Notification Container (Mobile Centered / Desktop Right Aligned)
     function getOrCreateToastContainer() {
         let container = document.getElementById('mentryLiveToastContainer');
         if (!container) {
             container = document.createElement('div');
             container.id = 'mentryLiveToastContainer';
-            container.className = 'fixed top-4 right-4 sm:top-5 sm:right-6 z-[999999] flex flex-col gap-2.5 max-w-[360px] w-[92vw] sm:w-full pointer-events-none select-none';
+            container.className = 'fixed top-3 inset-x-3 max-w-[430px] mx-auto sm:inset-x-auto sm:right-6 sm:top-5 z-[999999] flex flex-col gap-3 pointer-events-none select-none';
             document.body.appendChild(container);
         }
         return container;
     }
 
-    // 3. Show modern interactive glassmorphic toast
+    // 3. Show modern, user-friendly interactive glassmorphic push notification toast
     function showLiveToast(options) {
         const container = getOrCreateToastContainer();
         const toast = document.createElement('div');
-        toast.className = 'pointer-events-auto bg-slate-900/95 text-white border border-slate-700/80 shadow-2xl rounded-2xl p-3.5 sm:p-4 backdrop-blur-xl transform translate-y-3 opacity-0 transition-all duration-300 flex items-start gap-3 cursor-pointer hover:border-[#FE5E04] hover:bg-slate-900';
+        toast.className = 'pointer-events-auto bg-white/95 text-slate-900 border border-slate-200/90 shadow-[0_16px_40px_rgba(15,23,42,0.16)] rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 backdrop-blur-2xl transform -translate-y-4 scale-95 opacity-0 transition-all duration-300 ease-out cursor-pointer hover:border-orange-300 flex flex-col relative overflow-hidden';
 
         const isAccepted = options.title && options.title.toLowerCase().includes('accepted');
         const isShortlisted = options.title && options.title.toLowerCase().includes('shortlisted');
         const isMatch = options.type === 'OPPORTUNITY_MATCH';
 
-        let iconName = 'notifications';
-        let iconBg = 'bg-orange-500/20 text-[#FE5E04] border-orange-500/30';
+        let iconName = 'notifications_active';
+        let iconBg = 'bg-orange-50 text-[#FE5E04] border-orange-200';
+        let categoryTag = 'Live Alert';
+
         if (isAccepted) {
-            iconName = 'check_circle';
-            iconBg = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+            iconName = 'verified';
+            iconBg = 'bg-emerald-50 text-emerald-600 border-emerald-200';
+            categoryTag = 'Accepted 🎉';
         } else if (isShortlisted) {
             iconName = 'star';
-            iconBg = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+            iconBg = 'bg-amber-50 text-amber-600 border-amber-200';
+            categoryTag = 'Shortlisted ⭐';
         } else if (isMatch) {
             iconName = 'bolt';
-            iconBg = 'bg-[#FE5E04]/20 text-[#FE5E04] border-[#FE5E04]/40';
+            iconBg = 'bg-[#FE5E04]/10 text-[#FE5E04] border-[#FE5E04]/30';
+            categoryTag = 'New Match ⚡';
         }
 
+        const actionText = isMatch ? 'View Opportunity' : (isAccepted ? 'View Assignment' : 'Open Details');
+
         toast.innerHTML = `
-            <div class="w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${iconBg}">
-                <span class="material-symbols-outlined text-[20px]">${iconName}</span>
-            </div>
-            <div class="flex-1 min-w-0 pr-1">
-                <div class="flex items-center justify-between gap-1.5 mb-0.5">
-                    <h4 class="font-extrabold text-xs text-white tracking-tight truncate">${escapeHtml(options.title || 'Notification')}</h4>
-                    <span class="text-[9px] font-bold text-orange-400 uppercase tracking-wider shrink-0">Live</span>
+            <!-- Top branding & dismissal bar -->
+            <div class="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-slate-100">
+                <div class="flex items-center gap-1.5">
+                    <img src="/public/mentry.png" class="w-4 h-4 object-contain rounded" alt="Mentry">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-800">Mentry Alert</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 border border-slate-200">${categoryTag}</span>
                 </div>
-                <p class="text-[11px] text-slate-300 leading-snug line-clamp-2">${escapeHtml(options.message || '')}</p>
-                ${options.link ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-[#FE5E04] mt-1.5 hover:underline">Tap to view details <span class="material-symbols-outlined text-[12px]">arrow_forward</span></span>` : ''}
+                <button type="button" class="text-slate-400 hover:text-slate-700 p-1 -mr-1 rounded-full hover:bg-slate-100 transition-colors flex items-center justify-center cursor-pointer" title="Dismiss">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
             </div>
-            <button type="button" class="text-slate-400 hover:text-white p-1 -mr-1 -mt-1 rounded-lg transition-colors" title="Dismiss">
-                <span class="material-symbols-outlined text-[16px]">close</span>
-            </button>
+
+            <!-- Main notification body -->
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${iconBg} shadow-2xs">
+                    <span class="material-symbols-outlined text-[22px]">${iconName}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 tracking-tight leading-snug line-clamp-2">${escapeHtml(options.title || 'Notification')}</h4>
+                    <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed mt-0.5 line-clamp-2">${escapeHtml(options.message || '')}</p>
+                </div>
+            </div>
+
+            <!-- Action footer CTA -->
+            <div class="mt-3 pt-2 flex items-center justify-between gap-2">
+                <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[13px]">swipe_up</span>
+                    Swipe or tap to open
+                </span>
+                ${options.link ? `
+                    <span class="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#FE5E04] hover:bg-[#E04E00] px-3.5 py-1.5 rounded-xl shadow-xs transition-colors">
+                        <span>${actionText}</span>
+                        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                    </span>
+                ` : ''}
+            </div>
+
+            <!-- Auto-dismiss progress countdown indicator -->
+            <div class="toast-progress absolute bottom-0 left-0 h-1 bg-gradient-to-r from-[#FE5E04] to-amber-400 w-full transition-all duration-[8000ms] ease-linear"></div>
         `;
 
         // Click on toast navigates to destination
@@ -196,28 +229,56 @@
             }
         });
 
+        // Touch swipe-to-dismiss gesture handling
+        let touchStartY = 0;
+        let touchStartX = 0;
+        toast.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+
+        toast.addEventListener('touchend', (e) => {
+            const deltaY = e.changedTouches[0].clientY - touchStartY;
+            const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+            if (deltaY < -30 || deltaX > 60) {
+                dismissToast(toast);
+            }
+        }, { passive: true });
+
         container.appendChild(toast);
 
         // Animate entrance
         requestAnimationFrame(() => {
-            toast.classList.remove('translate-y-3', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
+            toast.classList.remove('-translate-y-4', 'scale-95', 'opacity-0');
+            toast.classList.add('translate-y-0', 'scale-100', 'opacity-100');
+            const progress = toast.querySelector('.toast-progress');
+            if (progress) {
+                requestAnimationFrame(() => progress.style.width = '0%');
+            }
         });
 
-        // Auto-dismiss after 7.5 seconds
-        const dismissTimer = setTimeout(() => {
-            dismissToast(toast);
-        }, 7500);
+        // Auto-dismiss after 8 seconds (pauses on hover)
+        let dismissTimer = setTimeout(() => dismissToast(toast), 8000);
+
+        toast.addEventListener('mouseenter', () => clearTimeout(dismissTimer));
+        toast.addEventListener('mouseleave', () => {
+            clearTimeout(dismissTimer);
+            dismissTimer = setTimeout(() => dismissToast(toast), 3000);
+        });
 
         function dismissToast(el) {
             clearTimeout(dismissTimer);
-            el.classList.remove('translate-y-0', 'opacity-100');
-            el.classList.add('-translate-y-2', 'opacity-0');
+            el.classList.remove('translate-y-0', 'scale-100', 'opacity-100');
+            el.classList.add('-translate-y-4', 'scale-95', 'opacity-0');
             setTimeout(() => {
                 if (el.parentNode) el.parentNode.removeChild(el);
             }, 300);
         }
 
+        // Haptic feedback & audio
+        if ('vibrate' in navigator) {
+            try { navigator.vibrate([60, 40, 60]); } catch (e) {}
+        }
         playNotificationChime();
     }
 
