@@ -36,19 +36,27 @@ $navItems = [
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
-        html, body {
+        html {
             max-width: 100%;
-            overflow-x: hidden;
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            max-width: 100%;
+            -webkit-overflow-scrolling: touch;
         }
         *, *::before, *::after {
             box-sizing: border-box;
         }
-        body { font-family: 'Inter', sans-serif; }
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400; vertical-align: middle; }
         .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
+        .vendor-canvas-scroll {
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+            touch-action: pan-y;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen flex antialiased w-full max-w-full overflow-x-hidden">
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col md:flex-row antialiased w-full max-w-full overflow-x-hidden">
 <?php if (file_exists(__DIR__ . '/../../includes/loading_screen.php')) include __DIR__ . '/../../includes/loading_screen.php'; ?>
 
 <!-- Desktop Sticky Sidebar -->
@@ -165,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- Main Canvas -->
-<div class="flex-1 flex flex-col min-w-0 w-full max-w-full h-screen overflow-y-auto overflow-x-hidden">
+<div class="flex-1 flex flex-col min-w-0 w-full max-w-full min-h-screen md:h-screen md:overflow-y-auto overflow-x-hidden vendor-canvas-scroll">
     <!-- Top Bar -->
     <header class="bg-white border-b border-slate-200 px-3.5 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-xs">
         <div class="flex items-center gap-2.5">

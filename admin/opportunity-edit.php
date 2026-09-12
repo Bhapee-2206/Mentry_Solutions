@@ -42,9 +42,9 @@ $endDateVal = $endTs ? date('Y-m-d', $endTs) : '';
 
 <div class="max-w-4xl mx-auto space-y-6">
     <div class="flex items-center justify-between">
-        <a href="/admin/opportunity-view.php?id=<?= $oppId ?>" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600">
+        <a href="/admin/opportunity-view.php?id=<?= $oppId ?>" onclick="if (window.history.length > 1) { window.history.back(); return false; }" class="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-blue-600 bg-white border border-slate-200 hover:border-slate-300 px-3.5 py-2 rounded-xl transition-all shadow-2xs shrink-0 cursor-pointer">
             <span class="material-symbols-outlined text-base">arrow_back</span>
-            Back to Opportunity View
+            <span>Back to Opportunity View</span>
         </a>
 
         <form action="/actions/delete-opportunity.php" method="POST" onsubmit="return confirm('Are you sure you want to permanently delete this opportunity and its applications?');">

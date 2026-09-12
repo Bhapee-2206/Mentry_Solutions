@@ -75,9 +75,9 @@ if (!empty($req['skillsRequired'])) {
 
 <div class="max-w-5xl mx-auto space-y-6">
     <div class="flex items-center justify-between">
-        <a href="/vendor/requests.php" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-600">
+        <a href="/vendor/requests.php" onclick="if (window.history.length > 1) { window.history.back(); return false; }" class="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-indigo-600 bg-white border border-slate-200 hover:border-slate-300 px-3.5 py-2 rounded-xl transition-all shadow-2xs shrink-0 cursor-pointer">
             <span class="material-symbols-outlined text-base">arrow_back</span>
-            Back to Requirements List
+            <span>Back to Requirements List</span>
         </a>
 
         <div class="flex items-center gap-2">

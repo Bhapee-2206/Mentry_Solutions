@@ -85,9 +85,9 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 <div class="max-w-6xl mx-auto space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <a href="/admin/trainers.php" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600">
+        <a href="/admin/trainers.php" onclick="if (window.history.length > 1) { window.history.back(); return false; }" class="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-blue-600 bg-white border border-slate-200 hover:border-slate-300 px-3.5 py-2 rounded-xl transition-all shadow-2xs shrink-0 cursor-pointer">
             <span class="material-symbols-outlined text-base">arrow_back</span>
-            Back to Trainers Directory
+            <span>Back to Trainers Directory</span>
         </a>
 
         <div class="flex flex-wrap items-center gap-2">
@@ -109,6 +109,7 @@ require_once __DIR__ . '/includes/sidebar.php';
     <!-- Top Profile Banner -->
     <div class="bg-white rounded-3xl border border-slate-200/90 p-8 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div class="flex items-center gap-5">
+            <div class="shrink-0 relative group cursor-pointer" onclick="openPhotoLightbox()" title="Click to Zoom Trainer Photo">
                 <img src="<?= htmlspecialchars(getUserAvatar($u, 400)) ?>" 
                      alt="<?= htmlspecialchars($u['name'] ?? 'Trainer') ?>"
                      class="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-2 border-slate-200 shadow-md group-hover:scale-105 transition-all" 

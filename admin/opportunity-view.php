@@ -63,9 +63,9 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
 
 <div class="max-w-6xl mx-auto space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <a href="/admin/opportunities.php" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600">
+        <a href="/admin/opportunities.php" onclick="if (window.history.length > 1) { window.history.back(); return false; }" class="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-blue-600 bg-white border border-slate-200 hover:border-slate-300 px-3.5 py-2 rounded-xl transition-all shadow-2xs shrink-0 cursor-pointer">
             <span class="material-symbols-outlined text-base">arrow_back</span>
-            Back to Opportunities
+            <span>Back to Opportunities</span>
         </a>
 
         <div class="flex items-center gap-2">
