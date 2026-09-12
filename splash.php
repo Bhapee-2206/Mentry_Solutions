@@ -2,14 +2,9 @@
 /*
  * Mentry Solutions — PWA Splash Screen
  * Single-file PHP version.
- *
- * The logo is embedded as an SVG so no external image file is required.
  */
-
-// Optional: redirect after the splash.
-// Default to home index.php after 1800ms if visited directly.
 $redirect_url = '/index.php?source=pwa';
-$redirect_delay = 1800; // milliseconds
+$redirect_delay = 2600; // milliseconds
 ?>
 <!doctype html>
 <html lang="en">
@@ -22,375 +17,85 @@ $redirect_delay = 1800; // milliseconds
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Mentry Solutions</title>
 
-<style>
-:root{
-  --navy:#102a63;
-  --navy-deep:#071f55;
-  --blue:#087cff;
-  --cyan:#12bff3;
-  --bg:#f8fbff;
-}
-
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent;
-}
-
-html,body{
-  margin:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-}
-
-body{
-  background:var(--bg);
-}
-
-.splash{
-  position:relative;
-  width:100%;
-  min-height:100svh;
-  overflow:hidden;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:
-    radial-gradient(circle at 52% 43%,rgba(220,239,255,.78) 0 17%,transparent 43%),
-    linear-gradient(145deg,#f7fbff 0%,#fff 52%,#f2f9ff 100%);
-}
-
-/* Decorative background */
-.orb{
-  position:absolute;
-  border-radius:50%;
-  pointer-events:none;
-}
-
-.orb.one{
-  width:42svh;
-  height:42svh;
-  left:-19svh;
-  top:-12svh;
-  background:radial-gradient(
-    circle at 60% 60%,
-    #bfe1ff,
-    #e9f5ff 68%,
-    transparent 69%
-  );
-}
-
-.orb.two{
-  width:28svh;
-  height:28svh;
-  right:-10svh;
-  bottom:22svh;
-  background:radial-gradient(
-    circle,
-    #dff2ff 0 55%,
-    transparent 56%
-  );
-}
-
-.dots{
-  position:absolute;
-  width:78px;
-  height:78px;
-  background-image:radial-gradient(#74baff 2px,transparent 2.5px);
-  background-size:18px 18px;
-  opacity:.45;
-}
-
-.dots.left{
-  left:22px;
-  top:21%;
-  transform:rotate(5deg);
-}
-
-.dots.right{
-  right:26px;
-  bottom:20%;
-  opacity:.3;
-}
-
-/* Main content */
-.content{
-  position:relative;
-  z-index:3;
-  width:min(92vw,520px);
-  text-align:center;
-  transform:translateY(-2%);
-}
-
-.logo-wrap{
-  width:min(58vw,330px);
-  aspect-ratio:1;
-  margin:0 auto -4px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-/* Embedded Mentry logo */
-.logo{
-  width:100%;
-  height:100%;
-  display:block;
-  filter:drop-shadow(0 12px 25px rgba(15,82,160,.08));
-}
-
-.brand{
-  margin-top:0;
-  color:var(--navy);
-  font-size:clamp(2.15rem,9vw,4rem);
-  line-height:.95;
-  font-weight:800;
-  letter-spacing:-.055em;
-}
-
-.brand span{
-  color:#1189e8;
-}
-
-.tagline{
-  margin:20px auto 0;
-  max-width:390px;
-  color:#38557f;
-  font-size:clamp(.9rem,3.5vw,1.15rem);
-  line-height:1.55;
-  letter-spacing:.09em;
-  font-weight:500;
-}
-
-.tagline:before,
-.tagline:after{
-  content:"";
-  display:inline-block;
-  vertical-align:middle;
-  width:54px;
-  height:2px;
-  margin:0 14px;
-  background:#a9c8e8;
-}
-
-/* Loader */
-.loader{
-  width:62px;
-  height:62px;
-  margin:58px auto 0;
-  border-radius:50%;
-  border:9px solid #dbeeff;
-  border-top-color:var(--blue);
-  border-right-color:#55c8f4;
-  animation:spin 1.05s linear infinite;
-}
-
-.loading-text{
-  margin-top:17px;
-  color:#48688f;
-  font-size:1rem;
-  letter-spacing:.22em;
-}
-
-/* Bottom waves */
-.footer{
-  position:absolute;
-  z-index:2;
-  left:-5%;
-  bottom:-1px;
-  width:110%;
-  height:26svh;
-  min-height:170px;
-}
-
-.wave{
-  position:absolute;
-  left:0;
-  width:100%;
-  height:100%;
-  border-radius:50% 50% 0 0 / 28% 28% 0 0;
-}
-
-.wave.back{
-  bottom:8%;
-  background:#d9efff;
-  transform:rotate(-4deg) scale(1.1);
-}
-
-.wave.mid{
-  bottom:1%;
-  background:linear-gradient(135deg,#0a4da9,#0a8df1);
-  transform:rotate(2deg) scale(1.08);
-}
-
-.wave.front{
-  bottom:-9%;
-  background:linear-gradient(135deg,#06265d,#0a4ca8);
-  transform:rotate(-3deg) scale(1.08);
-}
-
-.footer-copy{
-  position:absolute;
-  z-index:5;
-  bottom:8%;
-  left:0;
-  width:100%;
-  text-align:center;
-  color:#fff;
-  font-size:.82rem;
-  letter-spacing:.32em;
-  font-weight:600;
-}
-
-@keyframes spin{
-  to{
-    transform:rotate(360deg);
-  }
-}
-
-@media (min-width:700px){
-  .content{
-    width:620px;
-  }
-
-  .logo-wrap{
-    width:360px;
-  }
-
-  .brand{
-    font-size:4rem;
-  }
-
-  .footer{
-    height:25vh;
-  }
-}
-
-@media (max-height:700px){
-  .logo-wrap{
-    width:min(45vw,250px);
-  }
-
-  .loader{
-    margin-top:28px;
-  }
-
-  .tagline{
-    margin-top:12px;
-  }
-
-  .footer{
-    min-height:125px;
-  }
-}
-</style>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body>
+<body class="m-0 p-0 w-full h-full overflow-hidden bg-[#F8FBFF] select-none font-sans">
 
-<main class="splash" aria-label="Mentry Solutions loading screen">
+<main class="fixed inset-0 z-[99999] bg-gradient-to-b from-[#FFFFFF] via-[#F8FBFF] to-[#EFF6FF] flex flex-col items-center justify-between overflow-hidden" aria-label="Mentry Solutions loading screen">
+    <!-- Ambient glowing light orbs -->
+    <div class="absolute -top-20 -left-20 w-80 h-80 sm:w-96 sm:h-96 rounded-full bg-blue-100/50 blur-3xl pointer-events-none"></div>
+    <div class="absolute top-1/4 -right-16 w-72 h-72 rounded-full bg-sky-100/60 blur-3xl pointer-events-none"></div>
+    <div class="absolute inset-0 m-auto w-80 h-80 sm:w-96 sm:h-96 rounded-full bg-blue-50/40 blur-2xl pointer-events-none"></div>
 
-  <span class="orb one"></span>
-  <span class="orb two"></span>
-  <span class="dots left"></span>
-  <span class="dots right"></span>
+    <!-- Central Hero Branding & Spinner -->
+    <div class="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center max-w-md w-full min-h-0 pt-6 pb-2">
+        <!-- Authentic Mentry PNG Logo -->
+        <div class="relative flex items-center justify-center mb-2">
+            <img src="/public/mentry-emblem.png" alt="Mentry Logo" class="w-28 h-28 sm:w-36 sm:h-36 object-contain drop-shadow-md">
+        </div>
 
-  <section class="content">
+        <!-- "Mentry Solutions" Title -->
+        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#0B1526] mt-1 mb-2">
+            Mentry <span class="text-[#0284C7]">Solutions</span>
+        </h1>
 
-    <div class="logo-wrap">
-      <!-- Logo is embedded directly in this PHP file -->
-      <svg class="logo"
-           viewBox="0 0 600 600"
-           xmlns="http://www.w3.org/2000/svg"
-           role="img"
-           aria-label="Mentry Solutions logo">
+        <!-- Subtitle with side divider rules (Perfect horizontal alignment) -->
+        <div class="flex items-center justify-center gap-3 w-full max-w-[320px] sm:max-w-sm px-2 mb-6">
+            <div class="h-0.5 bg-[#A9C8E8] flex-1 rounded-full"></div>
+            <div class="text-center shrink-0">
+                <p class="text-xs sm:text-[13px] font-semibold text-[#38557F] tracking-wide leading-tight">Managed Trainer Network</p>
+                <p class="text-xs sm:text-[13px] font-semibold text-[#38557F] tracking-wide leading-tight">& Professional Training Services</p>
+            </div>
+            <div class="h-0.5 bg-[#A9C8E8] flex-1 rounded-full"></div>
+        </div>
 
-        <defs>
-          <linearGradient id="mBlue" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#0752a7"/>
-            <stop offset="52%" stop-color="#087cff"/>
-            <stop offset="100%" stop-color="#13c1f2"/>
-          </linearGradient>
-
-          <linearGradient id="mDark" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#071f55"/>
-            <stop offset="100%" stop-color="#0752a7"/>
-          </linearGradient>
-        </defs>
-
-        <!-- M / human symbol -->
-        <path fill="url(#mDark)"
-          d="M116 190 L116 407 L190 407 L190 292 L116 190 Z"/>
-        <path fill="url(#mDark)"
-          d="M484 190 L484 407 L410 407 L410 292 L484 190 Z"/>
-
-        <path fill="url(#mBlue)"
-          d="M116 190
-             C175 217 221 253 300 325
-             C379 253 425 217 484 190
-             C442 239 397 293 350 346
-             C332 366 317 389 300 420
-             C283 389 268 366 250 346
-             C203 293 158 239 116 190 Z"/>
-
-        <circle cx="300" cy="174" r="43" fill="url(#mBlue)"/>
-
-        <!-- Rising arm -->
-        <path d="M300 420 C335 344 392 279 454 222"
-              fill="none"
-              stroke="#0dbcf0"
-              stroke-width="18"
-              stroke-linecap="round"/>
-
-        <!-- Star -->
-        <path fill="#087cff"
-          d="M484 108
-             L495 135
-             L524 137
-             L501 156
-             L508 185
-             L484 169
-             L460 185
-             L467 156
-             L444 137
-             L473 135 Z"/>
-      </svg>
+        <!-- Circular Spinner & Loading Text (Sitting comfortably on clean background, never covered by waves) -->
+        <div class="flex flex-col items-center justify-center gap-3 mt-3">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full border-[4px] border-[#DBEEFF] border-t-[#087CFF] border-r-[#55C8F4] animate-spin"></div>
+            <span class="text-xs sm:text-sm font-semibold text-[#48688F] tracking-[0.2em] uppercase">Loading...</span>
+        </div>
     </div>
 
-    <div class="brand">
-      Mentry <span>Solutions</span>
+    <!-- Layered Bottom Wave Graphics with Motto -->
+    <div class="relative w-full z-10 overflow-hidden leading-none select-none pointer-events-none mt-auto">
+        <svg class="w-full h-32 sm:h-44 md:h-52 block" viewBox="0 0 1000 280" preserveAspectRatio="none">
+            <defs>
+                <linearGradient id="waveCyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#0284C7" />
+                    <stop offset="50%" stop-color="#0077F5" />
+                    <stop offset="100%" stop-color="#005BDB" />
+                </linearGradient>
+                <linearGradient id="waveRoyalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#0052CC" />
+                    <stop offset="60%" stop-color="#003D99" />
+                    <stop offset="100%" stop-color="#082352" />
+                </linearGradient>
+                <linearGradient id="waveNavyGrad" x1="0%" y1="0%" x2="50%" y2="100%">
+                    <stop offset="0%" stop-color="#082352" />
+                    <stop offset="40%" stop-color="#051838" />
+                    <stop offset="100%" stop-color="#030E24" />
+                </linearGradient>
+            </defs>
+
+            <path d="M0,130 C220,70 440,220 720,150 C860,110 950,150 1000,130 L1000,280 L0,280 Z" fill="url(#waveCyanGrad)" opacity="0.92"></path>
+            <path d="M0,165 C250,110 490,240 770,180 C890,150 960,180 1000,165 L1000,280 L0,280 Z" fill="url(#waveRoyalGrad)" opacity="0.96"></path>
+            <path d="M0,200 C280,150 530,265 830,215 C920,195 970,215 1000,205 L1000,280 L0,280 Z" fill="url(#waveNavyGrad)"></path>
+        </svg>
+
+        <div class="absolute bottom-4 sm:bottom-6 inset-x-0 text-center px-4">
+            <p class="text-[10px] sm:text-[11px] font-bold text-white/95 tracking-[0.25em] uppercase drop-shadow-sm">
+                LEARN &nbsp;&nbsp;•&nbsp;&nbsp; TEACH &nbsp;&nbsp;•&nbsp;&nbsp; GROW &nbsp;&nbsp;TOGETHER
+            </p>
+        </div>
     </div>
-
-    <div class="tagline">
-      Managed Trainer Network &amp;<br>
-      Professional Training Services
-    </div>
-
-    <div class="loader" aria-hidden="true"></div>
-
-    <div class="loading-text">
-      Loading...
-    </div>
-
-  </section>
-
-  <footer class="footer" aria-hidden="true">
-    <div class="wave back"></div>
-    <div class="wave mid"></div>
-    <div class="wave front"></div>
-
-    <div class="footer-copy">
-      LEARN &nbsp; • &nbsp; TEACH &nbsp; • &nbsp; GROW TOGETHER
-    </div>
-  </footer>
-
 </main>
 
-<?php if ($redirect_url !== ''): ?>
+<?php if (!empty($redirect_url)): ?>
 <script>
 setTimeout(function(){
-  window.location.href = <?= json_encode($redirect_url) ?>;
+    window.location.href = <?= json_encode($redirect_url) ?>;
 }, <?= (int)$redirect_delay ?>);
 </script>
 <?php endif; ?>
