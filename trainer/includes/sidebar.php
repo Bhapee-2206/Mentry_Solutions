@@ -147,8 +147,9 @@ $navItems = [
             <button id="trainerMobileMenuBtn" type="button" aria-label="Open navigation menu" class="md:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#FE5E04]/30">
                 <span class="material-symbols-outlined text-2xl">menu</span>
             </button>
-            <a href="/index.php" class="md:hidden flex items-center">
+            <a href="/index.php" class="md:hidden flex items-center gap-1.5">
                 <img src="/public/mentry.png" alt="Mentry" class="h-7 w-auto">
+                <span class="font-black text-sm tracking-wider text-slate-900">MENTRY</span>
             </a>
             <div class="flex items-center gap-2">
                 <span class="font-bold text-slate-900 text-sm hidden sm:inline"><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'Trainer Workspace' ?></span>

@@ -172,8 +172,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <button id="vendorMobileMenuBtn" type="button" aria-label="Open navigation menu" class="md:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
                 <span class="material-symbols-outlined text-2xl">menu</span>
             </button>
-            <a href="/vendor/dashboard.php" class="md:hidden flex items-center">
+            <a href="/vendor/dashboard.php" class="md:hidden flex items-center gap-1.5">
                 <img src="/public/mentry.png" alt="Mentry" class="h-7 w-auto">
+                <span class="font-black text-sm tracking-wider text-slate-900">MENTRY</span>
             </a>
             <span class="font-bold text-slate-900 text-sm hidden sm:inline">Partner Workspace</span>
             <span class="bg-indigo-50 text-indigo-700 text-[10px] sm:text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-indigo-100">Client Portal</span>

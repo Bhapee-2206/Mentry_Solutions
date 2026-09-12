@@ -252,9 +252,12 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                 <div class="flex items-center gap-2 sm:gap-3 shrink-0">
                     <a href="/index.php" class="flex items-center gap-2 sm:gap-2.5 group">
                         <img src="/public/mentry.png" alt="Mentry Solutions Logo" class="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105 shrink-0">
+                        <span class="font-black text-[15px] tracking-wider text-slate-900 leading-none group-hover:text-[#FE5E04] transition-colors uppercase sm:hidden">
+                            MENTRY
+                        </span>
                         <div class="hidden sm:block">
                             <span class="font-extrabold text-[14px] sm:text-[17px] text-slate-900 tracking-tight leading-none block group-hover:text-[#FE5E04] transition-colors">
-                                Mentry Solutions
+                                <span class="font-black tracking-wider">MENTRY</span> Solutions
                             </span>
                             <span class="text-[9px] sm:text-[11px] font-medium text-slate-500 tracking-normal block mt-0.5">
                                 Managed Trainer Network
