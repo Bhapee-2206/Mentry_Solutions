@@ -138,9 +138,9 @@ if ($currentUser) {
     </script>
 
     <!-- Favicon & Brand Icons -->
-    <link rel="icon" type="image/png" href="/public/mentry.png?v=2">
+    <link rel="icon" type="image/png" href="/public/icon-192.png?v=3">
     <link rel="shortcut icon" href="/favicon.ico?v=2">
-    <link rel="apple-touch-icon" href="/public/mentry.png?v=2">
+    <link rel="apple-touch-icon" href="/public/icon-192.png?v=3">
 
     <!-- Progressive Web App (PWA) Manifest & Standalone App Capabilities -->
     <link rel="manifest" href="/manifest.json">
@@ -245,17 +245,17 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
 <!-- Navigation Header -->
 <header class="sticky top-0 z-50 w-full px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-2 transition-all">
     <div class="max-w-[1400px] mx-auto">
-        <div class="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl lg:rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.06)] px-4 sm:px-5 lg:px-6 py-2.5 sm:py-3 transition-all">
-            <div class="flex items-center justify-between">
+        <div class="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl lg:rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.06)] px-3 sm:px-5 lg:px-6 py-2 sm:py-3 transition-all">
+            <div class="flex items-center justify-between gap-2">
                 <!-- Brand Logo with mentry.png -->
                 <div class="flex items-center gap-2 sm:gap-3 shrink-0">
                     <a href="/index.php" class="flex items-center gap-2 sm:gap-2.5 group">
-                        <img src="/public/mentry.png" alt="Mentry Solutions Logo" class="h-8 sm:h-10 w-auto object-contain transition-transform group-hover:scale-105 shrink-0">
-                        <div>
-                            <span class="font-extrabold text-[13px] sm:text-[17px] text-slate-900 tracking-tight leading-none block group-hover:text-[#FE5E04] transition-colors">
+                        <img src="/public/mentry.png" alt="Mentry Solutions Logo" class="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105 shrink-0">
+                        <div class="hidden sm:block">
+                            <span class="font-extrabold text-[14px] sm:text-[17px] text-slate-900 tracking-tight leading-none block group-hover:text-[#FE5E04] transition-colors">
                                 Mentry Solutions
                             </span>
-                            <span class="text-[8px] sm:text-[11px] font-medium text-slate-500 tracking-normal block mt-0.5">
+                            <span class="text-[9px] sm:text-[11px] font-medium text-slate-500 tracking-normal block mt-0.5">
                                 Managed Trainer Network
                             </span>
                         </div>
@@ -296,12 +296,12 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                 </nav>
 
                 <!-- Action CTAs -->
-                <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+                <div class="flex items-center gap-1 sm:gap-2 lg:gap-2.5 shrink-0">
                     <div class="hidden xl:block h-7 w-px bg-slate-200 mx-1"></div>
 
                     <!-- Download App Button (Matches Screenshot 2: White card with orange download icon) -->
-                    <button type="button" onclick="window.promptPWAInstall()" class="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-[#FE5E04] bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-orange-300 transition-all cursor-pointer shrink-0 shadow-2xs flex items-center gap-1.5" title="Download & Install Mentry App (Add to Home Screen)">
-                        <span class="material-symbols-outlined text-[20px] sm:text-[18px] text-[#FE5E04]">download</span>
+                    <button type="button" onclick="window.promptPWAInstall()" class="p-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-[#FE5E04] bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-orange-300 transition-all cursor-pointer shrink-0 shadow-2xs flex items-center justify-center gap-1.5" title="Download & Install Mentry App (Add to Home Screen)">
+                        <span class="material-symbols-outlined text-[19px] sm:text-[18px] text-[#FE5E04]">download</span>
                         <span class="hidden 2xl:inline font-bold">Download</span>
                     </button>
 
@@ -315,18 +315,18 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                         }
                     ?>
                         <!-- Notifications Bell Badge (Matches Screenshot 2: Bell with orange count badge) -->
-                        <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/notifications.php' : '/trainer/notifications.php' ?>" class="relative p-2 text-slate-700 hover:text-[#FE5E04] bg-white border border-slate-200 hover:border-orange-300 rounded-xl transition-all shadow-2xs flex items-center justify-center shrink-0" title="Notifications">
-                            <span class="material-symbols-outlined text-[20px]">notifications</span>
+                        <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/notifications.php' : '/trainer/notifications.php' ?>" class="relative p-1.5 sm:p-2 text-slate-700 hover:text-[#FE5E04] bg-white border border-slate-200 hover:border-orange-300 rounded-xl transition-all shadow-2xs flex items-center justify-center shrink-0" title="Notifications">
+                            <span class="material-symbols-outlined text-[19px]">notifications</span>
                             <?php if ($unreadNotifs > 0): ?>
-                                <span class="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-[#FE5E04] text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs">
+                                <span class="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-[#FE5E04] text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs leading-none">
                                     <?= min(99, $unreadNotifs) ?>
                                 </span>
                             <?php endif; ?>
                         </a>
 
                         <!-- Dashboard Button (Matches Screenshot 2: Dark navy pill with grid icon & Dashboard label) -->
-                        <a href="<?= $dashboardUrl ?>" class="bg-[#182A4A] hover:bg-[#0F1B30] text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 shrink-0">
-                            <span class="material-symbols-outlined text-[17px]">space_dashboard</span>
+                        <a href="<?= $dashboardUrl ?>" class="bg-[#182A4A] hover:bg-[#0F1B30] text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl transition-all shadow-sm flex items-center gap-1 sm:gap-1.5 shrink-0">
+                            <span class="material-symbols-outlined text-[16px] sm:text-[17px]">space_dashboard</span>
                             <span>Dashboard</span>
                         </a>
                     <?php else: ?>
@@ -337,20 +337,20 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                         </a>
 
                         <!-- College / Vendor Login: Solid brand orange pill with apartment & chevron icons -->
-                        <a href="/vendor-login.php" class="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold bg-[#FE5E04] hover:bg-[#E04E00] text-white shadow-sm hover:shadow transition-all shrink-0">
-                            <span class="material-symbols-outlined text-[17px] text-white shrink-0">apartment</span>
+                        <a href="/vendor-login.php" class="inline-flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold bg-[#FE5E04] hover:bg-[#E04E00] text-white shadow-sm hover:shadow transition-all shrink-0">
+                            <span class="material-symbols-outlined text-[16px] text-white shrink-0">apartment</span>
                             <span class="text-left text-[11px] leading-tight font-bold shrink-0 hidden xs:inline">
                                 College /<br>Vendor Login
                             </span>
                             <span class="text-[11px] font-bold xs:hidden shrink-0">Login</span>
-                            <span class="material-symbols-outlined text-[15px] text-white shrink-0">chevron_right</span>
+                            <span class="material-symbols-outlined text-[14px] text-white shrink-0">chevron_right</span>
                         </a>
                     <?php endif; ?>
 
                     <!-- Mobile menu toggle (Matches Screenshot 2: Rounded-xl light gray card with hamburger lines) -->
-                    <div class="flex lg:hidden items-center">
-                        <button id="mobileMenuToggleBtn" type="button" aria-label="Toggle navigation menu" class="p-2 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 text-slate-800 transition-colors cursor-pointer flex items-center justify-center">
-                            <span class="material-symbols-outlined text-[23px]">menu</span>
+                    <div class="flex lg:hidden items-center shrink-0">
+                        <button id="mobileMenuToggleBtn" type="button" aria-label="Toggle navigation menu" class="p-1.5 sm:p-2 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-800 transition-colors cursor-pointer flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-[21px] sm:text-[23px]">menu</span>
                         </button>
                     </div>
                 </div>
@@ -358,129 +358,129 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
         </div>
 
         <!-- Mobile Menu Dropdown (Matches Screenshot 2: Clean Card Items with Chevrons and Action Buttons) -->
-        <div id="mobileMenu" class="hidden lg:hidden mt-3 bg-white border border-slate-200/90 rounded-3xl p-3 sm:p-4 space-y-2.5 shadow-2xl transition-all">
+        <div id="mobileMenu" class="hidden lg:hidden mt-2.5 bg-white border border-slate-200/90 rounded-3xl p-3 sm:p-4 space-y-2 shadow-2xl transition-all">
             <!-- Home -->
-            <a href="/index.php" class="flex items-center justify-between p-3 rounded-2xl transition-all <?= ($currentPage === 'index.php' || $currentPage === '') ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-3.5">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 <?= ($currentPage === 'index.php' || $currentPage === '') ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
-                        <span class="material-symbols-outlined text-[22px]" <?= ($currentPage === 'index.php' || $currentPage === '') ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>home</span>
+            <a href="/index.php" class="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all <?= ($currentPage === 'index.php' || $currentPage === '') ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 <?= ($currentPage === 'index.php' || $currentPage === '') ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
+                        <span class="material-symbols-outlined text-[20px] sm:text-[22px]" <?= ($currentPage === 'index.php' || $currentPage === '') ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>home</span>
                     </div>
-                    <span class="text-[15px] <?= ($currentPage === 'index.php' || $currentPage === '') ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">Home</span>
+                    <span class="text-sm sm:text-[15px] <?= ($currentPage === 'index.php' || $currentPage === '') ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">Home</span>
                 </div>
-                <span class="material-symbols-outlined text-[20px] <?= ($currentPage === 'index.php' || $currentPage === '') ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
+                <span class="material-symbols-outlined text-[18px] sm:text-[20px] <?= ($currentPage === 'index.php' || $currentPage === '') ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
             </a>
 
             <!-- Opportunities -->
-            <a href="/opportunities.php" class="flex items-center justify-between p-3 rounded-2xl transition-all <?= $currentPage === 'opportunities.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-3.5">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'opportunities.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
-                        <span class="material-symbols-outlined text-[22px]" <?= $currentPage === 'opportunities.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>business_center</span>
+            <a href="/opportunities.php" class="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all <?= $currentPage === 'opportunities.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'opportunities.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
+                        <span class="material-symbols-outlined text-[20px] sm:text-[22px]" <?= $currentPage === 'opportunities.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>business_center</span>
                     </div>
-                    <span class="text-[15px] <?= $currentPage === 'opportunities.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">Opportunities</span>
+                    <span class="text-sm sm:text-[15px] <?= $currentPage === 'opportunities.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">Opportunities</span>
                 </div>
-                <span class="material-symbols-outlined text-[20px] <?= $currentPage === 'opportunities.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
+                <span class="material-symbols-outlined text-[18px] sm:text-[20px] <?= $currentPage === 'opportunities.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
             </a>
 
             <!-- Trainer Network -->
-            <a href="/trainer-network.php" class="flex items-center justify-between p-3 rounded-2xl transition-all <?= $currentPage === 'trainer-network.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-3.5">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'trainer-network.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
-                        <span class="material-symbols-outlined text-[22px]" <?= $currentPage === 'trainer-network.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>groups</span>
+            <a href="/trainer-network.php" class="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all <?= $currentPage === 'trainer-network.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'trainer-network.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
+                        <span class="material-symbols-outlined text-[20px] sm:text-[22px]" <?= $currentPage === 'trainer-network.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>groups</span>
                     </div>
-                    <span class="text-[15px] <?= $currentPage === 'trainer-network.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">Trainer Network</span>
+                    <span class="text-sm sm:text-[15px] <?= $currentPage === 'trainer-network.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">Trainer Network</span>
                 </div>
-                <span class="material-symbols-outlined text-[20px] <?= $currentPage === 'trainer-network.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
+                <span class="material-symbols-outlined text-[18px] sm:text-[20px] <?= $currentPage === 'trainer-network.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
             </a>
 
             <!-- How It Works -->
-            <a href="/how-it-works.php" class="flex items-center justify-between p-3 rounded-2xl transition-all <?= $currentPage === 'how-it-works.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-3.5">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'how-it-works.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
-                        <span class="material-symbols-outlined text-[22px]" <?= $currentPage === 'how-it-works.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>help</span>
+            <a href="/how-it-works.php" class="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all <?= $currentPage === 'how-it-works.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'how-it-works.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
+                        <span class="material-symbols-outlined text-[20px] sm:text-[22px]" <?= $currentPage === 'how-it-works.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>help</span>
                     </div>
-                    <span class="text-[15px] <?= $currentPage === 'how-it-works.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">How It Works</span>
+                    <span class="text-sm sm:text-[15px] <?= $currentPage === 'how-it-works.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">How It Works</span>
                 </div>
-                <span class="material-symbols-outlined text-[20px] <?= $currentPage === 'how-it-works.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
+                <span class="material-symbols-outlined text-[18px] sm:text-[20px] <?= $currentPage === 'how-it-works.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
             </a>
 
             <!-- For Colleges -->
-            <a href="/submit-requirement.php" class="flex items-center justify-between p-3 rounded-2xl transition-all <?= $currentPage === 'submit-requirement.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-3.5">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'submit-requirement.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
-                        <span class="material-symbols-outlined text-[22px]" <?= $currentPage === 'submit-requirement.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>school</span>
+            <a href="/submit-requirement.php" class="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all <?= $currentPage === 'submit-requirement.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'submit-requirement.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
+                        <span class="material-symbols-outlined text-[20px] sm:text-[22px]" <?= $currentPage === 'submit-requirement.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>school</span>
                     </div>
-                    <span class="text-[15px] <?= $currentPage === 'submit-requirement.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">For Colleges</span>
+                    <span class="text-sm sm:text-[15px] <?= $currentPage === 'submit-requirement.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">For Colleges</span>
                 </div>
-                <span class="material-symbols-outlined text-[20px] <?= $currentPage === 'submit-requirement.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
+                <span class="material-symbols-outlined text-[18px] sm:text-[20px] <?= $currentPage === 'submit-requirement.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
             </a>
 
             <!-- About -->
-            <a href="/about.php" class="flex items-center justify-between p-3 rounded-2xl transition-all <?= $currentPage === 'about.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-3.5">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'about.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
-                        <span class="material-symbols-outlined text-[22px]" <?= $currentPage === 'about.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>info</span>
+            <a href="/about.php" class="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all <?= $currentPage === 'about.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'about.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
+                        <span class="material-symbols-outlined text-[20px] sm:text-[22px]" <?= $currentPage === 'about.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>info</span>
                     </div>
-                    <span class="text-[15px] <?= $currentPage === 'about.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">About</span>
+                    <span class="text-sm sm:text-[15px] <?= $currentPage === 'about.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">About</span>
                 </div>
-                <span class="material-symbols-outlined text-[20px] <?= $currentPage === 'about.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
+                <span class="material-symbols-outlined text-[18px] sm:text-[20px] <?= $currentPage === 'about.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
             </a>
 
             <!-- Contact -->
-            <a href="/contact.php" class="flex items-center justify-between p-3 rounded-2xl transition-all <?= $currentPage === 'contact.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
-                <div class="flex items-center gap-3.5">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'contact.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
-                        <span class="material-symbols-outlined text-[22px]" <?= $currentPage === 'contact.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>mail</span>
+            <a href="/contact.php" class="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all <?= $currentPage === 'contact.php' ? 'bg-[#FFF3EC]' : 'bg-white hover:bg-slate-50 border border-slate-100' ?>">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 <?= $currentPage === 'contact.php' ? 'bg-[#FFE4D6] text-[#FE5E04]' : 'bg-slate-100 text-slate-700' ?>">
+                        <span class="material-symbols-outlined text-[20px] sm:text-[22px]" <?= $currentPage === 'contact.php' ? 'style="font-variation-settings: \'FILL\' 1;"' : '' ?>>mail</span>
                     </div>
-                    <span class="text-[15px] <?= $currentPage === 'contact.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">Contact</span>
+                    <span class="text-sm sm:text-[15px] <?= $currentPage === 'contact.php' ? 'font-extrabold text-[#FE5E04]' : 'font-bold text-slate-800' ?>">Contact</span>
                 </div>
-                <span class="material-symbols-outlined text-[20px] <?= $currentPage === 'contact.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
+                <span class="material-symbols-outlined text-[18px] sm:text-[20px] <?= $currentPage === 'contact.php' ? 'text-[#FE5E04]' : 'text-slate-400' ?>">chevron_right</span>
             </a>
 
             <!-- Prominent Bottom Action Buttons matching Screenshot 2 -->
-            <div class="pt-2 space-y-2.5">
+            <div class="pt-2 space-y-2">
                 <!-- Download Mentry App (Add to Home Screen) -->
-                <button type="button" onclick="window.promptPWAInstall(); document.getElementById('mobileMenu').classList.add('hidden');" class="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#0B1526] hover:bg-[#132238] text-white transition-all shadow-sm cursor-pointer">
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-10 h-10 rounded-xl bg-[#182A4A] flex items-center justify-center text-[#FE5E04] shrink-0">
-                            <span class="material-symbols-outlined text-[22px]">download</span>
+                <button type="button" onclick="window.promptPWAInstall(); document.getElementById('mobileMenu').classList.add('hidden');" class="w-full flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-[#0B1526] hover:bg-[#132238] text-white transition-all shadow-sm cursor-pointer">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#182A4A] flex items-center justify-center text-[#FE5E04] shrink-0">
+                            <span class="material-symbols-outlined text-[20px] sm:text-[22px]">download</span>
                         </div>
-                        <span class="text-[14px] sm:text-[15px] font-bold text-white text-left">Download Mentry App (Add to Home Screen)</span>
+                        <span class="text-[13px] sm:text-[14px] font-bold text-white text-left">Download Mentry App (Add to Home Screen)</span>
                     </div>
-                    <span class="material-symbols-outlined text-white/80 text-[20px] shrink-0">chevron_right</span>
+                    <span class="material-symbols-outlined text-white/80 text-[18px] sm:text-[20px] shrink-0">chevron_right</span>
                 </button>
 
                 <!-- Go to Dashboard (When Logged In) -->
                 <?php if ($currentUser): ?>
-                    <a href="<?= $dashboardUrl ?>" class="w-full flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-[#FE5E04] via-[#FF6A00] to-[#FF7D1A] text-white transition-all shadow-md shadow-orange-500/20 cursor-pointer">
-                        <div class="flex items-center gap-3.5">
-                            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
-                                <span class="material-symbols-outlined text-[22px]">space_dashboard</span>
+                    <a href="<?= $dashboardUrl ?>" class="w-full flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-[#FE5E04] via-[#FF6A00] to-[#FF7D1A] text-white transition-all shadow-md shadow-orange-500/20 cursor-pointer">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
+                                <span class="material-symbols-outlined text-[20px] sm:text-[22px]">space_dashboard</span>
                             </div>
-                            <span class="text-[15px] font-bold text-white">Go to Dashboard</span>
+                            <span class="text-sm sm:text-[15px] font-bold text-white">Go to Dashboard</span>
                         </div>
-                        <span class="material-symbols-outlined text-white text-[20px] shrink-0">chevron_right</span>
+                        <span class="material-symbols-outlined text-white text-[18px] sm:text-[20px] shrink-0">chevron_right</span>
                     </a>
                 <?php else: ?>
                     <!-- College / Vendor Login (Solid Brand Orange Gradient) -->
-                    <a href="/vendor-login.php" class="w-full flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-[#FE5E04] via-[#FF6A00] to-[#FF7D1A] text-white transition-all shadow-md shadow-orange-500/20 cursor-pointer">
-                        <div class="flex items-center gap-3.5">
-                            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
-                                <span class="material-symbols-outlined text-[22px]">apartment</span>
+                    <a href="/vendor-login.php" class="w-full flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-[#FE5E04] via-[#FF6A00] to-[#FF7D1A] text-white transition-all shadow-md shadow-orange-500/20 cursor-pointer">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
+                                <span class="material-symbols-outlined text-[20px] sm:text-[22px]">apartment</span>
                             </div>
-                            <span class="text-[15px] font-bold text-white">College / Vendor Login</span>
+                            <span class="text-sm sm:text-[15px] font-bold text-white">College / Vendor Login</span>
                         </div>
-                        <span class="material-symbols-outlined text-white text-[20px] shrink-0">chevron_right</span>
+                        <span class="material-symbols-outlined text-white text-[18px] sm:text-[20px] shrink-0">chevron_right</span>
                     </a>
 
                     <!-- Trainer Login (Crisp Border Card) -->
-                    <a href="/login.php" class="w-full flex items-center justify-between p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-blue-200 text-blue-700 transition-all cursor-pointer">
-                        <div class="flex items-center gap-3.5">
-                            <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                                <span class="material-symbols-outlined text-[22px]">login</span>
+                    <a href="/login.php" class="w-full flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-blue-200 text-blue-700 transition-all cursor-pointer">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                                <span class="material-symbols-outlined text-[20px] sm:text-[22px]">login</span>
                             </div>
-                            <span class="text-[15px] font-bold text-blue-700">Trainer Login</span>
+                            <span class="text-sm sm:text-[15px] font-bold text-blue-700">Trainer Login</span>
                         </div>
-                        <span class="material-symbols-outlined text-blue-400 text-[20px] shrink-0">chevron_right</span>
+                        <span class="material-symbols-outlined text-blue-400 text-[18px] sm:text-[20px] shrink-0">chevron_right</span>
                     </a>
                 <?php endif; ?>
             </div>

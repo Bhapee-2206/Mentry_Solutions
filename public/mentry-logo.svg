@@ -1,0 +1,22 @@
+<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mentry Solutions logo">
+  <defs>
+    <linearGradient id="mBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0752a7"/>
+      <stop offset="52%" stop-color="#087cff"/>
+      <stop offset="100%" stop-color="#13c1f2"/>
+    </linearGradient>
+    <linearGradient id="mDark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#071f55"/>
+      <stop offset="100%" stop-color="#0752a7"/>
+    </linearGradient>
+  </defs>
+  <!-- M / human symbol -->
+  <path fill="url(#mDark)" d="M116 190 L116 407 L190 407 L190 292 L116 190 Z"/>
+  <path fill="url(#mDark)" d="M484 190 L484 407 L410 407 L410 292 L484 190 Z"/>
+  <path fill="url(#mBlue)" d="M116 190 C175 217 221 253 300 325 C379 253 425 217 484 190 C442 239 397 293 350 346 C332 366 317 389 300 420 C283 389 268 366 250 346 C203 293 158 239 116 190 Z"/>
+  <circle cx="300" cy="174" r="43" fill="url(#mBlue)"/>
+  <!-- Rising arm -->
+  <path d="M300 420 C335 344 392 279 454 222" fill="none" stroke="#0dbcf0" stroke-width="18" stroke-linecap="round"/>
+  <!-- Star -->
+  <path fill="#087cff" d="M484 108 L495 135 L524 137 L501 156 L508 185 L484 169 L460 185 L467 156 L444 137 L473 135 Z"/>
+</svg>

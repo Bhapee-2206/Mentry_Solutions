@@ -13,19 +13,19 @@
   "categories": ["education", "business", "productivity"],
   "icons": [
     {
-      "src": "/public/mentry.png",
+      "src": "/public/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/public/mentry.png",
+      "src": "/public/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/public/mentry.png",
+      "src": "/public/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -37,21 +37,21 @@
       "short_name": "Opportunities",
       "description": "View live campus training opportunities",
       "url": "/opportunities.php?source=pwa",
-      "icons": [{ "src": "/public/mentry.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/public/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Trainer Portal",
       "short_name": "Trainer Portal",
       "description": "Access Trainer Workspace",
       "url": "/trainer/dashboard.php?source=pwa",
-      "icons": [{ "src": "/public/mentry.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/public/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Partner Portal",
       "short_name": "Partner Portal",
       "description": "Access College & Vendor Portal",
       "url": "/vendor/dashboard.php?source=pwa",
-      "icons": [{ "src": "/public/mentry.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/public/icon-192.png", "sizes": "192x192" }]
     }
   ],
   "related_applications": [],
