@@ -841,12 +841,19 @@ function isOpportunityPastCutoff($opp) {
  */
 function getAppUrl(): string {
     $envUrl = getenv('APP_URL') ?: (getenv('NEXT_PUBLIC_APP_URL') ?: '');
-    if (!empty($envUrl) && strpos($envUrl, 'localhost') === false) {
+    if (!empty($envUrl) && strpos($envUrl, 'localhost') === false && strpos($envUrl, '127.0.0.1') === false) {
         return rtrim($envUrl, '/');
     }
-    if (!empty($_SERVER['HTTP_HOST'])) {
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) ? 'https' : 'http';
+    if (!empty(getenv('VERCEL_URL'))) {
+        return 'https://' . rtrim(getenv('VERCEL_URL'), '/');
+    }
+    if (!empty($_SERVER['HTTP_X_FORWARDED_HOST']) && strpos($_SERVER['HTTP_X_FORWARDED_HOST'], 'localhost') === false) {
+        $protocol = (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ? 'https' : 'https';
+        return $protocol . '://' . $_SERVER['HTTP_X_FORWARDED_HOST'];
+    }
+    if (!empty($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'localhost') === false && strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false) {
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ? 'https' : 'http';
         return $protocol . '://' . $_SERVER['HTTP_HOST'];
     }
-    return 'https://mentry.solutions';
+    return 'https://mentry-solutions.vercel.app';
 }

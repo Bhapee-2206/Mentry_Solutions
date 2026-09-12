@@ -7,12 +7,12 @@
         "state": "Karnataka",
         "title": "Python Full Stack & Django Pre-Placement Bootcamp",
         "domain": "Programming",
-        "status": "PUBLISHED",
+        "status": "CLOSED",
         "endDate": "2026-09-20",
         "mentryId": "MEN-OPP-1001",
         "createdAt": "1788458362711",
         "startDate": "2026-09-10",
-        "updatedAt": "1788458362711",
+        "updatedAt": "1789019418739",
         "collegeName": "RV College of Engineering (RVCE)",
         "description": "Comprehensive 10-day hands-on bootcamp for 120 final-year Computer Science and Information Science students preparing for Tier-1 product placement drives.",
         "dailyRateMax": 8500,
@@ -26,7 +26,9 @@
             "REST APIs",
             "React"
         ],
-        "minExperienceYears": 5
+        "minExperienceYears": 5,
+        "closedAt": "1789019418739",
+        "autoClosedReason": "START_DATE_PASSED"
     },
     {
         "_id": "6a99b57af1624b69330f55f8",
@@ -552,6 +554,7 @@
         "title": "Java",
         "domain": "Programming",
         "status": "CLOSED",
+        "closedAt": "1788893045321",
         "mentryId": "MEN-OPP-1023",
         "vendorId": "6aa055fcf1624b69330f570e",
         "createdAt": "1788892925900",
@@ -568,9 +571,8 @@
         "travelCovered": true,
         "skillsRequired": "[]",
         "vendorRequestId": "6aa056acf1624b69330f5710",
-        "minExperienceYears": 3,
-        "accommodationCovered": true,
         "assignedTrainerId": "3e28ab2f8f2b80ce8e1db53e",
-        "closedAt": "1788893045321"
+        "minExperienceYears": 3,
+        "accommodationCovered": true
     }
 ]

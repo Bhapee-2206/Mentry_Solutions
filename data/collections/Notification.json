@@ -510,14 +510,15 @@
     {
         "_id": "6a9d83b3f1624b69330f56a2",
         "link": "/opportunity-details.php?id=6a9d83a2f1624b69330f569b",
-        "read": false,
+        "read": true,
         "type": "OPPORTUNITY_MATCH",
         "title": "New Programming Match: Automated Verified Python & Cloud Workshop",
+        "readAt": "1788894000073",
         "userId": "6879c53d89a8bc1e22618a67",
         "message": "Your profile scored 55% match for this 5-day assignment in Villupuram. Expected remuneration: ₹6,500 - ₹8,500/day.",
         "createdAt": "1788707763829",
         "trainerId": "3e28ab2f8f2b80ce8e1db53e",
-        "updatedAt": "1788707763829",
+        "updatedAt": "1788894000076",
         "matchScore": 55,
         "opportunityId": "6a9d83a2f1624b69330f569b"
     },
@@ -628,14 +629,15 @@
     {
         "_id": "6a9d83f5f1624b69330f56b2",
         "link": "/opportunity-details.php?id=6a9d83e6f1624b69330f56ab",
-        "read": false,
+        "read": true,
         "type": "OPPORTUNITY_MATCH",
         "title": "New Programming Match: Automated Verified Python & Cloud Workshop",
+        "readAt": "1788894000073",
         "userId": "6879c53d89a8bc1e22618a67",
         "message": "Your profile scored 55% match for this 5-day assignment in Villupuram. Expected remuneration: ₹6,500 - ₹8,500/day.",
         "createdAt": "1788707829495",
         "trainerId": "3e28ab2f8f2b80ce8e1db53e",
-        "updatedAt": "1788707829496",
+        "updatedAt": "1788894000076",
         "matchScore": 55,
         "opportunityId": "6a9d83e6f1624b69330f56ab"
     },
@@ -764,14 +766,15 @@
     {
         "_id": "6a9d8437f1624b69330f56c4",
         "link": "/opportunity-details.php?id=6a9d8429f1624b69330f56bd",
-        "read": false,
+        "read": true,
         "type": "OPPORTUNITY_MATCH",
         "title": "New Programming Match: Automated Verified Python & Cloud Workshop",
+        "readAt": "1788894000073",
         "userId": "6879c53d89a8bc1e22618a67",
         "message": "Your profile scored 55% match for this 5-day assignment in Villupuram. Expected remuneration: ₹6,500 - ₹8,500/day.",
         "createdAt": "1788707895658",
         "trainerId": "3e28ab2f8f2b80ce8e1db53e",
-        "updatedAt": "1788707895658",
+        "updatedAt": "1788894000076",
         "matchScore": 55,
         "opportunityId": "6a9d8429f1624b69330f56bd"
     },
@@ -900,14 +903,15 @@
     {
         "_id": "6a9d8489f1624b69330f56d3",
         "link": "/opportunity-details.php?id=6a9d847cf1624b69330f56cc",
-        "read": false,
+        "read": true,
         "type": "OPPORTUNITY_MATCH",
         "title": "New Programming Match: Automated Verified Python & Cloud Workshop",
+        "readAt": "1788894440720",
         "userId": "6879c53d89a8bc1e22618a67",
         "message": "Your profile scored 55% match for this 5-day assignment in Villupuram. Expected remuneration: ₹6,500 - ₹8,500/day.",
         "createdAt": "1788707977316",
         "trainerId": "3e28ab2f8f2b80ce8e1db53e",
-        "updatedAt": "1788707977316",
+        "updatedAt": "1788894440724",
         "matchScore": 55,
         "opportunityId": "6a9d847cf1624b69330f56cc"
     },
@@ -1036,14 +1040,15 @@
     {
         "_id": "6a9d8517f1624b69330f56e2",
         "link": "/opportunity-details.php?id=6a9d8509f1624b69330f56db",
-        "read": false,
+        "read": true,
         "type": "OPPORTUNITY_MATCH",
         "title": "New Programming Match: Automated Verified Python & Cloud Workshop",
+        "readAt": "1788894808215",
         "userId": "6879c53d89a8bc1e22618a67",
         "message": "Your profile scored 55% match for this 5-day assignment in Villupuram. Expected remuneration: ₹6,500 - ₹8,500/day.",
         "createdAt": "1788708119770",
         "trainerId": "3e28ab2f8f2b80ce8e1db53e",
-        "updatedAt": "1788708119770",
+        "updatedAt": "1788894808223",
         "matchScore": 55,
         "opportunityId": "6a9d8509f1624b69330f56db"
     },
@@ -1172,14 +1177,15 @@
     {
         "_id": "6a9d858bf1624b69330f56f1",
         "link": "/opportunity-details.php?id=6a9d857cf1624b69330f56ea",
-        "read": false,
+        "read": true,
         "type": "OPPORTUNITY_MATCH",
         "title": "New Programming Match: Chrome Verification Test",
+        "readAt": "1788894000073",
         "userId": "6879c53d89a8bc1e22618a67",
         "message": "Your profile scored 60% match for this 5-day assignment in Villupuram. Expected remuneration: ₹6,000 - ₹8,000/day.",
         "createdAt": "1788708235675",
         "trainerId": "3e28ab2f8f2b80ce8e1db53e",
-        "updatedAt": "1788708235675",
+        "updatedAt": "1788894000076",
         "matchScore": 60,
         "opportunityId": "6a9d857cf1624b69330f56ea"
     },
@@ -1328,14 +1334,15 @@
     {
         "_id": "6a9d8792f1624b69330f5703",
         "link": "/opportunity-details.php?id=6a9d876cf1624b69330f56fc",
-        "read": false,
+        "read": true,
         "type": "OPPORTUNITY_MATCH",
         "title": "New Programming Match: PSG Tech Full Stack Cloud Bootcamp",
+        "readAt": "1788894793495",
         "userId": "6879c53d89a8bc1e22618a67",
         "message": "Your profile scored 60% match for this 5-day assignment in Coimbatore. Expected remuneration: ₹7,000 - ₹9,000/day.",
         "createdAt": "1788708754208",
         "trainerId": "3e28ab2f8f2b80ce8e1db53e",
-        "updatedAt": "1788708754208",
+        "updatedAt": "1788894793497",
         "matchScore": 60,
         "opportunityId": "6a9d876cf1624b69330f56fc"
     },
@@ -1796,6 +1803,7 @@
         "read": true,
         "type": "NEW_APPLICATION",
         "title": "New Application: bhapee",
+        "readAt": "1788893014874",
         "message": "bhapee (MEN-TRN-1560) applied for 'Java' (Programming) with proposed rate of ₹4,000/day.",
         "metadata": {
             "trainerId": "3e28ab2f8f2b80ce8e1db53e",
@@ -1814,7 +1822,91 @@
         "isAdminAlert": true,
         "isStaffAlert": true,
         "opportunityId": "6aa056fdf1624b69330f5714",
+        "recipientRole": "ADMIN"
+    },
+    {
         "recipientRole": "ADMIN",
-        "readAt": "1788893014874"
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "type": "OPPORTUNITY_AUTO_CLOSED",
+        "opportunityId": "6a99b57af1624b69330f55f7",
+        "milestone": null,
+        "title": "Opportunity Closed: Python Full Stack & Django Pre-Placement Bootcamp (Start Date Cutoff Passed)",
+        "message": "The opportunity 'Python Full Stack & Django Pre-Placement Bootcamp' in Bangalore scheduled for Sep 10, 2026 has been automatically closed because no trainer was assigned prior to the reporting eve cutoff.",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55f7",
+        "metadata": {
+            "opportunityId": "6a99b57af1624b69330f55f7",
+            "jobId": "MEN-OPP-1001",
+            "title": "Python Full Stack & Django Pre-Placement Bootcamp",
+            "startDate": "2026-09-10",
+            "autoClosedReason": "START_DATE_PASSED"
+        },
+        "read": false,
+        "createdAt": "1789019419739",
+        "_id": "6aa2451bf1624b69330f5718",
+        "updatedAt": "1789019419739"
+    },
+    {
+        "recipientRole": "ADMIN",
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "type": "OPPORTUNITY_STARTING_SOON",
+        "opportunityId": "6a99b57af1624b69330f55fc",
+        "milestone": "TOMORROW",
+        "title": "Urgent: Unassigned Opportunity Starts Tomorrow!",
+        "message": "Training opportunity 'Cybersecurity, Ethical Hacking & SOC Analyst Training' in Delhi is scheduled to start tomorrow (Sep 11, 2026). No faculty is assigned yet — please review matching trainers before the 6:00 PM cutoff!",
+        "link": "/admin/opportunity-view.php?id=6a99b57af1624b69330f55fc",
+        "metadata": {
+            "opportunityId": "6a99b57af1624b69330f55fc",
+            "jobId": "MEN-OPP-1006",
+            "title": "Cybersecurity, Ethical Hacking & SOC Analyst Training",
+            "milestone": "TOMORROW",
+            "diffDays": 1,
+            "isAssigned": false,
+            "startDate": "2026-09-11"
+        },
+        "read": false,
+        "createdAt": "1789019421070",
+        "_id": "6aa2451df1624b69330f5719",
+        "updatedAt": "1789019421070"
+    },
+    {
+        "recipientRole": "ADMIN",
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "type": "OPPORTUNITY_STARTING_SOON",
+        "opportunityId": "6a99b57bf1624b69330f55fe",
+        "milestone": "IN_2_DAYS",
+        "title": "Reminder: Training Starts in 2 Days",
+        "message": "Training engagement 'Corporate Soft Skills & GD / Personal Interview Mastery' in Bangalore starts on Sep 12, 2026 (in 2 days). Ensure course materials and logistics are finalized.",
+        "link": "/admin/opportunity-view.php?id=6a99b57bf1624b69330f55fe",
+        "metadata": {
+            "opportunityId": "6a99b57bf1624b69330f55fe",
+            "jobId": "MEN-OPP-1008",
+            "title": "Corporate Soft Skills & GD / Personal Interview Mastery",
+            "milestone": "IN_2_DAYS",
+            "diffDays": 2,
+            "isAssigned": true,
+            "startDate": "2026-09-12"
+        },
+        "read": false,
+        "createdAt": "1789019421616",
+        "_id": "6aa2451df1624b69330f571a",
+        "updatedAt": "1789019421616"
     }
 ]

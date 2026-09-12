@@ -143,7 +143,8 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
 
-            $resetLink = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'] . "/reset-password.php?token=" . $token . "&email=" . urlencode($email);
+            $appBaseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
+            $resetLink = rtrim($appBaseUrl, '/') . "/reset-password.php?token=" . $token . "&email=" . urlencode($email);
 
             // Attempt email dispatch strictly via SMTP
             $mailResult = sendPasswordResetEmail($user['email'], $user['name'] ?? 'User', $code, $resetLink);

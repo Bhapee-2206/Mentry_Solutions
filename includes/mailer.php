@@ -1,6 +1,7 @@
 <?php
 // includes/mailer.php - Robust SMTP Client for Google Workspace / Gmail & Resilient Mailer
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/helpers.php';
 
 class MentryMailer {
     private $host;
@@ -59,6 +60,35 @@ class MentryMailer {
         return $this->getResponse($socket);
     }
 
+    /**
+     * Encode header value strictly when containing non-ASCII characters.
+     * Pure ASCII headers MUST NOT be base64-encoded as doing so triggers Bayesian/evasion spam filters.
+     */
+    private function encodeHeader(string $str): string {
+        $str = trim($str);
+        if ($str === '') return '';
+        if (preg_match('/^[\x20-\x7E]+$/', $str) && strpos($str, '=?') === false) {
+            return $str;
+        }
+        return '=?UTF-8?B?' . base64_encode($str) . '?=';
+    }
+
+    /**
+     * Format email address RFC 5322 compliant with clean quoting.
+     */
+    private function formatAddress(string $name, string $email): string {
+        $name = trim($name);
+        $email = trim($email);
+        if ($name === '') {
+            return '<' . $email . '>';
+        }
+        if (preg_match('/^[\x20-\x7E]+$/', $name)) {
+            $clean = str_replace(['"', '\\'], '', $name);
+            return '"' . $clean . '" <' . $email . '>';
+        }
+        return '=?UTF-8?B?' . base64_encode($name) . '?= <' . $email . '>';
+    }
+
     private function attemptSmtpSend(int $port, string $toEmail, string $toName, string $subject, string $htmlContent, string $plainText) {
         $errno = 0;
         $errstr = '';
@@ -85,9 +115,12 @@ class MentryMailer {
         stream_set_timeout($socket, $this->timeout);
         $greeting = $this->getResponse($socket);
 
-        $isGmail = (strpos($this->host, 'gmail.com') !== false);
-        $ehloDomain = $isGmail ? 'mail.gmail.com' : 'mentry.solutions';
-        $this->sendCommand($socket, "EHLO " . $ehloDomain);
+        // Send valid client hostname for EHLO (never claim to be Google's mail.gmail.com server)
+        $clientHost = !empty($_SERVER['HTTP_HOST']) ? preg_replace('/:[0-9]+$/', '', $_SERVER['HTTP_HOST']) : '';
+        if (empty($clientHost) || !preg_match('/^[a-zA-Z0-9\.\-]+$/', $clientHost) || $clientHost === 'localhost' || $clientHost === '127.0.0.1') {
+            $clientHost = 'mentry-solutions.vercel.app';
+        }
+        $this->sendCommand($socket, "EHLO " . $clientHost);
 
         if ($port === 587) {
             $tlsRes = $this->sendCommand($socket, "STARTTLS");
@@ -104,7 +137,7 @@ class MentryMailer {
                 throw new Exception("Failed to enable TLS encryption on SMTP stream.");
             }
 
-            $this->sendCommand($socket, "EHLO " . $ehloDomain);
+            $this->sendCommand($socket, "EHLO " . $clientHost);
         }
 
         // Authenticate
@@ -136,25 +169,20 @@ class MentryMailer {
             throw new Exception("DATA command rejected: " . $dataRes);
         }
 
-        $senderDomain = $isGmail ? 'gmail.com' : (substr(strrchr($this->fromEmail, "@"), 1) ?: 'mentry.solutions');
-        $msgId = sprintf("<%s.%s@%s>", bin2hex(random_bytes(12)), time(), $senderDomain);
+        $senderDomain = substr(strrchr($this->fromEmail, "@"), 1) ?: 'gmail.com';
+        $msgId = sprintf("<%s.%s@%s>", bin2hex(random_bytes(10)), time(), $senderDomain);
         $boundary = "mentry_b1_" . md5(uniqid((string)time(), true));
         
-        // Gmail 2024+ Compliant Transactional Headers
+        // Clean, standard RFC 5322 headers - strictly NO spam triggers (no Auto-Submitted, X-Priority, etc.)
         $headers = [];
-        $headers[] = "Message-ID: " . $msgId;
         $headers[] = "Date: " . date('r');
-        $headers[] = "From: =?UTF-8?B?" . base64_encode($this->fromName) . "?= <" . $this->fromEmail . ">";
-        $headers[] = "Reply-To: =?UTF-8?B?" . base64_encode($this->fromName) . "?= <" . $this->fromEmail . ">";
-        $headers[] = "To: =?UTF-8?B?" . base64_encode($toName) . "?= <" . $toEmail . ">";
-        $headers[] = "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=";
+        $headers[] = "To: " . $this->formatAddress($toName, $toEmail);
+        $headers[] = "From: " . $this->formatAddress($this->fromName, $this->fromEmail);
+        $headers[] = "Reply-To: " . $this->formatAddress($this->fromName, $this->fromEmail);
+        $headers[] = "Subject: " . $this->encodeHeader($subject);
+        $headers[] = "Message-ID: " . $msgId;
         $headers[] = "MIME-Version: 1.0";
         $headers[] = "Content-Type: multipart/alternative; boundary=\"" . $boundary . "\"";
-        $headers[] = "Auto-Submitted: auto-generated";
-        $headers[] = "X-Auto-Response-Suppress: All";
-        $headers[] = "Importance: high";
-        $headers[] = "X-Priority: 1";
-        $headers[] = "X-Mailer: Mentry Transactional Service v2.2";
 
         $body = "--" . $boundary . "\r\n";
         $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
@@ -225,12 +253,12 @@ class MentryMailer {
         // 3. Try native mail() function as third fallback
         if (function_exists('mail')) {
             try {
-                $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
+                $encodedSubject = $this->encodeHeader($subject);
+                $fromAddress = $this->formatAddress($this->fromName, $this->fromEmail);
                 $headers = "MIME-Version: 1.0\r\n" .
                            "Content-Type: text/html; charset=UTF-8\r\n" .
-                           "From: " . $this->fromName . " <" . $this->fromEmail . ">\r\n" .
-                           "Reply-To: " . $this->fromEmail . "\r\n" .
-                           "X-Mailer: Mentry-Mailer/2.0\r\n";
+                           "From: " . $fromAddress . "\r\n" .
+                           "Reply-To: " . $fromAddress . "\r\n";
                 $mailSent = @mail($toEmail, $encodedSubject, $htmlContent, $headers);
                 if ($mailSent) {
                     $logEntry['status'] = 'SENT_NATIVE';
@@ -269,10 +297,12 @@ function sendMentryEmail($toEmail, $toName, $subject, $htmlBody, $plainText = ''
 }
 
 function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
-    // Sanitize reset link so it never sends 'localhost' into recipient inboxes (which triggers spam filters)
-    $cleanResetLink = preg_replace('#https?://(localhost|127\.0\.0\.1)(:\d+)?#i', 'https://mentry.solutions', $resetLink);
+    $baseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
+    // Rewrite localhost or dead domains to canonical live production URL
+    $cleanResetLink = preg_replace('#^https?://[^/]+#i', $baseUrl, $resetLink);
 
-    $subject = "Your Mentry verification code: " . $code;
+    // Standard format recognized by major providers (Google, Apple, Microsoft) as authentic verification
+    $subject = $code . " is your Mentry verification code";
     $plainText = "Hello " . $toName . ",\n\n" .
                  "Your one-time security verification code is: " . $code . "\n\n" .
                  "Enter this code to verify your account and set a new password on Mentry Solutions.\n\n" .
@@ -282,7 +312,7 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
                  "If you did not make this request, you can safely ignore this message. Your password will remain unchanged.\n\n" .
                  "---\n" .
                  "Mentry Solutions • Managed Corporate Trainer Network\n" .
-                 "Bengaluru, Karnataka, India\n" .
+                 $baseUrl . "\n" .
                  "Official Support: mentry.training@gmail.com\n";
 
     $html = '
@@ -304,10 +334,6 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
         </style>
     </head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
-        <!-- Hidden Inbox Preview Preheader -->
-        <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">
-            Your Mentry verification code is ' . htmlspecialchars($code) . '. Use this code within 30 minutes to reset your account password.
-        </div>
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f8fafc;">
             <tr>
                 <td align="center" style="padding: 12px;">
@@ -341,7 +367,7 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
                         <tr>
                             <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6;">
                                 <strong style="color: #334155;">Mentry Solutions</strong> • Managed Corporate Trainer Network<br>
-                                Bengaluru, Karnataka, India • Official Support: <a href="mailto:mentry.training@gmail.com" style="color: #FE5E04; text-decoration: none;">mentry.training@gmail.com</a>
+                                <a href="' . htmlspecialchars($baseUrl) . '" style="color: #64748b; text-decoration: none;">' . htmlspecialchars(preg_replace('#^https?://#', '', $baseUrl)) . '</a> • Official Support: <a href="mailto:mentry.training@gmail.com" style="color: #FE5E04; text-decoration: none;">mentry.training@gmail.com</a>
                             </td>
                         </tr>
                     </table>
@@ -361,6 +387,21 @@ function sendOpportunityMatchEmail($toEmail, $toName, $opp) {
     $rateMin = number_format($opp['dailyRateMin'] ?? 5000);
     $rateMax = number_format($opp['dailyRateMax'] ?? 7000);
     $oppId = (string)($opp['_id'] ?? '');
+
+    $baseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
+    $oppUrl = rtrim($baseUrl, '/') . '/opportunity-details.php?id=' . urlencode($oppId);
+
+    $plainText = "Dear " . $toName . ",\n\n" .
+                 "A new academic training requirement matching your subject specialization has been published on the Mentry portal.\n\n" .
+                 "Title: " . ($opp['title'] ?? 'Campus Workshop') . "\n" .
+                 "Domain: " . ($opp['domain'] ?? 'Technology') . " (" . ($opp['mode'] ?? 'OFFLINE') . ")\n" .
+                 "Location: " . $city . " • Duration: " . ($opp['durationDays'] ?? 5) . " Days\n" .
+                 "Honorarium Range: ₹" . $rateMin . " – ₹" . $rateMax . " / day\n\n" .
+                 "Review requirement details here:\n" .
+                 $oppUrl . "\n\n" .
+                 "---\n" .
+                 "Mentry Solutions • Managed Trainer Network\n" .
+                 "Support: mentry.training@gmail.com\n";
 
     $html = '
     <!DOCTYPE html>
@@ -400,7 +441,7 @@ function sendOpportunityMatchEmail($toEmail, $toName, $opp) {
                 </div>
 
                 <div style="text-align: center; margin: 20px 0 10px 0;">
-                    <a href="https://mentry.solutions/opportunity-details.php?id=' . $oppId . '" class="btn">Review Requirement Details</a>
+                    <a href="' . htmlspecialchars($oppUrl) . '" class="btn">Review Requirement Details</a>
                 </div>
             </div>
             <div class="footer">
@@ -411,5 +452,5 @@ function sendOpportunityMatchEmail($toEmail, $toName, $opp) {
     </body>
     </html>
     ';
-    return sendMentryEmail($toEmail, $toName, $subject, $html, '', ['oppId' => $oppId, 'type' => 'OPPORTUNITY_MATCH']);
+    return sendMentryEmail($toEmail, $toName, $subject, $html, $plainText, ['oppId' => $oppId, 'type' => 'OPPORTUNITY_MATCH']);
 }

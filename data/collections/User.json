@@ -10,8 +10,10 @@
         "mentryId": "MEN-TRN-1553",
         "password": "$2y$10$uuj71c/RpLiWaZiOx.XnF.7RgogZOg2fPHjb8.gFdtqNIwVq3j8E6",
         "createdAt": "1788458359287",
-        "updatedAt": "1788508726873",
-        "trainerCode": "MEN-TRN-1553"
+        "updatedAt": "1789208395933",
+        "trainerCode": "MEN-TRN-1553",
+        "failedLoginAttempts": 0,
+        "lockedUntil": null
     },
     {
         "_id": "6a99b577f1624b69330f55b4",
@@ -115,9 +117,9 @@
         "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
         "status": "ACTIVE",
         "mentryId": "MEN-TRN-1001",
-        "password": "$2y$10$xqq7eVZeFkChqn.0H1/vP.NZjamoIxUlpeCEA.E5DcRdgl.Ew67JO",
+        "password": "$2y$10$AKKtWCJryt3M/x.IuwuG1u0DH6Uq45Od2qROZxREX9NyTl1jKsaTG",
         "createdAt": "1788458360407",
-        "updatedAt": "1788624150736",
+        "updatedAt": "1788890249610",
         "isSuspended": false,
         "trainerCode": "MEN-TRN-1001",
         "sessionInvalidatedAt": 1788624149
@@ -214,9 +216,9 @@
         "phone": "9345999260",
         "avatar": "/public/uploads/avatars/avatar_6a9ab2ebf1624b69330f5678_1788523370.png",
         "mentryId": "MEN-TRN-1558",
-        "password": "$2y$10$kKdH.R4oRLeSpwvJL710uuAW9fCfHr7T6truYURp3.84YCmCl0bji",
+        "password": "$2y$12$v/.ZmudVKgwiNDnK9mT7NeMsEuW/yCrphKd3HOGMvrOk9zHW4IIZm",
         "createdAt": "1788523243425",
-        "updatedAt": "1788523375913",
+        "updatedAt": "1789208208693",
         "trainerCode": "MEN-TRN-1558"
     },
     {
@@ -254,9 +256,9 @@
         "mentryId": "MEN-TRN-1560",
         "password": "$2y$10$N5s5tUIfxUF6jqJSUKBUgu/lNNhB3tqT7lfACsaguKoJ8QFofbSNy",
         "createdAt": "1788619592854",
-        "updatedAt": "1788889702308",
+        "updatedAt": "1788889982997",
         "isSuspended": false,
-        "lastLoginAt": "2026-09-05T16:08:58+00:00",
+        "lastLoginAt": "2026-09-08T19:53:02+02:00",
         "trainerCode": "MEN-TRN-1560",
         "sessionInvalidatedAt": 1788624494
     },
@@ -433,20 +435,22 @@
     },
     {
         "_id": "6aa055fcf1624b69330f570e",
+        "city": "Dharmapuri",
         "name": "dfs",
+        "role": "VENDOR",
         "email": "testcollege@gmail.com",
         "phone": "9150435591",
-        "organizationName": "dsaqwertyu",
-        "partnerType": "STAFFING_VENDOR",
-        "organizationType": "STAFFING_VENDOR",
-        "role": "VENDOR",
-        "status": "ACTIVE",
-        "mentryId": "MEN-VND-1005",
-        "vendorCode": "MEN-VND-1005",
-        "password": "$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi",
-        "city": "Dharmapuri",
         "state": "Tamil Nadu",
-        "createdAt": "1788892800000",
-        "updatedAt": "1788892800000"
+        "status": "ACTIVE",
+        "website": "",
+        "mentryId": "MEN-VND-1005",
+        "password": "$2y$10$BMsAw5lHRomvx8pXXUN7reAeH7IMM.Srvqa.snPz7k1IbT8izMKSq",
+        "createdAt": "1788892668046",
+        "updatedAt": "1788892694686",
+        "vendorCode": "MEN-VND-1005",
+        "lockedUntil": null,
+        "organizationName": "dsaqwertyu",
+        "organizationType": "STAFFING_VENDOR",
+        "failedLoginAttempts": 0
     }
 ]

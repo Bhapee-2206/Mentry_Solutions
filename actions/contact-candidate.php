@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ' : '') . '
 
                     <div style="text-align: center; margin: 22px 0 10px 0;">
-                        <a href="https://mentry.solutions/opportunity-details.php?id=' . $opportunityId . '" class="btn">Review Assignment Details</a>
+                        <a href="' . htmlspecialchars(getAppUrl() . '/opportunity-details.php?id=' . $opportunityId) . '" class="btn">Review Assignment Details</a>
                     </div>
                 </div>
                 <div class="footer">

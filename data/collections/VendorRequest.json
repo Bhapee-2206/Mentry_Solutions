@@ -140,7 +140,7 @@
         "vendorId": "6aa055fcf1624b69330f570e",
         "createdAt": "1788892844613",
         "startDate": "1789324200000",
-        "updatedAt": "1788893487814",
+        "updatedAt": "1788944688052",
         "adminNotes": "",
         "vendorName": "dsaqwertyu",
         "description": "",
@@ -151,12 +151,12 @@
         "adminContacted": true,
         "skillsRequired": "[]",
         "institutionName": "dsaqwertyu",
+        "assignedTrainerId": "3e28ab2f8f2b80ce8e1db53e",
         "vendorContactEmail": "testcollege@gmail.com",
         "vendorContactPhone": "",
         "accommodationDetails": "Campus Executive Guest House Provided",
         "adjustedDailyRateMax": 5000,
         "adjustedDailyRateMin": 4000,
-        "convertedOpportunityId": "6aa056fdf1624b69330f5714",
-        "assignedTrainerId": "3e28ab2f8f2b80ce8e1db53e"
+        "convertedOpportunityId": "6aa056fdf1624b69330f5714"
     }
 ]
