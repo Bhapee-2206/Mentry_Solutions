@@ -521,5 +521,6 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
 
 <?php require_once __DIR__ . '/download_loader.php'; ?>
 <?php if (file_exists(__DIR__ . '/pwa_install_prompt.php')) include __DIR__ . '/pwa_install_prompt.php'; ?>
+<?php if (file_exists(__DIR__ . '/offline_popup.php')) include __DIR__ . '/offline_popup.php'; ?>
 
 <main class="flex-grow">

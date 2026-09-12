@@ -1,6 +1,7 @@
 <?php
 // includes/loading_screen.php - Premium Branded Mentry Loading Screen & Transition Preloader
 // STRICTLY active for Standalone/Downloaded PWA users only. Regular browser visitors will not see this loading screen.
+if (file_exists(__DIR__ . '/offline_popup.php')) include_once __DIR__ . '/offline_popup.php';
 ?>
 <!-- Mentry Global Loading Screen (Strictly for standalone/downloaded PWA users) -->
 <div id="mentryGlobalLoader" class="fixed inset-0 z-[99999] bg-gradient-to-b from-[#FFFFFF] via-[#F8FBFF] to-[#EFF6FF] flex flex-col items-center justify-between transition-opacity duration-300 opacity-0 pointer-events-none select-none overflow-hidden" style="display: none;">
@@ -145,6 +146,17 @@
     loader.classList.remove('opacity-0', 'pointer-events-none');
     loader.classList.add('opacity-100', 'pointer-events-auto');
 
+    // If opened with no network connection: dismiss splash and show offline modal immediately!
+    if (!navigator.onLine) {
+        setTimeout(() => {
+            window.hideMentryLoader();
+            if (window.showOfflineModal) {
+                window.showOfflineModal();
+            }
+        }, 500);
+        return;
+    }
+
     function dismissSplashWithMinimumDelay() {
         const elapsed = Date.now() - splashStartTime;
         const remaining = Math.max(0, MIN_SPLASH_DISPLAY_MS - elapsed);
@@ -178,6 +190,15 @@
         }
         if (e.ctrlKey || e.metaKey || e.shiftKey) return;
 
+        // If offline when clicking a link: prevent navigation hang and show offline modal
+        if (!navigator.onLine) {
+            e.preventDefault();
+            if (window.showOfflineModal) {
+                window.showOfflineModal();
+            }
+            return;
+        }
+
         setTimeout(() => {
             window.showMentryLoader("Loading...");
         }, 60);
@@ -186,6 +207,15 @@
     // PWA transitions on form submissions
     document.addEventListener('submit', function(e) {
         if (e.target.getAttribute('target') === '_blank') return;
+
+        if (!navigator.onLine) {
+            e.preventDefault();
+            if (window.showOfflineModal) {
+                window.showOfflineModal();
+            }
+            return;
+        }
+
         window.showMentryLoader("Processing...");
     });
 })();
