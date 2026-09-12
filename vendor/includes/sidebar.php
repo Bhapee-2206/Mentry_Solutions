@@ -24,6 +24,14 @@ $navItems = [
     <link rel="icon" type="image/png" href="/public/mentry.png?v=2">
     <link rel="shortcut icon" href="/favicon.ico?v=2">
     <link rel="apple-touch-icon" href="/public/mentry.png?v=2">
+
+    <!-- Progressive Web App (PWA) Manifest & Standalone App Capabilities -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#FE5E04">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mentry">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
@@ -84,6 +92,10 @@ $navItems = [
             </div>
         </div>
 
+        <button type="button" onclick="window.promptPWAInstall()" class="w-full text-left rounded-xl flex items-center px-3.5 py-2 transition-all text-xs font-semibold text-indigo-400 hover:bg-indigo-950/40 hover:text-indigo-300 cursor-pointer" title="Install Mentry App">
+            <span class="material-symbols-outlined mr-3 text-[18px]">install_mobile</span>
+            <span>Install Mobile App</span>
+        </button>
         <a href="/logout.php" class="w-full text-left rounded-xl flex items-center px-3.5 py-2 transition-all text-xs font-semibold text-rose-400 hover:bg-rose-950/40 hover:text-rose-300">
             <span class="material-symbols-outlined mr-3 text-[18px]">logout</span>
             <span>Sign Out</span>
@@ -179,5 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </a>
         </div>
     </header>
+ 
+    <?php if (file_exists(__DIR__ . '/../../includes/pwa_install_prompt.php')) include __DIR__ . '/../../includes/pwa_install_prompt.php'; ?>
 
     <main class="flex-1 w-full max-w-full px-3.5 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16 py-6 md:py-10 space-y-6 md:space-y-8 min-w-0">

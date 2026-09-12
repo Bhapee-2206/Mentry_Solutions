@@ -42,6 +42,14 @@ $navItems = [
     <link rel="shortcut icon" href="/favicon.ico?v=2">
     <link rel="apple-touch-icon" href="/public/mentry.png?v=2">
 
+    <!-- Progressive Web App (PWA) Manifest & Standalone App Capabilities -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#FE5E04">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mentry">
+
     <link rel="dns-prefetch" href="//fonts.googleapis.com">
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link rel="dns-prefetch" href="//cdn.tailwindcss.com">
@@ -110,7 +118,10 @@ $navItems = [
     </div>
 
     <!-- Bottom Settings & Logout -->
-    <div class="mt-auto pt-4 border-t border-slate-800/80 px-3 space-y-1">
+        <button type="button" onclick="window.promptPWAInstall()" class="w-full text-left rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-[#FE5E04] hover:bg-[#FE5E04]/10 cursor-pointer" title="Install Mentry App">
+            <span class="material-symbols-outlined mr-3 text-[18px]">install_mobile</span>
+            <span>Install Mobile App</span>
+        </button>
         <a href="/index.php" class="rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white">
             <span class="material-symbols-outlined mr-3 text-[18px]">home</span>
             <span>Website Home</span>
@@ -239,6 +250,10 @@ $navItems = [
 
             <!-- Bottom Settings & Logout -->
             <div class="pt-4 border-t border-slate-800/80 space-y-1">
+                <button type="button" onclick="window.promptPWAInstall()" class="w-full text-left rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-[#FE5E04] hover:bg-[#FE5E04]/10 cursor-pointer">
+                    <span class="material-symbols-outlined mr-3 text-[18px]">install_mobile</span>
+                    <span>Install Mobile App</span>
+                </button>
                 <a href="/index.php" class="rounded-xl flex items-center px-3.5 py-2.5 transition-all text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white">
                     <span class="material-symbols-outlined mr-3 text-[18px]">home</span>
                     <span>Website Home</span>
@@ -333,5 +348,6 @@ $navItems = [
     <?php endif; ?>
 
     <?php require_once __DIR__ . '/../../includes/download_loader.php'; ?>
+    <?php if (file_exists(__DIR__ . '/../../includes/pwa_install_prompt.php')) include __DIR__ . '/../../includes/pwa_install_prompt.php'; ?>
 
     <main class="flex-1 w-full max-w-full px-3.5 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16 py-6 md:py-10 space-y-6 md:space-y-8 min-w-0">

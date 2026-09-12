@@ -67,6 +67,14 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
                     $notifiedCount++;
                     $notifiedNames[] = $userName;
 
+                    // Send Web Push notification to trainer's mobile/desktop PWA
+                    @dispatchWebPushNotification(
+                        ['userId' => (string)$trainerUserId],
+                        'New ' . ($opp['domain'] ?? 'Tech') . ' Match: ' . $opp['title'],
+                        "Your profile scored {$score}% match for a {$opp['durationDays']}-day assignment in {$opp['city']}.",
+                        '/opportunity-details.php?id=' . (string)$opportunityId
+                    );
+
                     // Send email notification to top 3 matching trainers to avoid request timeout
                     if ($notifiedCount <= 3 && !empty($userEmail)) {
                         @sendOpportunityMatchEmail($userEmail, $userName, $opp);
@@ -114,6 +122,7 @@ function notifyAdmin($type, $title, $message, $link = '', $metadata = []) {
         ];
 
         $notifCol->insertOne($notifDoc);
+        @dispatchWebPushNotification(['userRole' => ['$in' => ['ADMIN', 'SUPER_ADMIN', 'STAFF']]], $title, $message, $link);
         return true;
     } catch (\Throwable $e) {
         error_log("Failed to dispatch admin notification: " . $e->getMessage());
@@ -331,4 +340,59 @@ function checkOpportunityScheduleMilestones($force = false) {
     }
 
     return $stats;
+}
+
+/**
+ * Dispatch Web Push notification to registered PWA devices
+ *
+ * @param array $filter Target user or role filter for PushSubscription collection
+ * @param string $title Notification title
+ * @param string $body Notification message
+ * @param string $url Destination link when notification is clicked
+ */
+function dispatchWebPushNotification(array $filter, string $title, string $body, string $url = '/') {
+    try {
+        $subCol = getCollection("PushSubscription");
+        if (!$subCol) return false;
+
+        $subscriptions = $subCol->find($filter)->toArray();
+        if (empty($subscriptions)) return true;
+
+        $payload = json_encode([
+            'title' => $title,
+            'body' => $body,
+            'icon' => '/public/mentry.png',
+            'badge' => '/public/mentry.png',
+            'url' => $url,
+            'tag' => 'mentry-' . substr(md5($title . $url), 0, 8),
+            'timestamp' => time() * 1000
+        ]);
+
+        foreach ($subscriptions as $sub) {
+            $endpoint = $sub['endpoint'] ?? '';
+            if (empty($endpoint)) continue;
+
+            // Direct web push post using cURL if available
+            if (function_exists('curl_init')) {
+                $ch = curl_init($endpoint);
+                curl_setopt_array($ch, [
+                    CURLOPT_POST => true,
+                    CURLOPT_POSTFIELDS => $payload,
+                    CURLOPT_HTTPHEADER => [
+                        'Content-Type: application/json',
+                        'TTL: 86400'
+                    ],
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_TIMEOUT => 2,
+                    CURLOPT_SSL_VERIFYPEER => false
+                ]);
+                @curl_exec($ch);
+                curl_close($ch);
+            }
+        }
+        return true;
+    } catch (\Throwable $e) {
+        error_log("dispatchWebPushNotification notice: " . $e->getMessage());
+        return false;
+    }
 }

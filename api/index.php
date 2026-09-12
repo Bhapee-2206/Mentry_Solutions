@@ -15,8 +15,8 @@ if (file_exists(__DIR__ . '/../includes/helpers.php')) {
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
-// 1. Static asset bypass (images, icons, styles, fonts, sitemaps, robots)
-if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xml|txt)$/i', $uri)) {
+// 1. Static asset bypass (images, icons, styles, fonts, sitemaps, robots, PWA manifest, service worker)
+if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xml|txt|json|webmanifest)$/i', $uri)) {
     $cleanUri = ltrim($uri, '/');
     $basename = basename($cleanUri);
 
@@ -46,15 +46,26 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xm
                 'woff2' => 'font/woff2',
                 'ttf' => 'font/ttf',
                 'xml' => 'application/xml; charset=utf-8',
-                'txt' => 'text/plain; charset=utf-8'
+                'txt' => 'text/plain; charset=utf-8',
+                'json' => 'application/json; charset=utf-8',
+                'webmanifest' => 'application/manifest+json; charset=utf-8'
             ];
             $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
             header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
-            $isCacheable = !in_array($ext, ['xml', 'txt']);
-            if ($isCacheable) {
-                header('Cache-Control: public, max-age=31536000, immutable');
+
+            // Service worker specific scope and caching requirements
+            if ($basename === 'sw.js') {
+                header('Service-Worker-Allowed: /');
+                header('Cache-Control: no-cache, no-store, must-revalidate');
+            } elseif ($ext === 'json' || $ext === 'webmanifest') {
+                header('Cache-Control: public, max-age=86400');
             } else {
-                header('Cache-Control: public, max-age=3600');
+                $isCacheable = !in_array($ext, ['xml', 'txt']);
+                if ($isCacheable) {
+                    header('Cache-Control: public, max-age=31536000, immutable');
+                } else {
+                    header('Cache-Control: public, max-age=3600');
+                }
             }
             header('Content-Length: ' . filesize($filePath));
             readfile($filePath);

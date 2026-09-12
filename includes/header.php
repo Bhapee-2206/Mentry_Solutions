@@ -142,6 +142,14 @@ if ($currentUser) {
     <link rel="shortcut icon" href="/favicon.ico?v=2">
     <link rel="apple-touch-icon" href="/public/mentry.png?v=2">
 
+    <!-- Progressive Web App (PWA) Manifest & Standalone App Capabilities -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#FE5E04">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mentry">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -321,11 +329,18 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
                         <span class="material-symbols-outlined text-[17px]">business</span>
                         <span>College / Vendor Login</span>
                     </a>
+                    <button type="button" onclick="window.promptPWAInstall()" class="hidden xl:flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-[#FE5E04] bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-200 px-3 py-2 rounded-xl transition-all cursor-pointer" title="Install Mentry to Home Screen">
+                        <span class="material-symbols-outlined text-[17px] text-[#FE5E04]">install_mobile</span>
+                        <span>Install App</span>
+                    </button>
                 <?php endif; ?>
             </div>
 
             <!-- Mobile menu toggle -->
             <div class="flex lg:hidden items-center gap-2">
+                <button type="button" onclick="window.promptPWAInstall()" class="p-2 rounded-xl text-slate-700 hover:bg-slate-100 cursor-pointer" title="Install App">
+                    <span class="material-symbols-outlined text-2xl text-[#FE5E04]">install_mobile</span>
+                </button>
                 <button id="mobileMenuToggleBtn" type="button" aria-label="Toggle navigation menu" class="p-2 rounded-xl text-slate-700 hover:bg-slate-100 cursor-pointer">
                     <span class="material-symbols-outlined text-2xl">menu</span>
                 </button>
@@ -364,8 +379,12 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
             <span>Contact</span>
         </a>
         <div class="pt-2 border-t border-slate-100 flex flex-col gap-2">
+            <button type="button" onclick="window.promptPWAInstall(); document.getElementById('mobileMenu').classList.add('hidden');" class="w-full bg-slate-900 text-white font-bold text-center py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2 border border-slate-800">
+                <span class="material-symbols-outlined text-[18px] text-[#FE5E04]">install_mobile</span>
+                <span>Install Mentry App (Add to Home Screen)</span>
+            </button>
             <?php if ($currentUser): ?>
-                <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/index.php' : '/trainer/dashboard.php' ?>" class="w-full bg-slate-900 text-white font-bold text-center py-2.5 rounded-xl text-sm">Go to Dashboard</a>
+                <a href="<?= in_array($currentUser['role'], ['ADMIN', 'STAFF']) ? '/admin/index.php' : '/trainer/dashboard.php' ?>" class="w-full bg-[#FE5E04] text-white font-bold text-center py-2.5 rounded-xl text-sm">Go to Dashboard</a>
             <?php else: ?>
                 <a href="/login.php" class="w-full border border-slate-200 hover:border-orange-300 text-slate-800 hover:text-[#FE5E04] font-bold text-center py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
                     <span class="material-symbols-outlined text-[18px]">login</span>
@@ -411,5 +430,6 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
 </header>
 
 <?php require_once __DIR__ . '/download_loader.php'; ?>
+<?php if (file_exists(__DIR__ . '/pwa_install_prompt.php')) include __DIR__ . '/pwa_install_prompt.php'; ?>
 
 <main class="flex-grow">
