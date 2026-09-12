@@ -1121,6 +1121,7 @@ function syncAssignmentStatuses() {
                 }
             } catch (\Throwable $e) {}
         }
+    }
 }
 
 /**
