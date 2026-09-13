@@ -494,16 +494,29 @@
         "notificationId": "6aa63133e179992e9a0967b6"
     },
     {
-        "endpoint": "https://fcm.googleapis.com/fcm/send/dO0OH1G5GnY:APA91bElLYTRwaS0Rebyx85mYb2rdh33...",
+        "_id": "6aa633afe179992e9a0967b9",
+        "error": "the VAPID credentials in the authorization header do not correspond to the credentials used to create the subscriptions.\n",
+        "title": "🎉 Selected: Technical Campus Training",
+        "sentAt": "1789277103795",
         "userId": "6a99b5baf1624b69330f560e",
-        "notificationId": "6aa633abe179992e9a0967b8",
+        "success": false,
+        "endpoint": "https://fcm.googleapis.com/fcm/send/dO0OH1G5GnY:APA91bElLYTRwaS0Rebyx85mYb2rdh33...",
+        "createdAt": "1789277103796",
+        "updatedAt": "1789277103796",
+        "statusCode": 403,
+        "notificationId": "6aa633abe179992e9a0967b8"
+    },
+    {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/eG-fp1D-I10:APA91bGhsSX6ujzqAzfXyKaH3XTxkksI...",
+        "userId": "6a9ab2ebf1624b69330f5678",
+        "notificationId": "6aa6364de179992e9a0967bc",
         "title": "🎉 Selected: Technical Campus Training",
         "statusCode": 403,
         "success": false,
         "error": "the VAPID credentials in the authorization header do not correspond to the credentials used to create the subscriptions.\n",
-        "sentAt": "1789277103795",
-        "_id": "6aa633afe179992e9a0967b9",
-        "createdAt": "1789277103796",
-        "updatedAt": "1789277103796"
+        "sentAt": "1789277777092",
+        "_id": "6aa63651e179992e9a0967bd",
+        "createdAt": "1789277777093",
+        "updatedAt": "1789277777093"
     }
 ]

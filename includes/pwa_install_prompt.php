@@ -378,6 +378,7 @@ if ($isAdminContext) {
 
     async function subscribeUserToPush(swReg) {
         if (!swReg || !swReg.pushManager) return;
+        const base = getPwaBaseUrl();
 
         try {
             const vapidKey = await getVapidPublicKey();

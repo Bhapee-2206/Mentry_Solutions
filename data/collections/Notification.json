@@ -4178,15 +4178,39 @@
         "updatedAt": "1789276573342"
     },
     {
+        "_id": "6aa633abe179992e9a0967b8",
+        "link": "/trainer/notifications.php",
+        "read": false,
+        "type": "SYSTEM_ALERT",
+        "title": "🎉 Selected: Technical Campus Training",
         "userId": "6a99b5baf1624b69330f560e",
+        "message": "Congratulations! You have been selected for the campus training batch. Honorarium and travel logistics confirmed.",
+        "createdAt": "1789277099580",
         "trainerId": "6a99b5baf1624b69330f560f",
+        "updatedAt": "1789277099584"
+    },
+    {
+        "_id": "6aa635f6e179992e9a0967bb",
+        "link": "/trainer/notifications.php",
+        "read": false,
+        "type": "SYSTEM_ALERT",
+        "title": "🎉 Selected: Technical Campus Training",
+        "userId": "6a99b5baf1624b69330f560e",
+        "message": "Congratulations! You have been selected for the campus training batch. Honorarium and travel logistics confirmed.",
+        "createdAt": "1789277686592",
+        "trainerId": "6a99b5baf1624b69330f560f",
+        "updatedAt": "1789277686598"
+    },
+    {
+        "userId": "6a9ab2ebf1624b69330f5678",
+        "trainerId": "6a9ab2ecf1624b69330f5679",
         "type": "SYSTEM_ALERT",
         "title": "🎉 Selected: Technical Campus Training",
         "message": "Congratulations! You have been selected for the campus training batch. Honorarium and travel logistics confirmed.",
         "link": "/trainer/notifications.php",
         "read": false,
-        "createdAt": "1789277099580",
-        "_id": "6aa633abe179992e9a0967b8",
-        "updatedAt": "1789277099584"
+        "createdAt": "1789277773032",
+        "_id": "6aa6364de179992e9a0967bc",
+        "updatedAt": "1789277773038"
     }
 ]

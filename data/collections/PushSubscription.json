@@ -6,11 +6,14 @@
         "p256dh": "BFRVsjmEFRjwv0wqWGJEW5umTx8chag1RvZDLY9_FlFjzxA-2sdgc7iVrD80j4TSw1FGtB0RgBT1107dvA-6a8k",
         "userId": "6a9ab2ebf1624b69330f5678",
         "endpoint": "https://fcm.googleapis.com/fcm/send/eG-fp1D-I10:APA91bGhsSX6ujzqAzfXyKaH3XTxkksIeqYiEVFWwQBu1Iic_A98m3l1o9cdXdOoRWODbq_PbNwRuZe12vjbZ03GyuSXLitnClYfYokPWexKySP3yxyp-fZtbzZr71JenQiZO-dlyrTv",
-        "isActive": true,
+        "isActive": false,
         "userRole": "TRAINER",
         "createdAt": "1789242785664",
-        "updatedAt": "1789271610253",
-        "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Mobile Safari/537.36"
+        "updatedAt": "1789277776233",
+        "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Mobile Safari/537.36",
+        "isDead": true,
+        "deactivatedAt": "1789277776233",
+        "deactivationReason": "PUSH_GATEWAY_CREDENTIALS_REJECTED_HTTP_403"
     },
     {
         "ip": "::1",
@@ -148,21 +151,21 @@
         "lastActiveAt": "1789274090917"
     },
     {
-        "endpoint": "https://fcm.googleapis.com/fcm/send/fvhpdpAlJWc:APA91bHYVC3-dP9kZTHcrkYVN1-w42E92Kv-jvG_2sjmMoGyu4sF1Q0BcSTlxuzGtFUNBHLnmpZscvLyGnfERoB1RzupXVZbS8qNgHJRy7h5ghnvYMPeeRP7Qli7LYwINUt_fk4LrtGX",
-        "p256dh": "BItUVguxoK5zijcegBUBItcKUPnX8mrlSBJREAq6yMiimoUDJx0HGKBU36zBtnviLFpvzDpNDbT048GF0bQ1bUw",
-        "auth": "7PcYEWOWorC5ixgv9ECl5Q",
-        "userId": "6a99b577f1624b69330f55b3",
-        "trainerId": null,
-        "userRole": "ADMIN",
-        "device": "Desktop/Dev",
-        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Sa",
-        "platform": "Win32",
         "ip": "::1",
-        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
-        "isActive": true,
-        "updatedAt": "1789277373986",
-        "lastActiveAt": "1789277373986",
         "_id": "6aa634bde179992e9a0967ba",
-        "createdAt": "1789277373986"
+        "auth": "7PcYEWOWorC5ixgv9ECl5Q",
+        "device": "Desktop/Dev",
+        "p256dh": "BItUVguxoK5zijcegBUBItcKUPnX8mrlSBJREAq6yMiimoUDJx0HGKBU36zBtnviLFpvzDpNDbT048GF0bQ1bUw",
+        "userId": "6a99b5baf1624b69330f560e",
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Sa",
+        "endpoint": "https://fcm.googleapis.com/fcm/send/fvhpdpAlJWc:APA91bHYVC3-dP9kZTHcrkYVN1-w42E92Kv-jvG_2sjmMoGyu4sF1Q0BcSTlxuzGtFUNBHLnmpZscvLyGnfERoB1RzupXVZbS8qNgHJRy7h5ghnvYMPeeRP7Qli7LYwINUt_fk4LrtGX",
+        "isActive": true,
+        "platform": "Win32",
+        "userRole": "TRAINER",
+        "createdAt": "1789277373986",
+        "trainerId": "6a99b5baf1624b69330f560f",
+        "updatedAt": "1789277373986",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+        "lastActiveAt": "1789277373986"
     }
 ]

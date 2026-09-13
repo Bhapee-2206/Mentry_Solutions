@@ -47,34 +47,31 @@ try {
     $platform = cleanString($data['platform'] ?? '', 100);
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
-    // Link trainerId if user is a trainer
-    $trainerId = null;
-    if ($userRole === 'TRAINER' && !empty($userId)) {
+    // Allow admin/staff to pair a test device to a specific target user / trainer
+    if (isAdminOrStaff() && !empty($data['targetUserId'])) {
+        $userId = cleanString($data['targetUserId'], 50);
         $trainerCol = getCollection("Trainer");
         $t = $trainerCol ? $trainerCol->findOne(['userId' => (string)$userId]) : null;
         if ($t) {
             $trainerId = (string)$t['_id'];
+            $userRole = 'TRAINER';
+        } else {
+            $userCol = getCollection("User");
+            $u = $userCol ? $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$userId)]) : null;
+            if ($u) {
+                $userRole = $u['role'] ?? 'TRAINER';
+            }
         }
-    }
-
-    // Check if this specific endpoint was already permanently rejected by push gateway
-    $existing = $subCol->findOne(['endpoint' => $endpoint]);
-    if ($existing && (!empty($existing['isDead']) || in_array($existing['deactivationReason'] ?? '', [
-        'PUSH_GATEWAY_CREDENTIALS_REJECTED_HTTP_403',
-        'PUSH_GATEWAY_EXPIRED_HTTP_410',
-        'FCM_VAPID_KEY_MISMATCH_HTTP_403',
-        'HTTP_410_OR_404_EXPIRED'
-    ]))) {
-        // This endpoint was rejected by Google FCM / push service and is permanently invalid on Google's servers.
-        // Reject saving and tell client to unsubscribe & get a brand new endpoint from pushManager.subscribe()
-        if (ob_get_length()) ob_clean();
-        echo json_encode([
-            'success' => false,
-            'isDead' => true,
-            'requireNewSubscription' => true,
-            'error' => 'Push endpoint rejected by gateway. Fresh subscription required.'
-        ]);
-        exit();
+    } else {
+        // Link trainerId if user is a trainer
+        $trainerId = null;
+        if ($userRole === 'TRAINER' && !empty($userId)) {
+            $trainerCol = getCollection("Trainer");
+            $t = $trainerCol ? $trainerCol->findOne(['userId' => (string)$userId]) : null;
+            if ($t) {
+                $trainerId = (string)$t['_id'];
+            }
+        }
     }
 
     // Deactivate old subscription endpoint if client replaced it
@@ -89,7 +86,6 @@ try {
             ]]
         );
     }
-
 
     $subCol->updateOne(
         ['endpoint' => $endpoint],
@@ -107,6 +103,9 @@ try {
                 'ip' => $ip,
                 'userAgent' => $userAgent,
                 'isActive' => true,
+                'isDead' => false,
+                'deactivatedAt' => null,
+                'deactivationReason' => null,
                 'updatedAt' => new MongoDB\BSON\UTCDateTime(),
                 'lastActiveAt' => new MongoDB\BSON\UTCDateTime()
             ],
