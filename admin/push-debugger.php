@@ -27,7 +27,7 @@ if ($trainerCol) {
         $deviceCount = 0;
         if ($subCol) {
             $deviceCount = $subCol->countDocuments([
-                'isActive' => ['$ne' => false],
+                'isActive' => true,
                 'isDead' => ['$ne' => true],
                 '$or' => [
                     ['userId' => $tUserId],
@@ -53,8 +53,8 @@ if ($subCol) {
 }
 
 // Total active push subscriptions count
-$totalActiveSubs = $subCol ? $subCol->countDocuments(['isActive' => ['$ne' => false]]) : 0;
-$totalTrainerSubs = $subCol ? $subCol->countDocuments(['isActive' => ['$ne' => false], 'userRole' => 'TRAINER']) : 0;
+$totalActiveSubs = $subCol ? $subCol->countDocuments(['isActive' => true, 'isDead' => ['$ne' => true]]) : 0;
+$totalTrainerSubs = $subCol ? $subCol->countDocuments(['isActive' => true, 'isDead' => ['$ne' => true], 'userRole' => 'TRAINER']) : 0;
 
 // Recent delivery logs
 $recentLogs = [];
@@ -675,16 +675,17 @@ async function handleSendTrainerTestPush(e) {
         const data = await res.json();
 
         if (data.success) {
-            const hasDelivered = data.pushDeliveredCount > 0;
-            const statusBoxClass = hasDelivered 
+            const hasAccepted = (data.pushAcceptedCount !== undefined ? data.pushAcceptedCount : data.pushDeliveredCount) > 0;
+            const statusBoxClass = hasAccepted 
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                 : 'bg-amber-50 text-amber-800 border-amber-200';
             resBox.className = 'p-3 rounded-xl text-xs font-mono border ' + statusBoxClass;
-            resBox.innerHTML = '<strong>' + (hasDelivered ? 'DELIVERED:' : 'NOTICE:') + '</strong> ' + data.message + 
-                '<br>Trainer: ' + (data.targetName || 'Trainer') + 
-                '<br>Devices Found: ' + (data.devicesFound || 0) + 
-                '<br>Push Delivered: ' + (data.pushDeliveredCount || 0) + 
-                (data.details ? '<br><span class="text-[11px] text-slate-600">' + data.details + '</span>' : '');
+            resBox.innerHTML = '<strong>' + (hasAccepted ? 'PUSH SUMMARY:' : 'NOTICE:') + '</strong> ' + data.message + 
+                '<br>Target: ' + (data.targetName || 'Trainer') + 
+                '<br>Eligible Devices: ' + (data.devicesFound || 0) + 
+                '<br>Accepted by Push Service: ' + (data.pushAcceptedCount !== undefined ? data.pushAcceptedCount : (data.pushDeliveredCount || 0)) + 
+                (data.pushExpiredCount ? '<br>Expired Subscriptions Pruned: ' + data.pushExpiredCount : '') +
+                (data.details ? '<br><div class="mt-2 pt-2 border-t border-slate-200 text-[11px] text-slate-700 leading-relaxed">' + data.details + '</div>' : '');
         } else {
             resBox.className = 'p-3 rounded-xl text-xs font-mono bg-rose-50 text-rose-800 border border-rose-200';
             resBox.innerHTML = '<strong>ERROR:</strong> ' + (data.error || 'Delivery failed');

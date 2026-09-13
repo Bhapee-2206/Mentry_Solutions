@@ -176,6 +176,7 @@ if ($isAdminContext) {
             navigator.serviceWorker.register(base + '/sw.js', { scope: base + '/' })
                 .then((reg) => {
                     activeSwReg = reg;
+                    try { reg.update(); } catch(e) {}
                     checkPushPermission(reg);
                 })
                 .catch((err) => {
@@ -376,22 +377,34 @@ if ($isAdminContext) {
         return null;
     }
 
+    function getOrCreateDeviceId() {
+        try {
+            let id = localStorage.getItem('mentry_device_id');
+            if (!id || typeof id !== 'string' || id.length < 10) {
+                id = 'dev_' + (window.crypto && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10)));
+                localStorage.setItem('mentry_device_id', id);
+            }
+            return id;
+        } catch(e) {
+            return 'dev_anon_' + Date.now().toString(36);
+        }
+    }
+
     async function subscribeUserToPush(swReg) {
         if (!swReg || !swReg.pushManager) return;
         const base = getPwaBaseUrl();
+        const deviceId = getOrCreateDeviceId();
 
         try {
             const vapidKey = await getVapidPublicKey();
             if (!vapidKey) {
-                console.warn('[Mentry Push] Could not fetch VAPID public key');
                 return;
             }
 
             const existingSub = await swReg.pushManager.getSubscription();
-            let oldEndpoint = null;
 
             if (existingSub) {
-                // 1. Check if existing subscription used the current VAPID key
+                // 1. Check if existing subscription used current VAPID key
                 const currentKeyArray = urlB64ToUint8Array(vapidKey);
                 const subKey = existingSub.options && existingSub.options.applicationServerKey;
                 let keyMatches = false;
@@ -402,48 +415,35 @@ if ($isAdminContext) {
                     }
                 }
 
-                // 2. Verify subscription status with server (checks if FCM rejected it or marked dead)
-                let serverStatus = null;
-                try {
-                    const statusRes = await fetch(base + '/actions/check-subscription-status.php?_t=' + Date.now(), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ endpoint: existingSub.endpoint })
-                    });
-                    serverStatus = await statusRes.json();
-                } catch(e) {}
-
-                const isServerActive = serverStatus && serverStatus.success && serverStatus.active && !serverStatus.isDead && !serverStatus.requireRefresh;
-
-                if (keyMatches && isServerActive) {
-                    // Subscription is verified active on server & VAPID key matches
+                if (keyMatches) {
+                    // REUSE RULE: Valid subscription exists. Do NOT call subscribe() again!
+                    // Sync device identity and subscription with server
+                    await sendSubscriptionToServer(existingSub, null, deviceId);
                     return existingSub;
                 } else {
-                    // Token expired, key mismatched, or gateway rejected (HTTP 403/410):
-                    // MUST unsubscribe from FCM to discard dead token and get a fresh one!
-                    oldEndpoint = existingSub.endpoint;
-                    try {
-                        await existingSub.unsubscribe();
-                    } catch(e) {}
+                    // Only unsubscribe if VAPID key was changed
+                    try { await existingSub.unsubscribe(); } catch(e) {}
                 }
             }
 
+            // No valid subscription exists: create fresh subscription
             const convertedKey = urlB64ToUint8Array(vapidKey);
             const newSub = await swReg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: convertedKey
             });
-            await sendSubscriptionToServer(newSub, oldEndpoint);
+            await sendSubscriptionToServer(newSub, null, deviceId);
             return newSub;
         } catch (err) {
-            console.log('[Mentry Push] Subscription notice:', err.message);
+            console.log('[Mentry Push] Notice:', err.message);
         }
     }
 
-    async function sendSubscriptionToServer(sub, oldEndpoint = null) {
+    async function sendSubscriptionToServer(sub, oldEndpoint = null, deviceId = null) {
         if (!sub) return;
         const base = getPwaBaseUrl();
         const subData = JSON.parse(JSON.stringify(sub));
+        subData.deviceId = deviceId || getOrCreateDeviceId();
         subData.platform = navigator.platform || 'Unknown';
         subData.device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
         subData.browser = getBrowserName();

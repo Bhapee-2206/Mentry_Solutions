@@ -9,6 +9,7 @@
 .env
 .env.local
 .env.*.local
+config/vapid.json
 
 # Large demo video artifacts
 *.webp

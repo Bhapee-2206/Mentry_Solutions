@@ -442,7 +442,7 @@ function dispatchWebPushNotification(array $filter, string $title, string $body,
             }
         }
 
-        $query = ['isActive' => ['$ne' => false]];
+        $query = ['isActive' => true, 'isDead' => ['$ne' => true]];
         if (isset($filter['userId'])) {
             $uId = (string)$filter['userId'];
             $trainerId = $extraData['trainerId'] ?? null;

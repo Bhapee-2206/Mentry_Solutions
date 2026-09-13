@@ -1,5 +1,5 @@
 <?php
-// actions/save-push-subscription.php - Store Web Push Notification Subscriptions
+// actions/save-push-subscription.php - Store and Deduplicate Web Push Notification Subscriptions
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../includes/db.php';
@@ -23,8 +23,8 @@ if (empty($data) || empty($data['endpoint'])) {
 
 $endpoint = cleanString($data['endpoint'], 2000);
 $keys = $data['keys'] ?? [];
-$p256dh = cleanString($keys['p256dh'] ?? '', 500);
-$authKey = cleanString($keys['auth'] ?? '', 500);
+$p256dh = cleanString($keys['p256dh'] ?? ($data['p256dh'] ?? ''), 500);
+$authKey = cleanString($keys['auth'] ?? ($data['auth'] ?? ''), 500);
 
 if (empty($endpoint) || empty($p256dh) || empty($authKey)) {
     http_response_code(400);
@@ -42,6 +42,7 @@ try {
     $userId = $currentUser['id'] ?? null;
     $userRole = $currentUser['role'] ?? 'GUEST';
     $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    $deviceId = !empty($data['deviceId']) ? cleanString($data['deviceId'], 100) : null;
     $device = cleanString($data['device'] ?? '', 100);
     $browser = cleanString($data['browser'] ?? '', 100);
     $platform = cleanString($data['platform'] ?? '', 100);
@@ -74,18 +75,42 @@ try {
         }
     }
 
-    // Deactivate old subscription endpoint if client replaced it
+    // 1. DEDUPLICATION RULE 1: Deactivate any other active subscriptions for this exact deviceId
+    // A single physical device (deviceId) must NEVER have multiple active subscriptions.
+    if (!empty($deviceId)) {
+        $subCol->updateMany(
+            [
+                'deviceId' => $deviceId,
+                'endpoint' => ['$ne' => $endpoint],
+                'isActive' => ['$ne' => false]
+            ],
+            [
+                '$set' => [
+                    'isActive' => false,
+                    'isDead' => true,
+                    'deactivatedAt' => new MongoDB\BSON\UTCDateTime(),
+                    'deactivationReason' => 'REPLACED_BY_NEW_DEVICE_SUBSCRIPTION'
+                ]
+            ]
+        );
+    }
+
+    // 2. DEDUPLICATION RULE 2: If the client reported an oldEndpoint, immediately mark it inactive
     if (!empty($data['oldEndpoint']) && $data['oldEndpoint'] !== $endpoint) {
         $oldEndpoint = cleanString($data['oldEndpoint'], 2000);
         $subCol->updateOne(
             ['endpoint' => $oldEndpoint],
             ['$set' => [
                 'isActive' => false,
+                'isDead' => true,
                 'deactivatedAt' => new MongoDB\BSON\UTCDateTime(),
-                'deactivationReason' => 'REPLACED_BY_NEW_CLIENT_SUBSCRIPTION'
+                'deactivationReason' => 'REPLACED_BY_CLIENT_ROTATION'
             ]]
         );
     }
+
+    // 3. UPSERT the current active subscription
+    $deviceType = $device ?: (preg_match('/Mobile|Android|iPhone|iPad/i', $userAgent) ? 'Mobile' : 'Desktop');
 
     $subCol->updateOne(
         ['endpoint' => $endpoint],
@@ -97,9 +122,10 @@ try {
                 'userId' => $userId ? (string)$userId : null,
                 'trainerId' => $trainerId,
                 'userRole' => $userRole,
-                'device' => $device ?: (preg_match('/Mobile|Android|iPhone/i', $userAgent) ? 'Mobile' : 'Desktop'),
-                'browser' => $browser,
-                'platform' => $platform,
+                'deviceId' => $deviceId,
+                'device' => $deviceType,
+                'browser' => $browser ?: 'Browser',
+                'platform' => $platform ?: 'Unknown',
                 'ip' => $ip,
                 'userAgent' => $userAgent,
                 'isActive' => true,
@@ -107,7 +133,8 @@ try {
                 'deactivatedAt' => null,
                 'deactivationReason' => null,
                 'updatedAt' => new MongoDB\BSON\UTCDateTime(),
-                'lastActiveAt' => new MongoDB\BSON\UTCDateTime()
+                'lastActiveAt' => new MongoDB\BSON\UTCDateTime(),
+                'lastUsedAt' => new MongoDB\BSON\UTCDateTime()
             ],
             '$setOnInsert' => [
                 'createdAt' => new MongoDB\BSON\UTCDateTime()
@@ -117,7 +144,12 @@ try {
     );
 
     if (ob_get_length()) ob_clean();
-    echo json_encode(['success' => true, 'message' => 'Push subscription saved successfully', 'userId' => $userId]);
+    echo json_encode([
+        'success' => true,
+        'message' => 'Push subscription saved and device deduplicated successfully',
+        'userId' => $userId,
+        'deviceId' => $deviceId
+    ]);
 } catch (\Throwable $e) {
     if (ob_get_length()) ob_clean();
     error_log("save-push-subscription error: " . $e->getMessage());

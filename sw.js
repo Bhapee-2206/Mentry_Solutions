@@ -1,5 +1,5 @@
 // sw.js - Mentry Solutions PWA Service Worker & Web Push Engine
-const CACHE_NAME = 'mentry-pwa-v9';
+const CACHE_NAME = 'mentry-pwa-v10';
 const ASSETS_TO_PRECACHE = [
   './manifest.json',
   './public/icon-192.png',
@@ -91,6 +91,18 @@ self.addEventListener('fetch', (event) => {
 });
 
 // 4. Push Event: Handle background Web Push Notifications from server
+//
+// CRITICAL ANDROID REQUIREMENT (Chrome Push Policy):
+// Chrome on Android REQUIRES self.registration.showNotification() to be called
+// for EVERY push event. If the push handler resolves without showing a notification,
+// Chrome will:
+//   - Show a generic "This site has been updated in the background" notification
+//   - After repeated violations, revoke push permission entirely
+//
+// Therefore, we ALWAYS call showNotification(). When the app is visible/focused,
+// we ALSO send a postMessage so the page can show an in-app popup and then
+// programmatically close the OS notification to avoid duplicates.
+//
 self.addEventListener('push', (event) => {
   let payload = {
     title: 'Mentry Solutions',
@@ -112,16 +124,46 @@ self.addEventListener('push', (event) => {
   const notificationId = payload.id || (payload.data && payload.data.id) || ('mentry-' + Date.now());
   const targetUrl = payload.url || (payload.data && payload.data.url) || '/';
 
+  // Resolve icon to absolute URL in service worker scope
+  const baseScope = self.registration.scope;
+  const iconUrl = payload.icon
+    ? new URL(payload.icon, baseScope).href
+    : new URL('public/icon-192.png', baseScope).href;
+
+  const notificationOptions = {
+    body: payload.body,
+    icon: iconUrl,
+    badge: iconUrl,
+    tag: 'mentry-' + notificationId,
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [200, 100, 200],
+    data: {
+      id: notificationId,
+      url: targetUrl,
+      timestamp: Date.now()
+    },
+    actions: [
+      { action: 'open', title: 'View Details' }
+    ]
+  };
+
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if there is an active/visible AND focused Mentry window client
-      const activeClient = clientList.find(c => c.visibilityState === 'visible' && ('focused' in c ? c.focused : true));
+    // ALWAYS show the native OS notification first (mandatory for Android Chrome)
+    self.registration.showNotification(payload.title, notificationOptions).then(() => {
+      // After the notification is shown, check if any Mentry window is visible+focused
+      return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    }).then((clientList) => {
+      // Find a client that is truly visible AND focused (user is actively looking at Mentry)
+      const activeClient = clientList.find(c =>
+        c.visibilityState === 'visible' && c.focused === true
+      );
 
       if (activeClient) {
-        // User is ACTIVELY viewing the Mentry website / PWA:
-        // Forward notification payload to the active page for in-app display.
-        // Strictly DO NOT call self.registration.showNotification() to prevent duplicate alerts!
-        return activeClient.postMessage({
+        // User is actively viewing Mentry right now:
+        // Send a message so the page can show its own in-app popup
+        // and optionally close the OS notification to avoid duplicates.
+        activeClient.postMessage({
           type: 'PUSH_RECEIVED_IN_APP',
           notification: {
             id: notificationId,
@@ -131,31 +173,12 @@ self.addEventListener('push', (event) => {
             url: targetUrl,
             link: targetUrl,
             type: payload.type || (payload.data && payload.data.type) || 'GENERAL',
-            matchScore: payload.matchScore || (payload.data && payload.data.matchScore) || null
+            matchScore: payload.matchScore || (payload.data && payload.data.matchScore) || null,
+            tag: 'mentry-' + notificationId
           }
         });
       }
-
-      // User has Mentry closed or backgrounded:
-      // Display ONE native push notification (clean, single PWA icon, no duplicate logo)
-      const iconUrl = payload.icon ? new URL(payload.icon, self.registration.scope).href : new URL('public/icon-192.png', self.registration.scope).href;
-      const notificationOptions = {
-        body: payload.body,
-        icon: iconUrl,
-        badge: iconUrl,
-        tag: 'mentry-' + notificationId,
-        renotify: false,
-        vibrate: [200, 100, 200],
-        data: {
-          id: notificationId,
-          url: targetUrl
-        },
-        actions: [
-          { action: 'open', title: 'Open Mentry' }
-        ]
-      };
-
-      return self.registration.showNotification(payload.title, notificationOptions);
+      // If no active client: notification stays in the OS tray (exactly what we want)
     })
   );
 });
@@ -167,9 +190,18 @@ self.addEventListener('notificationclick', (event) => {
     ? event.notification.data.url 
     : '/';
 
-  // Ensure absolute URL
-  if (targetUrl.startsWith('/') && !targetUrl.startsWith(self.registration.scope)) {
-    targetUrl = new URL(targetUrl.replace(/^\//, ''), self.registration.scope).href;
+  // Ensure absolute URL without duplicated subpaths
+  let finalUrl;
+  try {
+    if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+      finalUrl = targetUrl;
+    } else if (targetUrl.startsWith('/')) {
+      finalUrl = new URL(targetUrl, self.location.origin).href;
+    } else {
+      finalUrl = new URL(targetUrl, self.registration.scope).href;
+    }
+  } catch (e) {
+    finalUrl = self.registration.scope;
   }
 
   event.waitUntil(
@@ -181,7 +213,7 @@ self.addEventListener('notificationclick', (event) => {
           if (client.url.includes(self.location.origin)) {
             client.focus();
             if (client.navigate) {
-              return client.navigate(targetUrl);
+              return client.navigate(finalUrl);
             }
             return;
           }
@@ -189,7 +221,7 @@ self.addEventListener('notificationclick', (event) => {
       }
       // Otherwise open a new standalone window
       if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
+        return self.clients.openWindow(finalUrl);
       }
     })
   );
