@@ -64,6 +64,44 @@ class PushNotificationService {
             }
         }
 
+        // Check environment variables / .env file
+        $envPub = getenv('VAPID_PUBLIC_KEY') ?: ($_ENV['VAPID_PUBLIC_KEY'] ?? ($_SERVER['VAPID_PUBLIC_KEY'] ?? ''));
+        $envPriv = getenv('VAPID_PRIVATE_KEY') ?: ($_ENV['VAPID_PRIVATE_KEY'] ?? ($_SERVER['VAPID_PRIVATE_KEY'] ?? ''));
+        $envSub = getenv('VAPID_SUBJECT') ?: ($_ENV['VAPID_SUBJECT'] ?? ($_SERVER['VAPID_SUBJECT'] ?? 'mailto:support@mentrysolutions.com'));
+
+        if (empty($envPub) || empty($envPriv)) {
+            $envPath = __DIR__ . '/../.env';
+            if (file_exists($envPath)) {
+                $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if (str_starts_with($line, '#')) continue;
+                    if (str_starts_with($line, 'VAPID_PUBLIC_KEY=')) {
+                        $envPub = trim(trim(substr($line, strlen('VAPID_PUBLIC_KEY='))), '"\'');
+                    }
+                    if (str_starts_with($line, 'VAPID_PRIVATE_KEY=')) {
+                        $envPriv = trim(trim(substr($line, strlen('VAPID_PRIVATE_KEY='))), '"\'');
+                    }
+                    if (str_starts_with($line, 'VAPID_SUBJECT=')) {
+                        $envSub = trim(trim(substr($line, strlen('VAPID_SUBJECT='))), '"\'');
+                    }
+                }
+            }
+        }
+
+        if (!empty($envPub) && !empty($envPriv)) {
+            $keys = [
+                'publicKey' => $envPub,
+                'privateKey' => $envPriv,
+                'subject' => $envSub ?: 'mailto:support@mentrysolutions.com',
+                'createdAt' => date('c')
+            ];
+            // If private key PEM can be exported or generated
+            @file_put_contents(self::$configFile, json_encode($keys, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            self::$vapidKeys = $keys;
+            return self::$vapidKeys;
+        }
+
         // Generate new EC P-256 keypair
         $cnf = self::getOpenSslConf();
         $args = [
@@ -255,6 +293,17 @@ class PushNotificationService {
             return ['success' => false, 'error' => 'Missing subscription credentials', 'statusCode' => 0];
         }
 
+        if (!empty($sub['isDead']) || (isset($sub['isActive']) && $sub['isActive'] === false)) {
+            return [
+                'success' => false,
+                'error' => 'Subscription marked inactive/dead. Awaiting device renewal.',
+                'statusCode' => 410,
+                'isDead' => true,
+                'endpoint' => $endpoint,
+                'device' => $sub['device'] ?? 'Device'
+            ];
+        }
+
         try {
             // Standardize notification payload for Service Worker
             $notifId = $payloadData['id'] ?? ($payloadData['notification_id'] ?? ('notif_' . substr(md5(($payloadData['title'] ?? '') . microtime()), 0, 10)));
@@ -278,7 +327,8 @@ class PushNotificationService {
                         'duplicate' => true,
                         'message' => 'Duplicate push suppressed: already delivered to this device.',
                         'endpoint' => $endpoint,
-                        'statusCode' => 200
+                        'statusCode' => 200,
+                        'device' => $sub['device'] ?? 'Device'
                     ];
                 }
             }
@@ -337,7 +387,7 @@ class PushNotificationService {
                 $reason = ($statusCode === 403 || $statusCode === 401)
                     ? 'PUSH_GATEWAY_CREDENTIALS_REJECTED_HTTP_' . $statusCode
                     : 'PUSH_GATEWAY_EXPIRED_HTTP_' . $statusCode;
-                self::deactivateSubscription($endpoint, $reason);
+                self::deactivateSubscription($endpoint, $reason, true);
             } elseif ($isSuccess) {
                 self::markSubscriptionUsed($endpoint);
             }
@@ -357,12 +407,15 @@ class PushNotificationService {
             return [
                 'success' => $isSuccess,
                 'statusCode' => $statusCode,
-                'response' => $response,
-                'endpoint' => $endpoint
+                'response' => (string)$response,
+                'error' => $curlError ?: ($isSuccess ? null : trim((string)$response)),
+                'endpoint' => $endpoint,
+                'isDead' => in_array($statusCode, [400, 401, 403, 404, 410]),
+                'device' => $sub['device'] ?? 'Device'
             ];
         } catch (\Throwable $e) {
             error_log("PushNotificationService error: " . $e->getMessage());
-            return ['success' => false, 'error' => $e->getMessage(), 'statusCode' => 500];
+            return ['success' => false, 'error' => $e->getMessage(), 'statusCode' => 500, 'endpoint' => $endpoint];
         }
     }
 
@@ -377,6 +430,7 @@ class PushNotificationService {
 
         $filter = [
             'isActive' => ['$ne' => false],
+            'isDead' => ['$ne' => true],
             '$or' => [
                 ['userId' => $userId],
                 ['userId' => (string)$userId]
@@ -392,7 +446,7 @@ class PushNotificationService {
                 $results['sent']++;
             } else {
                 $results['failed']++;
-                if (in_array($res['statusCode'] ?? 0, [404, 410])) {
+                if (in_array($res['statusCode'] ?? 0, [400, 401, 403, 404, 410])) {
                     $results['deactivated']++;
                 }
             }
@@ -417,7 +471,7 @@ class PushNotificationService {
     /**
      * Deactivate dead/expired/rejected subscription
      */
-    public static function deactivateSubscription(string $endpoint, string $reason = 'HTTP_EXPIRED'): void {
+    public static function deactivateSubscription(string $endpoint, string $reason = 'HTTP_EXPIRED', bool $isDead = true): void {
         try {
             $subCol = getCollection("PushSubscription");
             if ($subCol) {
@@ -425,6 +479,7 @@ class PushNotificationService {
                     ['endpoint' => $endpoint],
                     ['$set' => [
                         'isActive' => false,
+                        'isDead' => $isDead,
                         'deactivatedAt' => new MongoDB\BSON\UTCDateTime(),
                         'deactivationReason' => $reason
                     ]]
@@ -432,6 +487,7 @@ class PushNotificationService {
             }
         } catch (\Throwable $e) {}
     }
+
 
     /**
      * Update last used timestamp of successful delivery

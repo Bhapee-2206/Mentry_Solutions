@@ -6,8 +6,7 @@
         "p256dh": "BFRVsjmEFRjwv0wqWGJEW5umTx8chag1RvZDLY9_FlFjzxA-2sdgc7iVrD80j4TSw1FGtB0RgBT1107dvA-6a8k",
         "userId": "6a9ab2ebf1624b69330f5678",
         "endpoint": "https://fcm.googleapis.com/fcm/send/eG-fp1D-I10:APA91bGhsSX6ujzqAzfXyKaH3XTxkksIeqYiEVFWwQBu1Iic_A98m3l1o9cdXdOoRWODbq_PbNwRuZe12vjbZ03GyuSXLitnClYfYokPWexKySP3yxyp-fZtbzZr71JenQiZO-dlyrTv",
-        "isActive": false,
-        "deactivationReason": "FCM_VAPID_KEY_MISMATCH_HTTP_403",
+        "isActive": true,
         "userRole": "TRAINER",
         "createdAt": "1789242785664",
         "updatedAt": "1789271610253",
@@ -42,11 +41,12 @@
         "userId": "6a99b5baf1624b69330f560e",
         "endpoint": "https://fcm.googleapis.com/fcm/send/dO0OH1G5GnY:APA91bElLYTRwaS0Rebyx85mYb2rdh33jhILbMw4gNlsQ9hloBvJTJ1RIeXaR0dMsrCrRKa2TdrguVL2mKtVkdJvlu_8GWP8ksS6cmDoLGQQElrcegZ14CUl2nneAZNrqqVPqcvIi1n7",
         "isActive": false,
-        "deactivationReason": "FCM_VAPID_KEY_MISMATCH_HTTP_403",
         "userRole": "TRAINER",
         "createdAt": "1789271336951",
-        "updatedAt": "1789273972926",
-        "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Mobile Safari/537.36"
+        "updatedAt": "1789277103417",
+        "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Mobile Safari/537.36",
+        "deactivatedAt": "1789277103417",
+        "deactivationReason": "PUSH_GATEWAY_CREDENTIALS_REJECTED_HTTP_403"
     },
     {
         "ip": "::1",
@@ -98,15 +98,17 @@
         "userId": "6a99b577f1624b69330f55b3",
         "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Sa",
         "endpoint": "https://fcm.googleapis.com/fcm/send/d-bZoHFXJxE:APA91bH_lpqm4vJ-K3zya4DktxLzdZDzU1f8LNfef448v6y93WZZw7orveXLx_394xRMLcFscek_FCWUaP432kKFe2ZA-ROzne43-37ir_0nefc3xsLJiAsk7LsZV46u9WT8zXg1Knyf",
-        "isActive": true,
+        "isActive": false,
         "platform": "Win32",
         "userRole": "ADMIN",
         "createdAt": "1789272777528",
         "trainerId": null,
-        "updatedAt": "1789276400954",
+        "updatedAt": "1789277373020",
         "userAgent": null,
         "lastUsedAt": "1789276400954",
-        "lastActiveAt": "1789272777528"
+        "lastActiveAt": "1789272777528",
+        "deactivatedAt": "1789277373020",
+        "deactivationReason": "REPLACED_BY_NEW_CLIENT_SUBSCRIPTION"
     },
     {
         "ip": "::1",
@@ -117,8 +119,7 @@
         "userId": "6a99b577f1624b69330f55b3",
         "browser": "",
         "endpoint": "https://test-endpoint.com/123",
-        "isActive": false,
-        "deactivationReason": "TEST_DUMMY_ENDPOINT",
+        "isActive": true,
         "platform": "",
         "userRole": "ADMIN",
         "createdAt": "1789270983869",
@@ -145,5 +146,23 @@
         "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
         "lastUsedAt": "1789276402897",
         "lastActiveAt": "1789274090917"
+    },
+    {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/fvhpdpAlJWc:APA91bHYVC3-dP9kZTHcrkYVN1-w42E92Kv-jvG_2sjmMoGyu4sF1Q0BcSTlxuzGtFUNBHLnmpZscvLyGnfERoB1RzupXVZbS8qNgHJRy7h5ghnvYMPeeRP7Qli7LYwINUt_fk4LrtGX",
+        "p256dh": "BItUVguxoK5zijcegBUBItcKUPnX8mrlSBJREAq6yMiimoUDJx0HGKBU36zBtnviLFpvzDpNDbT048GF0bQ1bUw",
+        "auth": "7PcYEWOWorC5ixgv9ECl5Q",
+        "userId": "6a99b577f1624b69330f55b3",
+        "trainerId": null,
+        "userRole": "ADMIN",
+        "device": "Desktop/Dev",
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Sa",
+        "platform": "Win32",
+        "ip": "::1",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+        "isActive": true,
+        "updatedAt": "1789277373986",
+        "lastActiveAt": "1789277373986",
+        "_id": "6aa634bde179992e9a0967ba",
+        "createdAt": "1789277373986"
     }
 ]

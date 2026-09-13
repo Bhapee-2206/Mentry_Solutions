@@ -461,6 +461,13 @@ async function subscribeThisDevice() {
         }
 
         const convertedKey = urlB64ToUint8Array(data.publicKey);
+        const existingSub = await reg.pushManager.getSubscription();
+        let oldEndpoint = null;
+        if (existingSub) {
+            oldEndpoint = existingSub.endpoint;
+            try { await existingSub.unsubscribe(); } catch(e) {}
+        }
+
         const sub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: convertedKey
@@ -470,6 +477,9 @@ async function subscribeThisDevice() {
         subJson.platform = navigator.platform || 'Unknown';
         subJson.device = 'Desktop/Dev';
         subJson.browser = navigator.userAgent;
+        if (oldEndpoint) {
+            subJson.oldEndpoint = oldEndpoint;
+        }
 
         const saveRes = await fetch(base + '/actions/save-push-subscription.php', {
             method: 'POST',
@@ -483,6 +493,7 @@ async function subscribeThisDevice() {
     } catch(err) {
         alert('Subscription error: ' + err.message);
     }
+
 }
 
 async function sendTestPushToThisDevice() {

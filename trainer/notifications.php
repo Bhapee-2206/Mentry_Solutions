@@ -263,50 +263,107 @@ async function updatePushStatusUI() {
         return;
     }
 
-    if (Notification.permission === 'granted') {
-        try {
-            const reg = await navigator.serviceWorker.ready;
-            const sub = await reg.pushManager.getSubscription();
-            if (sub) {
-                badge.textContent = '✓ ACTIVE ON THIS DEVICE';
-                badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-                desc.textContent = 'Push notifications are fully connected! You will receive alerts even when the app is closed.';
-                btnText.textContent = 'Send Test Alert';
-                btn.className = 'w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700';
-                iconBox.className = 'w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0';
-                return;
-            }
-        } catch(e) {}
-    }
-
     if (Notification.permission === 'denied') {
         badge.textContent = 'BLOCKED';
         badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30';
         desc.textContent = 'Notifications blocked in browser. Tap the padlock/tune icon in your address bar to enable.';
         btn.classList.add('hidden');
-    } else {
-        badge.textContent = 'NOT CONNECTED';
-        badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
-        desc.textContent = 'Receive push notifications on your phone lock screen outside the app.';
-        btnText.textContent = 'Connect Phone Alerts';
-    }
-}
-
-async function syncTrainerPushDevice() {
-    const btnText = document.getElementById('btnSyncPushText');
-    const base = getAppBaseUrl();
-
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-        alert('Push notifications are not supported on this browser.');
         return;
     }
 
-    btnText.textContent = 'Connecting...';
+    if (Notification.permission === 'granted') {
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+                // Verify with backend that this endpoint is active and not rejected
+                const base = getAppBaseUrl();
+                let serverCheck = null;
+                try {
+                    const chkRes = await fetch(base + '/actions/check-subscription-status.php?_t=' + Date.now(), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ endpoint: sub.endpoint })
+                    });
+                    serverCheck = await chkRes.json();
+                } catch(e) {}
+
+                if (serverCheck && serverCheck.success && serverCheck.active && !serverCheck.isDead && !serverCheck.requireRefresh) {
+                    badge.textContent = '✓ ACTIVE ON THIS DEVICE';
+                    badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                    desc.textContent = 'Push alerts connected via production VAPID. Alerts arrive even when Mentry is closed.';
+                    btnText.textContent = 'Send Test Alert';
+                    btn.className = 'w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700';
+                    iconBox.className = 'w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0';
+                    btn.onclick = sendTrainerTestPush;
+                    return;
+                } else {
+                    // Gateway rejected or stale token: trigger automatic background renewal
+                    badge.textContent = '● RENEWING TOKEN...';
+                    badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                    desc.textContent = 'Refreshing push gateway token with production VAPID authority...';
+                    btnText.textContent = 'Reconnect Alerts';
+                    btn.onclick = () => forceRenewPushSubscription(true);
+                    forceRenewPushSubscription(false);
+                    return;
+                }
+            } else {
+                // Permission granted but no subscription: auto-subscribe
+                badge.textContent = '● CONNECTING...';
+                badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30';
+                desc.textContent = 'Registering device with production VAPID push gateway...';
+                btnText.textContent = 'Connecting...';
+                forceRenewPushSubscription(false);
+                return;
+            }
+        } catch(e) {}
+    }
+
+    badge.textContent = 'NOT CONNECTED';
+    badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
+    desc.textContent = 'Receive push notifications on your phone lock screen outside the app.';
+    btnText.textContent = 'Connect Phone Alerts';
+    btn.onclick = () => forceRenewPushSubscription(true);
+}
+
+async function sendTrainerTestPush() {
+    const btnText = document.getElementById('btnSyncPushText');
+    const base = getAppBaseUrl();
+    btnText.textContent = 'Sending...';
+
+    try {
+        const testRes = await fetch(base + '/actions/send-test-trainer-notification.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'title=' + encodeURIComponent('🔔 Mentry Test Alert') + 
+                  '&message=' + encodeURIComponent('Live background alert confirmed! Notifications will reach you even when Mentry is closed.')
+        });
+        const testData = await testRes.json();
+        btnText.textContent = 'Send Test Alert';
+        if (testData.success && testData.pushDeliveredCount > 0) {
+            alert('✓ ' + (testData.message || 'Test alert delivered!'));
+        } else {
+            alert('Push Gateway Response: ' + (testData.message || 'Delivery in progress'));
+            // Re-verify UI in case token was invalidated
+            updatePushStatusUI();
+        }
+    } catch(err) {
+        btnText.textContent = 'Send Test Alert';
+        alert('Test error: ' + err.message);
+    }
+}
+
+async function forceRenewPushSubscription(showUserAlert = false) {
+    const btnText = document.getElementById('btnSyncPushText');
+    const base = getAppBaseUrl();
+    if (btnText) btnText.textContent = 'Connecting...';
 
     try {
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') {
-            alert('Notification permission was denied. Please allow notifications in your browser settings.');
+            if (showUserAlert) {
+                alert('Notification permission was denied. Please enable notifications in your browser address bar.');
+            }
             updatePushStatusUI();
             return;
         }
@@ -325,41 +382,13 @@ async function syncTrainerPushDevice() {
         let oldEndpoint = null;
 
         if (existingSub) {
-            // Verify if key matches current production VAPID key
-            const subKey = existingSub.options && existingSub.options.applicationServerKey;
-            let keyMatches = false;
-            if (subKey) {
-                const subKeyBytes = new Uint8Array(subKey);
-                if (subKeyBytes.length === convertedKey.length) {
-                    keyMatches = subKeyBytes.every((v, i) => v === convertedKey[i]);
-                }
-            }
-
-            if (keyMatches) {
-                // Key already matches! Send test push directly
-                btnText.textContent = 'Sending...';
-                const testRes = await fetch(base + '/actions/send-test-trainer-notification.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'title=' + encodeURIComponent('🔔 Mentry Test Alert') + 
-                          '&message=' + encodeURIComponent('Live background alert confirmed! Notifications will reach you even when Mentry is closed.')
-                });
-                const testData = await testRes.json();
-                btnText.textContent = 'Send Test Alert';
-                if (testData.success && testData.pushDeliveredCount > 0) {
-                    alert('✓ ' + (testData.message || 'Test alert delivered!'));
-                } else {
-                    alert('Notice: ' + (testData.message || 'Push test completed'));
-                }
-                return;
-            } else {
-                // Old key mismatch! Capture old endpoint to deactivate on server
-                oldEndpoint = existingSub.endpoint;
-                try { await existingSub.unsubscribe(); } catch(e) {}
-            }
+            oldEndpoint = existingSub.endpoint;
+            try {
+                await existingSub.unsubscribe();
+            } catch(e) {}
         }
 
-        // Subscribe fresh with current production key
+        // Fresh subscription with current production VAPID key
         const newSub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: convertedKey
@@ -379,53 +408,24 @@ async function syncTrainerPushDevice() {
             body: JSON.stringify(subJson)
         });
 
-        // Trigger immediate test push to verify
-        const testRes = await fetch(base + '/actions/send-test-trainer-notification.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'title=' + encodeURIComponent('🚀 Mentry Push Alerts Connected!') + 
-                  '&message=' + encodeURIComponent('Your device is now connected! You will receive instant notifications for training opportunities.')
-        });
-        const testData = await testRes.json();
-
         updatePushStatusUI();
-        alert('🎉 Success! Device registered with production VAPID key. You will receive notifications even when Mentry is closed.');
+
+        if (showUserAlert) {
+            alert('🎉 Phone Alerts Connected! You will receive push notifications even when Mentry is completely closed.');
+        }
     } catch(err) {
-        btnText.textContent = 'Retry Connection';
-        alert('Push registration error: ' + err.message);
+        if (btnText) btnText.textContent = 'Retry Connection';
+        if (showUserAlert) {
+            alert('Push registration error: ' + err.message);
+        }
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     updatePushStatusUI();
-    // Auto-verify and migrate subscription in background if permission is granted
-    if (Notification.permission === 'granted' && 'serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(reg => {
-            reg.pushManager.getSubscription().then(async (sub) => {
-                try {
-                    const base = getAppBaseUrl();
-                    const res = await fetch(base + '/actions/get-vapid-public-key.php?_t=' + Date.now(), { cache: 'no-store' });
-                    const data = await res.json();
-                    if (data && data.publicKey) {
-                        const convertedKey = urlB64ToUint8Array(data.publicKey);
-                        let keyMatches = false;
-                        if (sub && sub.options && sub.options.applicationServerKey) {
-                            const subKeyBytes = new Uint8Array(sub.options.applicationServerKey);
-                            if (subKeyBytes.length === convertedKey.length) {
-                                keyMatches = subKeyBytes.every((v, i) => v === convertedKey[i]);
-                            }
-                        }
-                        if (!sub || !keyMatches) {
-                            // Automatically update subscription with production key
-                            syncTrainerPushDevice();
-                        }
-                    }
-                } catch(e) {}
-            });
-        });
-    }
 });
 </script>
+
 
 </main>
 </div>

@@ -90,7 +90,7 @@ try {
     if ($subCol) {
         $allSubs = $subCol->find([])->toArray();
         foreach ($allSubs as $s) {
-            if (($s['isActive'] ?? true) === false) continue;
+            if (($s['isActive'] ?? true) === false || !empty($s['isDead'])) continue;
             $sUid = (string)($s['userId'] ?? '');
             $sTid = (string)($s['trainerId'] ?? '');
             if ($sUid === (string)$targetUserId || (!empty($trainerId) && $sTid === (string)$trainerId)) {
@@ -120,24 +120,27 @@ try {
         $isOk = !empty($res['success']);
         if ($isOk) {
             $pushDelivered++;
-            $deliveryDetails[] = "HTTP {$code}: Delivered successfully to " . ($sub['device'] ?? 'Device');
+            $deliveryDetails[] = "Push Delivered (HTTP {$code}) to " . ($sub['device'] ?? 'Device');
         } else {
             $pushFailed++;
+            $subId = (string)($sub['_id'] ?? 'unknown');
             if ($code === 403 || $code === 401) {
-                $deliveryDetails[] = "HTTP {$code}: Subscription rejected by push gateway (credentials mismatch). Endpoint marked inactive on server; device will automatically renew with production VAPID key on next session.";
+                $deliveryDetails[] = "Push failed | Reason: Subscription rejected by push service | HTTP: {$code} | Subscription: inactive | Action: subscription will be refreshed on next device visit";
             } elseif ($code === 404 || $code === 410) {
-                $deliveryDetails[] = "HTTP {$code}: Push token expired or unsubscribed. Endpoint marked inactive.";
+                $deliveryDetails[] = "Push failed | Reason: Subscription expired or unregistered | HTTP: {$code} | Subscription: inactive | Action: device will re-subscribe";
             } else {
-                $deliveryDetails[] = "HTTP {$code}: " . ($res['error'] ?: 'Delivery failed');
+                $errText = $res['error'] ?: 'Gateway connection failure';
+                $deliveryDetails[] = "Push failed | Reason: {$errText} | HTTP: {$code} | Subscription ID: {$subId}";
             }
         }
     }
 
     $msg = ($pushDelivered > 0)
-        ? "Web Push notification delivered to {$pushDelivered} device(s)."
+        ? "Push Delivered: {$pushDelivered} device(s) confirmed via Web Push (HTTP 201)."
         : (count($targetSubs) === 0 
-            ? "In-app alert created. No active push subscriptions currently registered for this trainer. Device will auto-register upon next session."
-            : "In-app alert created. Push gateway status: " . implode(' | ', $deliveryDetails));
+            ? "In-app alert created. No active push subscriptions found for this trainer (or previous expired token pending renewal on device)."
+            : "In-app alert created. Push delivery issue: " . implode(' | ', $deliveryDetails));
+
 
     if (ob_get_length()) ob_clean();
     echo json_encode([

@@ -57,6 +57,26 @@ try {
         }
     }
 
+    // Check if this specific endpoint was already permanently rejected by push gateway
+    $existing = $subCol->findOne(['endpoint' => $endpoint]);
+    if ($existing && (!empty($existing['isDead']) || in_array($existing['deactivationReason'] ?? '', [
+        'PUSH_GATEWAY_CREDENTIALS_REJECTED_HTTP_403',
+        'PUSH_GATEWAY_EXPIRED_HTTP_410',
+        'FCM_VAPID_KEY_MISMATCH_HTTP_403',
+        'HTTP_410_OR_404_EXPIRED'
+    ]))) {
+        // This endpoint was rejected by Google FCM / push service and is permanently invalid on Google's servers.
+        // Reject saving and tell client to unsubscribe & get a brand new endpoint from pushManager.subscribe()
+        if (ob_get_length()) ob_clean();
+        echo json_encode([
+            'success' => false,
+            'isDead' => true,
+            'requireNewSubscription' => true,
+            'error' => 'Push endpoint rejected by gateway. Fresh subscription required.'
+        ]);
+        exit();
+    }
+
     // Deactivate old subscription endpoint if client replaced it
     if (!empty($data['oldEndpoint']) && $data['oldEndpoint'] !== $endpoint) {
         $oldEndpoint = cleanString($data['oldEndpoint'], 2000);
@@ -69,6 +89,7 @@ try {
             ]]
         );
     }
+
 
     $subCol->updateOne(
         ['endpoint' => $endpoint],

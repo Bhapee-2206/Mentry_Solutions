@@ -390,7 +390,7 @@ if ($isAdminContext) {
             let oldEndpoint = null;
 
             if (existingSub) {
-                // Check if existing subscription used the current VAPID key
+                // 1. Check if existing subscription used the current VAPID key
                 const currentKeyArray = urlB64ToUint8Array(vapidKey);
                 const subKey = existingSub.options && existingSub.options.applicationServerKey;
                 let keyMatches = false;
@@ -401,11 +401,25 @@ if ($isAdminContext) {
                     }
                 }
 
-                if (keyMatches) {
-                    sendSubscriptionToServer(existingSub);
+                // 2. Verify subscription status with server (checks if FCM rejected it or marked dead)
+                let serverStatus = null;
+                try {
+                    const statusRes = await fetch(base + '/actions/check-subscription-status.php?_t=' + Date.now(), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ endpoint: existingSub.endpoint })
+                    });
+                    serverStatus = await statusRes.json();
+                } catch(e) {}
+
+                const isServerActive = serverStatus && serverStatus.success && serverStatus.active && !serverStatus.isDead && !serverStatus.requireRefresh;
+
+                if (keyMatches && isServerActive) {
+                    // Subscription is verified active on server & VAPID key matches
                     return existingSub;
                 } else {
-                    // Key mismatch: old dummy key! Unsubscribe and re-subscribe with real key
+                    // Token expired, key mismatched, or gateway rejected (HTTP 403/410):
+                    // MUST unsubscribe from FCM to discard dead token and get a fresh one!
                     oldEndpoint = existingSub.endpoint;
                     try {
                         await existingSub.unsubscribe();
@@ -418,14 +432,14 @@ if ($isAdminContext) {
                 userVisibleOnly: true,
                 applicationServerKey: convertedKey
             });
-            sendSubscriptionToServer(newSub, oldEndpoint);
+            await sendSubscriptionToServer(newSub, oldEndpoint);
             return newSub;
         } catch (err) {
             console.log('[Mentry Push] Subscription notice:', err.message);
         }
     }
 
-    function sendSubscriptionToServer(sub, oldEndpoint = null) {
+    async function sendSubscriptionToServer(sub, oldEndpoint = null) {
         if (!sub) return;
         const base = getPwaBaseUrl();
         const subData = JSON.parse(JSON.stringify(sub));
@@ -436,11 +450,18 @@ if ($isAdminContext) {
             subData.oldEndpoint = oldEndpoint;
         }
 
-        fetch(base + '/actions/save-push-subscription.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(subData)
-        }).catch(() => {});
+        try {
+            const res = await fetch(base + '/actions/save-push-subscription.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(subData)
+            });
+            const data = await res.json();
+            if (data && data.requireNewSubscription) {
+                // If server indicated this endpoint was permanently rejected, force unsubscribe and retry
+                try { await sub.unsubscribe(); } catch(e) {}
+            }
+        } catch(e) {}
     }
 
     function getBrowserName() {

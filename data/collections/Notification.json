@@ -3783,28 +3783,30 @@
     {
         "_id": "ccc2dfe254a896b11b2b0774",
         "link": "/trainer/applications.php",
-        "read": false,
+        "read": true,
         "type": "APPLICATION_ACCEPTED",
         "title": "🎉 Application Accepted: Automated Verified Python & Cloud Workshop",
+        "readAt": "1789276573341",
         "userId": "6a99b5baf1624b69330f560e",
         "message": "Congratulations! Your application has been ACCEPTED by Mentry Operations. Your assignment is scheduled.",
         "createdAt": "1789273142370",
         "trainerId": "6a99b5baf1624b69330f560f",
-        "updatedAt": "1789273142371",
+        "updatedAt": "1789276573342",
         "applicationId": "638d5af60c94dcf883aa4c2a",
         "opportunityId": "6a9d83a2f1624b69330f569b"
     },
     {
         "_id": "6aa624c3e179992e9a096789",
         "link": "/trainer/notifications.php",
-        "read": false,
+        "read": true,
         "type": "SYSTEM_ALERT",
         "title": "🎉 Selected: Technical Campus Training",
+        "readAt": "1789276573341",
         "userId": "6a99b5baf1624b69330f560e",
         "message": "Congratulations! You have been selected for the campus training batch. Honorarium and travel logistics confirmed.",
         "createdAt": "1789273283546",
         "trainerId": "6a99b5baf1624b69330f560f",
-        "updatedAt": "1789273283564"
+        "updatedAt": "1789276573342"
     },
     {
         "_id": "6aa6263be179992e9a09678b",
@@ -3941,13 +3943,14 @@
     {
         "_id": "6aa62648e179992e9a09679c",
         "link": "/trainer/notifications.php",
-        "read": false,
+        "read": true,
         "type": "WELCOME_TRAINER",
         "title": "Welcome to Mentry Solutions! 🎉",
+        "readAt": "1789276573341",
         "userId": "6a99b5baf1624b69330f560e",
         "message": "Welcome aboard! Your trainer portal is active. You will receive real-time push alerts for new matching opportunities & assignments.",
         "createdAt": "1789273672642",
-        "updatedAt": "1789273672642"
+        "updatedAt": "1789276573342"
     },
     {
         "_id": "6aa62649e179992e9a09679e",
@@ -4106,13 +4109,14 @@
     {
         "_id": "6aa62644e179992e9a096792",
         "link": "/trainer/notifications.php",
-        "read": false,
+        "read": true,
         "type": "WELCOME_TRAINER",
         "title": "Welcome to Mentry Solutions! 🎉",
+        "readAt": "1789276573341",
         "userId": "6a99b5baf1624b69330f560e",
         "message": "Welcome aboard! Your trainer portal is active. You will receive real-time push alerts for new matching opportunities & assignments.",
         "createdAt": "1789273668610",
-        "updatedAt": "1789273668610"
+        "updatedAt": "1789276573342"
     },
     {
         "_id": "6aa62649e179992e9a0967a0",
@@ -4161,6 +4165,19 @@
         "updatedAt": "1789276397976"
     },
     {
+        "_id": "6aa63133e179992e9a0967b6",
+        "link": "/trainer/notifications.php",
+        "read": true,
+        "type": "SYSTEM_ALERT",
+        "title": "🎉 Selected: Technical Campus Training",
+        "readAt": "1789276573341",
+        "userId": "6a99b5baf1624b69330f560e",
+        "message": "Congratulations! You have been selected for the campus training batch. Honorarium and travel logistics confirmed.",
+        "createdAt": "1789276467398",
+        "trainerId": "6a99b5baf1624b69330f560f",
+        "updatedAt": "1789276573342"
+    },
+    {
         "userId": "6a99b5baf1624b69330f560e",
         "trainerId": "6a99b5baf1624b69330f560f",
         "type": "SYSTEM_ALERT",
@@ -4168,8 +4185,8 @@
         "message": "Congratulations! You have been selected for the campus training batch. Honorarium and travel logistics confirmed.",
         "link": "/trainer/notifications.php",
         "read": false,
-        "createdAt": "1789276467398",
-        "_id": "6aa63133e179992e9a0967b6",
-        "updatedAt": "1789276467400"
+        "createdAt": "1789277099580",
+        "_id": "6aa633abe179992e9a0967b8",
+        "updatedAt": "1789277099584"
     }
 ]
