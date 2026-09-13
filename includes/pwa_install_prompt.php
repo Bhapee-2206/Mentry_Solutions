@@ -21,6 +21,18 @@ if ($isAdminContext) {
     echo '<script>window.promptPWAInstall = function() { /* PWA disabled for Admin */ };</script>';
     return;
 }
+
+$pwaUserId = null;
+if (!empty($_SESSION['user']['id'])) {
+    $pwaUserId = (string)$_SESSION['user']['id'];
+} elseif (!empty($_SESSION['user']['_id'])) {
+    $pwaUserId = (string)$_SESSION['user']['_id'];
+} elseif (!empty($_SESSION['user_id'])) {
+    $pwaUserId = (string)$_SESSION['user_id'];
+} elseif (function_exists('getCurrentUser')) {
+    $u = getCurrentUser();
+    if (!empty($u['id'])) $pwaUserId = (string)$u['id'];
+}
 ?>
 <!-- PWA Install Floating Banner -->
 <div id="mentryPwaBanner" class="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:w-96 z-50 transform translate-y-32 opacity-0 transition-all duration-300 pointer-events-none select-none">
@@ -48,62 +60,35 @@ if ($isAdminContext) {
                 <span class="material-symbols-outlined text-[16px]">install_mobile</span>
                 <span>Install to Home Screen</span>
             </button>
-            <button type="button" onclick="dismissPwaBanner(true)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs py-2.5 px-3 rounded-xl transition-colors">
-                Later
+            <button type="button" onclick="dismissPwaBanner(true)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs py-2.5 px-3 rounded-xl transition-colors cursor-pointer">
+                Not now
             </button>
         </div>
     </div>
 </div>
 
-<!-- iOS Safari "Add to Home Screen" Instructions Modal -->
-<div id="mentryIosModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm hidden items-end sm:items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full text-white shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-white rounded-xl p-1 shrink-0 border border-slate-200">
-                    <img src="/public/mentry.png" alt="Mentry" class="w-full h-full object-contain">
-                </div>
-                <div>
-                    <h3 class="font-extrabold text-sm text-white">Install Mentry on iPhone / iPad</h3>
-                    <p class="text-[11px] text-slate-400">Add to Home Screen in 3 steps</p>
-                </div>
-            </div>
-            <button type="button" onclick="closeIosModal()" class="text-slate-400 hover:text-white p-1">
-                <span class="material-symbols-outlined text-[20px]">close</span>
-            </button>
+<!-- iOS PWA Manual Instructions Modal -->
+<div id="mentryIosModal" class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm hidden items-end sm:items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-6 text-white text-center space-y-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-[#FE5E04]/20 border border-[#FE5E04]/30 text-[#FE5E04] flex items-center justify-center shadow-inner">
+            <span class="material-symbols-outlined text-[28px]">ios_share</span>
         </div>
-
-        <div class="space-y-3 text-xs text-slate-300">
-            <div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/60">
-                <div class="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">1</div>
-                <div class="flex-1">
-                    Tap the <strong class="text-white font-semibold">Share</strong> button in Safari's toolbar:
-                    <span class="inline-flex items-center align-middle mx-1 text-blue-400">
-                        <span class="material-symbols-outlined text-[18px]">ios_share</span>
-                    </span>
-                </div>
+        <div>
+            <h3 class="font-extrabold text-base text-white">Install Mentry on iPhone</h3>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">Follow these 2 quick steps in Safari to add Mentry to your Home Screen:</p>
+        </div>
+        <div class="bg-slate-950/70 rounded-2xl p-4 text-left text-xs space-y-3 border border-slate-800/70">
+            <div class="flex items-start gap-3">
+                <span class="w-5 h-5 rounded-full bg-[#FE5E04] text-white font-black text-[11px] flex items-center justify-center shrink-0">1</span>
+                <span class="text-slate-200">Tap the <strong class="text-white">Share</strong> button <span class="material-symbols-outlined text-[14px] align-middle text-blue-400">ios_share</span> at the bottom of your Safari screen.</span>
             </div>
-
-            <div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/60">
-                <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">2</div>
-                <div class="flex-1">
-                    Scroll down and tap <strong class="text-white font-semibold">"Add to Home Screen"</strong>:
-                    <span class="inline-flex items-center align-middle mx-1 text-amber-400">
-                        <span class="material-symbols-outlined text-[18px]">add_box</span>
-                    </span>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/60">
-                <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">3</div>
-                <div class="flex-1">
-                    Tap <strong class="text-white font-semibold">"Add"</strong> in the top-right corner. Mentry is now installed as an app!
-                </div>
+            <div class="flex items-start gap-3">
+                <span class="w-5 h-5 rounded-full bg-[#FE5E04] text-white font-black text-[11px] flex items-center justify-center shrink-0">2</span>
+                <span class="text-slate-200">Scroll down and tap <strong class="text-white">Add to Home Screen</strong> <span class="material-symbols-outlined text-[14px] align-middle text-emerald-400">add_box</span>.</span>
             </div>
         </div>
-
-        <button type="button" onclick="closeIosModal()" class="w-full bg-[#FE5E04] hover:bg-[#e04e00] text-white font-bold text-xs py-3 rounded-xl transition-all shadow-md">
-            Got It!
+        <button type="button" onclick="closeIosModal()" class="w-full bg-[#FE5E04] hover:bg-[#e04e00] text-white font-bold text-xs py-3 rounded-xl transition-all cursor-pointer">
+            Got it, thanks!
         </button>
     </div>
 </div>
@@ -138,6 +123,7 @@ if ($isAdminContext) {
 
 <script>
 (function() {
+    const MENTRY_CURRENT_USER_ID = <?= json_encode($pwaUserId) ?>;
     let deferredPrompt = null;
     let activeSwReg = null;
     const banner = document.getElementById('mentryPwaBanner');
@@ -448,6 +434,9 @@ if ($isAdminContext) {
         subData.platform = navigator.platform || 'Unknown';
         subData.device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
         subData.browser = getBrowserName();
+        if (MENTRY_CURRENT_USER_ID) {
+            subData.userId = MENTRY_CURRENT_USER_ID;
+        }
         if (oldEndpoint) {
             subData.oldEndpoint = oldEndpoint;
         }
@@ -455,13 +444,29 @@ if ($isAdminContext) {
         try {
             const res = await fetch(base + '/actions/save-push-subscription.php', {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(subData)
             });
             const data = await res.json();
             if (data && data.requireNewSubscription) {
-                // If server indicated this endpoint was permanently rejected, force unsubscribe and retry
-                try { await sub.unsubscribe(); } catch(e) {}
+                // If server indicated this endpoint was permanently rejected (e.g. HTTP 410 / 403),
+                // automatically unsubscribe and request a fresh token without requiring manual trainer reload
+                try {
+                    await sub.unsubscribe();
+                    const vapidKey = await getVapidPublicKey();
+                    if (vapidKey && 'serviceWorker' in navigator) {
+                        const swReg = await navigator.serviceWorker.ready;
+                        if (swReg && swReg.pushManager) {
+                            const convertedKey = urlB64ToUint8Array(vapidKey);
+                            const brandNewSub = await swReg.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: convertedKey
+                            });
+                            await sendSubscriptionToServer(brandNewSub, sub.endpoint, deviceId);
+                        }
+                    }
+                } catch(e) {}
             }
         } catch(e) {}
     }

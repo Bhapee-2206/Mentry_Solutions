@@ -4,6 +4,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/notifications.php';
 requireAdminOrStaff();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -55,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'endDate' => $endDateObj,
                     'durationDays' => $durationDays,
                     'studentCount' => $req['studentCount'] ?? 100,
+                    'trainersNeeded' => max(1, (int)($req['trainersNeeded'] ?? 1)),
                     'dailyRateMin' => $dailyRateMin, // Admin-configured trainer honorarium!
                     'dailyRateMax' => $dailyRateMax, // Admin-configured trainer honorarium!
                     'minExperienceYears' => 3,
@@ -87,6 +89,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'updatedAt' => new MongoDB\BSON\UTCDateTime()
                     ]]
                 );
+
+                // Automatically notify matching trainers with live push notifications
+                if (function_exists('notifyMatchingTrainersForOpportunity')) {
+                    notifyMatchingTrainersForOpportunity($newOppId);
+                }
 
                 header("Location: /admin/opportunity-view.php?id=" . $newOppId);
                 exit();

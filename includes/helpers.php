@@ -157,6 +157,8 @@ function getStatusBadge($status) {
         case 'SUSPENDED':
         case 'CANCELLED':
             return '<span class="bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold px-2.5 py-0.5 rounded-full">' . htmlspecialchars(str_replace('_', ' ', $status)) . '</span>';
+        case 'RELIEVED':
+            return '<span class="bg-amber-50 text-amber-800 border border-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"><span class="material-symbols-outlined text-[13px] text-amber-600">person_remove</span> RELIEVED</span>';
         default:
             return '<span class="bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">' . htmlspecialchars(str_replace('_', ' ', $status)) . '</span>';
     }
@@ -1110,7 +1112,7 @@ function syncAssignmentStatuses() {
         if (empty($asgId)) continue;
 
         $currentStatus = strtoupper($asg['status'] ?? 'SCHEDULED');
-        if ($currentStatus === 'CANCELLED') continue;
+        if ($currentStatus === 'CANCELLED' || $currentStatus === 'RELIEVED') continue;
 
         $startDate = $asg['startDate'] ?? null;
         $startTs = null;

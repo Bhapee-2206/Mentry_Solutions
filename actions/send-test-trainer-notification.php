@@ -65,22 +65,51 @@ try {
     $targetUser = $userCol ? $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId($targetUserId)]) : null;
     $targetName = $targetUser['name'] ?? 'Trainer';
 
-    $testTitle = !empty($_POST['title']) ? cleanString($_POST['title'], 200) : "🎉 Live Alert Test: Opportunity Selection";
-    $testMsg = !empty($_POST['message']) ? cleanString($_POST['message'], 1000) : "Hello {$targetName}! This is a live verification alert from Mentry Operations. Your device is connected and live notifications are active.";
+    $timeStr = date('g:i A');
+    $testVariants = [
+        [
+            'title' => "🎯 Assignment Confirmed: Campus Technical Workshop",
+            'message' => "Hello {$targetName}! You are confirmed for the upcoming campus batch ({$timeStr}). Honorarium and travel logistics finalized.",
+            'link' => '/trainer/assignments.php'
+        ],
+        [
+            'title' => "🔔 Live System Alert: Notifications Active",
+            'message' => "Hello {$targetName}! Your mobile device is connected and live notification delivery is active ({$timeStr}).",
+            'link' => '/trainer/notifications.php'
+        ],
+        [
+            'title' => "⭐ Candidate Shortlisted: Campus Training",
+            'message' => "Hello {$targetName}! You have been shortlisted for an upcoming training batch. Operations will confirm dates shortly.",
+            'link' => '/trainer/applications.php'
+        ]
+    ];
+    $selectedVariant = $testVariants[array_rand($testVariants)];
 
-    $testNotifId = 'test_' . time();
+    $testTitle = !empty($_POST['title']) ? cleanString($_POST['title'], 200) : $selectedVariant['title'];
+    $testMsg = !empty($_POST['message']) ? cleanString($_POST['message'], 1000) : $selectedVariant['message'];
+    $testLink = !empty($_POST['link']) ? cleanString($_POST['link'], 300) : (
+        (stripos($testTitle, 'Assignment') !== false || stripos($testTitle, 'Selected') !== false)
+            ? '/trainer/assignments.php'
+            : $selectedVariant['link']
+    );
+
+    $testNotifId = 'TEST_NOTIFICATION_' . date('Ymd_His') . '_' . substr(md5(microtime() . $targetUserId), 0, 6);
     if ($notifCol) {
         $insRes = $notifCol->insertOne([
+            'notificationId' => $testNotifId,
             'userId' => $targetUserId,
             'trainerId' => $trainerId,
-            'type' => 'SYSTEM_ALERT',
+            'type' => (stripos($testTitle, 'Assignment') !== false || stripos($testTitle, 'Selected') !== false) ? 'TRAINER_SELECTED' : 'SYSTEM_ALERT',
             'title' => $testTitle,
             'message' => $testMsg,
-            'link' => '/trainer/notifications.php',
+            'link' => $testLink,
             'read' => false,
             'createdAt' => new MongoDB\BSON\UTCDateTime()
         ]);
-        $testNotifId = (string)$insRes->getInsertedId();
+        $insertedId = (string)$insRes->getInsertedId();
+        if ($insertedId) {
+            $testNotifId = $testNotifId; // Keep canonical readable test ID
+        }
     }
 
     // STRICT FILTER: Query ONLY active, non-dead subscriptions
@@ -106,13 +135,14 @@ try {
     $deviceBreakdown = [];
 
     $payload = [
+        'notification_id' => $testNotifId,
         'id' => $testNotifId,
         'title' => $testTitle,
         'body' => $testMsg,
         'message' => $testMsg,
-        'url' => '/trainer/notifications.php',
-        'link' => '/trainer/notifications.php',
-        'type' => 'SYSTEM_ALERT',
+        'url' => $testLink,
+        'link' => $testLink,
+        'type' => (stripos($testTitle, 'Assignment') !== false || stripos($testTitle, 'Selected') !== false) ? 'TRAINER_SELECTED' : 'SYSTEM_ALERT',
         'priority' => 'high'
     ];
 

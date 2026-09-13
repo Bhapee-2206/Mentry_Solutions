@@ -387,11 +387,28 @@ require_once __DIR__ . '/includes/sidebar.php';
                                                 </button>
                                             </form>
                                         <?php endif; ?>
-                                    <?php else: ?>
-                                        <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1 shadow-2xs">
-                                            <span class="material-symbols-outlined text-[15px]">done_all</span>
-                                            Accepted & Assigned
-                                        </span>
+                                    <?php else: 
+                                        $matchingAsgId = '';
+                                        foreach ($assignments as $asgItem) {
+                                            if ((string)($asgItem['opportunityId'] ?? '') === (string)($ap['opportunityId'] ?? '')) {
+                                                $matchingAsgId = (string)($asgItem['_id'] ?? '');
+                                                break;
+                                            }
+                                        }
+                                    ?>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                                                <span class="material-symbols-outlined text-[15px]">done_all</span>
+                                                Accepted & Assigned
+                                            </span>
+                                            <button type="button" 
+                                                    onclick="openReliefModal('<?= $matchingAsgId ?>', '<?= htmlspecialchars(addslashes($trainer['name'] ?? 'Trainer'), ENT_QUOTES) ?>', '<?= (string)$trainer['_id'] ?>', '<?= (string)($ap['opportunityId'] ?? '') ?>')" 
+                                                    class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 text-xs font-bold px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1 shadow-2xs cursor-pointer" 
+                                                    title="Relieve <?= htmlspecialchars($trainer['name'] ?? 'Trainer') ?> from this program">
+                                                <span class="material-symbols-outlined text-[15px] text-rose-600">person_remove</span>
+                                                Relieve
+                                            </button>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             </div>

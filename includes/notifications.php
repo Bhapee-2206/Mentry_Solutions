@@ -467,16 +467,18 @@ function dispatchWebPushNotification(array $filter, string $title, string $body,
         $subscriptions = $subCol->find($query)->toArray();
         if (empty($subscriptions)) return true;
 
-        $notifId = $extraData['id'] ?? ('notif_' . substr(md5($title . $url . microtime()), 0, 12));
+        $notifId = (string)($extraData['notification_id'] ?? ($extraData['id'] ?? ('notif_' . substr(md5($title . $url . microtime()), 0, 12))));
         $priority = $extraData['priority'] ?? 'high';
 
         $payloadData = array_merge([
+            'notification_id' => $notifId,
             'id' => $notifId,
             'title' => $title,
             'body' => $body,
             'message' => $body,
             'url' => $url,
             'link' => $url,
+            'opportunity_id' => $extraData['opportunity_id'] ?? ($extraData['opportunityId'] ?? null),
             'type' => $extraData['type'] ?? 'GENERAL'
         ], $extraData);
 

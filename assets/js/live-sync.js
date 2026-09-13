@@ -117,20 +117,15 @@
             });
 
             // Listen for Service Worker foreground message (when SW push arrived while app was focused)
+            // Listen for Service Worker foreground message (when push arrives while app is active)
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.addEventListener('message', (event) => {
-                    if (event.data && event.data.type === 'PUSH_RECEIVED_IN_APP' && event.data.notification) {
+                    if (event.data && (event.data.type === 'PUSH_FOREGROUND_EVENT' || event.data.type === 'PUSH_RECEIVED_IN_APP' || event.data.type === 'PUSH_NOTIFICATION_DELIVERED') && event.data.notification) {
                         const notifData = event.data.notification;
-                        this.handleIncomingNotification(notifData, 'service_worker_push');
-                        // If user is actively looking at Mentry, close the duplicate OS notification
-                        if (this.isUserActive() && notifData.tag) {
-                            navigator.serviceWorker.ready.then((reg) => {
-                                if (reg && reg.getNotifications) {
-                                    reg.getNotifications({ tag: notifData.tag }).then((notifs) => {
-                                        notifs.forEach((n) => n.close());
-                                    }).catch(() => {});
-                                }
-                            }).catch(() => {});
+                        const id = this.getCanonicalId(notifData);
+                        this.markProcessed(id);
+                        if (typeof this.fetchUnreadCount === 'function') {
+                            this.fetchUnreadCount();
                         }
                     }
                 });
@@ -153,6 +148,7 @@
 
         getCanonicalId(notif) {
             if (!notif) return null;
+            if (notif.notification_id) return String(notif.notification_id);
             if (notif.id) return String(notif.id);
             if (notif._id) return String(notif._id);
             if (notif.notificationId) return String(notif.notificationId);
@@ -263,7 +259,11 @@
             toast.setAttribute('aria-live', 'polite');
             toast.className = 'pointer-events-auto relative w-full bg-[#0B132B]/95 text-white border border-slate-700/80 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-[20px] p-3.5 sm:p-4 backdrop-blur-2xl transform -translate-y-4 scale-95 opacity-0 transition-transform duration-300 ease-out cursor-pointer hover:border-[#FE5E04]/50 flex flex-col overflow-hidden select-none touch-pan-y';
 
-            const isAccepted = notif.title && notif.title.toLowerCase().includes('accepted');
+            const isSelectedOrAssignment = (
+                (notif.title && (notif.title.toLowerCase().includes('selected') || notif.title.toLowerCase().includes('assignment') || notif.title.toLowerCase().includes('accepted'))) ||
+                (notif.type && (notif.type.includes('ASSIGNMENT') || notif.type.includes('SELECTED') || notif.type.includes('ACCEPTED'))) ||
+                (notif.message && (notif.message.toLowerCase().includes('selected for') || notif.message.toLowerCase().includes('assignment is scheduled') || notif.message.toLowerCase().includes('confirmed as the faculty')))
+            );
             const isShortlisted = notif.title && notif.title.toLowerCase().includes('shortlisted');
             const isMatch = notif.type === 'OPPORTUNITY_MATCH' || (notif.title && notif.title.toLowerCase().includes('match'));
 
@@ -272,11 +272,14 @@
             let categoryTag = 'LIVE';
             let ctaText = 'Tap to view details →';
 
-            if (isAccepted) {
+            if (isSelectedOrAssignment) {
                 iconName = 'verified';
                 iconBoxClass = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-                categoryTag = 'ACCEPTED';
+                categoryTag = 'ASSIGNMENT';
                 ctaText = 'View Assignment →';
+                if (!notif.link || notif.link.includes('opportunities.php')) {
+                    notif.link = basePath + '/trainer/assignments.php';
+                }
             } else if (isShortlisted) {
                 iconName = 'star';
                 iconBoxClass = 'bg-amber-500/15 text-amber-400 border-amber-500/30';
@@ -285,8 +288,8 @@
             } else if (isMatch) {
                 iconName = 'bolt';
                 iconBoxClass = 'bg-[#FE5E04]/20 text-[#FE5E04] border-[#FE5E04]/40';
-                categoryTag = 'LIVE';
-                ctaText = 'Tap to view details →';
+                categoryTag = 'MATCH';
+                ctaText = 'View Opportunity →';
             }
 
             const remainingCount = this.queue.length;
@@ -505,6 +508,7 @@
         const tag = 'mentry-' + notifId;
         const iconUrl = new URL(basePath + '/public/icon-192.png', window.location.origin).href;
         const badgeUrl = new URL(basePath + '/public/badge-96.png', window.location.origin).href;
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 
         // A. Service Worker Registration showNotification (clean single PWA icon, no duplicate logo)
         if ('serviceWorker' in navigator) {
@@ -517,16 +521,19 @@
                     reg = await navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' });
                 }
                 if (reg && reg.showNotification) {
-                    await reg.showNotification(title, {
+                    const swOpts = {
                         body: body,
                         icon: iconUrl,
                         badge: badgeUrl,
                         tag: tag,
                         renotify: true,
-                        requireInteraction: true,
                         vibrate: [200, 100, 200],
                         data: { id: notifId, url: targetUrl }
-                    });
+                    };
+                    if (!isMobile) {
+                        swOpts.requireInteraction = true;
+                    }
+                    await reg.showNotification(title, swOpts);
                     return true;
                 }
             } catch (err) {

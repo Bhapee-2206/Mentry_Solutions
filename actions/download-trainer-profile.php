@@ -505,9 +505,12 @@ $pdfBytes = $generator->generate([
 // Stream download
 while (ob_get_level()) { ob_end_clean(); }
 
+$isInline = isset($_GET['view']) || isset($_GET['inline']);
+$disposition = $isInline ? 'inline' : 'attachment';
+
 header('Content-Description: File Transfer');
 header('Content-Type: application/pdf');
-header('Content-Disposition: attachment; filename="' . $filename . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
+header('Content-Disposition: ' . $disposition . '; filename="' . $filename . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
 header('Content-Transfer-Encoding: binary');
 header('Expires: 0');
 header('Cache-Control: must-revalidate, post-check=0, pre-check=0');

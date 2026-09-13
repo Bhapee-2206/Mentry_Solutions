@@ -64,13 +64,29 @@ try {
             }
         }
     } else {
+        // If session was momentarily detached in standalone PWA, fall back to valid client-provided userId
+        if (empty($userId) && !empty($data['userId'])) {
+            $candidateUserId = cleanString($data['userId'], 50);
+            $userCol = getCollection("User");
+            try {
+                $uDoc = $userCol ? $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId($candidateUserId)]) : null;
+                if ($uDoc) {
+                    $userId = (string)$uDoc['_id'];
+                    $userRole = $uDoc['role'] ?? 'TRAINER';
+                }
+            } catch (\Throwable $e) {}
+        }
+
         // Link trainerId if user is a trainer
         $trainerId = null;
-        if ($userRole === 'TRAINER' && !empty($userId)) {
+        if (!empty($userId)) {
             $trainerCol = getCollection("Trainer");
             $t = $trainerCol ? $trainerCol->findOne(['userId' => (string)$userId]) : null;
             if ($t) {
                 $trainerId = (string)$t['_id'];
+                if ($userRole === 'GUEST') {
+                    $userRole = 'TRAINER';
+                }
             }
         }
     }
@@ -109,7 +125,23 @@ try {
         );
     }
 
-    // 3. UPSERT the current active subscription
+    // 3. DEAD ENDPOINT CHECK: If this endpoint was marked dead by the push service (HTTP 410 / 403),
+    // do NOT re-activate it. Inform client to immediately unsubscribe and generate a fresh token from FCM.
+    $existingDead = $subCol->findOne([
+        'endpoint' => $endpoint,
+        'isDead' => true
+    ]);
+    if ($existingDead) {
+        if (ob_get_length()) ob_clean();
+        echo json_encode([
+            'success' => false,
+            'requireNewSubscription' => true,
+            'error' => 'Endpoint has expired on the push gateway. Requesting fresh subscription.'
+        ]);
+        exit();
+    }
+
+    // 4. UPSERT the current active subscription
     $deviceType = $device ?: (preg_match('/Mobile|Android|iPhone|iPad/i', $userAgent) ? 'Mobile' : 'Desktop');
 
     $subCol->updateOne(

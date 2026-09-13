@@ -2,6 +2,7 @@
 // actions/preview-doc.php - Universal In-Browser Document Preview Handler (PDF, DOCX, Images, Text)
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 // Allow viewing by logged-in users (Trainers, Admins, Staff, Vendors)
 $currentUser = getCurrentUser();
@@ -163,8 +164,9 @@ if ($isRaw) {
 // -------------------------------------------------------------
 // INTERACTIVE VIEWER MODE (Clean In-Browser Preview with Controls)
 // -------------------------------------------------------------
-$rawStreamUrl = '/actions/preview-doc.php?raw=1&url=' . urlencode($url) . '&title=' . urlencode($title);
-$downloadUrl = '/actions/download-document.php?url=' . urlencode($url) . '&filename=' . urlencode($safeDownloadName);
+$appBase = function_exists('getAppBaseUrl') ? getAppBaseUrl() : '';
+$rawStreamUrl = $appBase . '/actions/preview-doc.php?raw=1&url=' . urlencode($url) . '&title=' . urlencode($title);
+$downloadUrl = $appBase . '/actions/download-document.php?url=' . urlencode($url) . '&filename=' . urlencode($safeDownloadName);
 
 // DOCX parsing if needed
 $extractedDocxHtml = '';

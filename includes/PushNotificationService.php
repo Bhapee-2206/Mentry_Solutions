@@ -361,6 +361,21 @@ class PushNotificationService {
             return ['success' => false, 'error' => 'Missing subscription credentials', 'statusCode' => 0];
         }
 
+        // Validate subscription key lengths - p256dh should be ~87 chars base64url, auth ~22 chars
+        // Corrupted/test subscriptions with short keys will crash the encryption
+        if (strlen($p256dh) < 20 || strlen($auth) < 10) {
+            // Auto-deactivate corrupted subscription to prevent future errors
+            self::deactivateSubscription($endpoint, 'INVALID_KEYS_TOO_SHORT', true);
+            return [
+                'success' => false,
+                'error' => 'Invalid subscription keys (corrupted or test data). Subscription deactivated.',
+                'statusCode' => 0,
+                'isDead' => true,
+                'endpoint' => $endpoint,
+                'device' => $sub['device'] ?? 'Device'
+            ];
+        }
+
         if (!empty($sub['isDead']) || (isset($sub['isActive']) && $sub['isActive'] === false)) {
             return [
                 'success' => false,
@@ -380,6 +395,15 @@ class PushNotificationService {
             if (strpos($targetUrl, '/') === 0 && !empty($appBase) && strpos($targetUrl, $appBase) !== 0) {
                 $targetUrl = $appBase . $targetUrl;
             }
+
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+            $host = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'localhost');
+            if (isset($_SERVER['SERVER_PORT']) && !in_array((int)$_SERVER['SERVER_PORT'], [80, 443]) && strpos($host, ':') === false) {
+                $host .= ':' . $_SERVER['SERVER_PORT'];
+            }
+            $fullAppUrl = (defined('APP_URL') && APP_URL) ? rtrim(APP_URL, '/') : ($protocol . $host . $appBase);
+            $iconUrl = $fullAppUrl . '/public/icon-192.png';
+            $badgeUrl = $fullAppUrl . '/public/badge-96.png';
 
             // DUPLICATE PROTECTION: Ensure the same event is never pushed twice to the same device
             $logCol = getCollection("PushDeliveryLog");
@@ -402,19 +426,25 @@ class PushNotificationService {
             }
 
             $jsonPayload = json_encode([
+                'notification_id' => $notifId,
                 'id' => $notifId,
+                'type' => $payloadData['type'] ?? 'GENERAL',
                 'title' => $payloadData['title'] ?? 'Mentry Alert',
                 'body' => $payloadData['body'] ?? ($payloadData['message'] ?? ''),
-                'icon' => $appBase . '/public/icon-192.png',
-                'badge' => $appBase . '/public/badge-96.png',
                 'url' => $targetUrl,
+                'link' => $targetUrl,
+                'opportunity_id' => $payloadData['opportunity_id'] ?? ($payloadData['opportunityId'] ?? null),
+                'icon' => $iconUrl,
+                'badge' => $badgeUrl,
                 'tag' => 'mentry-' . $notifId,
-                'type' => $payloadData['type'] ?? 'GENERAL',
                 'priority' => $priority,
                 'timestamp' => time() * 1000,
                 'data' => array_merge([
+                    'notification_id' => $notifId,
                     'id' => $notifId,
+                    'type' => $payloadData['type'] ?? 'GENERAL',
                     'url' => $targetUrl,
+                    'opportunity_id' => $payloadData['opportunity_id'] ?? ($payloadData['opportunityId'] ?? null),
                     'timestamp' => time() * 1000
                 ], $payloadData['data'] ?? [])
             ], JSON_UNESCAPED_SLASHES);
@@ -424,13 +454,13 @@ class PushNotificationService {
 
             $urgency = ($priority === 'urgent' || $priority === 'high') ? 'high' : 'normal';
 
+            // RFC 8292 standard: Authorization header with 'vapid t=..., k=...' MUST NOT include redundant Crypto-Key header
             $headers = [
                 'Content-Type: application/octet-stream',
                 'Content-Encoding: aes128gcm',
                 'TTL: 86400',
                 'Urgency: ' . $urgency,
-                'Authorization: ' . $vapidHeaders['Authorization'],
-                'Crypto-Key: ' . $vapidHeaders['Crypto-Key']
+                'Authorization: ' . $vapidHeaders['Authorization']
             ];
 
             $ch = curl_init($endpoint);
@@ -439,8 +469,8 @@ class PushNotificationService {
                 CURLOPT_POSTFIELDS => $encryptedBody,
                 CURLOPT_HTTPHEADER => $headers,
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CONNECTTIMEOUT => 3,
-                CURLOPT_TIMEOUT => 6,
+                CURLOPT_CONNECTTIMEOUT => 8,
+                CURLOPT_TIMEOUT => 12,
                 CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
                 CURLOPT_TCP_NODELAY => 1,
                 CURLOPT_SSL_VERIFYPEER => true
@@ -453,23 +483,34 @@ class PushNotificationService {
 
             $isSuccess = ($statusCode >= 200 && $statusCode < 300);
 
-            // Handle dead/expired/rejected subscriptions (400, 401, 403, 404, 410)
-            if (in_array($statusCode, [400, 401, 403, 404, 410])) {
-                $reason = ($statusCode === 403 || $statusCode === 401)
-                    ? 'PUSH_GATEWAY_CREDENTIALS_REJECTED_HTTP_' . $statusCode
-                    : 'PUSH_GATEWAY_EXPIRED_HTTP_' . $statusCode;
-                self::deactivateSubscription($endpoint, $reason, true);
+            // Accurate delivery status codes according to W3C Web Push & FCM
+            $deliveryStatus = 'PUSH_FAILED';
+            if ($isSuccess) {
+                $deliveryStatus = 'PUSH_ACCEPTED';
+            } elseif ($statusCode === 404 || $statusCode === 410) {
+                $deliveryStatus = 'SUBSCRIPTION_EXPIRED';
+            } elseif ($statusCode === 401 || $statusCode === 403) {
+                $deliveryStatus = 'CREDENTIALS_REJECTED';
+            }
+
+            // Only permanently deactivate on HTTP 404 or 410 (expired/revoked subscription)
+            // HTTP 400 is a payload/header format issue and must NOT kill the trainer's device subscription
+            if ($statusCode === 404 || $statusCode === 410) {
+                self::deactivateSubscription($endpoint, 'PUSH_GATEWAY_EXPIRED_HTTP_' . $statusCode, true);
+            } elseif ($statusCode === 401 || $statusCode === 403) {
+                error_log("PushNotificationService: Gateway rejected VAPID authorization (HTTP {$statusCode}). Please verify VAPID key pair.");
             } elseif ($isSuccess) {
                 self::markSubscriptionUsed($endpoint);
             }
 
-            // Log delivery attempt
+            // Log delivery attempt with structured status
             self::logDelivery([
                 'endpoint' => substr($endpoint, 0, 80) . '...',
                 'userId' => $sub['userId'] ?? null,
                 'notificationId' => $notifId,
                 'title' => $payloadData['title'] ?? '',
                 'statusCode' => $statusCode,
+                'deliveryStatus' => $deliveryStatus,
                 'success' => $isSuccess,
                 'error' => $curlError ?: ($isSuccess ? null : substr((string)$response, 0, 200)),
                 'sentAt' => new MongoDB\BSON\UTCDateTime()
@@ -478,6 +519,7 @@ class PushNotificationService {
             return [
                 'success' => $isSuccess,
                 'statusCode' => $statusCode,
+                'deliveryStatus' => $deliveryStatus,
                 'response' => (string)$response,
                 'error' => $curlError ?: ($isSuccess ? null : trim((string)$response)),
                 'endpoint' => $endpoint,

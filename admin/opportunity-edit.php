@@ -132,10 +132,16 @@ $endDateVal = $endTs ? date('Y-m-d', $endTs) : '';
                 <span class="text-[10px] text-slate-400 mt-1 block">Scheduled completion date (accounting for weekends / off days).</span>
             </div>
 
-            <div class="sm:col-span-2">
+            <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Actual Training / Working Days *</label>
                 <input type="number" name="durationDays" value="<?= htmlspecialchars($opp['durationDays'] ?? 5) ?>" min="1" max="180" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
-                <span class="text-[10px] text-slate-400 mt-1 block">Total instructional days excluding Saturday/Sunday breaks.</span>
+                <span class="text-[10px] text-slate-400 mt-1 block">Total instructional days excluding weekend breaks.</span>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Trainers Required (Openings) *</label>
+                <input type="number" name="trainersNeeded" value="<?= htmlspecialchars($opp['trainersNeeded'] ?? 1) ?>" min="1" max="20" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none font-bold text-slate-900">
+                <span class="text-[10px] text-slate-400 mt-1 block">Number of faculty positions required (e.g. parallel tracks).</span>
             </div>
 
             <div>

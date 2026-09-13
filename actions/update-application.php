@@ -34,6 +34,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // If status is ACCEPTED, automatically create/schedule Assignment & update Trainer availability
             if ($status === 'ACCEPTED') {
                 $opp = ($oppCol && !empty($oppId)) ? $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($oppId)]) : null;
+                $trainersNeeded = max(1, (int)($opp['trainersNeeded'] ?? 1));
+
+                // Check current active assignments to enforce slot quota
+                $activeAssignments = ($asgCol && !empty($oppId)) ? $asgCol->find([
+                    'opportunityId' => $oppId,
+                    'status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS', 'CONFIRMED', 'ASSIGNED']]
+                ])->toArray() : [];
+
+                $activeCount = 0;
+                $alreadyAssigned = false;
+                foreach ($activeAssignments as $act) {
+                    if ((string)($act['trainerId'] ?? '') === $trainerId) {
+                        $alreadyAssigned = true;
+                    }
+                    $activeCount++;
+                }
+
+                if (!$alreadyAssigned && $activeCount >= $trainersNeeded) {
+                    header("Location: /admin/opportunity-view.php?id=" . urlencode($oppId) . "&error=" . urlencode("Quota full: All {$trainersNeeded} trainer position(s) are already filled. Relieve an assigned trainer first to accept a new candidate."));
+                    exit();
+                }
+
                 $duration = (int)($opp['durationDays'] ?? 5);
                 $dailyRate = (float)($app['proposedDailyRate'] ?? ($opp['dailyRateMin'] ?? 5000));
                 $totalFee = $duration * $dailyRate;
@@ -97,14 +119,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                // Update opportunity status to CLOSED (trainer selected & position filled)
+                // Compile all active trainer IDs for Opportunity
+                $allAssignedTrainerIds = [];
+                foreach ($activeAssignments as $act) {
+                    if (!empty($act['trainerId'])) $allAssignedTrainerIds[] = (string)$act['trainerId'];
+                }
+                $allAssignedTrainerIds[] = (string)$trainerId;
+                $allAssignedTrainerIds = array_values(array_unique($allAssignedTrainerIds));
+                $isFullyStaffed = (count($allAssignedTrainerIds) >= $trainersNeeded);
+
+                // Update opportunity status (close only if fully staffed)
                 if ($oppCol && !empty($oppId)) {
                     $oppUpdate = [
-                        'status' => 'CLOSED',
+                        'status' => $isFullyStaffed ? 'CLOSED' : 'PUBLISHED',
                         'assignedTrainerId' => $trainerId,
-                        'closedAt' => new MongoDB\BSON\UTCDateTime(),
+                        'assignedTrainerIds' => $allAssignedTrainerIds,
                         'updatedAt' => new MongoDB\BSON\UTCDateTime()
                     ];
+                    if ($isFullyStaffed) {
+                        $oppUpdate['closedAt'] = new MongoDB\BSON\UTCDateTime();
+                    }
                     try {
                         $oppCol->updateOne(
                             ['_id' => new MongoDB\BSON\ObjectId($oppId)],
@@ -237,24 +271,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     if ($notifCol && !empty($trainerUserId)) {
                         $oppObj = ($oppCol && !empty($oppId)) ? $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($oppId)]) : null;
-                        $oppTitle = $oppObj['title'] ?? 'Training Opportunity';
+                        $oppTitle = trim($oppObj['title'] ?? 'Training Opportunity');
+                        $collegeName = trim($oppObj['collegeName'] ?? '');
+                        $collegeSuffix = !empty($collegeName) ? " at {$collegeName}" : "";
+                        $cityStr = !empty($oppObj['city']) ? " in {$oppObj['city']}" : "";
+                        $durStr = !empty($oppObj['durationDays']) ? " ({$oppObj['durationDays']} Days)" : "";
+                        $datesStr = "";
+                        if (!empty($oppObj['startDate'])) {
+                            $datesStr = " scheduled for " . formatDate($oppObj['startDate']) . (!empty($oppObj['endDate']) ? " to " . formatDate($oppObj['endDate']) : "");
+                        }
+                        $rateStr = !empty($app['proposedDailyRate']) ? " at honorarium rate of " . formatINR($app['proposedDailyRate']) . "/day" : "";
 
                         $notifTitle = '';
                         $notifMsg = '';
                         $notifType = 'APPLICATION_' . $status;
+                        $notifLink = '/trainer/applications.php';
 
                         if ($status === 'ACCEPTED') {
-                            $notifTitle = "🎉 Application Accepted: {$oppTitle}";
-                            $notifMsg = "Congratulations! Your application has been ACCEPTED by Mentry Operations. Your assignment is scheduled.";
+                            $notifTitle = "🎉 Application Accepted: {$oppTitle}{$collegeSuffix}";
+                            $notifMsg = "Congratulations! Your application for {$oppTitle}{$collegeSuffix}{$cityStr} has been ACCEPTED{$rateStr}{$datesStr}. Your confirmed assignment itinerary is ready to view.";
+                            $notifLink = '/trainer/assignments.php';
                         } elseif ($status === 'SHORTLISTED') {
-                            $notifTitle = "⭐ Shortlisted: {$oppTitle}";
-                            $notifMsg = "Great news! You have been SHORTLISTED for this assignment. Operations will finalize details shortly.";
+                            $notifTitle = "⭐ Shortlisted: {$oppTitle}{$collegeSuffix}";
+                            $notifMsg = "Great news! You have been SHORTLISTED for {$oppTitle}{$collegeSuffix}{$cityStr}{$durStr}. Operations is finalizing candidate roster.";
+                            $notifLink = '/trainer/applications.php';
                         } elseif ($status === 'REJECTED') {
                             $notifTitle = "Application Update: {$oppTitle}";
-                            $notifMsg = "Your application was not selected for this opportunity. Browse other openings on your dashboard.";
+                            $notifMsg = "Your application for {$oppTitle}{$collegeSuffix} was not selected this time. New matching opportunities are available on your feed.";
+                            $notifLink = '/trainer/opportunities.php';
                         } else {
                             $notifTitle = "Application Status Update: {$oppTitle}";
-                            $notifMsg = "Your application status is now {$status}.";
+                            $notifMsg = "Your application for {$oppTitle}{$collegeSuffix} status is now {$status}.";
                         }
 
                         if (!empty($adminNotes)) {
@@ -269,7 +316,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'type' => $notifType,
                             'title' => $notifTitle,
                             'message' => $notifMsg,
-                            'link' => '/trainer/applications.php',
+                            'link' => $notifLink,
                             'read' => false,
                             'createdAt' => new MongoDB\BSON\UTCDateTime()
                         ]);
@@ -281,11 +328,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 ['userId' => $trainerUserId],
                                 $notifTitle,
                                 $notifMsg,
-                                '/trainer/applications.php',
+                                $notifLink,
                                 [
                                     'id' => $notifId,
                                     'type' => $notifType,
                                     'trainerId' => $trainerId,
+                                    'opportunityId' => $oppId,
                                     'priority' => 'high'
                                 ]
                             );

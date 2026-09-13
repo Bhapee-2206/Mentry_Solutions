@@ -128,15 +128,30 @@ if ($notifCol && !empty($userQuery)) {
                 $targetUrl = null;
                 $actionLabel = 'View Details';
 
-                if (!empty($oppId)) {
-                    $targetUrl = '/trainer/opportunities.php?id=' . (string)$oppId;
-                    $actionLabel = 'View Opportunity';
-                } elseif (in_array($type, ['ASSIGNMENT_CONFIRMED', 'ASSIGNMENT_UPDATE'])) {
+                $isAssignmentNotif = (
+                    in_array($type, ['ASSIGNMENT_CONFIRMED', 'ASSIGNMENT_CREATED', 'ASSIGNMENT_UPDATE', 'TRAINER_SELECTED', 'TRAINER_ASSIGNED', 'APPLICATION_ACCEPTED']) ||
+                    (!empty($n['link']) && strpos($n['link'], 'assignments') !== false) ||
+                    (!empty($n['title']) && (stripos($n['title'], 'Selected') !== false || stripos($n['title'], 'Assignment') !== false || stripos($n['title'], 'Accepted') !== false)) ||
+                    (!empty($n['message']) && (stripos($n['message'], 'selected for') !== false || stripos($n['message'], 'assignment is scheduled') !== false || stripos($n['message'], 'confirmed as the faculty') !== false))
+                );
+
+                if ($isAssignmentNotif) {
                     $targetUrl = '/trainer/assignments.php';
                     $actionLabel = 'View Assignment';
-                } elseif ($type === 'APPLICATION_STATUS_UPDATE') {
-                    $targetUrl = '/trainer/applications.php';
-                    $actionLabel = 'View Application';
+                } elseif ($type === 'APPLICATION_STATUS_UPDATE' || strpos($type, 'APPLICATION_') === 0) {
+                    if (stripos($n['title'] ?? '', 'Accepted') !== false || stripos($n['message'] ?? '', 'ACCEPTED') !== false) {
+                        $targetUrl = '/trainer/assignments.php';
+                        $actionLabel = 'View Assignment';
+                    } else {
+                        $targetUrl = '/trainer/applications.php';
+                        $actionLabel = 'View Application';
+                    }
+                } elseif ($type === 'DIRECT_INVITATION') {
+                    $targetUrl = !empty($oppId) ? ('/trainer/opportunities.php?id=' . (string)$oppId) : '/trainer/opportunities.php';
+                    $actionLabel = 'View Invitation';
+                } elseif (!empty($oppId)) {
+                    $targetUrl = '/trainer/opportunities.php?id=' . (string)$oppId;
+                    $actionLabel = 'View Opportunity';
                 } elseif ($type === 'PROFILE_VERIFIED') {
                     $targetUrl = '/trainer/profile.php';
                     $actionLabel = 'View Profile';
@@ -161,17 +176,17 @@ if ($notifCol && !empty($userQuery)) {
                 $badgeText = 'Match Alert';
                 $badgeClass = 'bg-blue-50 text-blue-700 border-blue-200/80';
 
-                if ($type === 'DIRECT_INVITATION') {
-                    $icon = 'mail';
-                    $iconBg = 'bg-purple-50 text-purple-600';
-                    $badgeText = 'Invitation';
-                    $badgeClass = 'bg-purple-50 text-purple-700 border-purple-200/80';
-                } elseif (in_array($type, ['ASSIGNMENT_CONFIRMED', 'ASSIGNMENT_UPDATE'])) {
+                if ($isAssignmentNotif) {
                     $icon = 'event_available';
                     $iconBg = 'bg-emerald-50 text-emerald-600';
                     $badgeText = 'Assignment';
                     $badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
-                } elseif ($type === 'APPLICATION_STATUS_UPDATE') {
+                } elseif ($type === 'DIRECT_INVITATION') {
+                    $icon = 'mail';
+                    $iconBg = 'bg-purple-50 text-purple-600';
+                    $badgeText = 'Invitation';
+                    $badgeClass = 'bg-purple-50 text-purple-700 border-purple-200/80';
+                } elseif ($type === 'APPLICATION_STATUS_UPDATE' || strpos($type, 'APPLICATION_') === 0) {
                     $icon = 'assignment_turned_in';
                     $iconBg = 'bg-amber-50 text-amber-600';
                     $badgeText = 'Application Update';
@@ -389,9 +404,11 @@ async function syncPushSubscription(showUserAlert = false) {
                 subJson.platform = navigator.platform || 'Unknown';
                 subJson.device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
                 subJson.browser = navigator.userAgent;
+                subJson.userId = <?= json_encode((string)$user['id']) ?>;
 
                 await fetch(base + '/actions/save-push-subscription.php', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(subJson)
                 });
@@ -417,9 +434,11 @@ async function syncPushSubscription(showUserAlert = false) {
         subJson.platform = navigator.platform || 'Unknown';
         subJson.device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
         subJson.browser = navigator.userAgent;
+        subJson.userId = <?= json_encode((string)$user['id']) ?>;
 
         await fetch(base + '/actions/save-push-subscription.php', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(subJson)
         });

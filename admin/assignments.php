@@ -36,6 +36,7 @@ $assignments = $asgCol ? $asgCol->find($filter, ['sort' => ['createdAt' => -1]])
             'SCHEDULED' => 'Scheduled',
             'IN_PROGRESS' => 'In Progress',
             'COMPLETED' => 'Completed',
+            'RELIEVED' => 'Relieved',
             'CANCELLED' => 'Cancelled'
         ];
         foreach ($tabs as $k => $v): ?>
@@ -84,10 +85,21 @@ $assignments = $asgCol ? $asgCol->find($filter, ['sort' => ['createdAt' => -1]])
                             </p>
                         </div>
 
-                        <div class="text-left sm:text-right shrink-0 bg-slate-50 border border-slate-100 p-3 sm:p-3.5 rounded-2xl w-full sm:w-auto">
-                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Total Agreed Honorarium</span>
-                            <p class="font-black text-lg sm:text-xl text-emerald-700"><?= formatINR($asg['agreedTotalFee'] ?? 0) ?></p>
-                            <span class="text-[10px] text-slate-500 font-medium"><?= formatINR($asg['agreedDailyRate'] ?? 0) ?>/day</span>
+                        <div class="flex flex-col sm:items-end gap-2 shrink-0 w-full sm:w-auto">
+                            <div class="text-left sm:text-right bg-slate-50 border border-slate-100 p-3 sm:p-3.5 rounded-2xl w-full sm:w-auto">
+                                <span class="text-[10px] text-slate-400 uppercase font-bold block">Total Agreed Honorarium</span>
+                                <p class="font-black text-lg sm:text-xl text-emerald-700"><?= formatINR($asg['agreedTotalFee'] ?? 0) ?></p>
+                                <span class="text-[10px] text-slate-500 font-medium"><?= formatINR($asg['agreedDailyRate'] ?? 0) ?>/day</span>
+                            </div>
+                            <?php if (!in_array(strtoupper($asg['status'] ?? ''), ['RELIEVED', 'CANCELLED', 'COMPLETED'])): ?>
+                                <button type="button" 
+                                        onclick="openReliefModal('<?= $asgId ?>', '<?= htmlspecialchars(addslashes($trainerUser['name'] ?? 'Faculty'), ENT_QUOTES) ?>', '<?= (string)($trainer['_id'] ?? '') ?>', '<?= (string)($asg['opportunityId'] ?? '') ?>')" 
+                                        class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto" 
+                                        title="Relieve this trainer from assignment (last-minute dropout, emergency, or reassignment)">
+                                    <span class="material-symbols-outlined text-[15px] text-rose-600">person_remove</span>
+                                    Relieve Trainer
+                                </button>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -148,6 +160,7 @@ $assignments = $asgCol ? $asgCol->find($filter, ['sort' => ['createdAt' => -1]])
                                     <option value="SCHEDULED" <?= ($asg['status'] ?? '') === 'SCHEDULED' ? 'selected' : '' ?>>SCHEDULED</option>
                                     <option value="IN_PROGRESS" <?= ($asg['status'] ?? '') === 'IN_PROGRESS' ? 'selected' : '' ?>>IN PROGRESS</option>
                                     <option value="COMPLETED" <?= ($asg['status'] ?? '') === 'COMPLETED' ? 'selected' : '' ?>>COMPLETED</option>
+                                    <option value="RELIEVED" <?= ($asg['status'] ?? '') === 'RELIEVED' ? 'selected' : '' ?>>RELIEVED (Relieved from Duty)</option>
                                     <option value="CANCELLED" <?= ($asg['status'] ?? '') === 'CANCELLED' ? 'selected' : '' ?>>CANCELLED</option>
                                 </select>
                             </div>
@@ -180,10 +193,29 @@ $assignments = $asgCol ? $asgCol->find($filter, ['sort' => ['createdAt' => -1]])
                             </div>
                         </div>
 
-                        <div class="flex justify-end pt-1">
-                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs cursor-pointer">
-                                Update Assignment Terms
-                            </button>
+                        <div class="flex flex-wrap items-center justify-between pt-2 gap-2 border-t border-slate-200/60">
+                            <div>
+                                <?php if (!in_array(strtoupper($asg['status'] ?? ''), ['RELIEVED', 'CANCELLED', 'COMPLETED'])): ?>
+                                    <button type="button" 
+                                            onclick="openReliefModal('<?= $asgId ?>', '<?= htmlspecialchars(addslashes($trainerUser['name'] ?? 'Faculty'), ENT_QUOTES) ?>', '<?= (string)($trainer['_id'] ?? '') ?>', '<?= (string)($asg['opportunityId'] ?? '') ?>')" 
+                                            class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer" 
+                                            title="Relieve this trainer from assignment (reopens position for replacement)">
+                                        <span class="material-symbols-outlined text-[16px] text-rose-600">person_remove</span>
+                                        Relieve Trainer
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <?php if (!empty($asg['opportunityId'])): ?>
+                                    <a href="/admin/opportunity-view.php?id=<?= (string)$asg['opportunityId'] ?>" class="bg-white text-slate-700 hover:text-blue-600 border border-slate-200 hover:border-slate-300 text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1 shadow-2xs">
+                                        <span class="material-symbols-outlined text-[15px]">visibility</span>
+                                        View Program
+                                    </a>
+                                <?php endif; ?>
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs cursor-pointer">
+                                    Update Assignment Terms
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -191,6 +223,124 @@ $assignments = $asgCol ? $asgCol->find($filter, ['sort' => ['createdAt' => -1]])
         <?php endif; ?>
     </div>
 </div>
+
+<!-- Modal: Relieve Faculty Member -->
+<div id="reliefModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 sm:p-7 space-y-5 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0 border border-rose-100">
+                    <span class="material-symbols-outlined text-xl">person_remove</span>
+                </span>
+                <div>
+                    <h3 class="font-bold text-base text-slate-900">Relieve Faculty Member</h3>
+                    <p class="text-xs text-slate-500">Release trainer from this assignment and reopen opportunity slot</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeReliefModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                <span class="material-symbols-outlined text-xl">close</span>
+            </button>
+        </div>
+
+        <form action="/actions/relieve-trainer.php" method="POST" class="space-y-4">
+            <input type="hidden" name="assignmentId" id="reliefAssignmentId" value="">
+            <input type="hidden" name="trainerId" id="reliefTrainerId" value="">
+            <input type="hidden" name="opportunityId" id="reliefOpportunityId" value="">
+            <input type="hidden" name="redirectUrl" value="/admin/assignments.php">
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
+                <div class="font-bold flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-amber-700 text-base">warning</span>
+                    Relieving: <span id="reliefTrainerName" class="text-slate-900 font-extrabold underline decoration-amber-400">Trainer</span>
+                </div>
+                <p class="text-[11px] text-amber-800 leading-relaxed">
+                    This will mark the assignment as <strong>RELIEVED</strong>, restore the trainer's availability to <strong>Available Now</strong>, and immediately reopen the opportunity position so you can assign a replacement.
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Reason for Relief *</label>
+                <select name="reliefReason" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-rose-500/20">
+                    <option value="Trainer dropped out last minute (unavailability / personal emergency)">Trainer dropped out last minute (unavailability / personal emergency)</option>
+                    <option value="Health / Medical emergency">Health / Medical emergency</option>
+                    <option value="Scheduling / Calendar conflict">Scheduling / Calendar conflict</option>
+                    <option value="Client / College requested replacement">Client / College requested replacement</option>
+                    <option value="Performance / Syllabus misalignment">Performance / Syllabus misalignment</option>
+                    <option value="Other operational reassignment">Other operational reassignment</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Operational Remarks / Admin Notes</label>
+                <textarea name="reliefNotes" rows="2" placeholder="e.g. Trainer informed via phone due to last minute conflict. Reassigning..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-rose-500/20"></textarea>
+            </div>
+
+            <div class="space-y-2 pt-1 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer select-none text-slate-700 font-medium">
+                    <input type="checkbox" name="reopenSlot" value="1" checked class="w-4 h-4 text-emerald-600 rounded border-slate-300">
+                    <span>Automatically reopen position slot for replacement candidate</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none text-slate-700 font-medium">
+                    <input type="checkbox" name="notifyTrainer" value="1" checked class="w-4 h-4 text-blue-600 rounded border-slate-300">
+                    <span>Send real-time relief notification & Web Push to the relieved faculty member</span>
+                </label>
+            </div>
+
+            <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeReliefModal()" class="text-xs font-bold text-slate-600 hover:text-slate-800 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer">
+                    Keep Assignment
+                </button>
+                <button type="submit" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 py-2 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px]">person_remove</span>
+                    Confirm Relief & Open Slot
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openReliefModal(asgId, trainerName, trainerId, oppId) {
+    const modal = document.getElementById('reliefModal');
+    const asgIdInput = document.getElementById('reliefAssignmentId');
+    const trainerIdInput = document.getElementById('reliefTrainerId');
+    const oppIdInput = document.getElementById('reliefOpportunityId');
+    const trainerNameEl = document.getElementById('reliefTrainerName');
+    
+    if (asgIdInput) asgIdInput.value = asgId || '';
+    if (trainerIdInput) trainerIdInput.value = trainerId || '';
+    if (oppIdInput) oppIdInput.value = oppId || '';
+    if (trainerNameEl) trainerNameEl.textContent = trainerName || 'Trainer';
+    
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function closeReliefModal() {
+    const modal = document.getElementById('reliefModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeReliefModal();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const relModal = document.getElementById('reliefModal');
+    if (relModal) {
+        relModal.addEventListener('click', function(e) {
+            if (e.target === relModal) closeReliefModal();
+        });
+    }
+});
+</script>
 
 </main>
 </div>

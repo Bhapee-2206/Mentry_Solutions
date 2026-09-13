@@ -1,7 +1,9 @@
 <?php
 // actions/assign-trainer.php
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/notifications.php';
 requireAdminOrStaff();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -39,6 +41,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($opp && $trainer && $asgCol) {
+            $trainersNeeded = max(1, (int)($opp['trainersNeeded'] ?? 1));
+
+            // Fetch current active assignments for this opportunity
+            $activeAssignments = $asgCol->find([
+                'opportunityId' => (string)$opportunityId,
+                'status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS', 'CONFIRMED', 'ASSIGNED']]
+            ])->toArray();
+            $activeCount = count($activeAssignments);
+
+            // 1. Duplicate check: prevent assigning the same trainer multiple times to the same opportunity
+            foreach ($activeAssignments as $act) {
+                if ((string)($act['trainerId'] ?? '') === (string)$trainerId) {
+                    header("Location: /admin/opportunity-view.php?id=" . urlencode($opportunityId) . "&error=" . urlencode("This trainer is already actively assigned to this opportunity."));
+                    exit();
+                }
+            }
+
+            // 2. Strict Quota Check: cannot assign more trainers than requested
+            if ($activeCount >= $trainersNeeded) {
+                header("Location: /admin/opportunity-view.php?id=" . urlencode($opportunityId) . "&error=" . urlencode("Quota full: This opportunity requires {$trainersNeeded} trainer(s), and {$activeCount} are already assigned. To assign another trainer, relieve an assigned trainer first."));
+                exit();
+            }
+
             $duration = (int)($opp['durationDays'] ?? 5);
             $totalFee = $duration * $agreedDailyRate;
             $startDate = $opp['startDate'] ?? new MongoDB\BSON\UTCDateTime();
@@ -59,13 +84,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'updatedAt' => new MongoDB\BSON\UTCDateTime()
             ]);
 
-            // Update opportunity status to CLOSED (or MATCHED)
+            // 3. Compile all assigned trainer IDs
+            $newActiveCount = $activeCount + 1;
+            $allAssignedTrainerIds = [];
+            foreach ($activeAssignments as $act) {
+                if (!empty($act['trainerId'])) $allAssignedTrainerIds[] = (string)$act['trainerId'];
+            }
+            $allAssignedTrainerIds[] = (string)$trainerId;
+            $allAssignedTrainerIds = array_values(array_unique($allAssignedTrainerIds));
+
+            $isFullyStaffed = ($newActiveCount >= $trainersNeeded);
+            $oppStatus = ($isFullyStaffed && $closeOpp) ? 'CLOSED' : 'PUBLISHED';
+
+            // Update opportunity status and assigned trainers list
             $oppUpdate = [
-                'status' => $targetStatus,
+                'status' => $oppStatus,
                 'assignedTrainerId' => $trainerId,
+                'assignedTrainerIds' => $allAssignedTrainerIds,
                 'updatedAt' => new MongoDB\BSON\UTCDateTime()
             ];
-            if ($closeOpp) {
+            if ($isFullyStaffed && $closeOpp) {
                 $oppUpdate['closedAt'] = new MongoDB\BSON\UTCDateTime();
             }
 
@@ -126,6 +164,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'updatedAt' => new MongoDB\BSON\UTCDateTime()
                 ]]
             );
+
+            // Dispatch real-time live notification & Web Push to the assigned trainer
+            try {
+                $notifCol = getCollection("Notification");
+                $trainerUserId = (string)($trainer['userId'] ?? '');
+                if ($notifCol && !empty($trainerUserId)) {
+                    $oppTitle = trim($opp['title'] ?? 'Training Opportunity');
+                    $collegeName = trim($opp['collegeName'] ?? '');
+                    $collegeSuffix = !empty($collegeName) ? " at {$collegeName}" : "";
+                    $oppCity = trim($opp['city'] ?? 'Campus');
+                    $durStr = !empty($opp['durationDays']) ? "{$opp['durationDays']} Days" : "Workshop";
+                    $datesStr = "";
+                    if (!empty($opp['startDate'])) {
+                        $datesStr = " from " . formatDate($opp['startDate']) . (!empty($opp['endDate']) ? " to " . formatDate($opp['endDate']) : "");
+                    }
+                    $feeStr = !empty($totalFee) ? " Total honorarium: " . formatINR($totalFee) . "." : "";
+
+                    $notifTitle = "🎯 Assignment Confirmed: {$oppTitle}{$collegeSuffix}";
+                    $notifMsg = "Congratulations! You have been confirmed as the faculty trainer for {$oppTitle} in {$oppCity}{$datesStr} ({$durStr}).{$feeStr} Tap to view your schedule and logistics.";
+
+                    $insRes = $notifCol->insertOne([
+                        'userId' => $trainerUserId,
+                        'trainerId' => $trainerId,
+                        'opportunityId' => (string)$opportunityId,
+                        'type' => 'TRAINER_SELECTED',
+                        'title' => $notifTitle,
+                        'message' => $notifMsg,
+                        'link' => '/trainer/assignments.php',
+                        'read' => false,
+                        'createdAt' => new MongoDB\BSON\UTCDateTime()
+                    ]);
+                    $notifId = (string)$insRes->getInsertedId();
+
+                    if (function_exists('dispatchWebPushNotification')) {
+                        @dispatchWebPushNotification(
+                            ['userId' => $trainerUserId],
+                            $notifTitle,
+                            $notifMsg,
+                            '/trainer/assignments.php',
+                            [
+                                'id' => $notifId,
+                                'type' => 'TRAINER_SELECTED',
+                                'trainerId' => $trainerId,
+                                'opportunityId' => (string)$opportunityId,
+                                'priority' => 'high'
+                            ]
+                        );
+                    }
+                }
+            } catch (\Throwable $e) {
+                error_log("Failed to dispatch assignment notification: " . $e->getMessage());
+            }
         }
     }
 }

@@ -55,6 +55,7 @@ if ($subCol) {
 // Total active push subscriptions count
 $totalActiveSubs = $subCol ? $subCol->countDocuments(['isActive' => true, 'isDead' => ['$ne' => true]]) : 0;
 $totalTrainerSubs = $subCol ? $subCol->countDocuments(['isActive' => true, 'isDead' => ['$ne' => true], 'userRole' => 'TRAINER']) : 0;
+$totalInactiveSubs = $subCol ? $subCol->countDocuments(['$or' => [['isActive' => false], ['isDead' => true]]]) : 0;
 
 // Recent delivery logs
 $recentLogs = [];
@@ -109,12 +110,15 @@ require_once __DIR__ . '/includes/sidebar.php';
         <div class="flex items-center gap-2">
             <span class="text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span><?= $totalActiveSubs ?> Total Devices (<?= $totalTrainerSubs ?> Trainers)</span>
+                <span>Active: <?= $totalActiveSubs ?> (<?= $totalTrainerSubs ?> Trainers)</span>
+            </span>
+            <span class="text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl font-bold">
+                <span>Inactive: <?= $totalInactiveSubs ?></span>
             </span>
         </div>
     </div>
 
-    <!-- 10-Point Production Diagnostic Matrix (Requirement 16) -->
+    <!-- Production Diagnostic Matrix (Requirement 20) -->
     <div class="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-sm space-y-4">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
             <div class="flex items-center gap-2">
@@ -124,7 +128,7 @@ require_once __DIR__ . '/includes/sidebar.php';
             <span class="text-[11px] font-mono text-slate-400 uppercase tracking-wider">Production Verification</span>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
             <!-- 1. HTTPS -->
             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                 <span class="text-slate-500 font-semibold text-[11px]">HTTPS:</span>
@@ -149,37 +153,49 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <span id="matrixPushApi" class="font-mono font-bold mt-2 text-xs text-slate-400">CHECKING...</span>
             </div>
 
-            <!-- 5. Subscription -->
+            <!-- 5. Current Subscription -->
             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
-                <span class="text-slate-500 font-semibold text-[11px]">Subscription:</span>
+                <span class="text-slate-500 font-semibold text-[11px]">Current Subscription:</span>
                 <span id="matrixSub" class="font-mono font-bold mt-2 text-xs text-slate-400">CHECKING...</span>
             </div>
 
-            <!-- 6. Backend Push Service -->
-            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
-                <span class="text-slate-500 font-semibold text-[11px]">Backend Push Service:</span>
-                <span class="font-mono font-bold mt-2 text-xs <?= $backendPushServiceStatus === 'CONNECTED' ? 'text-emerald-600' : 'text-rose-600' ?>"><?= $backendPushServiceStatus ?></span>
-            </div>
-
-            <!-- 7. VAPID -->
+            <!-- 6. VAPID -->
             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                 <span class="text-slate-500 font-semibold text-[11px]">VAPID:</span>
                 <span class="font-mono font-bold mt-2 text-xs <?= $vapidStatus === 'CONFIGURED' ? 'text-emerald-600' : 'text-rose-600' ?>"><?= $vapidStatus ?></span>
             </div>
 
-            <!-- 8. Last Push Attempt -->
+            <!-- 7. Active Devices -->
+            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                <span class="text-slate-500 font-semibold text-[11px]">Active Devices:</span>
+                <span class="font-mono font-bold mt-2 text-xs text-emerald-600"><?= $totalActiveSubs ?> (<?= $totalTrainerSubs ?> Trainers)</span>
+            </div>
+
+            <!-- 8. Inactive Devices -->
+            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                <span class="text-slate-500 font-semibold text-[11px]">Inactive Devices:</span>
+                <span class="font-mono font-bold mt-2 text-xs text-slate-500"><?= $totalInactiveSubs ?></span>
+            </div>
+
+            <!-- 9. Backend Push Service -->
+            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                <span class="text-slate-500 font-semibold text-[11px]">Backend Service:</span>
+                <span class="font-mono font-bold mt-2 text-xs <?= $backendPushServiceStatus === 'CONNECTED' ? 'text-emerald-600' : 'text-rose-600' ?>"><?= $backendPushServiceStatus ?></span>
+            </div>
+
+            <!-- 10. Last Push Attempt -->
             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                 <span class="text-slate-500 font-semibold text-[11px]">Last Push Attempt:</span>
                 <span class="font-mono font-bold mt-2 text-slate-800 text-[11px] truncate"><?= htmlspecialchars($lastPushAttempt) ?></span>
             </div>
 
-            <!-- 9. Last Push Result -->
+            <!-- 11. Last Push Result -->
             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                 <span class="text-slate-500 font-semibold text-[11px]">Last Push Result:</span>
                 <span class="font-mono font-bold mt-2 text-xs <?= $lastPushResult === 'SUCCESS' ? 'text-emerald-600' : ($lastPushResult === 'FAILED' ? 'text-rose-600' : 'text-slate-500') ?>"><?= $lastPushResult ?></span>
             </div>
 
-            <!-- 10. Last Error -->
+            <!-- 12. Last Error -->
             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
                 <span class="text-slate-500 font-semibold text-[11px]">Last Error:</span>
                 <span class="font-mono font-bold mt-2 text-slate-600 text-[11px] truncate" title="<?= htmlspecialchars($lastErrorText) ?>"><?= htmlspecialchars(substr($lastErrorText, 0, 24)) ?></span>
@@ -276,13 +292,26 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </div>
 
                 <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Message Preset / Notification Type:</label>
+                    <select id="notifPresetSelect" onchange="applyNotifPreset(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:bg-white cursor-pointer mb-2 font-medium">
+                        <option value="assignment">🎯 Confirmed Assignment (Routes to /trainer/assignments.php)</option>
+                        <option value="invitation">📩 Direct College Invitation (Routes to /trainer/opportunities.php)</option>
+                        <option value="reminder">⏰ Batch Schedule Reminder (Routes to /trainer/assignments.php)</option>
+                        <option value="shortlist">⭐ Candidate Shortlisted (Routes to /trainer/applications.php)</option>
+                        <option value="payout">💰 Honorarium Processed (Routes to /trainer/assignments.php)</option>
+                        <option value="custom">✏️ Custom Message</option>
+                    </select>
+                </div>
+
+                <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Notification Title:</label>
-                    <input type="text" id="customNotifTitle" value="🎉 Selected: Technical Campus Training" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:bg-white">
+                    <input type="text" id="customNotifTitle" value="🎯 Assignment Confirmed: Full Stack Java at SRM Institute" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:bg-white font-medium">
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Notification Message:</label>
-                    <textarea id="customNotifBody" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:bg-white">Congratulations! You have been selected for the campus training batch. Honorarium and travel logistics confirmed.</textarea>
+                    <textarea id="customNotifBody" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:bg-white leading-relaxed">Congratulations! You are confirmed for the 5-day Full Stack Java batch in Chennai. Honorarium: ₹30,000. View assignment schedule.</textarea>
+                    <input type="hidden" id="customNotifLink" value="/trainer/assignments.php">
                 </div>
 
                 <div class="pt-1">
@@ -645,11 +674,57 @@ async function sendTestPushToThisDevice() {
     }
 }
 
+function applyNotifPreset(val) {
+    const titleEl = document.getElementById('customNotifTitle');
+    const bodyEl = document.getElementById('customNotifBody');
+    const linkEl = document.getElementById('customNotifLink');
+    
+    const presets = {
+        assignment: {
+            title: "🎯 Assignment Confirmed: Full Stack Java at SRM Institute",
+            body: "Congratulations! You are confirmed for the 5-day Full Stack Java batch in Chennai. Honorarium: ₹30,000. View assignment schedule.",
+            link: "/trainer/assignments.php"
+        },
+        invitation: {
+            title: "📩 Direct College Invitation: Python & AI at VIT University",
+            body: "VIT Vellore has directly invited you for a 3-day Python & AI Workshop. Rate: ₹7,500/day. Review details & confirm.",
+            link: "/trainer/opportunities.php"
+        },
+        reminder: {
+            title: "⏰ Schedule Reminder: Campus Training starts tomorrow",
+            body: "Reminder: Your campus workshop at St. Joseph's Engineering starts tomorrow at 9:00 AM. Executive travel & stay confirmed.",
+            link: "/trainer/assignments.php"
+        },
+        shortlist: {
+            title: "⭐ Shortlisted: Cloud & DevOps Faculty",
+            body: "Great news! You have been shortlisted for the upcoming Cloud training batch. Operations is finalizing trainer slots.",
+            link: "/trainer/applications.php"
+        },
+        payout: {
+            title: "💰 Honorarium Processed: ₹30,000 Credited",
+            body: "Your honorarium for the Java Training batch has been successfully processed and credited to your account.",
+            link: "/trainer/assignments.php"
+        },
+        custom: {
+            title: "",
+            body: "",
+            link: "/trainer/assignments.php"
+        }
+    };
+
+    if (presets[val]) {
+        if (presets[val].title) titleEl.value = presets[val].title;
+        if (presets[val].body) bodyEl.value = presets[val].body;
+        if (linkEl) linkEl.value = presets[val].link;
+    }
+}
+
 async function handleSendTrainerTestPush(e) {
     e.preventDefault();
     const userId = document.getElementById('targetTrainerSelect').value;
     const title = document.getElementById('customNotifTitle').value;
     const body = document.getElementById('customNotifBody').value;
+    const link = document.getElementById('customNotifLink') ? document.getElementById('customNotifLink').value : '/trainer/assignments.php';
     const resBox = document.getElementById('trainerTestResult');
 
     if (!userId) {
@@ -667,6 +742,7 @@ async function handleSendTrainerTestPush(e) {
         formData.append('targetUserId', userId);
         formData.append('title', title);
         formData.append('message', body);
+        formData.append('link', link);
 
         const res = await fetch(base + '/actions/send-test-trainer-notification.php', {
             method: 'POST',

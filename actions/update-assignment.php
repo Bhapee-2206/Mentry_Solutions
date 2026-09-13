@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Sync Trainer availability
                 if ($trainerCol && !empty($trainerId)) {
-                    if ($status === 'COMPLETED' || $status === 'CANCELLED') {
+                    if ($status === 'COMPLETED' || $status === 'CANCELLED' || $status === 'RELIEVED') {
                         // Check if any other scheduled or in-progress assignment exists
                         $otherActive = $asgCol->findOne([
                             'trainerId' => $trainerId,

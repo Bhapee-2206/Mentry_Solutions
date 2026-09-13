@@ -97,6 +97,18 @@ $assignments = ($assignmentCol && !empty($trainerId)) ? $assignmentCol->find(
                         </div>
                     </div>
 
+                    <?php if ($asgStatus === 'RELIEVED'): ?>
+                        <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
+                            <div class="font-bold flex items-center gap-1.5 text-amber-800">
+                                <span class="material-symbols-outlined text-base">person_remove</span>
+                                Relieved from Assignment
+                            </div>
+                            <p class="text-[11px] text-amber-700 leading-relaxed">
+                                You were officially relieved from this campus training program (Reason: <?= htmlspecialchars($asg['reliefReason'] ?? 'Operational Dropout / Unavailability') ?>). Your campus logistics have been closed, and your profile availability has been restored to <strong>Available Now</strong>.
+                            </p>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="grid sm:grid-cols-3 gap-3.5 text-xs">
                         <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
                             <span class="text-slate-400 block font-bold uppercase text-[10px]">Campus Accommodation</span>

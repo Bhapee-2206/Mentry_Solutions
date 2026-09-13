@@ -76,6 +76,7 @@ $defaultMaxRate = max(5000, round($vendorBudget * 0.85 / 500) * 500);
                     Target Client: <strong class="text-slate-900"><?= htmlspecialchars($req['institutionName']) ?></strong> • 
                     Campus: <?= htmlspecialchars($req['city']) ?>, <?= htmlspecialchars($req['state'] ?? 'India') ?> • 
                     Duration: <?= htmlspecialchars($req['durationDays'] ?? 5) ?> Days • 
+                    Trainers Required: <strong class="text-indigo-700"><?= htmlspecialchars($req['trainersNeeded'] ?? 1) ?> Faculty</strong> • 
                     Batch Size: <?= htmlspecialchars($req['studentCount'] ?? 100) ?> Students
                 </p>
             </div>

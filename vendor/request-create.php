@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $endDate = trim($_POST['endDate'] ?? '');
     $durationDays = (int)($_POST['durationDays'] ?? 5);
     $studentCount = (int)($_POST['studentCount'] ?? 100);
+    $trainersNeeded = max(1, (int)($_POST['trainersNeeded'] ?? 1));
     $budgetPerDay = (float)($_POST['budgetPerDay'] ?? 8000);
     $skillsRequired = trim($_POST['skillsRequired'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -57,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'endDate' => new MongoDB\BSON\UTCDateTime(strtotime($endDate) * 1000),
                 'durationDays' => $durationDays,
                 'studentCount' => $studentCount,
+                'trainersNeeded' => $trainersNeeded,
                 'budgetPerDay' => $budgetPerDay,
                 'skillsRequired' => json_encode($skillsArray),
                 'description' => $description,
@@ -178,6 +180,12 @@ require_once __DIR__ . '/includes/sidebar.php';
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Expected Student Batch Size</label>
                 <input type="number" name="studentCount" value="120" min="1" max="1000" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Trainers Required (Parallel Batches)</label>
+                <input type="number" name="trainersNeeded" value="1" min="1" max="20" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-slate-800">
+                <span class="text-[10px] text-slate-400 mt-1 block">Number of faculty members needed concurrently.</span>
             </div>
 
             <div>

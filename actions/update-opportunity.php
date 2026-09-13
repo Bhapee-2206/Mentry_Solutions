@@ -4,6 +4,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/notifications.php';
 requireAdminOrStaff();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -21,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $endDate = trim($_POST['endDate'] ?? '');
     $durationDays = (int)($_POST['durationDays'] ?? 5);
     $studentCount = (int)($_POST['studentCount'] ?? 100);
+    $trainersNeeded = max(1, (int)($_POST['trainersNeeded'] ?? 1));
     $dailyRateMin = (float)($_POST['dailyRateMin'] ?? 5000);
     $dailyRateMax = (float)($_POST['dailyRateMax'] ?? 7000);
     $minExperienceYears = (int)($_POST['minExperienceYears'] ?? 3);
@@ -60,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'endDate' => !empty($endDate) ? new MongoDB\BSON\UTCDateTime(strtotime($endDate) * 1000) : null,
                     'durationDays' => $durationDays,
                     'studentCount' => $studentCount,
+                    'trainersNeeded' => $trainersNeeded,
                     'dailyRateMin' => $dailyRateMin,
                     'dailyRateMax' => $dailyRateMax,
                     'minExperienceYears' => $minExperienceYears,
@@ -72,6 +75,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'updatedAt' => new MongoDB\BSON\UTCDateTime()
                 ]]
             );
+
+            if ($status === 'PUBLISHED' && function_exists('notifyMatchingTrainersForOpportunity')) {
+                notifyMatchingTrainersForOpportunity($id);
+            }
         }
     }
 }

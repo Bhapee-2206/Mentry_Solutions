@@ -1,11 +1,12 @@
 // sw.js - Mentry Solutions PWA Service Worker & Web Push Engine
-const CACHE_NAME = 'mentry-pwa-v11';
+const CACHE_NAME = 'mentry-pwa-v18';
 const ASSETS_TO_PRECACHE = [
   './manifest.json',
   './public/icon-192.png',
   './public/icon-512.png',
   './public/icon-maskable-512.png',
   './public/notification-icon-192.png',
+  './public/mentry-badge-96.png',
   './public/badge-96.png',
   './public/mentry-emblem.png',
   './favicon.ico',
@@ -94,25 +95,52 @@ self.addEventListener('fetch', (event) => {
 
 // 4. Push Event: Handle background Web Push Notifications from server
 //
-// CRITICAL ANDROID REQUIREMENT (Chrome Push Policy):
-// Chrome on Android REQUIRES self.registration.showNotification() to be called
-// for EVERY push event. If the push handler resolves without showing a notification,
-// Chrome will:
-//   - Show a generic "This site has been updated in the background" notification
-//   - After repeated violations, revoke push permission entirely
+// Authoritative Routing:
+// - CASE A (Foreground): User currently has Mentry open and visible/focused.
+//   Deliver to the active in-app window via postMessage AND ensure native OS notification triggers.
+// - CASE B (Background): Mentry is closed, backgrounded, or screen locked.
+//   Show exactly ONE native OS notification via self.registration.showNotification().
 //
-// Therefore, we ALWAYS call showNotification(). When the app is visible/focused,
-// we ALSO send a postMessage so the page can show an in-app popup and then
-// programmatically close the OS notification to avoid duplicates.
-//
+// Helper to safely resolve absolute asset URLs in Service Worker scope
+function resolveSwAssetUrl(path, fallbackRelative) {
+  let target = path || fallbackRelative || 'public/icon-192.png';
+  if (/^https?:\/\//i.test(target)) {
+    try {
+      const parsed = new URL(target);
+      const scopeUrl = new URL(self.registration.scope);
+      if (scopeUrl.pathname && scopeUrl.pathname !== '/' && !parsed.pathname.startsWith(scopeUrl.pathname)) {
+        const clean = parsed.pathname.replace(/^\/+/, '').replace(/^Mentry(?:%20|\s+)solution\/+/i, '');
+        return new URL(clean, self.registration.scope).href;
+      }
+    } catch (e) {}
+    return target;
+  }
+  if (/^data:/i.test(target)) {
+    return target;
+  }
+  let clean = target.replace(/^\/+/, '');
+  clean = clean.replace(/^Mentry(?:%20|\s+)solution\/+/i, '');
+  try {
+    return new URL(clean, self.registration.scope).href;
+  } catch (e) {
+    try {
+      return new URL(clean, self.location.origin).href;
+    } catch (err) {
+      return target;
+    }
+  }
+}
+
+// 4. Push Event: Handle background Web Push Notifications from server
 self.addEventListener('push', (event) => {
   let payload = {
+    notification_id: 'mentry_' + Date.now(),
+    type: 'GENERAL',
     title: 'Mentry Solutions',
     body: 'New update on your training portal.',
-    icon: '/public/icon-192.png',
-    badge: '/public/badge-96.png',
-    url: '/',
-    tag: 'mentry-general'
+    icon: 'public/icon-192.png',
+    badge: 'public/badge-96.png',
+    url: '/'
   };
 
   if (event.data) {
@@ -120,74 +148,89 @@ self.addEventListener('push', (event) => {
       const data = event.data.json();
       payload = Object.assign(payload, data);
     } catch (e) {
-      payload.body = event.data.text();
+      try {
+        payload.body = event.data.text();
+      } catch (err) {}
     }
   }
 
-  const notificationId = payload.id || (payload.data && payload.data.id) || ('mentry-' + Date.now());
-  const targetUrl = payload.url || (payload.data && payload.data.url) || '/';
+  const notificationId = String(payload.notification_id || payload.id || (payload.data && (payload.data.notification_id || payload.data.id)) || ('mentry_' + Date.now()));
+  const notifType = payload.type || (payload.data && payload.data.type) || 'GENERAL';
+  const targetUrl = payload.url || payload.link || (payload.data && (payload.data.url || payload.data.link)) || '/';
 
-  // Resolve icon and badge to absolute URLs in service worker scope
-  const baseScope = self.registration.scope;
-  const iconUrl = payload.icon
-    ? new URL(payload.icon, baseScope).href
-    : new URL('public/icon-192.png', baseScope).href;
+  // Safely resolve full URLs for icon and badge
+  // icon = full-color Mentry logo (shown in notification panel)
+  // badge = monochrome silhouette on transparent bg (Android status bar)
+  const iconUrl = resolveSwAssetUrl(payload.icon, 'public/icon-192.png');
+  const badgeUrl = resolveSwAssetUrl(payload.badge, 'public/badge-96.png');
 
-  const badgeUrl = payload.badge
-    ? new URL(payload.badge, baseScope).href
-    : new URL('public/badge-96.png', baseScope).href;
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 
-  const notificationOptions = {
-    body: payload.body,
+  const primaryOptions = {
+    body: payload.body || 'New update on your training portal.',
     icon: iconUrl,
     badge: badgeUrl,
     tag: 'mentry-' + notificationId,
     renotify: true,
-    requireInteraction: true,
     vibrate: [200, 100, 200],
     data: {
+      notification_id: notificationId,
       id: notificationId,
+      type: notifType,
       url: targetUrl,
+      opportunity_id: payload.opportunity_id || (payload.data && payload.data.opportunity_id) || null,
       timestamp: Date.now()
-    },
-    actions: [
-      { action: 'open', title: 'View Details' }
-    ]
+    }
   };
 
-  event.waitUntil(
-    // ALWAYS show the native OS notification first (mandatory for Android Chrome)
-    self.registration.showNotification(payload.title, notificationOptions).then(() => {
-      // After the notification is shown, check if any Mentry window is visible+focused
-      return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    }).then((clientList) => {
-      // Find a client that is truly visible AND focused (user is actively looking at Mentry)
-      const activeClient = clientList.find(c =>
-        c.visibilityState === 'visible' && c.focused === true
-      );
+  // Only use requireInteraction on Desktop browsers (fails on mobile)
+  if (!isMobile) {
+    primaryOptions.requireInteraction = true;
+  }
 
-      if (activeClient) {
-        // User is actively viewing Mentry right now:
-        // Send a message so the page can show its own in-app popup
-        // and optionally close the OS notification to avoid duplicates.
-        activeClient.postMessage({
-          type: 'PUSH_RECEIVED_IN_APP',
-          notification: {
-            id: notificationId,
-            title: payload.title,
-            body: payload.body,
-            message: payload.body,
-            url: targetUrl,
-            link: targetUrl,
-            type: payload.type || (payload.data && payload.data.type) || 'GENERAL',
-            matchScore: payload.matchScore || (payload.data && payload.data.matchScore) || null,
-            tag: 'mentry-' + notificationId
-          }
-        });
-      }
-      // If no active client: notification stays in the OS tray (exactly what we want)
-    })
-  );
+  // Safe notification dispatch with automatic fallback so push NEVER fails silently
+  const showNotificationPromise = self.registration.showNotification(payload.title || 'Mentry Solutions', primaryOptions)
+    .catch((err) => {
+      console.warn('[Mentry SW] Primary showNotification failed, retrying minimal options:', err);
+      return self.registration.showNotification(payload.title || 'Mentry Solutions', {
+        body: payload.body || 'New update on your training portal.',
+        icon: iconUrl,
+        tag: 'mentry-' + notificationId,
+        data: {
+          notification_id: notificationId,
+          url: targetUrl
+        }
+      }).catch((fallbackErr) => {
+        console.error('[Mentry SW] Fallback showNotification failed:', fallbackErr);
+      });
+    });
+
+  // Also notify any open client windows so in-app counters update simultaneously
+  const notifyClientsPromise = self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then((clientList) => {
+      clientList.forEach((client) => {
+        try {
+          client.postMessage({
+            type: 'PUSH_NOTIFICATION_DELIVERED',
+            notification: {
+              notification_id: notificationId,
+              id: notificationId,
+              type: notifType,
+              title: payload.title,
+              body: payload.body,
+              message: payload.body,
+              url: targetUrl,
+              link: targetUrl,
+              opportunity_id: payload.opportunity_id || null,
+              matchScore: payload.matchScore || (payload.data && payload.data.matchScore) || null,
+              tag: 'mentry-' + notificationId
+            }
+          });
+        } catch (e) {}
+      });
+    }).catch(() => {});
+
+  event.waitUntil(Promise.all([showNotificationPromise, notifyClientsPromise]));
 });
 
 // 5. Notification Click: Bring PWA to focus or navigate to target opportunity/page
@@ -197,15 +240,15 @@ self.addEventListener('notificationclick', (event) => {
     ? event.notification.data.url 
     : '/';
 
-  // Ensure absolute URL without duplicated subpaths
+  // Ensure absolute URL matching the exact Service Worker registration scope
   let finalUrl;
   try {
     if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
       finalUrl = targetUrl;
-    } else if (targetUrl.startsWith('/')) {
-      finalUrl = new URL(targetUrl, self.location.origin).href;
     } else {
-      finalUrl = new URL(targetUrl, self.registration.scope).href;
+      let cleanTarget = targetUrl.replace(/^\/+/, '');
+      cleanTarget = cleanTarget.replace(/^Mentry(?:%20|\s+)solution\/+/i, '');
+      finalUrl = new URL(cleanTarget, self.registration.scope).href;
     }
   } catch (e) {
     finalUrl = self.registration.scope;
