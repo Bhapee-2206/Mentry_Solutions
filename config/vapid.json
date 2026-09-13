@@ -1,0 +1,7 @@
+{
+    "publicKey": "BA9mBgUtMvq9B7yX2nKQoJPa9au6wnV4uROUCPuSQ7-ldEdtWKVN4g6SmadL6Pm2NTjL4QqSPMyd_R1Z7Ax47BU",
+    "privateKey": "w4haOYpPuKZqlNo7G9lPyzfdLwMNoD2JoBW7Id2iSm4",
+    "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgw4haOYpPuKZqlNo7\nG9lPyzfdLwMNoD2JoBW7Id2iSm6hRANCAAQPZgYFLTL6vQe8l9pykKCT2vWrusJ1\neLkTlAj7kkO/pXRHbVilTeIOkpmnS+j5tjU4y+EKkjzMnf0dWewMeOwV\n-----END PRIVATE KEY-----\n",
+    "subject": "mailto:support@mentry.in",
+    "createdAt": "2026-09-13T09:09:57+05:30"
+}

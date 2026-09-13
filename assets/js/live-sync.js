@@ -187,12 +187,17 @@
                 createdAt: notif.createdAt || Date.now()
             };
 
-            // 1. Display in-app card on screen
-            this.enqueue(cleanNotif);
-
-            // 2. ALWAYS trigger native mobile / browser push notification on device
-            if ('Notification' in window && Notification.permission === 'granted') {
-                triggerNativeSystemNotification(cleanNotif);
+            if (this.isUserActive()) {
+                // User is actively looking at Mentry: show in-app popup card
+                this.enqueue(cleanNotif);
+                if (source === 'test' && 'Notification' in window && Notification.permission === 'granted') {
+                    triggerNativeSystemNotification(cleanNotif);
+                }
+            } else {
+                // User is away or tab is backgrounded
+                if (source === 'poll' && 'Notification' in window && Notification.permission === 'granted') {
+                    triggerNativeSystemNotification(cleanNotif);
+                }
             }
             return true;
         },
@@ -756,6 +761,7 @@
         const descs = document.querySelectorAll('#mobilePushDesc, [data-push-desc]');
         const enableBtns = document.querySelectorAll('#enableMobilePushBtn, [data-push-enable-btn]');
         const testBtns = document.querySelectorAll('#testMobilePushBtn, [data-push-test-btn]');
+        const iconBoxes = document.querySelectorAll('#mobilePushIconBox, [data-push-icon-box]');
         const dashBanner = document.getElementById('dashboardMobilePushBanner');
         if (dashBanner) {
             const isDismissed = localStorage.getItem('mentry_dashboard_push_banner_dismissed') === '1';

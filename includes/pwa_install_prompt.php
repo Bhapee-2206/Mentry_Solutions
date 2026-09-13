@@ -109,26 +109,27 @@ if ($isAdminContext) {
 </div>
 
 <!-- Push Notification Permission Banner -->
-<div id="mentryPushBanner" class="fixed top-20 right-4 md:right-6 max-w-sm w-[calc(100%-2rem)] z-[70] bg-slate-950/95 text-white p-4 rounded-2xl border border-slate-800/90 shadow-2xl backdrop-blur-xl hidden select-none animate-in fade-in slide-in-from-top-4 duration-300">
+<div id="mentryPushBanner" class="fixed bottom-6 right-4 sm:right-6 max-w-sm w-[calc(100%-2rem)] z-[80] bg-slate-950/95 text-white p-5 rounded-3xl border border-slate-800/90 shadow-2xl backdrop-blur-xl hidden select-none animate-in fade-in slide-in-from-bottom-4 duration-300">
     <div class="flex items-start gap-3.5">
-        <div class="w-10 h-10 rounded-xl bg-[#FE5E04]/20 border border-[#FE5E04]/30 text-[#FE5E04] flex items-center justify-center shrink-0 shadow-xs">
-            <span class="material-symbols-outlined text-[22px] animate-pulse">notifications_active</span>
+        <div class="w-11 h-11 rounded-2xl bg-[#FE5E04]/20 border border-[#FE5E04]/30 text-[#FE5E04] flex items-center justify-center shrink-0 shadow-sm">
+            <span class="material-symbols-outlined text-[24px] animate-pulse">notifications_active</span>
         </div>
         <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between">
-                <h4 class="font-extrabold text-xs text-white">Enable Real-Time Alerts</h4>
-                <button type="button" onclick="dismissPushBanner()" class="text-slate-400 hover:text-white p-0.5 -mr-1 rounded-md cursor-pointer" aria-label="Dismiss">
-                    <span class="material-symbols-outlined text-[16px]">close</span>
+                <h4 class="font-extrabold text-sm text-white tracking-tight">🔔 Stay Updated</h4>
+                <button type="button" onclick="dismissPushBanner()" class="text-slate-400 hover:text-white p-1 -mr-1 rounded-lg hover:bg-slate-800/60 transition-colors cursor-pointer" aria-label="Dismiss">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
                 </button>
             </div>
-            <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">Stay updated with instant push notifications for new training opportunities, confirmed assignments, and schedule alerts.</p>
-            <div class="flex items-center gap-2 mt-3.5">
-                <button type="button" onclick="enablePushNotifications()" class="flex-1 bg-[#FE5E04] hover:bg-[#e04e00] text-white font-bold text-xs py-2 px-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer">
-                    <span class="material-symbols-outlined text-[15px]">notifications</span>
-                    <span>Enable Alerts</span>
+            <p class="text-xs font-semibold text-slate-200 mt-1">Never Miss a Training Opportunity</p>
+            <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">Get instant alerts for new opportunities, selections, interviews and important updates.</p>
+            <div class="flex items-center gap-2 mt-4">
+                <button type="button" onclick="enablePushNotifications()" class="flex-1 bg-[#FE5E04] hover:bg-[#e04e00] text-white font-bold text-xs py-2.5 px-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px]">notifications</span>
+                    <span>Enable Notifications</span>
                 </button>
-                <button type="button" onclick="dismissPushBanner()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs py-2 px-3 rounded-xl transition-colors cursor-pointer">
-                    Later
+                <button type="button" onclick="dismissPushBanner()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs py-2.5 px-3.5 rounded-xl transition-colors cursor-pointer">
+                    Maybe later
                 </button>
             </div>
         </div>
@@ -361,34 +362,94 @@ if ($isAdminContext) {
         });
     };
 
-    function subscribeUserToPush(swReg) {
-        if (!swReg || !swReg.pushManager) return;
-
-        swReg.pushManager.getSubscription().then((existingSub) => {
-            if (existingSub) {
-                sendSubscriptionToServer(existingSub);
-                return existingSub;
-            }
-
-            return swReg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlB64ToUint8Array('BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U')
-            }).then((newSub) => {
-                sendSubscriptionToServer(newSub);
-            }).catch((err) => {
-                console.log('[Mentry Push] Subscription notice:', err.message);
+    async function getVapidPublicKey() {
+        const base = getPwaBaseUrl();
+        try {
+            const res = await fetch(base + '/actions/get-vapid-public-key.php?_t=' + Date.now(), {
+                cache: 'no-store'
             });
-        });
+            const data = await res.json();
+            if (data && data.success && data.publicKey) {
+                return data.publicKey;
+            }
+        } catch(e) {}
+        return null;
     }
 
-    function sendSubscriptionToServer(sub) {
+    async function subscribeUserToPush(swReg) {
+        if (!swReg || !swReg.pushManager) return;
+
+        try {
+            const vapidKey = await getVapidPublicKey();
+            if (!vapidKey) {
+                console.warn('[Mentry Push] Could not fetch VAPID public key');
+                return;
+            }
+
+            const existingSub = await swReg.pushManager.getSubscription();
+            let oldEndpoint = null;
+
+            if (existingSub) {
+                // Check if existing subscription used the current VAPID key
+                const currentKeyArray = urlB64ToUint8Array(vapidKey);
+                const subKey = existingSub.options && existingSub.options.applicationServerKey;
+                let keyMatches = false;
+                if (subKey) {
+                    const subKeyBytes = new Uint8Array(subKey);
+                    if (subKeyBytes.length === currentKeyArray.length) {
+                        keyMatches = subKeyBytes.every((v, i) => v === currentKeyArray[i]);
+                    }
+                }
+
+                if (keyMatches) {
+                    sendSubscriptionToServer(existingSub);
+                    return existingSub;
+                } else {
+                    // Key mismatch: old dummy key! Unsubscribe and re-subscribe with real key
+                    oldEndpoint = existingSub.endpoint;
+                    try {
+                        await existingSub.unsubscribe();
+                    } catch(e) {}
+                }
+            }
+
+            const convertedKey = urlB64ToUint8Array(vapidKey);
+            const newSub = await swReg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: convertedKey
+            });
+            sendSubscriptionToServer(newSub, oldEndpoint);
+            return newSub;
+        } catch (err) {
+            console.log('[Mentry Push] Subscription notice:', err.message);
+        }
+    }
+
+    function sendSubscriptionToServer(sub, oldEndpoint = null) {
         if (!sub) return;
         const base = getPwaBaseUrl();
+        const subData = JSON.parse(JSON.stringify(sub));
+        subData.platform = navigator.platform || 'Unknown';
+        subData.device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
+        subData.browser = getBrowserName();
+        if (oldEndpoint) {
+            subData.oldEndpoint = oldEndpoint;
+        }
+
         fetch(base + '/actions/save-push-subscription.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sub)
+            body: JSON.stringify(subData)
         }).catch(() => {});
+    }
+
+    function getBrowserName() {
+        const ua = navigator.userAgent;
+        if (/Edg/i.test(ua)) return 'Edge';
+        if (/Chrome/i.test(ua)) return 'Chrome';
+        if (/Safari/i.test(ua)) return 'Safari';
+        if (/Firefox/i.test(ua)) return 'Firefox';
+        return 'Browser';
     }
 
     function urlB64ToUint8Array(base64String) {

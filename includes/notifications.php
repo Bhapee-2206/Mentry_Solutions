@@ -384,50 +384,104 @@ function checkOpportunityScheduleMilestones($force = false) {
  */
 function dispatchWebPushNotification(array $filter, string $title, string $body, string $url = '/', array $extraData = []) {
     try {
+        require_once __DIR__ . '/PushNotificationService.php';
+
         $subCol = getCollection("PushSubscription");
         if (!$subCol) return false;
 
-        $subscriptions = $subCol->find($filter)->toArray();
+        $notifType = strtoupper($extraData['type'] ?? 'GENERAL');
+
+        // Check user preferences if targeted to a specific user
+        if (isset($filter['userId'])) {
+            $uId = (string)$filter['userId'];
+            $uCol = getCollection("User");
+            try {
+                $targetUserDoc = $uCol ? $uCol->findOne(['_id' => new MongoDB\BSON\ObjectId($uId)]) : null;
+            } catch (\Throwable $e) {
+                $targetUserDoc = $uCol ? $uCol->findOne(['userId' => $uId]) : null;
+            }
+
+            $userPrefs = $targetUserDoc['notificationPreferences'] ?? null;
+            if ($userPrefs && is_array($userPrefs)) {
+                // Master switch or push toggle OFF
+                if (isset($userPrefs['all']) && !$userPrefs['all']) return true;
+                if (isset($userPrefs['push_notifications']) && !$userPrefs['push_notifications']) return true;
+
+                // Granular category toggle
+                $categoryKeyMap = [
+                    'NEW_OPPORTUNITY' => 'notify_new_opportunities',
+                    'OPPORTUNITY_MATCH' => 'notify_opportunity_matches',
+                    'OPPORTUNITY_UPDATED' => 'notify_new_opportunities',
+                    'OPPORTUNITY_CANCELLED' => 'notify_new_opportunities',
+                    'TRAINER_SELECTED' => 'notify_trainer_selection',
+                    'TRAINER_NOT_SELECTED' => 'notify_trainer_selection',
+                    'APPLICATION_ACCEPTED' => 'notify_trainer_selection',
+                    'APPLICATION_SHORTLISTED' => 'notify_trainer_selection',
+                    'INTERVIEW_SCHEDULED' => 'notify_interview_updates',
+                    'INTERVIEW_REMINDER' => 'notify_interview_updates',
+                    'INTERVIEW_RESCHEDULED' => 'notify_interview_updates',
+                    'TRAINING_REMINDER' => 'notify_training_reminders',
+                    'TRAINING_STARTED' => 'notify_training_reminders',
+                    'TRAINING_UPDATED' => 'notify_training_reminders',
+                    'TRAINING_CANCELLED' => 'notify_training_reminders',
+                    'TRAINING_COMPLETED' => 'notify_training_reminders',
+                    'PAYMENT_PENDING' => 'notify_payment_updates',
+                    'PAYMENT_PROCESSED' => 'notify_payment_updates',
+                    'PAYMENT_FAILED' => 'notify_payment_updates',
+                    'DOCUMENT_REQUIRED' => 'notify_document_updates',
+                    'DOCUMENT_APPROVED' => 'notify_document_updates',
+                    'DOCUMENT_REJECTED' => 'notify_document_updates',
+                    'COLLEGE_MESSAGE' => 'notify_college_messages',
+                    'SYSTEM_ALERT' => 'notify_system_alerts',
+                    'LIVE_ALERT' => 'notify_system_alerts'
+                ];
+                $catKey = $categoryKeyMap[$notifType] ?? null;
+                if ($catKey && isset($userPrefs[$catKey]) && !$userPrefs[$catKey]) {
+                    return true; // Category disabled by user preference
+                }
+            }
+        }
+
+        $query = ['isActive' => ['$ne' => false]];
+        if (isset($filter['userId'])) {
+            $uId = (string)$filter['userId'];
+            $trainerId = $extraData['trainerId'] ?? null;
+            if (empty($trainerId)) {
+                $trCol = getCollection("Trainer");
+                $t = $trCol ? $trCol->findOne(['userId' => $uId]) : null;
+                if ($t) $trainerId = (string)$t['_id'];
+            }
+
+            $orConditions = [
+                ['userId' => $uId],
+                ['userId' => (string)$uId]
+            ];
+            if (!empty($trainerId)) {
+                $orConditions[] = ['trainerId' => $trainerId];
+                $orConditions[] = ['trainerId' => (string)$trainerId];
+            }
+            $query['$or'] = $orConditions;
+        } else {
+            $query = array_merge($query, $filter);
+        }
+        $subscriptions = $subCol->find($query)->toArray();
         if (empty($subscriptions)) return true;
 
         $notifId = $extraData['id'] ?? ('notif_' . substr(md5($title . $url . microtime()), 0, 12));
+        $priority = $extraData['priority'] ?? 'high';
 
-        $payload = json_encode([
+        $payloadData = array_merge([
             'id' => $notifId,
             'title' => $title,
             'body' => $body,
-            'icon' => '/public/icon-192.png',
+            'message' => $body,
             'url' => $url,
-            'tag' => 'mentry-' . $notifId,
-            'data' => array_merge([
-                'id' => $notifId,
-                'url' => $url,
-                'timestamp' => time() * 1000
-            ], $extraData),
-            'timestamp' => time() * 1000
-        ]);
+            'link' => $url,
+            'type' => $extraData['type'] ?? 'GENERAL'
+        ], $extraData);
 
         foreach ($subscriptions as $sub) {
-            $endpoint = $sub['endpoint'] ?? '';
-            if (empty($endpoint)) continue;
-
-            // Direct web push post using cURL if available
-            if (function_exists('curl_init')) {
-                $ch = curl_init($endpoint);
-                curl_setopt_array($ch, [
-                    CURLOPT_POST => true,
-                    CURLOPT_POSTFIELDS => $payload,
-                    CURLOPT_HTTPHEADER => [
-                        'Content-Type: application/json',
-                        'TTL: 86400'
-                    ],
-                    CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_TIMEOUT => 2,
-                    CURLOPT_SSL_VERIFYPEER => false
-                ]);
-                @curl_exec($ch);
-                curl_close($ch);
-            }
+            PushNotificationService::sendToSubscription($sub, $payloadData, $priority);
         }
         return true;
     } catch (\Throwable $e) {

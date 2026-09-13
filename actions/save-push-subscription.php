@@ -42,7 +42,33 @@ try {
     $userId = $currentUser['id'] ?? null;
     $userRole = $currentUser['role'] ?? 'GUEST';
     $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-    $userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 300);
+    $device = cleanString($data['device'] ?? '', 100);
+    $browser = cleanString($data['browser'] ?? '', 100);
+    $platform = cleanString($data['platform'] ?? '', 100);
+    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+    // Link trainerId if user is a trainer
+    $trainerId = null;
+    if ($userRole === 'TRAINER' && !empty($userId)) {
+        $trainerCol = getCollection("Trainer");
+        $t = $trainerCol ? $trainerCol->findOne(['userId' => (string)$userId]) : null;
+        if ($t) {
+            $trainerId = (string)$t['_id'];
+        }
+    }
+
+    // Deactivate old subscription endpoint if client replaced it
+    if (!empty($data['oldEndpoint']) && $data['oldEndpoint'] !== $endpoint) {
+        $oldEndpoint = cleanString($data['oldEndpoint'], 2000);
+        $subCol->updateOne(
+            ['endpoint' => $oldEndpoint],
+            ['$set' => [
+                'isActive' => false,
+                'deactivatedAt' => new MongoDB\BSON\UTCDateTime(),
+                'deactivationReason' => 'REPLACED_BY_NEW_CLIENT_SUBSCRIPTION'
+            ]]
+        );
+    }
 
     $subCol->updateOne(
         ['endpoint' => $endpoint],
@@ -52,10 +78,16 @@ try {
                 'p256dh' => $p256dh,
                 'auth' => $authKey,
                 'userId' => $userId ? (string)$userId : null,
+                'trainerId' => $trainerId,
                 'userRole' => $userRole,
+                'device' => $device ?: (preg_match('/Mobile|Android|iPhone/i', $userAgent) ? 'Mobile' : 'Desktop'),
+                'browser' => $browser,
+                'platform' => $platform,
                 'ip' => $ip,
                 'userAgent' => $userAgent,
-                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                'isActive' => true,
+                'updatedAt' => new MongoDB\BSON\UTCDateTime(),
+                'lastActiveAt' => new MongoDB\BSON\UTCDateTime()
             ],
             '$setOnInsert' => [
                 'createdAt' => new MongoDB\BSON\UTCDateTime()
@@ -64,8 +96,10 @@ try {
         ['upsert' => true]
     );
 
-    echo json_encode(['success' => true, 'message' => 'Push subscription saved successfully']);
+    if (ob_get_length()) ob_clean();
+    echo json_encode(['success' => true, 'message' => 'Push subscription saved successfully', 'userId' => $userId]);
 } catch (\Throwable $e) {
+    if (ob_get_length()) ob_clean();
     error_log("save-push-subscription error: " . $e->getMessage());
     echo json_encode(['success' => false, 'error' => 'Could not register push token']);
 }

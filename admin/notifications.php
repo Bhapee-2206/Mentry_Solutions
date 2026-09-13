@@ -6,11 +6,22 @@ require_once __DIR__ . '/../includes/helpers.php';
 
 $notifCol = getCollection("Notification");
 
+// Base Admin notification filter: only show administrative platform alerts, not private trainer notifications
+$adminBaseFilter = [
+    '$or' => [
+        ['recipientRole' => ['$in' => ['ADMIN', 'SUPER_ADMIN', 'STAFF']]],
+        ['isAdminAlert' => true],
+        ['isStaffAlert' => true],
+        ['targetRoles' => ['$in' => ['ADMIN', 'SUPER_ADMIN', 'STAFF']]],
+        ['type' => ['$in' => ['NEW_APPLICATION', 'NEW_TRAINER', 'NEW_REQUIREMENT', 'NEW_VENDOR', 'NEW_DEMAND', 'OPPORTUNITY_STARTING_SOON', 'OPPORTUNITY_AUTO_CLOSED']]]
+    ]
+];
+
 // Handle Mark All As Read
 if (isset($_GET['action']) && $_GET['action'] === 'mark_all_read') {
     if ($notifCol) {
         $notifCol->updateMany(
-            ['read' => false],
+            ['$and' => [$adminBaseFilter, ['read' => false]]],
             ['$set' => ['read' => true, 'readAt' => new MongoDB\BSON\UTCDateTime()]]
         );
     }
@@ -40,24 +51,26 @@ require_once __DIR__ . '/includes/sidebar.php';
 // Active Category Filter
 $activeFilter = $_GET['filter'] ?? 'ALL';
 
-$mongoFilter = [];
+$catFilter = [];
 if ($activeFilter === 'NEW_APPLICATION') {
-    $mongoFilter['type'] = 'NEW_APPLICATION';
+    $catFilter = ['type' => 'NEW_APPLICATION'];
 } elseif ($activeFilter === 'NEW_TRAINER') {
-    $mongoFilter['type'] = 'NEW_TRAINER';
+    $catFilter = ['type' => 'NEW_TRAINER'];
 } elseif ($activeFilter === 'NEW_REQUIREMENT') {
-    $mongoFilter['type'] = 'NEW_REQUIREMENT';
+    $catFilter = ['type' => 'NEW_REQUIREMENT'];
 } elseif ($activeFilter === 'PARTNER') {
-    $mongoFilter['type'] = ['$in' => ['NEW_VENDOR', 'NEW_DEMAND']];
+    $catFilter = ['type' => ['$in' => ['NEW_VENDOR', 'NEW_DEMAND']]];
 } elseif ($activeFilter === 'OPPORTUNITIES') {
-    $mongoFilter['type'] = ['$in' => ['OPPORTUNITY_STARTING_SOON', 'OPPORTUNITY_AUTO_CLOSED']];
+    $catFilter = ['type' => ['$in' => ['OPPORTUNITY_STARTING_SOON', 'OPPORTUNITY_AUTO_CLOSED']]];
 } elseif ($activeFilter === 'UNREAD') {
-    $mongoFilter['read'] = false;
+    $catFilter = ['read' => false];
 }
+
+$mongoFilter = empty($catFilter) ? $adminBaseFilter : ['$and' => [$adminBaseFilter, $catFilter]];
 
 $notifications = $notifCol ? $notifCol->find($mongoFilter, ['sort' => ['createdAt' => -1], 'limit' => 50])->toArray() : [];
 
-// Compute category counts
+// Compute category counts strictly for admin alerts
 $totalUnreadCount = 0;
 $appCount = 0;
 $trainerCount = 0;
@@ -67,12 +80,12 @@ $oppAlertCount = 0;
 
 if ($notifCol) {
     try {
-        $totalUnreadCount = $notifCol->countDocuments(['read' => false]);
-        $appCount = $notifCol->countDocuments(['type' => 'NEW_APPLICATION']);
-        $trainerCount = $notifCol->countDocuments(['type' => 'NEW_TRAINER']);
-        $reqCount = $notifCol->countDocuments(['type' => 'NEW_REQUIREMENT']);
-        $partnerCount = $notifCol->countDocuments(['type' => ['$in' => ['NEW_VENDOR', 'NEW_DEMAND']]]);
-        $oppAlertCount = $notifCol->countDocuments(['type' => ['$in' => ['OPPORTUNITY_STARTING_SOON', 'OPPORTUNITY_AUTO_CLOSED']]]);
+        $totalUnreadCount = $notifCol->countDocuments(['$and' => [$adminBaseFilter, ['read' => false]]]);
+        $appCount = $notifCol->countDocuments(['$and' => [$adminBaseFilter, ['type' => 'NEW_APPLICATION']]]);
+        $trainerCount = $notifCol->countDocuments(['$and' => [$adminBaseFilter, ['type' => 'NEW_TRAINER']]]);
+        $reqCount = $notifCol->countDocuments(['$and' => [$adminBaseFilter, ['type' => 'NEW_REQUIREMENT']]]);
+        $partnerCount = $notifCol->countDocuments(['$and' => [$adminBaseFilter, ['type' => ['$in' => ['NEW_VENDOR', 'NEW_DEMAND']]]]]);
+        $oppAlertCount = $notifCol->countDocuments(['$and' => [$adminBaseFilter, ['type' => ['$in' => ['OPPORTUNITY_STARTING_SOON', 'OPPORTUNITY_AUTO_CLOSED']]]]]);
     } catch (\Throwable $e) {}
 }
 

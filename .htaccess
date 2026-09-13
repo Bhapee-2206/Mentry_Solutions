@@ -53,6 +53,9 @@ ErrorDocument 500 /500.php
     
     # Permissions Policy
     Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    
+    # Service Worker Scope Override
+    Header set Service-Worker-Allowed "/"
 </IfModule>
 
 # ----------------------------------------------------------------------
@@ -104,6 +107,11 @@ ErrorDocument 500 /500.php
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
+
+    # Enforce HTTPS for production domains (excludes localhost and local loopback IPs)
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
     # Block direct HTTP access to data, config, and scratch storage directories
     RewriteRule ^data(/|$) - [F,L]

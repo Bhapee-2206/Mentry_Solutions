@@ -261,7 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $notifMsg .= " Note from Admin: \"{$adminNotes}\"";
                         }
 
-                        $notifCol->insertOne([
+                        $insRes = $notifCol->insertOne([
                             'userId' => $trainerUserId,
                             'trainerId' => $trainerId,
                             'opportunityId' => $oppId,
@@ -273,14 +273,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'read' => false,
                             'createdAt' => new MongoDB\BSON\UTCDateTime()
                         ]);
+                        $notifId = (string)$insRes->getInsertedId();
 
-                        // Web push notification
+                        // Web push notification to trainer's devices
                         if (function_exists('dispatchWebPushNotification')) {
                             @dispatchWebPushNotification(
                                 ['userId' => $trainerUserId],
                                 $notifTitle,
                                 $notifMsg,
-                                '/trainer/applications.php'
+                                '/trainer/applications.php',
+                                [
+                                    'id' => $notifId,
+                                    'type' => $notifType,
+                                    'trainerId' => $trainerId,
+                                    'priority' => 'high'
+                                ]
                             );
                         }
                     }
