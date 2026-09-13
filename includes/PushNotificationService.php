@@ -10,26 +10,65 @@ class PushNotificationService {
     private static $opensslConf = null;
 
     /**
-     * Locate valid openssl.cnf on Windows/Linux
+     * Locate or create valid openssl.cnf on Windows/Linux/Vercel
      */
     private static function getOpenSslConf(): ?string {
-        if (self::$opensslConf !== null) return self::$opensslConf;
+        if (self::$opensslConf !== null && !empty(self::$opensslConf) && @file_exists(self::$opensslConf)) {
+            return self::$opensslConf;
+        }
 
         $paths = [
             getenv('OPENSSL_CONF'),
             'C:/xampp/php/extras/ssl/openssl.cnf',
             'C:/xampp/apache/bin/openssl.cnf',
             '/etc/ssl/openssl.cnf',
-            '/usr/lib/ssl/openssl.cnf'
+            '/usr/lib/ssl/openssl.cnf',
+            '/usr/local/ssl/openssl.cnf',
+            '/etc/pki/tls/openssl.cnf',
+            '/opt/homebrew/etc/openssl@3/openssl.cnf'
         ];
 
         foreach ($paths as $p) {
-            if (!empty($p) && file_exists($p)) {
+            if (!empty($p) && @file_exists($p)) {
                 self::$opensslConf = $p;
-                putenv("OPENSSL_CONF={$p}");
+                @putenv("OPENSSL_CONF={$p}");
                 return $p;
             }
         }
+
+        // On serverless/cloud environments (e.g. Vercel, AWS Lambda, Docker) where no openssl.cnf exists:
+        // Automatically create a minimal, valid config in the temp directory so openssl_pkey_new never fails.
+        // The config MUST include all sections referenced for EC key generation to work.
+        try {
+            $tempConf = sys_get_temp_dir() . '/mentry_openssl.cnf';
+            $minimalConfig = implode("\n", [
+                'HOME = .',
+                'openssl_conf = openssl_init',
+                '',
+                '[openssl_init]',
+                'providers = provider_sect',
+                '',
+                '[provider_sect]',
+                'default = default_sect',
+                '',
+                '[default_sect]',
+                'activate = 1',
+                '',
+                '[req]',
+                'distinguished_name = req_distinguished_name',
+                '',
+                '[req_distinguished_name]',
+                ''
+            ]);
+            // Always rewrite to ensure latest config format
+            @file_put_contents($tempConf, $minimalConfig);
+            if (@file_exists($tempConf)) {
+                self::$opensslConf = $tempConf;
+                @putenv("OPENSSL_CONF={$tempConf}");
+                return $tempConf;
+            }
+        } catch (\Throwable $e) {}
+
         self::$opensslConf = '';
         return null;
     }
@@ -112,12 +151,25 @@ class PushNotificationService {
             $args['config'] = $cnf;
         }
 
-        $res = openssl_pkey_new($args);
+        $res = @openssl_pkey_new($args);
         if (!$res) {
-            throw new Exception("Failed to generate VAPID keys: " . openssl_error_string());
+            // Retry without config
+            $res = @openssl_pkey_new([
+                'curve_name' => 'prime256v1',
+                'private_key_type' => OPENSSL_KEYTYPE_EC,
+            ]);
+        }
+        if (!$res) {
+            $sslErr = openssl_error_string() ?: 'Unknown';
+            error_log("PushNotificationService: VAPID key generation failed: {$sslErr}");
+            throw new Exception("Notification system temporarily unavailable. Please try again later.");
         }
 
         $details = openssl_pkey_get_details($res);
+        if (!$details || empty($details['ec'])) {
+            error_log("PushNotificationService: openssl_pkey_get_details failed for VAPID key");
+            throw new Exception("Notification system temporarily unavailable. Please try again later.");
+        }
         $x = str_pad($details['ec']['x'], 32, "\x00", STR_PAD_LEFT);
         $y = str_pad($details['ec']['y'], 32, "\x00", STR_PAD_LEFT);
         $d = str_pad($details['ec']['d'], 32, "\x00", STR_PAD_LEFT);
@@ -238,8 +290,25 @@ class PushNotificationService {
         ];
         if (!empty($cnf)) $args['config'] = $cnf;
 
-        $serverRes = openssl_pkey_new($args);
+        $serverRes = @openssl_pkey_new($args);
+        if (!$serverRes) {
+            // Retry without config in case the config itself is causing the issue
+            $serverRes = @openssl_pkey_new([
+                'curve_name' => 'prime256v1',
+                'private_key_type' => OPENSSL_KEYTYPE_EC,
+            ]);
+        }
+        if (!$serverRes) {
+            $sslErr = openssl_error_string() ?: 'Unknown OpenSSL error';
+            error_log("PushNotificationService: openssl_pkey_new failed for ephemeral key: {$sslErr}");
+            throw new Exception("Notification encryption unavailable on this server. Please contact support.");
+        }
+
         $serverDetails = openssl_pkey_get_details($serverRes);
+        if (!$serverDetails || empty($serverDetails['ec'])) {
+            error_log("PushNotificationService: openssl_pkey_get_details failed for ephemeral key");
+            throw new Exception("Notification encryption unavailable on this server. Please contact support.");
+        }
         $sx = str_pad($serverDetails['ec']['x'], 32, "\x00", STR_PAD_LEFT);
         $sy = str_pad($serverDetails['ec']['y'], 32, "\x00", STR_PAD_LEFT);
         $serverPubBinary = "\x04" . $sx . $sy;
@@ -258,9 +327,8 @@ class PushNotificationService {
 
         // 3. HKDF key derivation according to RFC 8291
         $salt = random_bytes(16);
-        $context = "WebPush: info\0" . $clientPubBinary . $serverPubBinary;
-        $prk = hash_hkdf('sha256', $sharedSecret, 32, "Content-Encoding: auth\0", $clientAuth);
-        $ikm = hash_hkdf('sha256', $prk, 32, $context, '');
+        $keyInfo = "WebPush: info\0" . $clientPubBinary . $serverPubBinary;
+        $ikm = hash_hkdf('sha256', $sharedSecret, 32, $keyInfo, $clientAuth);
 
         $cek = hash_hkdf('sha256', $ikm, 16, "Content-Encoding: aes128gcm\0", $salt);
         $nonce = hash_hkdf('sha256', $ikm, 12, "Content-Encoding: nonce\0", $salt);
@@ -415,7 +483,14 @@ class PushNotificationService {
             ];
         } catch (\Throwable $e) {
             error_log("PushNotificationService error: " . $e->getMessage());
-            return ['success' => false, 'error' => $e->getMessage(), 'statusCode' => 500, 'endpoint' => $endpoint];
+            // NEVER expose raw exception messages — they may contain OpenSSL internals, file paths, etc.
+            return [
+                'success' => false,
+                'error' => 'Push delivery failed. The notification was saved and will be visible in-app.',
+                'statusCode' => 500,
+                'endpoint' => $endpoint,
+                'device' => $sub['device'] ?? 'Device'
+            ];
         }
     }
 

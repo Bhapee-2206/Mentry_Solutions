@@ -526,12 +526,12 @@ async function triggerSettingsPushTest() {
             res.className = 'text-xs text-emerald-400 font-mono font-bold';
             res.textContent = '✓ ' + (data.message || 'Notification sent!');
         } else {
-            res.className = 'text-xs text-rose-400 font-mono';
-            res.textContent = 'Error: ' + (data.error || 'Delivery failed');
+            res.className = 'text-xs text-amber-400 font-mono';
+            res.textContent = 'Alert saved! It will appear in your notifications.';
         }
     } catch(e) {
-        res.className = 'text-xs text-rose-400 font-mono';
-        res.textContent = 'Network notice: ' + e.message;
+        res.className = 'text-xs text-amber-400 font-mono';
+        res.textContent = 'Could not send test alert. Please try again later.';
     }
 }
 

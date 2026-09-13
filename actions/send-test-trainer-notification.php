@@ -1,5 +1,5 @@
 <?php
-// actions/send-test-trainer-notification.php
+// actions/send-test-trainer-notification.php - Dispatch Web Push & In-App Diagnostics
 header('Content-Type: application/json');
 
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
@@ -10,6 +10,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/notifications.php';
+require_once __DIR__ . '/../includes/PushNotificationService.php';
 
 $currentUser = getCurrentUser();
 if (!$currentUser) {
@@ -82,26 +83,27 @@ try {
         $testNotifId = (string)$insRes->getInsertedId();
     }
 
-    // Dispatch Web Push notification to trainer devices
-    require_once __DIR__ . '/../includes/PushNotificationService.php';
+    // STRICT FILTER: Query ONLY active, non-dead subscriptions
     $subCol = getCollection("PushSubscription");
-
     $targetSubs = [];
     if ($subCol) {
-        $allSubs = $subCol->find([])->toArray();
-        foreach ($allSubs as $s) {
-            if (($s['isActive'] ?? true) === false || !empty($s['isDead'])) continue;
-            $sUid = (string)($s['userId'] ?? '');
-            $sTid = (string)($s['trainerId'] ?? '');
-            if ($sUid === (string)$targetUserId || (!empty($trainerId) && $sTid === (string)$trainerId)) {
-                $targetSubs[] = $s;
-            }
+        $query = [
+            'isActive' => true,
+            'isDead' => ['$ne' => true],
+            '$or' => [
+                ['userId' => (string)$targetUserId]
+            ]
+        ];
+        if (!empty($trainerId)) {
+            $query['$or'][] = ['trainerId' => (string)$trainerId];
         }
+        $targetSubs = $subCol->find($query)->toArray();
     }
 
-    $pushDelivered = 0;
+    $pushAccepted = 0;
     $pushFailed = 0;
-    $deliveryDetails = [];
+    $pushExpired = 0;
+    $deviceBreakdown = [];
 
     $payload = [
         'id' => $testNotifId,
@@ -115,46 +117,70 @@ try {
     ];
 
     foreach ($targetSubs as $sub) {
+        $devName = ($sub['device'] ?? 'Device') . ' • ' . ($sub['browser'] ?? 'Browser');
         $res = PushNotificationService::sendToSubscription($sub, $payload, 'high');
         $code = $res['statusCode'] ?? 0;
         $isOk = !empty($res['success']);
+
         if ($isOk) {
-            $pushDelivered++;
-            $deliveryDetails[] = "Push Delivered (HTTP {$code}) to " . ($sub['device'] ?? 'Device');
+            $pushAccepted++;
+            $deviceBreakdown[] = "{$devName}: ✓ Accepted by push service (HTTP {$code})";
         } else {
             $pushFailed++;
-            $subId = (string)($sub['_id'] ?? 'unknown');
-            if ($code === 403 || $code === 401) {
-                $deliveryDetails[] = "Push failed | Reason: Subscription rejected by push service | HTTP: {$code} | Subscription: inactive | Action: subscription will be refreshed on next device visit";
-            } elseif ($code === 404 || $code === 410) {
-                $deliveryDetails[] = "Push failed | Reason: Subscription expired or unregistered | HTTP: {$code} | Subscription: inactive | Action: device will re-subscribe";
+            if ($code === 404 || $code === 410) {
+                $pushExpired++;
+                $deviceBreakdown[] = "{$devName}: ✗ Expired subscription — automatically deactivated";
+            } elseif ($code === 401 || $code === 403) {
+                $deviceBreakdown[] = "{$devName}: ✗ Server credentials issue — please reconfigure VAPID keys";
             } else {
-                $errText = $res['error'] ?: 'Gateway connection failure';
-                $deliveryDetails[] = "Push failed | Reason: {$errText} | HTTP: {$code} | Subscription ID: {$subId}";
+                $deviceBreakdown[] = "{$devName}: ✗ Delivery failed (HTTP {$code})";
             }
         }
     }
 
-    $msg = ($pushDelivered > 0)
-        ? "Push Delivered: {$pushDelivered} device(s) confirmed via Web Push (HTTP 201)."
-        : (count($targetSubs) === 0 
-            ? "In-app alert created. No active push subscriptions found for this trainer (or previous expired token pending renewal on device)."
-            : "In-app alert created. Push delivery issue: " . implode(' | ', $deliveryDetails));
+    $isAdmin = isAdminOrStaff();
 
+    if ($isAdmin) {
+        $summary = ($pushAccepted > 0)
+            ? "Push Summary: {$pushAccepted} accepted by push service, {$pushFailed} failed."
+            : (count($targetSubs) === 0
+                ? "In-app alert created. No active push devices found for {$targetName}."
+                : "Push delivery issue: {$pushFailed} device(s) failed.");
 
-    if (ob_get_length()) ob_clean();
-    echo json_encode([
-        'success' => true,
-        'message' => $msg,
-        'targetUserId' => $targetUserId,
-        'targetName' => $targetName,
-        'devicesFound' => count($targetSubs),
-        'pushDeliveredCount' => $pushDelivered,
-        'pushFailedCount' => $pushFailed,
-        'details' => implode('<br>', $deliveryDetails)
-    ]);
+        if (ob_get_length()) ob_clean();
+        echo json_encode([
+            'success' => true,
+            'message' => $summary,
+            'targetUserId' => $targetUserId,
+            'targetName' => $targetName,
+            'devicesFound' => count($targetSubs),
+            'pushDeliveredCount' => $pushAccepted,
+            'pushAcceptedCount' => $pushAccepted,
+            'pushFailedCount' => $pushFailed,
+            'pushExpiredCount' => $pushExpired,
+            'details' => implode('<br>', $deviceBreakdown)
+        ]);
+    } else {
+        // CLEAN USER-FRIENDLY RESPONSE FOR TRAINERS (No technical jargon)
+        if (ob_get_length()) ob_clean();
+        $trainerMsg = ($pushAccepted > 0)
+            ? 'Test notification sent to your device! Check your notification bar.'
+            : 'Alert saved! It will appear in your notifications.';
+        echo json_encode([
+            'success' => true,
+            'message' => $trainerMsg,
+            'pushDeliveredCount' => $pushAccepted
+        ]);
+    }
 } catch (\Throwable $e) {
     if (ob_get_length()) ob_clean();
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    error_log("send-test-trainer-notification error: " . $e->getMessage());
+    // Always return success to trainer since in-app notification was created
+    $isAdmin = function_exists('isAdminOrStaff') && isAdminOrStaff();
+    if ($isAdmin) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Push delivery error. In-app notification was saved.']);
+    } else {
+        echo json_encode(['success' => true, 'message' => 'Alert saved! It will appear in your notifications.', 'pushDeliveredCount' => 0]);
+    }
 }

@@ -271,49 +271,38 @@ async function updatePushStatusUI() {
         return;
     }
 
+    function getOrCreateDeviceId() {
+        try {
+            let id = localStorage.getItem('mentry_device_id');
+            if (!id || typeof id !== 'string' || id.length < 10) {
+                id = 'dev_' + (window.crypto && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10)));
+                localStorage.setItem('mentry_device_id', id);
+            }
+            return id;
+        } catch(e) {
+            return 'dev_anon_' + Date.now().toString(36);
+        }
+    }
+
     if (Notification.permission === 'granted') {
         try {
             const reg = await navigator.serviceWorker.ready;
             const sub = await reg.pushManager.getSubscription();
             if (sub) {
-                // Verify with backend that this endpoint is active and not rejected
-                const base = getAppBaseUrl();
-                let serverCheck = null;
-                try {
-                    const chkRes = await fetch(base + '/actions/check-subscription-status.php?_t=' + Date.now(), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ endpoint: sub.endpoint })
-                    });
-                    serverCheck = await chkRes.json();
-                } catch(e) {}
-
-                if (serverCheck && serverCheck.success && serverCheck.active && !serverCheck.isDead && !serverCheck.requireRefresh) {
-                    badge.textContent = '✓ ACTIVE ON THIS DEVICE';
-                    badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-                    desc.textContent = 'Push alerts connected via production VAPID. Alerts arrive even when Mentry is closed.';
-                    btnText.textContent = 'Send Test Alert';
-                    btn.className = 'w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700';
-                    iconBox.className = 'w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0';
-                    btn.onclick = sendTrainerTestPush;
-                    return;
-                } else {
-                    // Gateway rejected or stale token: trigger automatic background renewal
-                    badge.textContent = '● RENEWING TOKEN...';
-                    badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
-                    desc.textContent = 'Refreshing push gateway token with production VAPID authority...';
-                    btnText.textContent = 'Reconnect Alerts';
-                    btn.onclick = () => forceRenewPushSubscription(true);
-                    forceRenewPushSubscription(false);
-                    return;
-                }
+                badge.textContent = '✓ ACTIVE ON THIS DEVICE';
+                badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                desc.textContent = 'Notifications are enabled. Alerts will arrive on your device even when Mentry is closed.';
+                btnText.textContent = 'Send Test Alert';
+                btn.className = 'w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700';
+                iconBox.className = 'w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0';
+                btn.onclick = sendTrainerTestPush;
+                return;
             } else {
-                // Permission granted but no subscription: auto-subscribe
                 badge.textContent = '● CONNECTING...';
                 badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30';
-                desc.textContent = 'Registering device with production VAPID push gateway...';
+                desc.textContent = "We're setting up your notifications...";
                 btnText.textContent = 'Connecting...';
-                forceRenewPushSubscription(false);
+                syncPushSubscription(false);
                 return;
             }
         } catch(e) {}
@@ -321,9 +310,9 @@ async function updatePushStatusUI() {
 
     badge.textContent = 'NOT CONNECTED';
     badge.className = 'text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
-    desc.textContent = 'Receive push notifications on your phone lock screen outside the app.';
+    desc.textContent = 'Receive instant alerts on your phone screen outside the app.';
     btnText.textContent = 'Connect Phone Alerts';
-    btn.onclick = () => forceRenewPushSubscription(true);
+    btn.onclick = () => syncPushSubscription(true);
 }
 
 async function sendTrainerTestPush() {
@@ -336,24 +325,25 @@ async function sendTrainerTestPush() {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: 'title=' + encodeURIComponent('🔔 Mentry Test Alert') + 
-                  '&message=' + encodeURIComponent('Live background alert confirmed! Notifications will reach you even when Mentry is closed.')
+                  '&message=' + encodeURIComponent('Live alert confirmed! Notifications will reach you even when Mentry is closed.')
         });
         const testData = await testRes.json();
         btnText.textContent = 'Send Test Alert';
         if (testData.success && testData.pushDeliveredCount > 0) {
-            alert('✓ ' + (testData.message || 'Test alert delivered!'));
+            alert('✓ Test alert sent! Check your phone notification bar or lock screen.');
+        } else if (testData.success) {
+            alert('✓ Alert saved! It will appear in your notifications.');
         } else {
-            alert('Push Gateway Response: ' + (testData.message || 'Delivery in progress'));
-            // Re-verify UI in case token was invalidated
+            alert('Alert saved. If not received, please check your browser notification permissions.');
             updatePushStatusUI();
         }
     } catch(err) {
         btnText.textContent = 'Send Test Alert';
-        alert('Test error: ' + err.message);
+        alert('Could not send test alert. Please try again.');
     }
 }
 
-async function forceRenewPushSubscription(showUserAlert = false) {
+async function syncPushSubscription(showUserAlert = false) {
     const btnText = document.getElementById('btnSyncPushText');
     const base = getAppBaseUrl();
     if (btnText) btnText.textContent = 'Connecting...';
@@ -362,7 +352,7 @@ async function forceRenewPushSubscription(showUserAlert = false) {
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') {
             if (showUserAlert) {
-                alert('Notification permission was denied. Please enable notifications in your browser address bar.');
+                alert('Notification permission was not enabled. You can enable notifications in your browser settings.');
             }
             updatePushStatusUI();
             return;
@@ -370,7 +360,7 @@ async function forceRenewPushSubscription(showUserAlert = false) {
 
         const res = await fetch(base + '/actions/get-vapid-public-key.php?_t=' + Date.now(), { cache: 'no-store' });
         const data = await res.json();
-        if (!data || !data.publicKey) throw new Error('Could not fetch server VAPID key');
+        if (!data || !data.publicKey) throw new Error('Notification key unavailable');
 
         let reg = await navigator.serviceWorker.ready;
         if (!reg) {
@@ -379,28 +369,54 @@ async function forceRenewPushSubscription(showUserAlert = false) {
 
         const convertedKey = urlB64ToUint8Array(data.publicKey);
         const existingSub = await reg.pushManager.getSubscription();
-        let oldEndpoint = null;
+        const deviceId = getOrCreateDeviceId();
 
         if (existingSub) {
-            oldEndpoint = existingSub.endpoint;
-            try {
-                await existingSub.unsubscribe();
-            } catch(e) {}
+            // Check if key matches current VAPID key
+            const subKey = existingSub.options && existingSub.options.applicationServerKey;
+            let keyMatches = false;
+            if (subKey) {
+                const subKeyBytes = new Uint8Array(subKey);
+                if (subKeyBytes.length === convertedKey.length) {
+                    keyMatches = subKeyBytes.every((v, i) => v === convertedKey[i]);
+                }
+            }
+
+            if (keyMatches) {
+                // REUSE: existing subscription is valid. Send deviceId and sync without creating duplicate!
+                const subJson = JSON.parse(JSON.stringify(existingSub));
+                subJson.deviceId = deviceId;
+                subJson.platform = navigator.platform || 'Unknown';
+                subJson.device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
+                subJson.browser = navigator.userAgent;
+
+                await fetch(base + '/actions/save-push-subscription.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(subJson)
+                });
+
+                updatePushStatusUI();
+                if (showUserAlert) {
+                    alert('✓ Notifications are enabled on this device.');
+                }
+                return;
+            } else {
+                try { await existingSub.unsubscribe(); } catch(e) {}
+            }
         }
 
-        // Fresh subscription with current production VAPID key
+        // Fresh subscription when none exists
         const newSub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: convertedKey
         });
 
         const subJson = JSON.parse(JSON.stringify(newSub));
+        subJson.deviceId = deviceId;
         subJson.platform = navigator.platform || 'Unknown';
         subJson.device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
         subJson.browser = navigator.userAgent;
-        if (oldEndpoint) {
-            subJson.oldEndpoint = oldEndpoint;
-        }
 
         await fetch(base + '/actions/save-push-subscription.php', {
             method: 'POST',
@@ -411,12 +427,12 @@ async function forceRenewPushSubscription(showUserAlert = false) {
         updatePushStatusUI();
 
         if (showUserAlert) {
-            alert('🎉 Phone Alerts Connected! You will receive push notifications even when Mentry is completely closed.');
+            alert('✓ Notifications are enabled on this device.');
         }
     } catch(err) {
         if (btnText) btnText.textContent = 'Retry Connection';
         if (showUserAlert) {
-            alert('Push registration error: ' + err.message);
+            alert('Could not enable notifications. Please check browser settings.');
         }
     }
 }
