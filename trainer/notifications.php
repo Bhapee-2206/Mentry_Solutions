@@ -79,52 +79,6 @@ if ($notifCol && !empty($userQuery)) {
         <?php endif; ?>
     </div>
 
-    <!-- Real-Time Device / Mobile Push Notification Control Card -->
-    <div id="mobilePushStatusCard" class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-700/80 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div class="flex items-start gap-3.5 min-w-0">
-            <div id="mobilePushIconBox" data-push-icon="1" class="w-10 h-10 rounded-2xl bg-orange-500/20 text-[#FE5E04] border border-orange-500/30 flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-2xl">notifications_active</span>
-            </div>
-            <div class="min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <h3 class="font-extrabold text-sm text-white">Mobile Device Push Notifications</h3>
-                    <span id="mobilePushBadge" data-push-badge="1" class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Action Required</span>
-                </div>
-                <p id="mobilePushDesc" data-push-desc="1" class="text-xs text-slate-300 mt-1 leading-relaxed">
-                    Receive instant alerts on your phone screen outside the app when you are selected, shortlisted, or when new opportunities match.
-                </p>
-            </div>
-        </div>
-        <div class="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-            <button id="enableMobilePushBtn" data-push-enable-btn="1" type="button" onclick="requestMentryDeviceNotifications()" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
-                <span class="material-symbols-outlined text-[16px]">notifications</span>
-                <span>Enable Mobile Alerts</span>
-            </button>
-            <button id="testMobilePushBtn" data-push-test-btn="1" type="button" onclick="sendTestDeviceNotification()" class="hidden bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer">
-                <span class="material-symbols-outlined text-[16px]">send_to_mobile</span>
-                <span>Send Test Alert to Phone</span>
-            </button>
-        </div>
-    </div>
-    <script>
-    (function() {
-        try {
-            if ('Notification' in window && Notification.permission === 'granted') {
-                var b = document.getElementById('mobilePushBadge');
-                var e = document.getElementById('enableMobilePushBtn');
-                var t = document.getElementById('testMobilePushBtn');
-                var d = document.getElementById('mobilePushDesc');
-                var ic = document.getElementById('mobilePushIconBox');
-                if (b) { b.textContent = '✓ ACTIVE ON THIS DEVICE'; b.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'; }
-                if (e) e.classList.add('hidden');
-                if (t) t.classList.remove('hidden');
-                if (d) d.textContent = 'Mobile push alerts are active! Real-time notifications will pop on your phone screen outside the app.';
-                if (ic) ic.className = 'w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0';
-            }
-        } catch(e) {}
-    })();
-    </script>
-
     <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card divide-y divide-slate-100 overflow-hidden min-w-0">
         <?php if (empty($notifications)): ?>
             <div class="p-12 text-center text-xs text-slate-400">

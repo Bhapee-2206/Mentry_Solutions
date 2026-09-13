@@ -92,17 +92,11 @@ if ($currentUser) {
                     ]
                 ]);
 
-                // Stream newly created notifications since lastSync OR recent unread notifications in last 24h
-                $oneDayAgoBson = new MongoDB\BSON\UTCDateTime((time() - 86400) * 1000);
+                // Stream newly created notifications strictly since lastSync baseline
                 $newNotifsCursor = $notifCol->find([
                     '$and' => [
                         ['$or' => $userFilterOr],
-                        [
-                            '$or' => [
-                                ['createdAt' => ['$gt' => $sinceBson]],
-                                ['read' => false, 'createdAt' => ['$gt' => $oneDayAgoBson]]
-                            ]
-                        ]
+                        ['createdAt' => ['$gt' => $sinceBson]]
                     ]
                 ], ['sort' => ['createdAt' => -1], 'limit' => 5]);
             }

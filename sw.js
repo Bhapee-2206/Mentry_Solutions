@@ -1,5 +1,5 @@
 // sw.js - Mentry Solutions PWA Service Worker & Web Push Engine
-const CACHE_NAME = 'mentry-pwa-v4';
+const CACHE_NAME = 'mentry-pwa-v5';
 const ASSETS_TO_PRECACHE = [
   '/',
   '/manifest.json',
@@ -92,8 +92,7 @@ self.addEventListener('push', (event) => {
   let payload = {
     title: 'Mentry Solutions',
     body: 'New update on your training portal.',
-    icon: '/public/mentry.png',
-    badge: '/public/mentry.png',
+    icon: '/public/icon-192.png',
     url: '/',
     tag: 'mentry-general'
   };
@@ -107,34 +106,65 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  const notificationOptions = {
-    body: payload.body,
-    icon: payload.icon || '/public/mentry.png',
-    badge: payload.badge || '/public/mentry.png',
-    tag: payload.tag || 'mentry-notification',
-    renotify: true,
-    vibrate: [100, 50, 100],
-    data: {
-      url: payload.url || '/'
-    },
-    actions: [
-      { action: 'open', title: 'Open Mentry' }
-    ]
-  };
+  const notificationId = payload.id || (payload.data && payload.data.id) || ('mentry-' + Date.now());
+  const targetUrl = payload.url || (payload.data && payload.data.url) || '/';
 
   event.waitUntil(
-    self.registration.showNotification(payload.title, notificationOptions)
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Check if there is an active/visible Mentry window client
+      const activeClient = clientList.find(c => c.visibilityState === 'visible');
+
+      if (activeClient) {
+        // User is ACTIVELY viewing the Mentry website / PWA:
+        // Forward notification payload to the active page for in-app display.
+        // DO NOT call self.registration.showNotification()!
+        return activeClient.postMessage({
+          type: 'PUSH_RECEIVED_IN_APP',
+          notification: {
+            id: notificationId,
+            title: payload.title,
+            body: payload.body,
+            message: payload.body,
+            url: targetUrl,
+            link: targetUrl,
+            type: payload.type || (payload.data && payload.data.type) || 'GENERAL',
+            matchScore: payload.matchScore || (payload.data && payload.data.matchScore) || null
+          }
+        });
+      }
+
+      // User has Mentry closed or backgrounded:
+      // Display ONE native push notification (clean, single PWA icon, no duplicate logo)
+      const notificationOptions = {
+        body: payload.body,
+        icon: '/public/icon-192.png',
+        tag: 'mentry-' + notificationId,
+        renotify: false,
+        vibrate: [150, 60, 150],
+        data: {
+          id: notificationId,
+          url: targetUrl
+        },
+        actions: [
+          { action: 'open', title: 'Open Mentry' }
+        ]
+      };
+
+      return self.registration.showNotification(payload.title, notificationOptions);
+    })
   );
 });
 
-// 5. Notification Click: Bring PWA to focus or navigate to target page
+// 5. Notification Click: Bring PWA to focus or navigate to target opportunity/page
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data && event.notification.data.url ? event.notification.data.url : '/';
+  const targetUrl = (event.notification.data && event.notification.data.url) 
+    ? event.notification.data.url 
+    : '/';
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If a window is already open, focus it and navigate
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If a window is already open within our origin, focus it and navigate
       for (let i = 0; i < clientList.length; i++) {
         const client = clientList[i];
         if (client.url && 'focus' in client) {
@@ -148,34 +178,16 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
       // Otherwise open a new standalone window
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
       }
     })
+  );
 });
 
-// 6. Direct Client Notification Dispatch: Show native mobile/desktop notifications
+// 6. Service Worker Message Listener (Handles skipWaiting and client coordination)
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    const payload = event.data.payload || {};
-    const notificationOptions = {
-      body: payload.body || 'New update on your training portal.',
-      icon: payload.icon || '/public/icon-192.png',
-      badge: payload.badge || '/public/icon-192.png',
-      tag: payload.tag || ('mentry-' + Date.now()),
-      renotify: true,
-      vibrate: [200, 100, 200],
-      data: {
-        url: payload.url || '/'
-      },
-      actions: [
-        { action: 'open', title: 'Open Mentry' }
-      ]
-    };
-
-    event.waitUntil(
-      self.registration.showNotification(payload.title || 'Mentry Solutions', notificationOptions)
-    );
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });
-

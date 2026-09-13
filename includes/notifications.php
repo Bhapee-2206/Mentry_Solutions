@@ -57,7 +57,7 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
                 ]);
 
                 if (!$existingNotif) {
-                    $notifCol->insertOne([
+                    $insertRes = $notifCol->insertOne([
                         'userId' => $trainerUserId,
                         'trainerId' => (string)$trainer['_id'],
                         'opportunityId' => (string)$opportunityId,
@@ -69,17 +69,26 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
                         'read' => false,
                         'createdAt' => new MongoDB\BSON\UTCDateTime()
                     ]);
+                    $notifId = (string)$insertRes->getInsertedId();
 
                     $notifiedCount++;
                     $notifiedNames[] = $userName;
 
-                    // Send Web Push notification if enabled
+                    // Send Web Push notification if enabled (concise body, single icon, unique ID)
                     if (!$trainerPrefs || !empty($trainerPrefs['push_notifications'])) {
+                        $pushTitle = 'New ' . ($opp['domain'] ?? 'Tech') . ' Match: ' . $opp['title'];
+                        $pushBody = "{$score}% match • {$opp['durationDays']}-day assignment in {$opp['city']}";
                         @dispatchWebPushNotification(
                             ['userId' => (string)$trainerUserId],
-                            'New ' . ($opp['domain'] ?? 'Tech') . ' Match: ' . $opp['title'],
-                            "Your profile scored {$score}% match for a {$opp['durationDays']}-day assignment in {$opp['city']}.",
-                            '/opportunity-details.php?id=' . (string)$opportunityId
+                            $pushTitle,
+                            $pushBody,
+                            '/opportunity-details.php?id=' . (string)$opportunityId,
+                            [
+                                'id' => $notifId,
+                                'type' => 'OPPORTUNITY_MATCH',
+                                'opportunityId' => (string)$opportunityId,
+                                'matchScore' => $score
+                            ]
                         );
                     }
 
@@ -136,8 +145,15 @@ function notifyAdmin($type, $title, $message, $link = '', $metadata = []) {
             'createdAt' => new MongoDB\BSON\UTCDateTime()
         ];
 
-        $notifCol->insertOne($notifDoc);
-        @dispatchWebPushNotification(['userRole' => ['$in' => ['ADMIN', 'SUPER_ADMIN', 'STAFF']]], $title, $message, $link);
+        $insertRes = $notifCol->insertOne($notifDoc);
+        $adminNotifId = (string)$insertRes->getInsertedId();
+        @dispatchWebPushNotification(
+            ['userRole' => ['$in' => ['ADMIN', 'SUPER_ADMIN', 'STAFF']]], 
+            $title, 
+            $message, 
+            $link,
+            ['id' => $adminNotifId, 'type' => $type]
+        );
         return true;
     } catch (\Throwable $e) {
         error_log("Failed to dispatch admin notification: " . $e->getMessage());
@@ -364,8 +380,9 @@ function checkOpportunityScheduleMilestones($force = false) {
  * @param string $title Notification title
  * @param string $body Notification message
  * @param string $url Destination link when notification is clicked
+ * @param array $extraData Extra notification metadata (id, type, etc.)
  */
-function dispatchWebPushNotification(array $filter, string $title, string $body, string $url = '/') {
+function dispatchWebPushNotification(array $filter, string $title, string $body, string $url = '/', array $extraData = []) {
     try {
         $subCol = getCollection("PushSubscription");
         if (!$subCol) return false;
@@ -373,13 +390,20 @@ function dispatchWebPushNotification(array $filter, string $title, string $body,
         $subscriptions = $subCol->find($filter)->toArray();
         if (empty($subscriptions)) return true;
 
+        $notifId = $extraData['id'] ?? ('notif_' . substr(md5($title . $url . microtime()), 0, 12));
+
         $payload = json_encode([
+            'id' => $notifId,
             'title' => $title,
             'body' => $body,
-            'icon' => '/public/mentry.png',
-            'badge' => '/public/mentry.png',
+            'icon' => '/public/icon-192.png',
             'url' => $url,
-            'tag' => 'mentry-' . substr(md5($title . $url), 0, 8),
+            'tag' => 'mentry-' . $notifId,
+            'data' => array_merge([
+                'id' => $notifId,
+                'url' => $url,
+                'timestamp' => time() * 1000
+            ], $extraData),
             'timestamp' => time() * 1000
         ]);
 

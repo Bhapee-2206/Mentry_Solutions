@@ -58,8 +58,9 @@ try {
     $testTitle = "🎉 Live Alert Test: Opportunity Selection";
     $testMsg = "Hello {$targetName}! This is a live verification alert from Mentry Operations. Your device is connected and live notifications are active.";
 
+    $testNotifId = 'test_' . time();
     if ($notifCol) {
-        $notifCol->insertOne([
+        $insRes = $notifCol->insertOne([
             'userId' => $targetUserId,
             'trainerId' => $trainerId,
             'type' => 'SYSTEM_ALERT',
@@ -69,6 +70,7 @@ try {
             'read' => false,
             'createdAt' => new MongoDB\BSON\UTCDateTime()
         ]);
+        $testNotifId = (string)$insRes->getInsertedId();
     }
 
     // Also dispatch push notification
@@ -76,7 +78,8 @@ try {
         ['userId' => $targetUserId],
         $testTitle,
         $testMsg,
-        '/trainer/notifications.php'
+        '/trainer/notifications.php',
+        ['id' => $testNotifId, 'type' => 'SYSTEM_ALERT']
     );
 
     echo json_encode([
