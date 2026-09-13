@@ -37,7 +37,7 @@ if ($currentUser) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Mentry Solutions - Managed Trainer Network</title>
 
     <!-- Search Engine & AI Discovery Metadata -->
@@ -143,9 +143,9 @@ if ($currentUser) {
     <link rel="apple-touch-icon" href="/public/icon-192.png?v=3">
 
     <!-- Progressive Web App (PWA) Manifest & Standalone App Capabilities -->
-    <link rel="manifest" href="/manifest.json?v=3">
-    <meta name="theme-color" content="#FFFFFF">
-    <meta name="background-color" content="#FFFFFF">
+    <link rel="manifest" href="/manifest.json?v=4">
+    <meta name="theme-color" content="#0B1526">
+    <meta name="background-color" content="#0B1526">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">

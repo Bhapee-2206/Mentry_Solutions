@@ -45,7 +45,7 @@ $navItems = [
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Command Center - Mentry</title>
     
     <!-- Favicon & Brand Icons -->
@@ -55,10 +55,10 @@ $navItems = [
 
     <!-- Progressive Web App (PWA) Manifest & Standalone App Capabilities -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#FE5E04">
+    <meta name="theme-color" content="#0B1526">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Mentry">
 
     <link rel="dns-prefetch" href="//fonts.googleapis.com">
@@ -281,7 +281,7 @@ $navItems = [
 <!-- Main Admin Canvas -->
 <div class="flex-1 flex flex-col min-w-0 w-full min-h-screen md:h-screen md:overflow-y-auto overflow-x-hidden admin-canvas-scroll">
     <!-- Top Bar -->
-    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-xs" style="padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));">
         <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <!-- Mobile Drawer Hamburger Toggle Button -->
             <button type="button" onclick="toggleMobileAdminNav()" class="p-2 -ml-1 rounded-xl text-slate-700 hover:bg-slate-100 md:hidden cursor-pointer" title="Open navigation menu">

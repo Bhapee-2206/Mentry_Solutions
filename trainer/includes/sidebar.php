@@ -42,7 +42,7 @@ $navItems = [
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Trainer Portal - Mentry</title>
     
     <!-- Favicon & Brand Icons -->
@@ -52,10 +52,10 @@ $navItems = [
 
     <!-- Progressive Web App (PWA) Manifest & Standalone App Capabilities -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#FE5E04">
+    <meta name="theme-color" content="#0B1526">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Mentry">
 
     <link rel="dns-prefetch" href="//fonts.googleapis.com">
@@ -173,7 +173,7 @@ $navItems = [
 <div class="flex-1 flex flex-col min-w-0 w-full max-w-full min-h-screen md:h-screen md:overflow-y-auto overflow-x-hidden trainer-canvas-scroll">
     <?php $isAdminViewing = isAdminOrStaff(); ?>
     <!-- Top Bar -->
-    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-xs" style="padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));">
         <div class="flex items-center gap-2.5">
             <!-- Mobile Hamburger Button -->
             <button id="trainerMobileMenuBtn" type="button" aria-label="Open navigation menu" class="md:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#FE5E04]/30">
