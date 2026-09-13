@@ -2644,12 +2644,12 @@
         "read": true,
         "type": "OPPORTUNITY_MATCH",
         "title": "New Programming Match: Skill",
-        "readAt": "1789266238827",
+        "readAt": "1789269233354",
         "userId": "6a9ab2ebf1624b69330f5678",
         "message": "Your profile scored 70% match for this 40-day assignment in Dindigul. Expected remuneration: ₹5,000 - ₹7,500/day.",
         "createdAt": "1789266123500",
         "trainerId": "6a9ab2ecf1624b69330f5679",
-        "updatedAt": "1789266238827",
+        "updatedAt": "1789269233355",
         "matchScore": 70,
         "opportunityId": "c3d01020af29ed54eb44ca17"
     },
@@ -2669,15 +2669,68 @@
         "opportunityId": "c3d01020af29ed54eb44ca17"
     },
     {
-        "userId": "6a99b577f1624b69330f55b3",
-        "trainerId": "6a9a7971f1624b69330f562d",
-        "type": "SYSTEM_ALERT",
-        "title": "🎉 Live Alert Test: Opportunity Selection",
-        "message": "Hello Operations Director (Admin 1)! This is a live verification alert from Mentry Operations. Your device is connected and live notifications are active.",
+        "_id": "6aa613f7e179992e9a096710",
         "link": "/trainer/notifications.php",
         "read": false,
+        "type": "SYSTEM_ALERT",
+        "title": "🎉 Live Alert Test: Opportunity Selection",
+        "userId": "6a99b577f1624b69330f55b3",
+        "message": "Hello Operations Director (Admin 1)! This is a live verification alert from Mentry Operations. Your device is connected and live notifications are active.",
         "createdAt": "1789268983736",
-        "_id": "6aa613f7e179992e9a096710",
+        "trainerId": "6a9a7971f1624b69330f562d",
         "updatedAt": "1789268983755"
+    },
+    {
+        "_id": "1ed7fe01e4081cd645054921",
+        "link": "/admin/opportunity-view.php?id=c3d01020af29ed54eb44ca17",
+        "read": false,
+        "type": "NEW_APPLICATION",
+        "title": "New Application: Bhavani",
+        "message": "Bhavani (MEN-TRN-1558) applied for 'Skill' (Programming) with proposed rate of ₹5,000/day.",
+        "metadata": {
+            "trainerId": "6a9ab2ecf1624b69330f5679",
+            "trainerCode": "MEN-TRN-1558",
+            "opportunityId": "c3d01020af29ed54eb44ca17",
+            "proposedDailyRate": 5000
+        },
+        "createdAt": "1789269243092",
+        "milestone": null,
+        "updatedAt": "1789269243092",
+        "targetRoles": [
+            "ADMIN",
+            "SUPER_ADMIN",
+            "STAFF"
+        ],
+        "isAdminAlert": true,
+        "isStaffAlert": true,
+        "opportunityId": "c3d01020af29ed54eb44ca17",
+        "recipientRole": "ADMIN"
+    },
+    {
+        "_id": "2f43c1438b01e0e5bc088e33",
+        "link": "/trainer/applications.php",
+        "read": true,
+        "type": "APPLICATION_ACCEPTED",
+        "title": "🎉 Application Accepted: Skill",
+        "readAt": "1789269363017",
+        "userId": "6a9ab2ebf1624b69330f5678",
+        "message": "Congratulations! Your application has been ACCEPTED by Mentry Operations. Your assignment is scheduled.",
+        "createdAt": "1789269286362",
+        "trainerId": "6a9ab2ecf1624b69330f5679",
+        "updatedAt": "1789269363017",
+        "applicationId": "c76e08b98fdfffb8408a3f12",
+        "opportunityId": "c3d01020af29ed54eb44ca17"
+    },
+    {
+        "userId": "6a9ab2ebf1624b69330f5678",
+        "trainerId": "6a9ab2ecf1624b69330f5679",
+        "type": "ASSIGNMENT_CONFIRMED",
+        "title": "🎉 Selected: Campus Technical Training",
+        "message": "Congratulations Bhavani! You have been selected for the upcoming campus training program. Honorarium and travel logistics are confirmed.",
+        "link": "/trainer/assignments.php",
+        "read": false,
+        "createdAt": "1789269817657",
+        "_id": "6aa61739426752ed840e7e90",
+        "updatedAt": "1789269817661"
     }
 ]
