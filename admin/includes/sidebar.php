@@ -46,6 +46,7 @@ $navItems = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Command Center - Mentry</title>
     
     <!-- Favicon & Brand Icons -->
@@ -54,8 +55,8 @@ $navItems = [
     <link rel="apple-touch-icon" href="/public/mentry.png?v=2">
 
     <!-- Progressive Web App (PWA) Manifest & Standalone App Capabilities -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0B1526">
+    <link rel="manifest" href="/manifest.json?v=5">
+    <meta name="theme-color" content="#ffffff">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -86,6 +87,9 @@ $navItems = [
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
+        :root {
+            color-scheme: light;
+        }
         html {
             max-width: 100%;
         }

@@ -38,6 +38,7 @@ if ($currentUser) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Mentry Solutions - Managed Trainer Network</title>
 
     <!-- Search Engine & AI Discovery Metadata -->
@@ -143,9 +144,9 @@ if ($currentUser) {
     <link rel="apple-touch-icon" href="/public/icon-192.png?v=3">
 
     <!-- Progressive Web App (PWA) Manifest & Standalone App Capabilities -->
-    <link rel="manifest" href="/manifest.json?v=4">
-    <meta name="theme-color" content="#0B1526">
-    <meta name="background-color" content="#0B1526">
+    <link rel="manifest" href="/manifest.json?v=5">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="background-color" content="#ffffff">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -187,6 +188,9 @@ if ($currentUser) {
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     
     <style>
+        :root {
+            color-scheme: light;
+        }
         html {
             max-width: 100%;
         }
@@ -247,7 +251,7 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
 <?php endif; ?>
 
 <!-- Navigation Header -->
-<header class="sticky top-0 z-50 w-full px-2.5 sm:px-6 lg:px-8 pt-2.5 sm:pt-4 pb-2 transition-all">
+<header class="sticky top-0 z-50 w-full px-2.5 sm:px-6 lg:px-8 pb-2 transition-all" style="padding-top: calc(0.625rem + env(safe-area-inset-top, 0px));">
     <div class="max-w-[1420px] mx-auto">
         <div class="bg-white border border-slate-200/90 rounded-2xl lg:rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.06)] px-2.5 sm:px-5 lg:px-6 py-2 sm:py-2.5 transition-all">
             <div class="flex items-center justify-between gap-1.5 sm:gap-2 lg:gap-3">

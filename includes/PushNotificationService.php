@@ -439,7 +439,10 @@ class PushNotificationService {
                 CURLOPT_POSTFIELDS => $encryptedBody,
                 CURLOPT_HTTPHEADER => $headers,
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 10,
+                CURLOPT_CONNECTTIMEOUT => 3,
+                CURLOPT_TIMEOUT => 6,
+                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                CURLOPT_TCP_NODELAY => 1,
                 CURLOPT_SSL_VERIFYPEER => true
             ]);
 

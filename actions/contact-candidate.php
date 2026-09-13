@@ -98,10 +98,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         sendMentryEmail($candidateUser['email'], $candidateUser['name'], $subject, $html);
 
-        // Also add in-app notification
+        // Also add in-app notification & Web Push
         $notifCol = getCollection("Notification");
         if ($notifCol) {
-            $notifCol->insertOne([
+            $insRes = $notifCol->insertOne([
                 'userId' => (string)$candidateUser['_id'],
                 'trainerId' => $trainerId,
                 'opportunityId' => $opportunityId,
@@ -112,6 +112,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'read' => false,
                 'createdAt' => new MongoDB\BSON\UTCDateTime()
             ]);
+            $invNotifId = (string)$insRes->getInsertedId();
+
+            if (function_exists('dispatchWebPushNotification')) {
+                @dispatchWebPushNotification(
+                    ['userId' => (string)$candidateUser['_id']],
+                    "Direct Invitation: {$opp['title']}",
+                    "{$senderName} from Operations has directly invited you for this assignment.",
+                    '/opportunity-details.php?id=' . $opportunityId,
+                    [
+                        'id' => $invNotifId,
+                        'type' => 'DIRECT_INVITATION',
+                        'trainerId' => $trainerId,
+                        'opportunityId' => $opportunityId,
+                        'priority' => 'high'
+                    ]
+                );
+            }
         }
     }
 }
