@@ -264,7 +264,7 @@
         "verified": true,
         "createdAt": "1788508529203",
         "resumeUrl": "/public/uploads/documents/doc_6a9a7971f1624b69330f562d_1788510906_499.docx",
-        "updatedAt": "1789241515317",
+        "updatedAt": "1789268137615",
         "currentCity": "Bangalore",
         "trainerCode": "MEN-TRN-1553",
         "currentState": "Karnataka",
@@ -285,7 +285,8 @@
         "professionalTitle": "Operations Director & Technical Trainer",
         "availabilityStatus": "AVAILABLE_NOW",
         "extractedSkillsCount": 8,
-        "totalExperienceYears": 6
+        "totalExperienceYears": 6,
+        "profileCompletion": 100
     },
     {
         "_id": "6a9ab2ecf1624b69330f5679",
@@ -300,7 +301,7 @@
         "mentryId": "MEN-TRN-1558",
         "createdAt": "1788523244656",
         "resumeUrl": "https://bmqzwrkhxyptdhqwvhob.supabase.co/storage/v1/object/public/documents/documents/doc_6a9ab2ecf1624b69330f5679_1789241070_964.pdf",
-        "updatedAt": "1789241517579",
+        "updatedAt": "1789243505578",
         "currentCity": "chengalpattu",
         "trainerCode": "MEN-TRN-1558",
         "currentState": "India",
@@ -311,14 +312,14 @@
             "C#"
         ],
         "travelPreference": "PAN_INDIA",
-        "availabilityNotes": "Delivering: Automated Verified Python & Cloud Workshop",
-        "availableFromDate": "1789928999000",
+        "availabilityNotes": "Delivering: JAVA",
+        "availableFromDate": "1792002600000",
         "professionalTitle": "Programming Technical Trainer",
         "profileCompletion": 100,
         "availabilityStatus": "BUSY_ON_ASSIGNMENT",
         "extractedSkillsCount": 1,
         "totalExperienceYears": 6,
-        "availabilityUpdatedAt": "1789241211842",
+        "availabilityUpdatedAt": "1789243505578",
         "collegeExperienceYears": 1,
         "notificationPreferences": {
             "all": true,

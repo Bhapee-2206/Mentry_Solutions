@@ -7,9 +7,29 @@
     if (window._mentryLiveSyncInitialized) return;
     window._mentryLiveSyncInitialized = true;
 
+    function getAppBasePath() {
+        const path = window.location.pathname;
+        if (path.includes('/Mentry%20solution') || path.includes('/Mentry solution')) {
+            return path.includes('/Mentry%20solution') ? '/Mentry%20solution' : '/Mentry solution';
+        }
+        const scripts = document.getElementsByTagName('script');
+        for (let s of scripts) {
+            if (s.src && s.src.includes('live-sync.js')) {
+                try {
+                    const u = new URL(s.src);
+                    const prefix = u.pathname.replace(/\/assets\/js\/live-sync\.js.*$/, '');
+                    if (prefix) return prefix;
+                } catch(e) {}
+            }
+        }
+        return '';
+    }
+
+    const basePath = getAppBasePath();
+
     // Ensure Service Worker is registered immediately for mobile PWA push & notifications
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(err) {
+        navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' }).catch(function(err) {
             console.warn('[Mentry LiveSync] SW registration note:', err);
         });
     }
@@ -464,21 +484,28 @@
 
         const title = options.title || 'Mentry Solutions';
         const body = options.message || options.body || 'New update on your training portal.';
-        const targetUrl = options.link || options.url || '/trainer/notifications.php';
+        let targetUrl = options.link || options.url || (basePath + '/trainer/notifications.php');
+        if (targetUrl.startsWith('/') && !targetUrl.startsWith(basePath) && basePath) {
+            targetUrl = basePath + targetUrl;
+        }
         const notifId = NotificationManager.getCanonicalId(options);
         const tag = 'mentry-' + notifId;
+        const iconPath = basePath + '/public/icon-192.png';
 
         // A. Service Worker Registration showNotification (clean single PWA icon, no duplicate logo)
         if ('serviceWorker' in navigator) {
             try {
-                let reg = await navigator.serviceWorker.getRegistration('/');
+                let reg = await navigator.serviceWorker.ready;
                 if (!reg) {
-                    reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                    reg = await navigator.serviceWorker.getRegistration();
+                }
+                if (!reg) {
+                    reg = await navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' });
                 }
                 if (reg && reg.showNotification) {
                     await reg.showNotification(title, {
                         body: body,
-                        icon: '/public/icon-192.png',
+                        icon: iconPath,
                         tag: tag,
                         renotify: false,
                         vibrate: [150, 60, 150],
@@ -495,7 +522,7 @@
         try {
             const n = new Notification(title, {
                 body: body,
-                icon: '/public/icon-192.png',
+                icon: iconPath,
                 tag: tag
             });
             n.onclick = function() {
@@ -633,7 +660,7 @@
 
         try {
             const context = window.location.pathname;
-            const res = await fetch(`/actions/live-sync-api.php?last_sync=${lastSyncTs}&context=${encodeURIComponent(context)}`, {
+            const res = await fetch(`${basePath}/actions/live-sync-api.php?last_sync=${lastSyncTs}&context=${encodeURIComponent(context)}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
 
@@ -730,7 +757,13 @@
         const descs = document.querySelectorAll('#mobilePushDesc, [data-push-desc]');
         const enableBtns = document.querySelectorAll('#enableMobilePushBtn, [data-push-enable-btn]');
         const testBtns = document.querySelectorAll('#testMobilePushBtn, [data-push-test-btn]');
-        const iconBoxes = document.querySelectorAll('#mobilePushIconBox, [data-push-icon]');
+        const dashBanner = document.getElementById('dashboardMobilePushBanner');
+        if (dashBanner) {
+            const isDismissed = localStorage.getItem('mentry_dashboard_push_banner_dismissed') === '1';
+            if (Notification.permission === 'granted' || Notification.permission === 'denied' || isDismissed) {
+                dashBanner.style.display = 'none';
+            }
+        }
 
         if (badges.length === 0) return;
 
@@ -788,7 +821,7 @@
             if (permission === 'granted') {
                 if ('serviceWorker' in navigator) {
                     try {
-                        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                        await navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' });
                     } catch(e) {}
                 }
                 window.sendTestDeviceNotification();
@@ -810,12 +843,20 @@
         }
 
         const testId = 'test_' + Date.now();
-        // If user is actively looking at screen, show the in-app popup
-        NotificationManager.handleIncomingNotification({
+        // 1. Fire actual native browser / OS push notification
+        await triggerNativeSystemNotification({
             id: testId,
             title: '🎉 Mentry Live Alert Active!',
-            message: 'Your device is connected! Real-time match notifications and selection updates will appear here.',
-            link: '/trainer/notifications.php',
+            message: 'Your device is connected! Real-time match notifications and selection updates will appear here outside the app.',
+            link: basePath + '/trainer/notifications.php'
+        });
+
+        // 2. Also display in-app feedback popup card
+        NotificationManager.handleIncomingNotification({
+            id: 'toast_' + testId,
+            title: 'Mobile Alert Sent',
+            message: 'Check your phone notification drawer or lock screen outside the app!',
+            link: basePath + '/trainer/notifications.php',
             type: 'SYSTEM_ALERT'
         }, 'test');
     };

@@ -535,6 +535,6 @@ if (!empty($headerMaint['maintenance_mode']) && isAdminOrStaff()):
 <?php if (file_exists(__DIR__ . '/pwa_install_prompt.php')) include_once __DIR__ . '/pwa_install_prompt.php'; ?>
 <?php if (file_exists(__DIR__ . '/offline_popup.php')) include_once __DIR__ . '/offline_popup.php'; ?>
 <!-- Live Real-time Sync Engine -->
-<script src="/assets/js/live-sync.js?v=20260913_notif_arch_v1" defer></script>
+<script src="<?= function_exists('getAppBaseUrl') ? getAppBaseUrl() : '' ?>/assets/js/live-sync.js?v=20260913_notif_arch_v3" defer></script>
 
 <main class="flex-grow">

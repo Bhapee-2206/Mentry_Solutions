@@ -137,9 +137,12 @@ $isNewSignup = isset($_GET['new_signup']) && $isProfileIncomplete;
         </div>
     <?php endif; ?>
 
-    <!-- Real-Time Device / Mobile Push Notification Banner -->
-    <div id="dashboardMobilePushBanner" class="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-700/80 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div class="flex items-center gap-3.5 min-w-0">
+    <!-- Real-Time Device / Mobile Push Notification Banner (One-time prompt, hidden once granted or dismissed) -->
+    <div id="dashboardMobilePushBanner" style="display: none;" class="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-700/80 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative">
+        <button type="button" onclick="dismissDashboardPushBanner()" class="absolute top-3 right-3 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer" title="Dismiss">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+        <div class="flex items-center gap-3.5 min-w-0 pr-8 sm:pr-0">
             <div id="dashboardMobilePushIconBox" data-push-icon="1" class="w-10 h-10 rounded-2xl bg-orange-500/20 text-[#FE5E04] border border-orange-500/30 flex items-center justify-center shrink-0">
                 <span class="material-symbols-outlined text-2xl">notifications_active</span>
             </div>
@@ -154,30 +157,43 @@ $isNewSignup = isset($_GET['new_signup']) && $isProfileIncomplete;
             </div>
         </div>
         <div class="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-            <button id="dashboardEnableMobilePushBtn" data-push-enable-btn="1" type="button" onclick="requestMentryDeviceNotifications()" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
+            <button id="dashboardEnableMobilePushBtn" data-push-enable-btn="1" type="button" onclick="enableDashboardPush()" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
                 <span class="material-symbols-outlined text-[16px]">notifications</span>
                 <span>Enable Mobile Alerts</span>
-            </button>
-            <button id="dashboardTestMobilePushBtn" data-push-test-btn="1" type="button" onclick="sendTestDeviceNotification()" class="hidden bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer">
-                <span class="material-symbols-outlined text-[16px]">send_to_mobile</span>
-                <span>Send Test Alert to Phone</span>
             </button>
         </div>
     </div>
     <script>
+    function dismissDashboardPushBanner() {
+        try {
+            localStorage.setItem('mentry_dashboard_push_banner_dismissed', '1');
+        } catch(e) {}
+        var banner = document.getElementById('dashboardMobilePushBanner');
+        if (banner) banner.style.display = 'none';
+    }
+
+    function enableDashboardPush() {
+        dismissDashboardPushBanner();
+        if (typeof window.requestMentryDeviceNotifications === 'function') {
+            window.requestMentryDeviceNotifications();
+        } else if ('Notification' in window) {
+            Notification.requestPermission();
+        }
+    }
+
     (function() {
         try {
-            if ('Notification' in window && Notification.permission === 'granted') {
-                var b = document.getElementById('dashboardMobilePushBadge');
-                var e = document.getElementById('dashboardEnableMobilePushBtn');
-                var t = document.getElementById('dashboardTestMobilePushBtn');
-                var d = document.getElementById('dashboardMobilePushDesc');
-                var ic = document.getElementById('dashboardMobilePushIconBox');
-                if (b) { b.textContent = '✓ ACTIVE ON THIS DEVICE'; b.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'; }
-                if (e) e.classList.add('hidden');
-                if (t) t.classList.remove('hidden');
-                if (d) d.textContent = 'Mobile push alerts are active! Real-time notifications will pop on your phone screen outside the app.';
-                if (ic) ic.className = 'w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0';
+            var isDismissed = localStorage.getItem('mentry_dashboard_push_banner_dismissed') === '1';
+            var isGranted = ('Notification' in window) && Notification.permission === 'granted';
+            var isDenied = ('Notification' in window) && Notification.permission === 'denied';
+            var banner = document.getElementById('dashboardMobilePushBanner');
+
+            // If already granted, denied, or dismissed once by the user: DO NOT SHOW
+            if (isGranted || isDenied || isDismissed) {
+                if (banner) banner.style.display = 'none';
+            } else if ('Notification' in window && Notification.permission === 'default') {
+                // Show strictly one time for users who haven't enabled or dismissed yet
+                if (banner) banner.style.display = 'flex';
             }
         } catch(e) {}
     })();

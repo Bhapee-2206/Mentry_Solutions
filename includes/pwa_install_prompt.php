@@ -160,10 +160,19 @@ if ($isAdminContext) {
         }).catch(() => {});
     }
 
+    function getPwaBaseUrl() {
+        const path = window.location.pathname;
+        if (path.includes('/Mentry%20solution') || path.includes('/Mentry solution')) {
+            return path.includes('/Mentry%20solution') ? '/Mentry%20solution' : '/Mentry solution';
+        }
+        return '';
+    }
+
     // 1. Service Worker & Push Notification Initialization
     function initPwaAndPush() {
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            const base = getPwaBaseUrl();
+            navigator.serviceWorker.register(base + '/sw.js', { scope: base + '/' })
                 .then((reg) => {
                     activeSwReg = reg;
                     checkPushPermission(reg);
@@ -333,12 +342,12 @@ if ($isAdminContext) {
             if (permission === 'granted') {
                 localStorage.removeItem('mentry_push_dismissed');
                 if ('serviceWorker' in navigator) {
+                    const base = getPwaBaseUrl();
                     navigator.serviceWorker.ready.then((reg) => {
                         subscribeUserToPush(reg);
                         reg.showNotification('Mentry Notifications Active! 🔔', {
                             body: 'You will now receive real-time alerts on your phone screen for opportunities and selections.',
-                            icon: '/public/icon-192.png',
-                            badge: '/public/icon-192.png',
+                            icon: base + '/public/icon-192.png',
                             vibrate: [200, 100, 200]
                         });
                     }).catch(() => {});
@@ -374,7 +383,8 @@ if ($isAdminContext) {
 
     function sendSubscriptionToServer(sub) {
         if (!sub) return;
-        fetch('/actions/save-push-subscription.php', {
+        const base = getPwaBaseUrl();
+        fetch(base + '/actions/save-push-subscription.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(sub)

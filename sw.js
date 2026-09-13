@@ -1,13 +1,12 @@
 // sw.js - Mentry Solutions PWA Service Worker & Web Push Engine
-const CACHE_NAME = 'mentry-pwa-v5';
+const CACHE_NAME = 'mentry-pwa-v6';
 const ASSETS_TO_PRECACHE = [
-  '/',
-  '/manifest.json',
-  '/public/icon-192.png',
-  '/public/icon-512.png',
-  '/public/icon-maskable-512.png',
-  '/public/mentry-emblem.png',
-  '/favicon.ico',
+  './manifest.json',
+  './public/icon-192.png',
+  './public/icon-512.png',
+  './public/icon-maskable-512.png',
+  './public/mentry-emblem.png',
+  './favicon.ico',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap',
   'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap'
 ];
@@ -17,7 +16,11 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_PRECACHE).catch((err) => {
+      const scopeUrl = self.registration.scope;
+      const urls = ASSETS_TO_PRECACHE.map(path => {
+        return path.startsWith('http') ? path : new URL(path, scopeUrl).href;
+      });
+      return cache.addAll(urls).catch((err) => {
         console.warn('[Mentry SW] Precache partial fallback:', err);
       });
     })
@@ -111,8 +114,8 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if there is an active/visible Mentry window client
-      const activeClient = clientList.find(c => c.visibilityState === 'visible');
+      // Check if there is an active/visible AND focused Mentry window client
+      const activeClient = clientList.find(c => c.visibilityState === 'visible' && ('focused' in c ? c.focused : true));
 
       if (activeClient) {
         // User is ACTIVELY viewing the Mentry website / PWA:
@@ -135,9 +138,10 @@ self.addEventListener('push', (event) => {
 
       // User has Mentry closed or backgrounded:
       // Display ONE native push notification (clean, single PWA icon, no duplicate logo)
+      const iconUrl = payload.icon ? new URL(payload.icon, self.registration.scope).href : new URL('public/icon-192.png', self.registration.scope).href;
       const notificationOptions = {
         body: payload.body,
-        icon: '/public/icon-192.png',
+        icon: iconUrl,
         tag: 'mentry-' + notificationId,
         renotify: false,
         vibrate: [150, 60, 150],

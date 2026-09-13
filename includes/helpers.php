@@ -26,6 +26,24 @@ if (file_exists(__DIR__ . '/db.php')) {
     require_once __DIR__ . '/db.php';
 }
 
+/**
+ * Get dynamic application base URL path (e.g. '/Mentry%20solution' on local XAMPP or '' in production root)
+ */
+function getAppBaseUrl() {
+    static $base = null;
+    if ($base !== null) return $base;
+    $uri = $_SERVER['REQUEST_URI'] ?? '';
+    $script = $_SERVER['SCRIPT_NAME'] ?? '';
+    if (strpos($uri, '/Mentry%20solution') !== false || strpos($script, '/Mentry solution') !== false) {
+        $base = '/Mentry%20solution';
+    } elseif (strpos($uri, '/Mentry solution') !== false) {
+        $base = '/Mentry solution';
+    } else {
+        $base = '';
+    }
+    return $base;
+}
+
 function formatINR($amount) {
     if ($amount === null || $amount === '') return '₹0';
     $amount = (float)$amount;
