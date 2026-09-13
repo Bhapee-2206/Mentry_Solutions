@@ -29,7 +29,9 @@
 
     // Ensure Service Worker is registered immediately for mobile PWA push & notifications
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' }).catch(function(err) {
+        navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' }).then(function(reg) {
+            try { reg.update(); } catch(e) {}
+        }).catch(function(err) {
             console.warn('[Mentry LiveSync] SW registration note:', err);
         });
     }
@@ -118,7 +120,18 @@
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.addEventListener('message', (event) => {
                     if (event.data && event.data.type === 'PUSH_RECEIVED_IN_APP' && event.data.notification) {
-                        this.handleIncomingNotification(event.data.notification, 'service_worker_push');
+                        const notifData = event.data.notification;
+                        this.handleIncomingNotification(notifData, 'service_worker_push');
+                        // If user is actively looking at Mentry, close the duplicate OS notification
+                        if (this.isUserActive() && notifData.tag) {
+                            navigator.serviceWorker.ready.then((reg) => {
+                                if (reg && reg.getNotifications) {
+                                    reg.getNotifications({ tag: notifData.tag }).then((notifs) => {
+                                        notifs.forEach((n) => n.close());
+                                    }).catch(() => {});
+                                }
+                            }).catch(() => {});
+                        }
                     }
                 });
             }
@@ -491,7 +504,7 @@
         const notifId = NotificationManager.getCanonicalId(options);
         const tag = 'mentry-' + notifId;
         const iconUrl = new URL(basePath + '/public/icon-192.png', window.location.origin).href;
-        const badgeUrl = new URL(basePath + '/public/icon-192.png', window.location.origin).href;
+        const badgeUrl = new URL(basePath + '/public/badge-96.png', window.location.origin).href;
 
         // A. Service Worker Registration showNotification (clean single PWA icon, no duplicate logo)
         if ('serviceWorker' in navigator) {

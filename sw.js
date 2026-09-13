@@ -1,10 +1,12 @@
 // sw.js - Mentry Solutions PWA Service Worker & Web Push Engine
-const CACHE_NAME = 'mentry-pwa-v10';
+const CACHE_NAME = 'mentry-pwa-v11';
 const ASSETS_TO_PRECACHE = [
   './manifest.json',
   './public/icon-192.png',
   './public/icon-512.png',
   './public/icon-maskable-512.png',
+  './public/notification-icon-192.png',
+  './public/badge-96.png',
   './public/mentry-emblem.png',
   './favicon.ico',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap',
@@ -108,6 +110,7 @@ self.addEventListener('push', (event) => {
     title: 'Mentry Solutions',
     body: 'New update on your training portal.',
     icon: '/public/icon-192.png',
+    badge: '/public/badge-96.png',
     url: '/',
     tag: 'mentry-general'
   };
@@ -124,16 +127,20 @@ self.addEventListener('push', (event) => {
   const notificationId = payload.id || (payload.data && payload.data.id) || ('mentry-' + Date.now());
   const targetUrl = payload.url || (payload.data && payload.data.url) || '/';
 
-  // Resolve icon to absolute URL in service worker scope
+  // Resolve icon and badge to absolute URLs in service worker scope
   const baseScope = self.registration.scope;
   const iconUrl = payload.icon
     ? new URL(payload.icon, baseScope).href
     : new URL('public/icon-192.png', baseScope).href;
 
+  const badgeUrl = payload.badge
+    ? new URL(payload.badge, baseScope).href
+    : new URL('public/badge-96.png', baseScope).href;
+
   const notificationOptions = {
     body: payload.body,
     icon: iconUrl,
-    badge: iconUrl,
+    badge: badgeUrl,
     tag: 'mentry-' + notificationId,
     renotify: true,
     requireInteraction: true,

@@ -350,6 +350,7 @@ if ($isAdminContext) {
                         reg.showNotification('Mentry Notifications Active! 🔔', {
                             body: 'You will now receive real-time alerts on your phone screen for opportunities and selections.',
                             icon: base + '/public/icon-192.png',
+                            badge: base + '/public/badge-96.png',
                             vibrate: [200, 100, 200]
                         });
                     }).catch(() => {});

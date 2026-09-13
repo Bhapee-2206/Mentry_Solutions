@@ -406,7 +406,7 @@ class PushNotificationService {
                 'title' => $payloadData['title'] ?? 'Mentry Alert',
                 'body' => $payloadData['body'] ?? ($payloadData['message'] ?? ''),
                 'icon' => $appBase . '/public/icon-192.png',
-                'badge' => $appBase . '/public/icon-192.png',
+                'badge' => $appBase . '/public/badge-96.png',
                 'url' => $targetUrl,
                 'tag' => 'mentry-' . $notifId,
                 'type' => $payloadData['type'] ?? 'GENERAL',
