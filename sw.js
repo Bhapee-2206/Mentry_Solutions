@@ -1,5 +1,5 @@
 // sw.js - Mentry Solutions PWA Service Worker & Web Push Engine
-const CACHE_NAME = 'mentry-pwa-v6';
+const CACHE_NAME = 'mentry-pwa-v7';
 const ASSETS_TO_PRECACHE = [
   './manifest.json',
   './public/icon-192.png',
@@ -114,14 +114,30 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if there is an active/visible AND focused Mentry window client
-      const activeClient = clientList.find(c => c.visibilityState === 'visible' && ('focused' in c ? c.focused : true));
+      const iconUrl = payload.icon ? new URL(payload.icon, self.registration.scope).href : new URL('public/icon-192.png', self.registration.scope).href;
+      const notificationOptions = {
+        body: payload.body,
+        icon: iconUrl,
+        badge: iconUrl,
+        tag: 'mentry-' + notificationId,
+        renotify: true,
+        vibrate: [200, 100, 200],
+        data: {
+          id: notificationId,
+          url: targetUrl
+        },
+        actions: [
+          { action: 'open', title: 'Open Mentry' }
+        ]
+      };
 
+      // Always display native system push notification on device
+      const showPromise = self.registration.showNotification(payload.title, notificationOptions);
+
+      // Also forward payload to open window clients for in-app UI update
+      const activeClient = clientList.find(c => c.visibilityState === 'visible');
       if (activeClient) {
-        // User is ACTIVELY viewing the Mentry website / PWA:
-        // Forward notification payload to the active page for in-app display.
-        // DO NOT call self.registration.showNotification()!
-        return activeClient.postMessage({
+        activeClient.postMessage({
           type: 'PUSH_RECEIVED_IN_APP',
           notification: {
             id: notificationId,
@@ -136,25 +152,7 @@ self.addEventListener('push', (event) => {
         });
       }
 
-      // User has Mentry closed or backgrounded:
-      // Display ONE native push notification (clean, single PWA icon, no duplicate logo)
-      const iconUrl = payload.icon ? new URL(payload.icon, self.registration.scope).href : new URL('public/icon-192.png', self.registration.scope).href;
-      const notificationOptions = {
-        body: payload.body,
-        icon: iconUrl,
-        tag: 'mentry-' + notificationId,
-        renotify: false,
-        vibrate: [150, 60, 150],
-        data: {
-          id: notificationId,
-          url: targetUrl
-        },
-        actions: [
-          { action: 'open', title: 'Open Mentry' }
-        ]
-      };
-
-      return self.registration.showNotification(payload.title, notificationOptions);
+      return showPromise;
     })
   );
 });

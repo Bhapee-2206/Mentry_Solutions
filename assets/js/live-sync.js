@@ -187,17 +187,12 @@
                 createdAt: notif.createdAt || Date.now()
             };
 
-            if (this.isUserActive()) {
-                // User is actively using the website / PWA:
-                // Show ONE in-app popup card via central queue.
-                // Strictly DO NOT fire a native system/browser push notification.
-                this.enqueue(cleanNotif);
-            } else {
-                // User is inactive or tab is backgrounded:
-                // If it arrived via background poll (not via SW Push), trigger ONE native push if permission granted
-                if (source === 'poll' && 'Notification' in window && Notification.permission === 'granted') {
-                    triggerNativeSystemNotification(cleanNotif);
-                }
+            // 1. Display in-app card on screen
+            this.enqueue(cleanNotif);
+
+            // 2. ALWAYS trigger native mobile / browser push notification on device
+            if ('Notification' in window && Notification.permission === 'granted') {
+                triggerNativeSystemNotification(cleanNotif);
             }
             return true;
         },
@@ -490,7 +485,8 @@
         }
         const notifId = NotificationManager.getCanonicalId(options);
         const tag = 'mentry-' + notifId;
-        const iconPath = basePath + '/public/icon-192.png';
+        const iconUrl = new URL(basePath + '/public/icon-192.png', window.location.origin).href;
+        const badgeUrl = new URL(basePath + '/public/icon-192.png', window.location.origin).href;
 
         // A. Service Worker Registration showNotification (clean single PWA icon, no duplicate logo)
         if ('serviceWorker' in navigator) {
@@ -505,10 +501,12 @@
                 if (reg && reg.showNotification) {
                     await reg.showNotification(title, {
                         body: body,
-                        icon: iconPath,
+                        icon: iconUrl,
+                        badge: badgeUrl,
                         tag: tag,
-                        renotify: false,
-                        vibrate: [150, 60, 150],
+                        renotify: true,
+                        requireInteraction: true,
+                        vibrate: [200, 100, 200],
                         data: { id: notifId, url: targetUrl }
                     });
                     return true;
@@ -522,7 +520,8 @@
         try {
             const n = new Notification(title, {
                 body: body,
-                icon: iconPath,
+                icon: iconUrl,
+                badge: badgeUrl,
                 tag: tag
             });
             n.onclick = function() {
