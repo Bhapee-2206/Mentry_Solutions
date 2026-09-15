@@ -227,7 +227,7 @@ class OneSignalService {
         $lastResult = null;
 
         foreach ($prefixes as $p) {
-            $ch = curl_init('https://api.onesignal.com/apps/' . urlencode($appId));
+            $ch = curl_init('https://api.onesignal.com/notifications?app_id=' . urlencode($appId) . '&limit=1');
             curl_setopt_array($ch, [
                 CURLOPT_HTTPGET => true,
                 CURLOPT_HTTPHEADER => [
@@ -249,9 +249,10 @@ class OneSignalService {
                 return [
                     'valid' => true,
                     'authPrefix' => trim($p),
-                    'appName' => $decoded['name'] ?? 'Mentry',
+                    'endpoint' => 'GET /notifications',
                     'appId' => $appId,
                     'httpCode' => $httpCode,
+                    'notificationsCount' => $decoded['total_count'] ?? 0,
                     'raw' => $decoded
                 ];
             }
@@ -259,6 +260,7 @@ class OneSignalService {
             $lastResult = [
                 'valid' => false,
                 'prefix' => trim($p),
+                'endpoint' => 'GET /notifications',
                 'httpCode' => $httpCode,
                 'curlErr' => $curlErr,
                 'raw' => $decoded ?: $response

@@ -280,7 +280,7 @@ if ($trainerCol) {
                     <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">OneSignal Gateway Auth</div>
                     <div class="font-bold mt-1 <?= ($osCredVerification['valid'] ?? false) ? 'text-emerald-400' : 'text-rose-400' ?>">
                         <?php if ($osCredVerification['valid'] ?? false): ?>
-                            ✓ VALID (App: <?= htmlspecialchars($osCredVerification['appName'] ?? 'Mentry') ?>, Prefix: <?= htmlspecialchars($osCredVerification['authPrefix'] ?? 'Key') ?>)
+                            ✓ VALID (<?= htmlspecialchars($osCredVerification['endpoint'] ?? '') ?>, Prefix: <?= htmlspecialchars($osCredVerification['authPrefix'] ?? 'Key') ?>)
                         <?php else: ?>
                             ✗ <?= htmlspecialchars($osCredVerification['error'] ?? ('HTTP ' . ($osCredVerification['httpCode'] ?? 401) . ' ' . json_encode($osCredVerification['raw'] ?? ''))) ?>
                         <?php endif; ?>
