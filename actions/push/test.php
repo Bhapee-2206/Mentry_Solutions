@@ -84,26 +84,39 @@ if ($isBackgroundTest) {
 
 $res = PushService::sendToUser($targetUserId, $payload, 'high');
 
+$provider = $res['provider'] ?? (OneSignalService::isConfigured() ? 'OneSignal' : 'VAPID');
 $primaryResult = !empty($res['results']) ? $res['results'][0] : null;
-$statusCode = $primaryResult['statusCode'] ?? ($res['sent'] ? 201 : 500);
-$reason = $primaryResult['reason'] ?? ($res['sent'] ? 'Accepted by push service' : 'Dispatch failed');
+
+$isOneSignal = ($provider === 'OneSignal');
+$defaultHost = $isOneSignal ? 'api.onesignal.com' : 'fcm.googleapis.com';
+$defaultAudience = $isOneSignal ? 'https://api.onesignal.com' : 'https://fcm.googleapis.com';
+
+$statusCode = $primaryResult['statusCode'] ?? ($res['statusCode'] ?? ($res['sent'] ? 200 : 500));
+$reason = $primaryResult['reason'] ?? ($res['reason'] ?? ($res['sent'] ? 'Accepted by push service' : 'Dispatch failed'));
+$endpointHost = $primaryResult['endpointHost'] ?? $defaultHost;
+$audience = $primaryResult['audience'] ?? $defaultAudience;
+$oneSignalId = $res['oneSignalId'] ?? ($primaryResult['oneSignalId'] ?? null);
 
 $pushDetails = [
-    'endpointHost' => $primaryResult['endpointHost'] ?? 'fcm.googleapis.com',
-    'audience' => $primaryResult['audience'] ?? 'https://fcm.googleapis.com',
+    'provider' => $provider,
+    'endpointHost' => $endpointHost,
+    'audience' => $audience,
     'urgency' => $primaryResult['urgency'] ?? 'high',
     'ttl' => 86400,
+    'oneSignalId' => $oneSignalId,
     'safeHeaders' => $primaryResult['safeHeaders'] ?? []
 ];
 
 echo json_encode([
     'success' => $res['sent'],
-    'pushServiceAccepted' => $res['sent'],
+    'pushServiceAccepted' => ($res['sent'] || ($res['acceptedCount'] ?? 0) > 0),
+    'provider' => $provider,
     'statusCode' => $statusCode,
     'reason' => $reason,
-    'subscriptionCount' => $res['subscriptionCount'],
-    'acceptedCount' => $res['acceptedCount'],
-    'failedCount' => $res['failedCount'],
+    'subscriptionCount' => $res['subscriptionCount'] ?? 0,
+    'acceptedCount' => $res['acceptedCount'] ?? 0,
+    'failedCount' => $res['failedCount'] ?? 0,
     'testId' => $testNotificationId,
+    'oneSignalId' => $oneSignalId,
     'pushDetails' => $pushDetails
 ]);

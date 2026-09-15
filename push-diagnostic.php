@@ -367,12 +367,12 @@ if ($trainerCol) {
                 <div class="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">5. EXACT PUSH SERVICE DETAILS (SERVER → GATEWAY)</div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                     <div class="p-2 bg-slate-900 rounded-xl border border-slate-800">
-                        <div class="text-slate-500 text-[10px]">Endpoint Host</div>
-                        <div id="detEndpointHost" class="font-bold text-slate-300 mt-0.5">fcm.googleapis.com</div>
+                        <div id="lblEndpointHost" class="text-slate-500 text-[10px]">Gateway Host</div>
+                        <div id="detEndpointHost" class="font-bold text-slate-300 mt-0.5">api.onesignal.com</div>
                     </div>
                     <div class="p-2 bg-slate-900 rounded-xl border border-slate-800">
-                        <div class="text-slate-500 text-[10px]">VAPID Audience</div>
-                        <div id="detAudience" class="font-bold text-slate-300 mt-0.5">https://fcm.googleapis.com</div>
+                        <div id="lblAudience" class="text-slate-500 text-[10px]">Audience / Provider</div>
+                        <div id="detAudience" class="font-bold text-slate-300 mt-0.5">https://api.onesignal.com</div>
                     </div>
                     <div class="p-2 bg-slate-900 rounded-xl border border-slate-800">
                         <div class="text-slate-500 text-[10px]">TTL / Urgency</div>
@@ -380,7 +380,7 @@ if ($trainerCol) {
                     </div>
                     <div class="p-2 bg-slate-900 rounded-xl border border-slate-800">
                         <div class="text-slate-500 text-[10px]">HTTP Response</div>
-                        <div id="detHttpStatus" class="font-bold text-emerald-400 mt-0.5">201 Created</div>
+                        <div id="detHttpStatus" class="font-bold text-emerald-400 mt-0.5">200 OK</div>
                     </div>
                 </div>
             </div>
@@ -903,18 +903,23 @@ if ($trainerCol) {
             // Populate push service details
             if (data.pushDetails) {
                 detCard.classList.remove('hidden');
-                document.getElementById('detEndpointHost').textContent = data.pushDetails.endpointHost || 'fcm.googleapis.com';
-                document.getElementById('detAudience').textContent = data.pushDetails.audience || 'https://fcm.googleapis.com';
-                document.getElementById('detTtlUrgency').textContent = `${data.pushDetails.ttl || 86400}s / ${data.pushDetails.urgency || 'high'}`;
-                document.getElementById('detHttpStatus').textContent = `${data.statusCode || 201} (${data.reason || 'Accepted'})`;
+                const isOs = (data.provider === 'OneSignal' || data.pushDetails.provider === 'OneSignal');
+                document.getElementById('detEndpointHost').textContent = data.pushDetails.endpointHost || (isOs ? 'api.onesignal.com' : 'fcm.googleapis.com');
+                document.getElementById('detAudience').textContent = data.pushDetails.audience || (isOs ? 'https://api.onesignal.com' : 'https://fcm.googleapis.com');
+                document.getElementById('detTtlUrgency').textContent = `${data.pushDetails.ttl || 86400}s / ${data.pushDetails.urgency || 'high'}` + (data.oneSignalId ? ` [ID: ${data.oneSignalId.substring(0, 8)}...]` : '');
+                document.getElementById('detHttpStatus').textContent = `HTTP ${data.statusCode || 200} (${data.reason || 'Accepted'})`;
             }
+
+            const isOneSignal = (data.provider === 'OneSignal');
+            const providerName = isOneSignal ? 'OneSignal Push' : 'Push Gateway';
 
             if (data.pushServiceAccepted || data.success) {
                 if (testType === 'A') {
                     outCard.innerHTML = `
-                        <div class="text-emerald-400 font-bold text-sm">✓ TEST A SENT (HTTP ${data.statusCode || 201})</div>
+                        <div class="text-emerald-400 font-bold text-sm">✓ TEST A SENT via ${providerName} (HTTP ${data.statusCode || 200})</div>
                         <div class="text-slate-300">TEST_ID: <span class="text-white font-bold">${testId}</span></div>
-                        <div class="text-slate-300">Target Devices: <span class="text-white">${data.subscriptionCount || 1}</span></div>
+                        <div class="text-slate-300">Target Recipients: <span class="text-white">${data.subscriptionCount || 1}</span></div>
+                        ${data.oneSignalId ? `<div class="text-slate-400 text-[11px]">OneSignal ID: <span class="text-emerald-300 font-mono">${data.oneSignalId}</span></div>` : ''}
                         <div class="text-amber-300 mt-1 font-sans">Tab is in foreground. Did the native notification appear?</div>
                         <div class="pt-1">
                             <button type="button" onclick="pollReceipt('${testId}')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
@@ -924,12 +929,14 @@ if ($trainerCol) {
                     `;
                 } else if (testType === 'B') {
                     outCard.innerHTML = `
-                        <div class="text-emerald-400 font-bold text-sm">✓ TEST B DISPATCHED (HTTP ${data.statusCode || 201})</div>
+                        <div class="text-emerald-400 font-bold text-sm">✓ TEST B DISPATCHED via ${providerName} (HTTP ${data.statusCode || 200})</div>
                         <div class="text-slate-300">TEST_ID: <span class="text-white font-bold">${testId}</span></div>
+                        <div class="text-slate-300">Target Recipients: <span class="text-white">${data.subscriptionCount || 1}</span></div>
+                        ${data.oneSignalId ? `<div class="text-slate-400 text-[11px]">OneSignal ID: <span class="text-emerald-300 font-mono">${data.oneSignalId}</span></div>` : ''}
                         <div class="p-3 bg-amber-500/20 border border-amber-500/30 rounded-xl text-amber-200 font-sans mt-2 space-y-1">
                             <div class="font-bold text-sm">👉 PRESS ANDROID HOME BUTTON NOW!</div>
                             <div>Do NOT reopen Mentry. Do NOT swipe Chrome away.</div>
-                            <div>Wait 60 seconds. Observe if status bar notification appears.</div>
+                            <div>Wait 15–30 seconds. OneSignal will wake Chrome and display the notification.</div>
                         </div>
                         <div class="pt-2">
                             <button type="button" onclick="pollReceipt('${testId}')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
@@ -939,11 +946,13 @@ if ($trainerCol) {
                     `;
                 } else if (testType === 'C') {
                     outCard.innerHTML = `
-                        <div class="text-emerald-400 font-bold text-sm">✓ TEST C DISPATCHED (HTTP ${data.statusCode || 201})</div>
+                        <div class="text-emerald-400 font-bold text-sm">✓ TEST C DISPATCHED via ${providerName} (HTTP ${data.statusCode || 200})</div>
                         <div class="text-slate-300">TEST_ID: <span class="text-white font-bold">${testId}</span></div>
+                        <div class="text-slate-300">Target Recipients: <span class="text-white">${data.subscriptionCount || 1}</span></div>
+                        ${data.oneSignalId ? `<div class="text-slate-400 text-[11px]">OneSignal ID: <span class="text-emerald-300 font-mono">${data.oneSignalId}</span></div>` : ''}
                         <div class="p-3 bg-purple-500/20 border border-purple-500/30 rounded-xl text-purple-200 font-sans mt-2 space-y-1">
                             <div class="font-bold text-sm">👉 PRESS POWER BUTTON TO LOCK PHONE NOW!</div>
-                            <div>Leave phone locked for 60 seconds. Observe if lock screen lights up or notification rings.</div>
+                            <div>Leave phone locked for 15–30 seconds. Observe if lock screen lights up or notification rings.</div>
                         </div>
                         <div class="pt-2">
                             <button type="button" onclick="pollReceipt('${testId}')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
@@ -953,7 +962,10 @@ if ($trainerCol) {
                     `;
                 }
             } else {
-                outCard.innerHTML = `<div class="text-rose-400 font-bold">Push Gateway dispatch failed: ${data.reason || data.error}</div>`;
+                outCard.innerHTML = `
+                    <div class="text-rose-400 font-bold">Dispatch failed (${providerName}): HTTP ${data.statusCode || 500} - ${data.reason || data.error}</div>
+                    ${data.oneSignalId ? `<div class="text-slate-400 text-[11px]">OneSignal ID: ${data.oneSignalId}</div>` : ''}
+                `;
             }
 
         } catch (e) {

@@ -36,16 +36,26 @@ class OneSignalService {
     }
 
     public static function getApiKey(): string {
+        $appId = self::getAppId();
         // Direct checks for common names
         $candidates = ['ONESIGNAL_REST_API_KEY', 'ONESIGNAL_API_KEY', 'ONESIGNAL_KEY', 'ONESIGNAL_SECRET'];
         foreach ($candidates as $c) {
             $val = getenv($c) ?: ($_ENV[$c] ?? ($_SERVER[$c] ?? ''));
-            if (!empty($val)) return trim((string)$val);
+            if (!empty($val)) {
+                $cleaned = trim(trim((string)$val), "\"' \t\n\r");
+                // CRITICAL SAFETY CHECK: NEVER use the App ID as the REST API key
+                if ($cleaned !== $appId && strlen($cleaned) > 10) {
+                    return $cleaned;
+                }
+            }
         }
         // Fallback: scan all environment variables for ONESIGNAL + API_KEY / KEY
         foreach (array_merge($_SERVER, $_ENV) as $k => $v) {
             if (stripos($k, 'ONESIGNAL') !== false && (stripos($k, 'API_KEY') !== false || stripos($k, 'KEY') !== false) && stripos($k, 'APP_ID') === false && !empty($v)) {
-                return trim((string)$v);
+                $cleaned = trim(trim((string)$v), "\"' \t\n\r");
+                if ($cleaned !== $appId && strlen($cleaned) > 10) {
+                    return $cleaned;
+                }
             }
         }
         return '';
@@ -205,6 +215,7 @@ class OneSignalService {
      * Internal cURL POST executor to OneSignal REST API
      */
     private static function executePost(array $data, string $apiKey): array {
+        $apiKey = trim(trim($apiKey), "\"' \t\n\r");
         $ch = curl_init(self::API_URL);
         $jsonPayload = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
@@ -225,6 +236,32 @@ class OneSignalService {
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlErr = curl_error($ch);
         curl_close($ch);
+
+        // Fallback retry with Basic if Key returned 401 on legacy key
+        if ($httpCode === 401 && !str_starts_with($apiKey, 'os_v2_')) {
+            $chRetry = curl_init(self::API_URL);
+            curl_setopt_array($chRetry, [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $jsonPayload,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json; charset=utf-8',
+                    'Authorization: Basic ' . $apiKey
+                ],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_SSL_VERIFYPEER => true
+            ]);
+            $responseRetry = curl_exec($chRetry);
+            $retryHttp = curl_getinfo($chRetry, CURLINFO_HTTP_CODE);
+            $retryErr = curl_error($chRetry);
+            curl_close($chRetry);
+            if ($responseRetry !== false && $retryHttp >= 200 && $retryHttp < 300) {
+                $response = $responseRetry;
+                $httpCode = $retryHttp;
+                $curlErr = $retryErr;
+            }
+        }
 
         if ($response === false) {
             return [
