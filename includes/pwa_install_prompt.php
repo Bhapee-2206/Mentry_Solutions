@@ -307,8 +307,8 @@ OneSignalDeferred.push(async function(OneSignal) {
         await OneSignal.init({
             appId: "e2443de9-128c-4e5f-a964-03260aa8c627",
             safari_web_id: "web.onesignal.auto.16fe94fe-85b7-4f18-b294-6465f1482156",
-            serviceWorkerParam: { scope: "/" },
-            serviceWorkerPath: "sw.js"
+            serviceWorkerPath: "push/onesignal/OneSignalSDKWorker.js",
+            serviceWorkerParam: { scope: "/push/onesignal/" }
         });
 
         const currentPwaUserId = "<?= htmlspecialchars($pwaUserId ?? '') ?>";
