@@ -19,6 +19,15 @@ if (file_exists(__DIR__ . '/../includes/helpers.php')) {
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $cleanUri = ltrim($uri, '/');
 
+// OneSignal dedicated service worker — hardcoded to bypass Vercel build artifact cache
+if ($cleanUri === 'push/onesignal/OneSignalSDKWorker.js') {
+    header('Content-Type: application/javascript; charset=utf-8');
+    header('Service-Worker-Allowed: /push/onesignal/');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    echo "importScripts(\"https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js\");\n";
+    exit();
+}
+
 // Security: Enforce production security headers across all responses
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');

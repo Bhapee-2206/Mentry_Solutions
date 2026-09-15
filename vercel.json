@@ -17,7 +17,7 @@
       ]
     },
     {
-      "source": "/(sw|OneSignalSDKWorker)\.js",
+      "source": "^/(sw|OneSignalSDKWorker)\.js$",
       "headers": [
         { "key": "Service-Worker-Allowed", "value": "/" },
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
@@ -40,7 +40,7 @@
     },
     {
       "src": "^/push/onesignal/OneSignalSDKWorker\\.js$",
-      "dest": "/push/onesignal/OneSignalSDKWorker.php"
+      "dest": "/api/index.php"
     },
     {
       "handle": "filesystem"
