@@ -22,43 +22,14 @@ class OneSignalService {
     }
 
     public static function getApiKeySource(): string {
-        $candidates = ['ONESIGNAL_REST_API_KEY', 'ONESIGNAL_API_KEY', 'ONESIGNAL_KEY', 'ONESIGNAL_SECRET'];
-        foreach ($candidates as $c) {
-            $val = getenv($c) ?: ($_ENV[$c] ?? ($_SERVER[$c] ?? ''));
-            if (!empty($val)) return $c;
-        }
-        foreach (array_merge($_SERVER, $_ENV) as $k => $v) {
-            if (stripos($k, 'ONESIGNAL') !== false && (stripos($k, 'API_KEY') !== false || stripos($k, 'KEY') !== false) && stripos($k, 'APP_ID') === false && !empty($v)) {
-                return (string)$k;
-            }
-        }
-        return 'NONE';
+        $val = getenv('ONESIGNAL_REST_API_KEY') ?: ($_ENV['ONESIGNAL_REST_API_KEY'] ?? ($_SERVER['ONESIGNAL_REST_API_KEY'] ?? ''));
+        return !empty($val) ? 'ONESIGNAL_REST_API_KEY' : 'NONE';
     }
 
     public static function getApiKey(): string {
-        $appId = self::getAppId();
-        // Direct checks for common names
-        $candidates = ['ONESIGNAL_REST_API_KEY', 'ONESIGNAL_API_KEY', 'ONESIGNAL_KEY', 'ONESIGNAL_SECRET'];
-        foreach ($candidates as $c) {
-            $val = getenv($c) ?: ($_ENV[$c] ?? ($_SERVER[$c] ?? ''));
-            if (!empty($val)) {
-                $cleaned = trim(trim((string)$val), "\"' \t\n\r");
-                // CRITICAL SAFETY CHECK: NEVER use the App ID as the REST API key
-                if ($cleaned !== $appId && strlen($cleaned) > 10) {
-                    return $cleaned;
-                }
-            }
-        }
-        // Fallback: scan all environment variables for ONESIGNAL + API_KEY / KEY
-        foreach (array_merge($_SERVER, $_ENV) as $k => $v) {
-            if (stripos($k, 'ONESIGNAL') !== false && (stripos($k, 'API_KEY') !== false || stripos($k, 'KEY') !== false) && stripos($k, 'APP_ID') === false && !empty($v)) {
-                $cleaned = trim(trim((string)$v), "\"' \t\n\r");
-                if ($cleaned !== $appId && strlen($cleaned) > 10) {
-                    return $cleaned;
-                }
-            }
-        }
-        return '';
+        $val = getenv('ONESIGNAL_REST_API_KEY') ?: ($_ENV['ONESIGNAL_REST_API_KEY'] ?? ($_SERVER['ONESIGNAL_REST_API_KEY'] ?? ''));
+        $cleaned = trim(trim((string)$val), "\"' \t\n\r");
+        return strlen($cleaned) > 10 && $cleaned !== self::getAppId() ? $cleaned : '';
     }
 
     public static function isConfigured(): bool {
@@ -223,96 +194,72 @@ class OneSignalService {
             return ['valid' => false, 'error' => 'OneSignal REST API Key is not set.'];
         }
 
-        $prefixes = ['Key ', 'Bearer ', 'Basic '];
-        $lastResult = null;
+        $ch = curl_init('https://api.onesignal.com/notifications?app_id=' . urlencode($appId) . '&limit=1');
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPGET => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Key ' . $apiKey
+            ],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($ch);
+        curl_close($ch);
 
-        foreach ($prefixes as $p) {
-            $ch = curl_init('https://api.onesignal.com/notifications?app_id=' . urlencode($appId) . '&limit=1');
-            curl_setopt_array($ch, [
-                CURLOPT_HTTPGET => true,
-                CURLOPT_HTTPHEADER => [
-                    'Authorization: ' . $p . $apiKey
-                ],
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CONNECTTIMEOUT => 5,
-                CURLOPT_TIMEOUT => 10,
-                CURLOPT_SSL_VERIFYPEER => true
-            ]);
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlErr = curl_error($ch);
-            curl_close($ch);
+        $decoded = json_decode($response ?: '', true);
 
-            $decoded = json_decode($response ?: '', true);
-
-            if ($httpCode >= 200 && $httpCode < 300) {
-                return [
-                    'valid' => true,
-                    'authPrefix' => trim($p),
-                    'endpoint' => 'GET /notifications',
-                    'appId' => $appId,
-                    'httpCode' => $httpCode,
-                    'notificationsCount' => $decoded['total_count'] ?? 0,
-                    'raw' => $decoded
-                ];
-            }
-
-            $lastResult = [
-                'valid' => false,
-                'prefix' => trim($p),
+        if ($httpCode >= 200 && $httpCode < 300) {
+            return [
+                'valid' => true,
+                'authPrefix' => 'Key',
                 'endpoint' => 'GET /notifications',
+                'appId' => $appId,
                 'httpCode' => $httpCode,
-                'curlErr' => $curlErr,
-                'raw' => $decoded ?: $response
+                'notificationsCount' => $decoded['total_count'] ?? 0,
+                'raw' => $decoded
             ];
         }
 
-        return $lastResult ?: ['valid' => false, 'error' => 'Unable to verify credentials.'];
+        return [
+            'valid' => false,
+            'prefix' => 'Key',
+            'endpoint' => 'GET /notifications',
+            'httpCode' => $httpCode,
+            'curlErr' => $curlErr,
+            'raw' => $decoded ?: $response
+        ];
     }
 
     /**
      * Internal cURL POST executor to OneSignal REST API
-     * Automatically attempts standard auth prefixes (Key, Bearer, Basic) if 401 is encountered.
+        * Uses the OneSignal App API Key authentication scheme.
      */
     private static function executePost(array $data, string $apiKey): array {
         $apiKey = trim(trim($apiKey), "\"' \t\n\r");
         $jsonPayload = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-        // Try standard OneSignal auth prefixes
-        $prefixes = ['Key ', 'Bearer ', 'Basic '];
-        $lastResponse = null;
-        $lastHttpCode = 0;
-        $lastCurlErr = '';
+        $ch = curl_init(self::API_URL);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $jsonPayload,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json; charset=utf-8',
+                'Authorization: Key ' . $apiKey
+            ],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_SSL_VERIFYPEER => true
+        ]);
 
-        foreach ($prefixes as $prefix) {
-            $ch = curl_init(self::API_URL);
-            curl_setopt_array($ch, [
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => $jsonPayload,
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json; charset=utf-8',
-                    'Authorization: ' . $prefix . $apiKey
-                ],
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CONNECTTIMEOUT => 5,
-                CURLOPT_TIMEOUT => 15,
-                CURLOPT_SSL_VERIFYPEER => true
-            ]);
-
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlErr = curl_error($ch);
-            curl_close($ch);
-
-            $lastResponse = $response;
-            $lastHttpCode = $httpCode;
-            $lastCurlErr = $curlErr;
-
-            // If success or non-401 error (e.g. 400 Bad Request, 200 OK), no need to try other auth prefixes
-            if ($httpCode !== 401) {
-                break;
-            }
-        }
+        $lastResponse = curl_exec($ch);
+        $lastHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $lastCurlErr = curl_error($ch);
+        curl_close($ch);
 
         if ($lastResponse === false) {
             return [
