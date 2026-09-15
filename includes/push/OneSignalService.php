@@ -90,8 +90,33 @@ class OneSignalService {
             ];
         }
 
-        // Clean and deduplicate user IDs
+        // Clean and expand user IDs to include both User ID and Trainer ID aliases
         $cleanIds = array_values(array_unique(array_filter(array_map('strval', $userIds))));
+        if (function_exists('getCollection')) {
+            try {
+                $trCol = getCollection("Trainer");
+                if ($trCol) {
+                    $expanded = [];
+                    foreach ($cleanIds as $id) {
+                        $expanded[] = $id;
+                        $matches = [$id];
+                        try { $matches[] = new \MongoDB\BSON\ObjectId($id); } catch (\Throwable $e) {}
+                        $t = $trCol->findOne([
+                            '$or' => [
+                                ['_id' => ['$in' => $matches]],
+                                ['userId' => ['$in' => $matches]],
+                                ['user_id' => ['$in' => $matches]]
+                            ]
+                        ]);
+                        if ($t) {
+                            if (!empty($t['userId'])) $expanded[] = (string)$t['userId'];
+                            $expanded[] = (string)$t['_id'];
+                        }
+                    }
+                    $cleanIds = array_values(array_unique(array_filter(array_map('strval', $expanded))));
+                }
+            } catch (\Throwable $e) {}
+        }
         if (empty($cleanIds)) {
             return [
                 'sent' => false,
