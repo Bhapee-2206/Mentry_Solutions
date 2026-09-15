@@ -68,7 +68,15 @@ if ($trainerCol) {
                 CLIENT INITIALIZATION STATUS (MUST ALL BE GREEN BEFORE BACKGROUND TEST)
             </h2>
 
-            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-xs font-mono">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs font-mono">
+                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">PUSH JS DOWNLOAD</div>
+                    <div id="statPushDownload" class="font-bold mt-1 text-slate-400">PROBING...</div>
+                </div>
+                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">PUSH JS EXECUTED</div>
+                    <div id="statPushExecuted" class="font-bold mt-1 text-slate-400">CHECKING...</div>
+                </div>
                 <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
                     <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">PUSH JS LOADED</div>
                     <div id="statPushJs" class="font-bold mt-1 text-slate-400">CHECKING...</div>
@@ -78,26 +86,30 @@ if ($trainerCol) {
                     <div id="statSwApi" class="font-bold mt-1 text-slate-400">CHECKING...</div>
                 </div>
                 <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
-                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">REG FOUND</div>
+                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">REG FOUND / COUNT</div>
                     <div id="statRegFound" class="font-bold mt-1 text-slate-400">CHECKING...</div>
-                </div>
-                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
-                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">REG COUNT</div>
-                    <div id="statRegCount" class="font-bold mt-1 text-slate-400">0</div>
-                </div>
-                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
-                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">ACTIVE SCRIPT</div>
-                    <div id="statActiveScript" class="font-bold mt-1 text-slate-400 truncate">CHECKING...</div>
                 </div>
                 <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
                     <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">ACTIVE STATE</div>
                     <div id="statActiveState" class="font-bold mt-1 text-slate-400">CHECKING...</div>
                 </div>
-                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
-                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">SUB EXISTS</div>
-                    <div id="statSubExists" class="font-bold mt-1 text-slate-400">CHECKING...</div>
+            </div>
+
+            <!-- Captured Browser Error Panel -->
+            <div id="jsErrorPanel" class="hidden p-4 bg-rose-950/40 border border-rose-500/50 rounded-2xl space-y-2 text-xs font-mono">
+                <div class="font-bold text-rose-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm">error</span>
+                    CAPTURED JAVASCRIPT / RESOURCE ERROR
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                    <div><span class="text-slate-400">JS ERROR TYPE:</span> <span id="errType" class="text-rose-300 font-bold">None</span></div>
+                    <div><span class="text-slate-400">SCRIPT URL:</span> <span id="errSource" class="text-slate-300 break-all">None</span></div>
+                    <div><span class="text-slate-400">LINE / COL:</span> <span id="errLineCol" class="text-slate-300">None</span></div>
+                    <div><span class="text-slate-400">MIME / HTTP:</span> <span id="errMime" class="text-slate-300 break-all">None</span></div>
+                    <div class="sm:col-span-2"><span class="text-slate-400">JS ERROR MESSAGE:</span> <span id="errMsg" class="text-rose-200 font-bold break-all">None</span></div>
                 </div>
             </div>
+
             <div id="statErrorNotice" class="hidden text-xs text-rose-400 font-mono p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl"></div>
         </div>
 
@@ -347,16 +359,48 @@ if ($trainerCol) {
 
     </div>
 
-    <!-- Error trap for external script loading -->
+    <!-- Error trap for external script loading & comprehensive diagnostic inspector -->
     <script>
     let pushJsLoaded = false;
-    window.addEventListener('error', function(e) {
-        if (e.filename && e.filename.includes('push-notifications.js')) {
-            handlePushJsError(e.message || 'Script execution exception');
-        }
+
+    function recordJsError(type, message, source, lineno, colno, mime) {
+        const panel = document.getElementById('jsErrorPanel');
+        if (panel) panel.classList.remove('hidden');
+        if (document.getElementById('errType')) document.getElementById('errType').textContent = type || 'Error';
+        if (document.getElementById('errMsg')) document.getElementById('errMsg').textContent = message || 'Unknown error';
+        if (document.getElementById('errSource')) document.getElementById('errSource').textContent = source || window.location.href;
+        if (document.getElementById('errLineCol')) document.getElementById('errLineCol').textContent = (lineno || 0) + ' : ' + (colno || 0);
+        if (mime && document.getElementById('errMime')) document.getElementById('errMime').textContent = mime;
+    }
+
+    // Capture unhandled runtime exceptions
+    window.onerror = function(msg, url, lineNo, colNo, error) {
+        recordJsError(error ? error.name : 'RuntimeError', msg, url, lineNo, colNo);
+        return false;
+    };
+
+    // Capture unhandled promise rejections
+    window.addEventListener('unhandledrejection', function(e) {
+        recordJsError('UnhandledRejection', e.reason ? (e.reason.message || String(e.reason)) : 'Promise rejected', '', '', '');
     });
 
+    // Capture resource load errors (MIME type mismatch, 404, blocked script)
+    window.addEventListener('error', function(e) {
+        if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+            const src = e.target.src || e.target.href || 'inline';
+            recordJsError('ResourceError', 'Browser refused/failed to load script: ' + src, src, 0, 0);
+        }
+    }, true);
+
     function handlePushJsLoaded() {
+        // Check execution marker
+        const executed = !!window.__MENTRY_PUSH_JS_STARTED__;
+        const elExec = document.getElementById('statPushExecuted');
+        if (elExec) {
+            elExec.textContent = executed ? 'YES' : 'NO';
+            elExec.className = executed ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
+        }
+
         if (window.MentryPush) {
             pushJsLoaded = true;
             const el = document.getElementById('statPushJs');
@@ -365,7 +409,7 @@ if ($trainerCol) {
                 el.className = 'font-bold mt-1 text-emerald-400';
             }
         } else {
-            handlePushJsError('window.MentryPush object was not exported.');
+            handlePushJsError('window.__MENTRY_PUSH_JS_STARTED__ = ' + executed + ', but window.MentryPush was not exported.');
         }
     }
 
@@ -383,6 +427,36 @@ if ($trainerCol) {
             notice.textContent = 'PUSH JS LOADED = NO | ERROR = ' + msg;
         }
     }
+
+    // Direct HTTP probe of /assets/js/push-notifications.js to verify MIME type & headers
+    async function probePushJsDirectly() {
+        const url = '/assets/js/push-notifications.js?_diag=' + Date.now();
+        const statEl = document.getElementById('statPushDownload');
+        try {
+            const resp = await fetch(url, { cache: 'no-store' });
+            const contentType = resp.headers.get('Content-Type') || 'none';
+            const isJs = contentType.includes('javascript');
+            const statusOk = resp.status === 200;
+
+            if (statEl) {
+                statEl.textContent = (statusOk && isJs) ? `YES (${resp.status})` : `FAIL (${resp.status})`;
+                statEl.className = (statusOk && isJs) ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
+            }
+
+            if (!isJs) {
+                recordJsError('MimeMismatch', `Server returned Content-Type "${contentType}" instead of application/javascript`, url, 0, 0, contentType);
+            }
+        } catch (fetchErr) {
+            if (statEl) {
+                statEl.textContent = 'NET ERROR';
+                statEl.className = 'font-bold mt-1 text-rose-400';
+            }
+            recordJsError('FetchException', fetchErr.message, url, 0, 0);
+        }
+    }
+
+    // Trigger probe immediately
+    probePushJsDirectly();
     </script>
     <script src="/assets/js/push-notifications.js?v=<?= time() ?>" onload="handlePushJsLoaded()" onerror="handlePushJsError('HTTP / Network error loading /assets/js/push-notifications.js')"></script>
 
@@ -486,28 +560,35 @@ if ($trainerCol) {
 
         const allRegs = await navigator.serviceWorker.getRegistrations();
         const count = allRegs.length;
-        document.getElementById('statRegCount').textContent = count;
-        document.getElementById('regCount').textContent = count;
+        if (document.getElementById('regCount')) document.getElementById('regCount').textContent = count;
+        if (document.getElementById('statRegCount')) document.getElementById('statRegCount').textContent = count;
 
         // Find root authoritative registration
         let authoritative = allRegs.find(r => r.scope === (window.location.origin + '/')) || authoritativeRegistration;
 
         const regFound = !!authoritative;
-        document.getElementById('statRegFound').textContent = regFound ? 'YES' : 'NO';
-        document.getElementById('statRegFound').className = regFound ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
+        const elRegFound = document.getElementById('statRegFound');
+        if (elRegFound) {
+            elRegFound.textContent = regFound ? `YES (${count})` : 'NO (0)';
+            elRegFound.className = regFound ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
+        }
 
         const activeWorker = authoritative ? authoritative.active : null;
         const activeScript = activeWorker ? activeWorker.scriptURL : (authoritative?.waiting ? authoritative.waiting.scriptURL : (authoritative?.installing ? authoritative.installing.scriptURL : 'None'));
         const activeState = activeWorker ? activeWorker.state : (authoritative?.waiting ? 'waiting' : (authoritative?.installing ? 'installing' : 'none'));
 
-        document.getElementById('valScope').textContent = authoritative ? authoritative.scope : 'None';
-        document.getElementById('valScriptURL').textContent = activeScript;
-        document.getElementById('valActiveState').textContent = activeState;
-        document.getElementById('valActiveState').className = (activeState === 'activated') ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
+        if (document.getElementById('valScope')) document.getElementById('valScope').textContent = authoritative ? authoritative.scope : 'None';
+        if (document.getElementById('valScriptURL')) document.getElementById('valScriptURL').textContent = activeScript;
+        if (document.getElementById('valActiveState')) {
+            document.getElementById('valActiveState').textContent = activeState;
+            document.getElementById('valActiveState').className = (activeState === 'activated') ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
+        }
 
-        document.getElementById('statActiveScript').textContent = activeScript.replace(window.location.origin, '');
-        document.getElementById('statActiveState').textContent = activeState;
-        document.getElementById('statActiveState').className = (activeState === 'activated') ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
+        if (document.getElementById('statActiveScript')) document.getElementById('statActiveScript').textContent = activeScript.replace(window.location.origin, '');
+        if (document.getElementById('statActiveState')) {
+            document.getElementById('statActiveState').textContent = activeState;
+            document.getElementById('statActiveState').className = (activeState === 'activated') ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
+        }
 
         // Single SW badge
         const singleBadge = document.getElementById('singleSwBadge');

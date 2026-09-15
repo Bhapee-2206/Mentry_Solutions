@@ -11,6 +11,8 @@
 (function() {
     'use strict';
 
+    window.__MENTRY_PUSH_JS_STARTED__ = true;
+
     const PushStates = {
         UNSUPPORTED: 'UNSUPPORTED',
         DEFAULT: 'DEFAULT',

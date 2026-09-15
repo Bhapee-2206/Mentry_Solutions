@@ -58,6 +58,7 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xm
     }
 
     $candidates = [
+        __DIR__ . '/../' . $cleanUri,
         __DIR__ . '/../public/' . $basename,
         __DIR__ . '/../public/' . $cleanUri,
         __DIR__ . '/../public/uploads/avatars/' . $basename,
@@ -79,8 +80,8 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xm
                 'gif' => 'image/gif',
                 'svg' => 'image/svg+xml',
                 'ico' => 'image/x-icon',
-                'css' => 'text/css',
-                'js' => 'application/javascript',
+                'css' => 'text/css; charset=utf-8',
+                'js' => 'application/javascript; charset=utf-8',
                 'pdf' => 'application/pdf',
                 'webp' => 'image/webp',
                 'woff' => 'font/woff',
@@ -94,9 +95,11 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xm
             $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
             header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
 
-            // Service worker specific scope and caching requirements
+            // Service worker and push controller specific caching requirements
             if ($basename === 'sw.js') {
                 header('Service-Worker-Allowed: /');
+                header('Cache-Control: no-cache, no-store, must-revalidate');
+            } elseif ($basename === 'push-notifications.js') {
                 header('Cache-Control: no-cache, no-store, must-revalidate');
             } elseif ($ext === 'json' || $ext === 'webmanifest') {
                 header('Cache-Control: public, max-age=86400');
