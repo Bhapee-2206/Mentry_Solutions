@@ -76,14 +76,14 @@ class PushConfig {
         }
 
         // Validate VAPID key structure using minishlink/web-push
-        $validation = VAPID::validate([
-            'subject' => $sub,
-            'publicKey' => $pub,
-            'privateKey' => $priv
-        ]);
-
-        if ($validation !== true && is_array($validation)) {
-            throw new \RuntimeException('Invalid VAPID credentials: ' . json_encode($validation));
+        try {
+            VAPID::validate([
+                'subject' => $sub,
+                'publicKey' => $pub,
+                'privateKey' => $priv
+            ]);
+        } catch (\Throwable $ve) {
+            throw new \RuntimeException('Invalid VAPID credentials: ' . $ve->getMessage());
         }
 
         self::$config = [
