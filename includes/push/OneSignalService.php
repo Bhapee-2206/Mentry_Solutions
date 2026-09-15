@@ -212,69 +212,118 @@ class OneSignalService {
     }
 
     /**
+     * Diagnostic credential verifier: queries https://api.onesignal.com/apps/{app_id}
+     * Returns exact app status, name, and valid auth prefix.
+     */
+    public static function verifyCredentials(): array {
+        $appId = self::getAppId();
+        $apiKey = self::getApiKey();
+
+        if (empty($apiKey)) {
+            return ['valid' => false, 'error' => 'OneSignal REST API Key is not set.'];
+        }
+
+        $prefixes = ['Key ', 'Bearer ', 'Basic '];
+        $lastResult = null;
+
+        foreach ($prefixes as $p) {
+            $ch = curl_init('https://api.onesignal.com/apps/' . urlencode($appId));
+            curl_setopt_array($ch, [
+                CURLOPT_HTTPGET => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: ' . $p . $apiKey
+                ],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_SSL_VERIFYPEER => true
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr = curl_error($ch);
+            curl_close($ch);
+
+            $decoded = json_decode($response ?: '', true);
+
+            if ($httpCode >= 200 && $httpCode < 300) {
+                return [
+                    'valid' => true,
+                    'authPrefix' => trim($p),
+                    'appName' => $decoded['name'] ?? 'Mentry',
+                    'appId' => $appId,
+                    'httpCode' => $httpCode,
+                    'raw' => $decoded
+                ];
+            }
+
+            $lastResult = [
+                'valid' => false,
+                'prefix' => trim($p),
+                'httpCode' => $httpCode,
+                'curlErr' => $curlErr,
+                'raw' => $decoded ?: $response
+            ];
+        }
+
+        return $lastResult ?: ['valid' => false, 'error' => 'Unable to verify credentials.'];
+    }
+
+    /**
      * Internal cURL POST executor to OneSignal REST API
+     * Automatically attempts standard auth prefixes (Key, Bearer, Basic) if 401 is encountered.
      */
     private static function executePost(array $data, string $apiKey): array {
         $apiKey = trim(trim($apiKey), "\"' \t\n\r");
-        $ch = curl_init(self::API_URL);
         $jsonPayload = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $jsonPayload,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json; charset=utf-8',
-                'Authorization: Key ' . $apiKey
-            ],
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_TIMEOUT => 15,
-            CURLOPT_SSL_VERIFYPEER => true
-        ]);
+        // Try standard OneSignal auth prefixes
+        $prefixes = ['Key ', 'Bearer ', 'Basic '];
+        $lastResponse = null;
+        $lastHttpCode = 0;
+        $lastCurlErr = '';
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlErr = curl_error($ch);
-        curl_close($ch);
-
-        // Fallback retry with Basic if Key returned 401 on legacy key
-        if ($httpCode === 401 && !str_starts_with($apiKey, 'os_v2_')) {
-            $chRetry = curl_init(self::API_URL);
-            curl_setopt_array($chRetry, [
+        foreach ($prefixes as $prefix) {
+            $ch = curl_init(self::API_URL);
+            curl_setopt_array($ch, [
                 CURLOPT_POST => true,
                 CURLOPT_POSTFIELDS => $jsonPayload,
                 CURLOPT_HTTPHEADER => [
                     'Content-Type: application/json; charset=utf-8',
-                    'Authorization: Basic ' . $apiKey
+                    'Authorization: ' . $prefix . $apiKey
                 ],
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_TIMEOUT => 15,
                 CURLOPT_SSL_VERIFYPEER => true
             ]);
-            $responseRetry = curl_exec($chRetry);
-            $retryHttp = curl_getinfo($chRetry, CURLINFO_HTTP_CODE);
-            $retryErr = curl_error($chRetry);
-            curl_close($chRetry);
-            if ($responseRetry !== false && $retryHttp >= 200 && $retryHttp < 300) {
-                $response = $responseRetry;
-                $httpCode = $retryHttp;
-                $curlErr = $retryErr;
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr = curl_error($ch);
+            curl_close($ch);
+
+            $lastResponse = $response;
+            $lastHttpCode = $httpCode;
+            $lastCurlErr = $curlErr;
+
+            // If success or non-401 error (e.g. 400 Bad Request, 200 OK), no need to try other auth prefixes
+            if ($httpCode !== 401) {
+                break;
             }
         }
 
-        if ($response === false) {
+        if ($lastResponse === false) {
             return [
                 'sent' => false,
                 'accepted' => false,
                 'statusCode' => 500,
-                'reason' => 'cURL error connecting to OneSignal: ' . $curlErr,
+                'reason' => 'cURL error connecting to OneSignal: ' . $lastCurlErr,
                 'rawResponse' => null
             ];
         }
 
-        $decoded = json_decode($response, true);
-        $isOk = ($httpCode >= 200 && $httpCode < 300);
+        $decoded = json_decode($lastResponse, true);
+        $isOk = ($lastHttpCode >= 200 && $lastHttpCode < 300);
         $recipients = $decoded['recipients'] ?? 0;
         $oneSignalId = $decoded['id'] ?? null;
         $errors = $decoded['errors'] ?? null;
@@ -287,10 +336,10 @@ class OneSignalService {
         return [
             'sent' => $isOk && empty($errors),
             'accepted' => $isOk,
-            'statusCode' => $httpCode,
+            'statusCode' => $lastHttpCode,
             'oneSignalId' => $oneSignalId,
             'recipients' => $recipients,
-            'reason' => $isOk ? ("Accepted by OneSignal (recipients: $recipients)") : ("OneSignal error HTTP $httpCode: $errorMsg"),
+            'reason' => $isOk ? ("Accepted by OneSignal (recipients: $recipients)") : ("OneSignal error HTTP $lastHttpCode: $errorMsg"),
             'errors' => $errors,
             'rawResponse' => $decoded
         ];

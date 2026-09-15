@@ -20,7 +20,9 @@ $serverOsAppId = OneSignalService::getAppId();
 $serverOsKey = OneSignalService::getApiKey();
 $serverOsKeySource = OneSignalService::getApiKeySource();
 $serverOsConfigured = OneSignalService::isConfigured();
-$serverOsKeyMasked = !empty($serverOsKey) ? (substr($serverOsKey, 0, 6) . '...' . substr($serverOsKey, -4) . ' [' . $serverOsKeySource . ']') : 'NOT SET';
+$serverOsKeyPrefix = !empty($serverOsKey) ? substr($serverOsKey, 0, min(14, strlen($serverOsKey))) : '';
+$serverOsKeyMasked = !empty($serverOsKey) ? ($serverOsKeyPrefix . '...' . substr($serverOsKey, -4) . ' (len:' . strlen($serverOsKey) . ') [' . $serverOsKeySource . ']') : 'NOT SET';
+$osCredVerification = $serverOsConfigured ? OneSignalService::verifyCredentials() : ['valid' => false, 'error' => 'Not configured'];
 
 $trainerCol = getCollection("Trainer");
 $userCol = getCollection("User");
@@ -272,6 +274,16 @@ if ($trainerCol) {
                     <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Server API Key (Vercel)</div>
                     <div class="font-bold mt-1 <?= $serverOsConfigured ? 'text-emerald-400' : 'text-rose-400' ?>">
                         <?= $serverOsConfigured ? 'CONFIGURED (' . htmlspecialchars($serverOsKeyMasked) . ')' : 'NOT DETECTED' ?>
+                    </div>
+                </div>
+                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">OneSignal Gateway Auth</div>
+                    <div class="font-bold mt-1 <?= ($osCredVerification['valid'] ?? false) ? 'text-emerald-400' : 'text-rose-400' ?>">
+                        <?php if ($osCredVerification['valid'] ?? false): ?>
+                            ✓ VALID (App: <?= htmlspecialchars($osCredVerification['appName'] ?? 'Mentry') ?>, Prefix: <?= htmlspecialchars($osCredVerification['authPrefix'] ?? 'Key') ?>)
+                        <?php else: ?>
+                            ✗ <?= htmlspecialchars($osCredVerification['error'] ?? ('HTTP ' . ($osCredVerification['httpCode'] ?? 401) . ' ' . json_encode($osCredVerification['raw'] ?? ''))) ?>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
