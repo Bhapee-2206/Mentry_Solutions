@@ -149,26 +149,45 @@ class PushService {
 
             $finalStatusCode = $statusCode ?: ($accepted ? 201 : 500);
 
-            // Step 12: Safe server-side push transport diagnostic logging
+            // Step 5: Capture safe push service details
+            $safeHeaders = [];
+            if ($response) {
+                foreach (['date', 'content-length', 'content-type', 'location', 'x-content-type-options'] as $hName) {
+                    if ($response->hasHeader($hName)) {
+                        $safeHeaders[$hName] = $response->getHeaderLine($hName);
+                    }
+                }
+            }
+            $endpointHost = parse_url($endpoint, PHP_URL_HOST) ?: 'unknown-host';
+            $audience = (parse_url($endpoint, PHP_URL_SCHEME) ?: 'https') . '://' . $endpointHost;
+
             $userIdStr = '';
             if (is_array($subDoc)) {
                 $userIdStr = (string)($subDoc['userId'] ?? ($subDoc['trainerId'] ?? 'unknown'));
             } elseif (is_object($subDoc)) {
                 $userIdStr = (string)($subDoc->userId ?? ($subDoc->trainerId ?? 'unknown'));
             }
-            self::recordServerLog($userIdStr, $endpoint, $finalStatusCode, $reason, $accepted);
+            self::recordServerLog($userIdStr, $endpoint, $finalStatusCode, $reason, $accepted, $audience, $urgency, $safeHeaders);
 
             return [
                 'accepted' => $accepted,
                 'statusCode' => $finalStatusCode,
                 'reason' => $reason,
                 'expired' => ($statusCode === 404 || $statusCode === 410 || $isSubscriptionExpired),
-                'endpoint' => $endpoint
+                'endpoint' => $endpoint,
+                'endpointHost' => $endpointHost,
+                'audience' => $audience,
+                'urgency' => $urgency,
+                'ttl' => 86400,
+                'safeHeaders' => $safeHeaders
             ];
 
         } catch (\Throwable $e) {
             $reason = $e->getMessage();
             PushSubscriptionRepository::recordFailure($endpoint, 500, 'EXCEPTION: ' . $reason, false);
+
+            $endpointHost = parse_url($endpoint, PHP_URL_HOST) ?: 'unknown-host';
+            $audience = (parse_url($endpoint, PHP_URL_SCHEME) ?: 'https') . '://' . $endpointHost;
 
             $userIdStr = '';
             if (is_array($subDoc)) {
@@ -176,34 +195,44 @@ class PushService {
             } elseif (is_object($subDoc)) {
                 $userIdStr = (string)($subDoc->userId ?? ($subDoc->trainerId ?? 'unknown'));
             }
-            self::recordServerLog($userIdStr, $endpoint, 500, 'EXCEPTION: ' . $reason, false);
+            self::recordServerLog($userIdStr, $endpoint, 500, 'EXCEPTION: ' . $reason, false, $audience, $urgency, []);
 
             return [
                 'accepted' => false,
                 'statusCode' => 500,
                 'reason' => 'Network/Transport exception: ' . $reason,
                 'expired' => false,
-                'endpoint' => $endpoint
+                'endpoint' => $endpoint,
+                'endpointHost' => $endpointHost,
+                'audience' => $audience,
+                'urgency' => $urgency,
+                'ttl' => 86400,
+                'safeHeaders' => []
             ];
         }
     }
 
     /**
-     * Temporary server-side diagnostic logging (Requirement 12)
-     * Records: user ID, subscription ID/hash, push HTTP status, timestamp, endpoint hostname.
+     * Temporary server-side diagnostic logging (Requirement 12 & Step 5)
+     * Records: user ID, subscription ID/hash, push HTTP status, timestamp, endpoint hostname, audience, TTL, urgency.
      * NEVER logs private keys, auth tokens, or p256dh values.
      */
-    private static function recordServerLog(string $userId, string $endpoint, int $httpStatus, string $reason, bool $accepted): void {
+    private static function recordServerLog(string $userId, string $endpoint, int $httpStatus, string $reason, bool $accepted, string $audience = '', string $urgency = 'high', array $safeHeaders = []): void {
         $endpointHost = parse_url($endpoint, PHP_URL_HOST) ?: 'unknown-host';
-        $subHash = substr(hash('sha256', $endpoint), 0, 16);
+        $subHash = hash('sha256', $endpoint);
         $timestamp = date('c');
 
         $logData = [
             'timestamp' => $timestamp,
             'userId' => $userId,
-            'subscriptionHash' => $subHash,
+            'subscriptionHash' => substr($subHash, 0, 16),
+            'subscriptionFullHash' => $subHash,
             'httpStatus' => $httpStatus,
             'endpointHostname' => $endpointHost,
+            'audience' => $audience,
+            'urgency' => $urgency,
+            'ttl' => 86400,
+            'safeHeaders' => $safeHeaders,
             'reason' => $reason,
             'accepted' => $accepted
         ];
@@ -218,9 +247,14 @@ class PushService {
                         'timestamp' => new \MongoDB\BSON\UTCDateTime(),
                         'isoTimestamp' => $timestamp,
                         'userId' => $userId,
-                        'subscriptionHash' => $subHash,
+                        'subscriptionHash' => substr($subHash, 0, 16),
+                        'subscriptionFullHash' => $subHash,
                         'httpStatus' => $httpStatus,
                         'endpointHostname' => $endpointHost,
+                        'audience' => $audience,
+                        'urgency' => $urgency,
+                        'ttl' => 86400,
+                        'safeHeaders' => $safeHeaders,
                         'reason' => $reason,
                         'accepted' => $accepted
                     ]);

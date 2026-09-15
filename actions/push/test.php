@@ -86,6 +86,14 @@ $primaryResult = !empty($res['results']) ? $res['results'][0] : null;
 $statusCode = $primaryResult['statusCode'] ?? ($res['sent'] ? 201 : 500);
 $reason = $primaryResult['reason'] ?? ($res['sent'] ? 'Accepted by push service' : 'Dispatch failed');
 
+$pushDetails = [
+    'endpointHost' => $primaryResult['endpointHost'] ?? 'fcm.googleapis.com',
+    'audience' => $primaryResult['audience'] ?? 'https://fcm.googleapis.com',
+    'urgency' => $primaryResult['urgency'] ?? 'high',
+    'ttl' => 86400,
+    'safeHeaders' => $primaryResult['safeHeaders'] ?? []
+];
+
 echo json_encode([
     'success' => $res['sent'],
     'pushServiceAccepted' => $res['sent'],
@@ -94,5 +102,6 @@ echo json_encode([
     'subscriptionCount' => $res['subscriptionCount'],
     'acceptedCount' => $res['acceptedCount'],
     'failedCount' => $res['failedCount'],
-    'testId' => $testNotificationId
+    'testId' => $testNotificationId,
+    'pushDetails' => $pushDetails
 ]);

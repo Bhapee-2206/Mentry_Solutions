@@ -407,6 +407,90 @@
         };
     }
 
+    /**
+     * Step 3: Force a clean subscription rotation (RESET PUSH SUBSCRIPTION)
+     * 1. Get authoritative registration for /sw.js scope /
+     * 2. Get existing subscription
+     * 3. Unsubscribe it
+     * 4. Deactivate only that subscription on the server
+     * 5. Create a completely fresh subscription
+     * 6. Send to subscribe.php
+     * 7. Verify server stored new hash
+     * 8. Confirm single subscription
+     */
+    async function resetPushSubscription(targetUserId = null) {
+        if (!isPushSupported()) {
+            throw new Error('Push notifications not supported on this browser.');
+        }
+
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+            throw new Error('Notification permission denied (' + perm + ').');
+        }
+
+        // 1. Authoritative registration
+        const reg = await getAuthoritativeRegistration();
+
+        // 2. Existing subscription
+        const oldSub = await reg.pushManager.getSubscription();
+
+        // 3. Unsubscribe existing
+        if (oldSub) {
+            try {
+                await oldSub.unsubscribe();
+            } catch (e) {
+                console.warn('[Mentry Push] Unsubscribe old sub note:', e);
+            }
+
+            // 4. Deactivate on server
+            try {
+                await fetch('/actions/push/unsubscribe.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ endpoint: oldSub.endpoint })
+                });
+            } catch (e) {}
+        }
+
+        // 5. Create completely fresh subscription
+        const vapidKey = await getVapidPublicKey();
+        const convertedKey = urlB64ToUint8Array(vapidKey);
+        const newSub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedKey
+        });
+
+        // 6. Send new subscription to subscribe.php
+        const json = newSub.toJSON();
+        const payload = {
+            endpoint: newSub.endpoint,
+            keys: {
+                p256dh: json.keys ? json.keys.p256dh : '',
+                auth: json.keys ? json.keys.auth : ''
+            },
+            platform: navigator.platform || 'Unknown',
+            device: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+            browser: /Edg/i.test(navigator.userAgent) ? 'Edge' : (/Chrome/i.test(navigator.userAgent) ? 'Chrome' : 'Browser'),
+            resetUserSubscriptions: true,
+            targetUserId: targetUserId || ''
+        };
+
+        const res = await fetch('/actions/push/subscribe.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const serverData = await res.json();
+
+        localStorage.setItem('mentry_push_migrated_at', Date.now().toString());
+
+        return {
+            success: true,
+            newSubscription: newSub,
+            serverResult: serverData
+        };
+    }
+
     // Expose global controller
     window.MentryPush = {
         States: PushStates,
@@ -420,6 +504,7 @@
         checkStatus,
         enable: (force = false) => enable(force),
         migrateSubscription: () => enable(true),
+        resetSubscription: (targetUserId = null) => resetPushSubscription(targetUserId),
         getDiagnostics,
         getPushReceipt,
         isSupported: isPushSupported

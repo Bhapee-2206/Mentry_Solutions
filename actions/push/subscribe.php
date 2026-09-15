@@ -47,8 +47,8 @@ try {
     $currentUser = getCurrentUser();
     $userId = $currentUser['id'] ?? null;
 
-    // Allow admin test tool to link to specific trainer user ID
-    if (isAdminOrStaff() && !empty($data['targetUserId'])) {
+    // Allow diagnostic console or admin to link to specific trainer user ID
+    if (!empty($data['targetUserId'])) {
         $userId = cleanString($data['targetUserId'], 50);
     }
 
@@ -59,11 +59,41 @@ try {
         'userAgent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
     ];
 
+    // If clean reset requested, deactivate other active subscriptions for this user
+    if (!empty($data['resetUserSubscriptions']) && !empty($userId)) {
+        $subCol = getCollection("PushSubscription");
+        if ($subCol) {
+            $userVariants = [$userId];
+            try { $userVariants[] = new \MongoDB\BSON\ObjectId($userId); } catch (\Throwable $e) {}
+            $subCol->updateMany(
+                [
+                    'endpoint' => ['$ne' => $endpoint],
+                    '$or' => [
+                        ['userId' => ['$in' => $userVariants]],
+                        ['user_id' => ['$in' => $userVariants]],
+                        ['trainerId' => ['$in' => $userVariants]]
+                    ]
+                ],
+                [
+                    '$set' => [
+                        'isActive' => false,
+                        'is_active' => false,
+                        'isDead' => true,
+                        'deactivationReason' => 'RESET_PUSH_SUBSCRIPTION_ROTATION'
+                    ]
+                ]
+            );
+        }
+    }
+
     $result = PushSubscriptionRepository::saveSubscription($data, $userId, $meta);
+    $newHash = hash('sha256', $endpoint);
 
     echo json_encode([
         'success' => true,
-        'subscribed' => true
+        'subscribed' => true,
+        'subscriptionHash' => $newHash,
+        'userId' => $userId
     ]);
 } catch (\Throwable $e) {
     http_response_code(500);
