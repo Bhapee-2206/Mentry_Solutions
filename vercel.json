@@ -40,7 +40,7 @@
     },
     {
       "src": "^/push/onesignal/OneSignalSDKWorker\\.js$",
-      "dest": "/api/index.php"
+      "dest": "/push/onesignal/OneSignalSDKWorker.php"
     },
     {
       "handle": "filesystem"

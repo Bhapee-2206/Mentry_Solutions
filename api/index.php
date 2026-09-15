@@ -19,11 +19,6 @@ if (file_exists(__DIR__ . '/../includes/helpers.php')) {
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $cleanUri = ltrim($uri, '/');
 
-// TEMP DEBUG - remove after diagnosis
-header('X-Debug-Uri: ' . $uri);
-header('X-Debug-CleanUri: ' . $cleanUri);
-header('X-Debug-RequestUri: ' . ($_SERVER['REQUEST_URI'] ?? 'none'));
-
 // Security: Enforce production security headers across all responses
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
