@@ -59,7 +59,8 @@ if (empty($subscriptions)) {
 }
 
 $isBackgroundTest = !empty($_POST['isBackgroundTest']) || !empty($_GET['isBackgroundTest']);
-$testNotificationId = ($isBackgroundTest ? 'background_test_' : 'test_') . bin2hex(random_bytes(6)) . '_' . time();
+$customTestId = trim($_POST['testId'] ?? ($_GET['testId'] ?? ''));
+$testNotificationId = !empty($customTestId) ? $customTestId : (($isBackgroundTest ? 'background_test_' : 'test_') . bin2hex(random_bytes(6)) . '_' . time());
 
 if ($isBackgroundTest) {
     $payload = [
@@ -92,5 +93,6 @@ echo json_encode([
     'reason' => $reason,
     'subscriptionCount' => $res['subscriptionCount'],
     'acceptedCount' => $res['acceptedCount'],
-    'failedCount' => $res['failedCount']
+    'failedCount' => $res['failedCount'],
+    'testId' => $testNotificationId
 ]);

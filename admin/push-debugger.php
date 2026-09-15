@@ -394,12 +394,20 @@ async function dispatchTestPush(isBackground = false) {
         const data = await res.json();
 
         if (data.pushServiceAccepted || data.success) {
+            const lastTestId = data.testId || '';
             resultContainer.innerHTML = `
                 <div class="text-emerald-400 font-bold text-sm">✓ Push Service Accepted ${isBackground ? 'BACKGROUND ONLY TEST' : 'Request'}</div>
                 <div class="text-slate-300">HTTP Status: <span class="text-emerald-300 font-bold">${data.statusCode || 201}</span></div>
                 <div class="text-slate-300">Gateway Reason: <span class="text-slate-400">${data.reason || 'Accepted'}</span></div>
                 <div class="text-slate-300">Target Devices: <span class="text-slate-400">${data.subscriptionCount || 1}</span></div>
-                <div class="text-[11px] text-amber-300/80 mt-2 font-sans">${isBackground ? '✓ BACKGROUND TEST payload sent. If Mentry is closed or screen is locked, Android should wake up and show the notification.' : 'The notification has been queued for immediate native display by the trainer Service Worker.'}</div>
+                <div class="text-slate-300">Test ID: <span class="text-amber-300 font-bold font-mono">${lastTestId}</span></div>
+                <div class="pt-2">
+                    <button type="button" onclick="checkSwReceipt('${lastTestId}')" id="btnCheckSwReceipt" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 cursor-pointer flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[15px]">troubleshoot</span> Check if sw.js ran on device
+                    </button>
+                    <div id="swReceiptResult" class="mt-2 text-[11px] font-mono"></div>
+                </div>
+                <div class="text-[11px] text-amber-300/80 mt-1 font-sans">${isBackground ? '✓ BACKGROUND TEST payload sent. If Mentry is closed or screen is locked, Android should wake up and show the notification.' : 'The notification has been queued for immediate native display by the trainer Service Worker.'}</div>
             `;
         } else {
             resultContainer.innerHTML = `
@@ -469,6 +477,38 @@ async function triggerClientMigration() {
     } finally {
         btn.disabled = false;
         btn.innerHTML = orig;
+    }
+}
+
+async function checkSwReceipt(testId) {
+    const resDiv = document.getElementById('swReceiptResult');
+    if (!resDiv) return;
+    resDiv.innerHTML = '<span class="text-amber-400 animate-pulse">Checking if sw.js reported receipt...</span>';
+
+    try {
+        const res = await fetch('/actions/push/record-receipt.php?testId=' + encodeURIComponent(testId), { cache: 'no-store' });
+        const data = await res.json();
+
+        if (data.success && data.found) {
+            const r = data.receipt;
+            resDiv.innerHTML = `
+                <div class="p-2.5 bg-slate-900 border border-emerald-500/30 rounded-xl space-y-1 mt-1">
+                    <div class="text-emerald-400 font-bold">✓ QUESTION A: YES — sw.js received push event!</div>
+                    <div class="text-slate-300 text-[10px]">Received At: <span class="text-white">${r.receivedAt}</span></div>
+                    <div class="text-slate-300 text-[10px]">showNotification(): <span class="${r.showNotificationSuccess ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}">${r.showNotificationSuccess ? 'SUCCESS' : 'THREW: ' + r.showNotificationError}</span></div>
+                    <div class="text-slate-400 text-[10px]">SW Scope: ${r.swScope}</div>
+                </div>
+            `;
+        } else {
+            resDiv.innerHTML = `
+                <div class="p-2.5 bg-slate-900 border border-amber-500/30 rounded-xl space-y-1 mt-1">
+                    <div class="text-rose-400 font-bold">QUESTION A: NO receipt recorded for test ID ${testId}</div>
+                    <div class="text-slate-400 text-[10px]">sw.js has not executed or network request was blocked. Failure point is BEFORE sw.js (FCM → Chrome or background wake-up).</div>
+                </div>
+            `;
+        }
+    } catch (e) {
+        resDiv.innerHTML = `<span class="text-rose-400">Receipt check error: ${e.message}</span>`;
     }
 }
 

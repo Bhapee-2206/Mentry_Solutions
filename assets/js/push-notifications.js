@@ -71,17 +71,17 @@
 
         for (const reg of registrations) {
             const isRootScope = (reg.scope === rootScopeUrl);
-            const activeScript = reg.active ? reg.active.scriptURL : null;
-            const waitingScript = reg.waiting ? reg.waiting.scriptURL : null;
-            const installingScript = reg.installing ? reg.installing.scriptURL : null;
+            const activeState = reg.active ? reg.active.state : (reg.waiting ? reg.waiting.state : (reg.installing ? reg.installing.state : 'unknown'));
 
             let hasSub = false;
+            let hasAppServerKey = false;
             let endpointHostname = 'none';
 
             try {
                 const sub = await reg.pushManager.getSubscription();
                 if (sub && sub.endpoint) {
                     hasSub = true;
+                    hasAppServerKey = !!(sub.options && sub.options.applicationServerKey);
                     try {
                         endpointHostname = new URL(sub.endpoint).hostname;
                     } catch {
@@ -99,9 +99,11 @@
             const info = {
                 scope: reg.scope,
                 activeScript: activeScript,
+                activeState: activeState,
                 waitingScript: waitingScript,
                 installingScript: installingScript,
                 hasSubscription: hasSub,
+                hasAppServerKey: hasAppServerKey,
                 endpointHostname: endpointHostname,
                 isAuthoritative: isAuthoritative,
                 rawRegistration: reg
@@ -111,9 +113,11 @@
             console.log('[Mentry SW Diagnostic]', {
                 scope: info.scope,
                 activeScript: info.activeScript,
+                activeState: info.activeState,
                 waitingScript: info.waitingScript,
                 installingScript: info.installingScript,
                 subscriptionExists: info.hasSubscription,
+                appServerKeyExists: info.hasAppServerKey,
                 endpointHostname: info.endpointHostname,
                 isAuthoritative: info.isAuthoritative
             });
@@ -345,16 +349,20 @@
                 totalRegistrations: inspected.length,
                 authoritativeExists: !!authoritative,
                 activeScriptURL: authoritative?.activeScript || null,
+                activeState: authoritative?.activeState || null,
                 waitingScriptURL: authoritative?.waitingScript || null,
                 installingScriptURL: authoritative?.installingScript || null,
                 scope: authoritative?.scope || null,
                 subscriptionExists: authoritative?.hasSubscription || false,
+                applicationServerKeyExists: authoritative?.hasAppServerKey || false,
                 endpointHostname: authoritative?.endpointHostname || 'none',
                 migratedTimestamp: migratedAt ? new Date(parseInt(migratedAt, 10)).toISOString() : null,
                 allRegistrations: inspected.map(i => ({
                     scope: i.scope,
                     activeScript: i.activeScript,
+                    activeState: i.activeState,
                     hasSubscription: i.hasSubscription,
+                    applicationServerKeyExists: i.hasAppServerKey,
                     endpointHostname: i.endpointHostname,
                     isAuthoritative: i.isAuthoritative
                 }))
@@ -365,6 +373,38 @@
                 error: e.message || String(e)
             };
         }
+    }
+
+    /**
+     * Inspect push receipt stored in Service Worker Cache and Server receipt log
+     */
+    async function getPushReceipt(testId = '') {
+        let cacheReceipt = null;
+        let serverReceipt = null;
+
+        try {
+            const cache = await caches.open('mentry-push-diagnostics');
+            const resp = await cache.match('/last-push-diag.json');
+            if (resp) {
+                cacheReceipt = await resp.json();
+            }
+        } catch (e) {}
+
+        try {
+            const url = '/actions/push/record-receipt.php' + (testId ? ('?testId=' + encodeURIComponent(testId)) : '');
+            const sResp = await fetch(url, { cache: 'no-store' });
+            if (sResp.ok) {
+                const sData = await sResp.json();
+                if (sData.success && sData.found) {
+                    serverReceipt = sData.receipt;
+                }
+            }
+        } catch (e) {}
+
+        return {
+            cacheReceipt,
+            serverReceipt
+        };
     }
 
     // Expose global controller
@@ -381,6 +421,7 @@
         enable: (force = false) => enable(force),
         migrateSubscription: () => enable(true),
         getDiagnostics,
+        getPushReceipt,
         isSupported: isPushSupported
     };
 
