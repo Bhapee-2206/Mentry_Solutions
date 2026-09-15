@@ -146,10 +146,16 @@ include __DIR__ . '/includes/sidebar.php';
                     <div class="text-slate-500 text-[11px]">Push notifications will be sent directly to registered endpoints via Google FCM / browser push service.</div>
                 </div>
 
-                <button type="button" id="btnSendTestPush" onclick="dispatchTestPush()" disabled class="w-full bg-[#FE5E04] hover:bg-[#e04e00] disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer">
-                    <span class="material-symbols-outlined text-[18px]">send</span>
-                    <span>Send Live Push to Trainer</span>
-                </button>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <button type="button" id="btnSendTestPush" onclick="dispatchTestPush(false)" disabled class="w-full bg-[#FE5E04] hover:bg-[#e04e00] disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs py-3 px-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span class="material-symbols-outlined text-[17px]">send</span>
+                        <span>Send Normal Test</span>
+                    </button>
+                    <button type="button" id="btnSendBgTestPush" onclick="dispatchTestPush(true)" disabled class="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800 disabled:text-slate-500 text-amber-300 font-bold text-xs py-3 px-3 rounded-xl border border-amber-500/30 shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span class="material-symbols-outlined text-[17px]">phonelink_ring</span>
+                        <span>BACKGROUND ONLY TEST</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -179,6 +185,8 @@ const deviceInfo = document.getElementById('trainerDeviceInfo');
 const deviceCountSpan = document.getElementById('deviceCountSpan');
 const resultContainer = document.getElementById('testResultContainer');
 
+const btnSendBgTestPush = document.getElementById('btnSendBgTestPush');
+
 trainerSelector.addEventListener('change', function() {
     const opt = this.options[this.selectedIndex];
     if (this.value) {
@@ -186,28 +194,38 @@ trainerSelector.addEventListener('change', function() {
         deviceCountSpan.textContent = devices;
         deviceInfo.classList.remove('hidden');
         btnSendTestPush.disabled = false;
+        if (btnSendBgTestPush) btnSendBgTestPush.disabled = false;
     } else {
         deviceInfo.classList.add('hidden');
         btnSendTestPush.disabled = true;
+        if (btnSendBgTestPush) btnSendBgTestPush.disabled = true;
     }
 });
 
-async function dispatchTestPush() {
+async function dispatchTestPush(isBackground = false) {
     const opt = trainerSelector.options[trainerSelector.selectedIndex];
     const userId = trainerSelector.value;
     const trainerId = opt.getAttribute('data-trainer-id') || '';
 
     if (!userId) return;
 
+    const targetBtn = isBackground ? btnSendBgTestPush : btnSendTestPush;
+    const origHtml = targetBtn ? targetBtn.innerHTML : '';
     btnSendTestPush.disabled = true;
-    btnSendTestPush.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span><span>Dispatching Web Push...</span>';
+    if (btnSendBgTestPush) btnSendBgTestPush.disabled = true;
+    if (targetBtn) {
+        targetBtn.innerHTML = '<span class="material-symbols-outlined text-[17px] animate-spin">refresh</span><span>Dispatching...</span>';
+    }
 
-    resultContainer.innerHTML = '<div class="text-blue-400 animate-pulse">Communicating with Push Service gateway...</div>';
+    resultContainer.innerHTML = `<div class="text-blue-400 animate-pulse">Dispatching ${isBackground ? 'BACKGROUND ONLY TEST' : 'Web Push'} via gateway...</div>`;
 
     try {
         const fd = new FormData();
         fd.append('userId', userId);
         fd.append('trainerId', trainerId);
+        if (isBackground) {
+            fd.append('isBackgroundTest', '1');
+        }
 
         const res = await fetch('/actions/push/test.php', {
             method: 'POST',
@@ -217,11 +235,11 @@ async function dispatchTestPush() {
 
         if (data.pushServiceAccepted || data.success) {
             resultContainer.innerHTML = `
-                <div class="text-emerald-400 font-bold text-sm">✓ Push Service Accepted Request</div>
+                <div class="text-emerald-400 font-bold text-sm">✓ Push Service Accepted ${isBackground ? 'BACKGROUND ONLY TEST' : 'Request'}</div>
                 <div class="text-slate-300">HTTP Status: <span class="text-emerald-300 font-bold">${data.statusCode || 201}</span></div>
                 <div class="text-slate-300">Gateway Reason: <span class="text-slate-400">${data.reason || 'Accepted'}</span></div>
                 <div class="text-slate-300">Target Devices: <span class="text-slate-400">${data.subscriptionCount || 1}</span></div>
-                <div class="text-[11px] text-slate-500 mt-2">The notification has been queued for immediate native display by the trainer's Service Worker.</div>
+                <div class="text-[11px] text-amber-300/80 mt-2 font-sans">${isBackground ? '✓ BACKGROUND TEST payload sent. If Mentry is closed or screen is locked, Android should wake up and show the notification.' : 'The notification has been queued for immediate native display by the trainer Service Worker.'}</div>
             `;
         } else {
             resultContainer.innerHTML = `
@@ -238,7 +256,8 @@ async function dispatchTestPush() {
         `;
     } finally {
         btnSendTestPush.disabled = false;
-        btnSendTestPush.innerHTML = '<span class="material-symbols-outlined text-[18px]">send</span><span>Send Live Push to Trainer</span>';
+        if (btnSendBgTestPush) btnSendBgTestPush.disabled = false;
+        if (targetBtn) targetBtn.innerHTML = origHtml;
     }
 }
 </script>

@@ -167,6 +167,24 @@
             const convertedKey = urlB64ToUint8Array(vapidKey);
 
             let sub = await reg.pushManager.getSubscription();
+
+            // Step 3: If subscription exists, verify it matches the current VAPID key
+            if (sub) {
+                const subKey = sub.options && sub.options.applicationServerKey;
+                let keyMatches = false;
+                if (subKey) {
+                    const subBytes = new Uint8Array(subKey);
+                    if (subBytes.length === convertedKey.length) {
+                        keyMatches = subBytes.every((v, i) => v === convertedKey[i]);
+                    }
+                }
+                if (!keyMatches) {
+                    // Unsubscribe old/stale subscription tied to outdated key or registration
+                    try { await sub.unsubscribe(); } catch (e) {}
+                    sub = null;
+                }
+            }
+
             if (!sub) {
                 sub = await reg.pushManager.subscribe({
                     userVisibleOnly: true,

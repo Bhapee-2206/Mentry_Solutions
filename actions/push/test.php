@@ -58,14 +58,26 @@ if (empty($subscriptions)) {
     exit();
 }
 
-$testNotificationId = 'test_' . bin2hex(random_bytes(6));
-$payload = [
-    'id' => $testNotificationId,
-    'title' => 'Mentry Test Notification',
-    'body' => 'Web Push is working correctly.',
-    'url' => '/trainer/notifications.php',
-    'type' => 'TEST'
-];
+$isBackgroundTest = !empty($_POST['isBackgroundTest']) || !empty($_GET['isBackgroundTest']);
+$testNotificationId = ($isBackgroundTest ? 'background_test_' : 'test_') . bin2hex(random_bytes(6)) . '_' . time();
+
+if ($isBackgroundTest) {
+    $payload = [
+        'id' => $testNotificationId,
+        'title' => 'Mentry Background Test',
+        'body' => 'This notification was generated while Mentry was closed.',
+        'url' => '/trainer/notifications.php',
+        'type' => 'BACKGROUND_TEST'
+    ];
+} else {
+    $payload = [
+        'id' => $testNotificationId,
+        'title' => 'Mentry Test Notification',
+        'body' => 'Web Push is working correctly.',
+        'url' => '/trainer/notifications.php',
+        'type' => 'TEST'
+    ];
+}
 
 $res = PushService::sendToUser($targetUserId, $payload, 'high');
 
