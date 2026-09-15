@@ -96,8 +96,16 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xm
             header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
 
             // Service worker and push controller specific caching requirements
-            if ($basename === 'sw.js' || $basename === 'OneSignalSDKWorker.js') {
+            if ($basename === 'sw.js') {
                 header('Service-Worker-Allowed: /');
+                header('Cache-Control: no-cache, no-store, must-revalidate');
+            } elseif ($basename === 'OneSignalSDKWorker.js') {
+                // Scope depends on which path is being served
+                if (strpos($cleanUri, 'push/onesignal/') !== false) {
+                    header('Service-Worker-Allowed: /push/onesignal/');
+                } else {
+                    header('Service-Worker-Allowed: /');
+                }
                 header('Cache-Control: no-cache, no-store, must-revalidate');
             } elseif ($basename === 'push-notifications.js') {
                 header('Cache-Control: no-cache, no-store, must-revalidate');
