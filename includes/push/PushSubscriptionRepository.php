@@ -111,14 +111,25 @@ class PushSubscriptionRepository {
             $doc['userId'] = (string)$userId;
             $doc['user_id'] = (string)$userId;
 
-            // Link trainerId if user is a trainer
+            // Link trainerId if user is a trainer (or if userId is a trainer ID)
             $trCol = getCollection("Trainer");
             if ($trCol) {
                 $userMatches = [(string)$userId];
                 try { $userMatches[] = new \MongoDB\BSON\ObjectId((string)$userId); } catch (\Throwable $e) {}
-                $t = $trCol->findOne(['userId' => ['$in' => $userMatches]]);
+                $t = $trCol->findOne([
+                    '$or' => [
+                        ['_id' => ['$in' => $userMatches]],
+                        ['userId' => ['$in' => $userMatches]],
+                        ['user_id' => ['$in' => $userMatches]]
+                    ]
+                ]);
                 if ($t) {
+                    if (!empty($t['userId'])) {
+                        $doc['userId'] = (string)$t['userId'];
+                        $doc['user_id'] = (string)$t['userId'];
+                    }
                     $doc['trainerId'] = (string)$t['_id'];
+                    $doc['trainer_id'] = (string)$t['_id'];
                     $doc['userRole'] = 'TRAINER';
                 }
             }
@@ -163,7 +174,7 @@ class PushSubscriptionRepository {
     }
 
     /**
-     * Find all active subscriptions for a specific user
+     * Find all active subscriptions for a specific user or trainer
      */
     public static function findActiveForUser(string $userId): array {
         $col = self::col();
@@ -172,30 +183,41 @@ class PushSubscriptionRepository {
         $userVariants = [(string)$userId];
         try { $userVariants[] = new \MongoDB\BSON\ObjectId((string)$userId); } catch (\Throwable $e) {}
 
-        // Also check if user has a trainer ID
-        $trainerVariants = [];
+        $trainerVariants = [(string)$userId];
+        try { $trainerVariants[] = new \MongoDB\BSON\ObjectId((string)$userId); } catch (\Throwable $e) {}
+
         $trCol = getCollection("Trainer");
         if ($trCol) {
-            $t = $trCol->findOne(['userId' => ['$in' => $userVariants]]);
+            $t = $trCol->findOne([
+                '$or' => [
+                    ['_id' => ['$in' => $userVariants]],
+                    ['userId' => ['$in' => $userVariants]],
+                    ['user_id' => ['$in' => $userVariants]]
+                ]
+            ]);
             if ($t) {
-                $trainerVariants[] = (string)$t['_id'];
-                try { $trainerVariants[] = new \MongoDB\BSON\ObjectId((string)$t['_id']); } catch (\Throwable $e) {}
+                if (!empty($t['userId'])) {
+                    $uStr = (string)$t['userId'];
+                    $userVariants[] = $uStr;
+                    try { $userVariants[] = new \MongoDB\BSON\ObjectId($uStr); } catch (\Throwable $e) {}
+                }
+                $tStr = (string)$t['_id'];
+                $trainerVariants[] = $tStr;
+                try { $trainerVariants[] = new \MongoDB\BSON\ObjectId($tStr); } catch (\Throwable $e) {}
             }
         }
 
-        $orConditions = [
-            ['userId' => ['$in' => $userVariants]],
-            ['user_id' => ['$in' => $userVariants]]
-        ];
-        if (!empty($trainerVariants)) {
-            $orConditions[] = ['trainerId' => ['$in' => $trainerVariants]];
-            $orConditions[] = ['trainer_id' => ['$in' => $trainerVariants]];
-        }
+        $allIdVariants = array_values(array_unique(array_merge($userVariants, $trainerVariants), SORT_REGULAR));
 
         $query = [
             'isActive' => true,
             'isDead' => ['$ne' => true],
-            '$or' => $orConditions
+            '$or' => [
+                ['userId' => ['$in' => $allIdVariants]],
+                ['user_id' => ['$in' => $allIdVariants]],
+                ['trainerId' => ['$in' => $allIdVariants]],
+                ['trainer_id' => ['$in' => $allIdVariants]]
+            ]
         ];
 
         return $col->find($query)->toArray();

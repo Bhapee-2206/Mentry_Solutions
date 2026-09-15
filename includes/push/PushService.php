@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/PushConfig.php';
 require_once __DIR__ . '/PushSubscriptionRepository.php';
+require_once __DIR__ . '/OneSignalService.php';
 
 use Minishlink\WebPush\WebPush;
 use Minishlink\WebPush\Subscription;
@@ -278,6 +279,37 @@ class PushService {
      * ]
      */
     public static function sendToUser(string $userId, array $payload, string $urgency = 'high'): array {
+        // Primary: If OneSignal is configured, dispatch via OneSignal REST API
+        if (OneSignalService::isConfigured()) {
+            $osRes = OneSignalService::sendToUser($userId, $payload, $urgency);
+            if ($osRes['accepted']) {
+                return [
+                    'sent' => true,
+                    'provider' => 'OneSignal',
+                    'acceptedCount' => 1,
+                    'failedCount' => 0,
+                    'subscriptionCount' => $osRes['recipients'] ?? 1,
+                    'results' => [
+                        [
+                            'accepted' => true,
+                            'statusCode' => $osRes['statusCode'] ?? 200,
+                            'reason' => $osRes['reason'] ?? 'Dispatched via OneSignal',
+                            'provider' => 'OneSignal',
+                            'oneSignalId' => $osRes['oneSignalId'] ?? null,
+                            'endpointHost' => 'api.onesignal.com',
+                            'audience' => 'https://api.onesignal.com',
+                            'urgency' => $urgency,
+                            'ttl' => 86400,
+                            'safeHeaders' => []
+                        ]
+                    ]
+                ];
+            } else {
+                error_log('[OneSignal Dispatch Notice] ' . ($osRes['reason'] ?? 'Unknown error'));
+            }
+        }
+
+        // Fallback: Local Custom VAPID subscriptions
         $subscriptions = PushSubscriptionRepository::findActiveForUser($userId);
         if (empty($subscriptions)) {
             return [

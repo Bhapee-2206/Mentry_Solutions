@@ -1,5 +1,8 @@
-const MENTRY_SW_VERSION = 'mentry-push-v4';
-const CACHE_NAME = 'mentry-push-v4';
+// OneSignal Web Push SDK Worker Integration
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+
+const MENTRY_SW_VERSION = 'mentry-onesignal-v1';
+const CACHE_NAME = 'mentry-onesignal-v1';
 const PRECACHE_ASSETS = [
     './manifest.json',
     './public/push-icon.png',

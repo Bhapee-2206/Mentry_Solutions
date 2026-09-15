@@ -45,9 +45,11 @@ if (empty($targetUserId)) {
     exit();
 }
 
+require_once __DIR__ . '/../../includes/push/OneSignalService.php';
+
 $subscriptions = PushSubscriptionRepository::findActiveForUser($targetUserId);
 
-if (empty($subscriptions)) {
+if (!OneSignalService::isConfigured() && empty($subscriptions)) {
     echo json_encode([
         'success' => false,
         'pushServiceAccepted' => false,

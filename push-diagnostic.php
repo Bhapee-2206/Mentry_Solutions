@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/push/PushConfig.php';
+require_once __DIR__ . '/includes/push/OneSignalService.php';
 
 $serverVapidRawBytesHash = 'N/A';
 $serverVapidStringHash = 'N/A';
@@ -14,6 +15,11 @@ try {
     $serverVapidRawBytesHash = hash('sha256', $rawBytes);
     $serverVapidStringHash = hash('sha256', $serverPubKey);
 } catch (\Throwable $e) {}
+
+$serverOsAppId = OneSignalService::getAppId();
+$serverOsKey = OneSignalService::getApiKey();
+$serverOsConfigured = OneSignalService::isConfigured();
+$serverOsKeyMasked = !empty($serverOsKey) ? (substr($serverOsKey, 0, 6) . '...' . substr($serverOsKey, -4)) : 'NOT SET';
 
 $trainerCol = getCollection("Trainer");
 $userCol = getCollection("User");
@@ -125,7 +131,7 @@ if ($trainerCol) {
             <select id="selectTargetTrainer" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-[#FE5E04]">
                 <option value="">-- Choose registered trainer (e.g. Bharath Bharath) --</option>
                 <?php foreach ($trainersList as $tr): ?>
-                    <option value="<?= htmlspecialchars($tr['userId']) ?>" data-trainer-id="<?= htmlspecialchars($tr['id']) ?>">
+                    <option value="<?= htmlspecialchars($tr['userId']) ?>" data-trainer-id="<?= htmlspecialchars($tr['id']) ?>" <?= ($tr['name'] === 'Bharath Bharath' || $tr['userId'] === '6a99b5baf1624b69330f560e') ? 'selected' : '' ?>>
                         <?= htmlspecialchars($tr['name']) ?> (<?= htmlspecialchars($tr['code']) ?>) [<?= htmlspecialchars($tr['userId']) ?>]
                     </option>
                 <?php endforeach; ?>
@@ -248,6 +254,58 @@ if ($trainerCol) {
                     <span id="valVapidMatch" class="font-bold px-3 py-1 rounded-xl text-xs bg-slate-800 text-slate-400">Comparing...</span>
                 </div>
             </div>
+        </div>
+
+        <!-- 5. ONESIGNAL WEB PUSH STATUS & CONTROLLER -->
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-[#FE5E04] flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">notifications_active</span>
+                    5. ONESIGNAL WEB PUSH CONTROLLER
+                </h2>
+                <span id="osStatusBadge" class="text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-800 text-slate-400 border-slate-700">Checking OneSignal...</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs font-mono">
+                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Server API Key (Vercel)</div>
+                    <div class="font-bold mt-1 <?= $serverOsConfigured ? 'text-emerald-400' : 'text-rose-400' ?>">
+                        <?= $serverOsConfigured ? 'CONFIGURED (' . htmlspecialchars($serverOsKeyMasked) . ')' : 'NOT DETECTED' ?>
+                    </div>
+                </div>
+                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Server App ID</div>
+                    <div class="font-bold mt-1 text-slate-300 break-all"><?= htmlspecialchars($serverOsAppId) ?></div>
+                </div>
+                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">OneSignal SDK (Client)</div>
+                    <div id="valOsLoaded" class="font-bold mt-1 text-slate-300">Checking...</div>
+                </div>
+                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Push Permission</div>
+                    <div id="valOsPermission" class="font-bold mt-1 text-slate-300">Checking...</div>
+                </div>
+                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Opted-In on Device</div>
+                    <div id="valOsOptedIn" class="font-bold mt-1 text-slate-300">Checking...</div>
+                </div>
+                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Linked External ID</div>
+                    <div id="valOsExternalId" class="font-bold mt-1 text-slate-300 break-all">Checking...</div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+                <button type="button" id="btnOsOptIn" class="px-4 py-2.5 rounded-xl bg-[#FE5E04] hover:bg-[#e04e00] text-white font-bold text-xs shadow-lg transition-all flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-sm">notifications_active</span>
+                    <span>1. Subscribe / Opt-In OneSignal</span>
+                </button>
+                <button type="button" id="btnOsLinkUser" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs shadow-lg transition-all flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-sm">link</span>
+                    <span>2. Link Trainer ID to OneSignal</span>
+                </button>
+            </div>
+            <div id="osResultNotice" class="hidden text-xs font-mono p-3 bg-slate-950 border border-slate-800 rounded-xl"></div>
         </div>
 
         <!-- 6. THREE BACKGROUND WAKE-UP TESTS -->
@@ -966,11 +1024,119 @@ if ($trainerCol) {
 
         const selTrainer = document.getElementById('selectTargetTrainer');
         if (selTrainer) {
-            selTrainer.addEventListener('change', checkServerSubscriptionFreshness);
+            selTrainer.addEventListener('change', () => {
+                checkServerSubscriptionFreshness();
+                updateOsStatus();
+            });
         }
 
         // Initialize directly
         await initializePushDiagnostics();
+    });
+
+    // OneSignal Web Push SDK v16 Integration
+    async function updateOsStatus() {
+        if (!window.OneSignal) return;
+        try {
+            document.getElementById('valOsLoaded').textContent = 'YES (v16)';
+            document.getElementById('valOsLoaded').className = 'font-bold mt-1 text-emerald-400';
+
+            const perm = Notification.permission;
+            document.getElementById('valOsPermission').textContent = perm;
+            document.getElementById('valOsPermission').className = (perm === 'granted') ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
+
+            const optedIn = OneSignal.User.PushSubscription.optedIn;
+            document.getElementById('valOsOptedIn').textContent = optedIn ? 'YES' : 'NO';
+            document.getElementById('valOsOptedIn').className = optedIn ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
+
+            const extId = OneSignal.User.externalId || 'None';
+            document.getElementById('valOsExternalId').textContent = extId;
+            document.getElementById('valOsExternalId').className = (extId !== 'None') ? 'font-bold mt-1 text-emerald-400 break-all' : 'font-bold mt-1 text-slate-400 break-all';
+
+            const badge = document.getElementById('osStatusBadge');
+            if (badge) {
+                if (optedIn && extId !== 'None') {
+                    badge.textContent = '✓ Active on Device';
+                    badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+                } else if (optedIn) {
+                    badge.textContent = '⚠ Opted-In (No User Linked)';
+                    badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30';
+                } else {
+                    badge.textContent = '○ Not Subscribed';
+                    badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-800 text-slate-400 border-slate-700';
+                }
+            }
+        } catch (e) {
+            console.warn('[OneSignal Status Error]', e);
+        }
+    }
+    </script>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+        try {
+            await OneSignal.init({
+                appId: "e2443de9-128c-4e5f-a964-03260aa8c627",
+                safari_web_id: "web.onesignal.auto.16fe94fe-85b7-4f18-b294-6465f1482156",
+                serviceWorkerParam: { scope: "/" },
+                serviceWorkerPath: "sw.js"
+            });
+
+            // Auto-link selected trainer
+            const selEl = document.getElementById('selectTargetTrainer');
+            const targetId = selEl ? selEl.value : '';
+            if (targetId) {
+                await OneSignal.login(targetId);
+                await OneSignal.User.addTags({ role: 'TRAINER', mentry_id: targetId });
+            }
+
+            await updateOsStatus();
+
+            OneSignal.User.PushSubscription.addEventListener('change', updateOsStatus);
+
+            // Bind OneSignal buttons
+            const btnOptIn = document.getElementById('btnOsOptIn');
+            if (btnOptIn) {
+                btnOptIn.addEventListener('click', async () => {
+                    const resNotice = document.getElementById('osResultNotice');
+                    resNotice.classList.remove('hidden');
+                    resNotice.innerHTML = '<span class="text-amber-300 animate-pulse">Requesting notification permission via OneSignal...</span>';
+                    try {
+                        await OneSignal.User.PushSubscription.optIn();
+                        await updateOsStatus();
+                        resNotice.innerHTML = '<span class="text-emerald-400 font-bold">✓ OneSignal Opt-In Successful! Device subscribed.</span>';
+                    } catch (err) {
+                        resNotice.innerHTML = `<span class="text-rose-400 font-bold">OneSignal Opt-In Error: ${err.message}</span>`;
+                    }
+                });
+            }
+
+            const btnLink = document.getElementById('btnOsLinkUser');
+            if (btnLink) {
+                btnLink.addEventListener('click', async () => {
+                    const sel = document.getElementById('selectTargetTrainer');
+                    const uid = sel ? sel.value : '';
+                    const resNotice = document.getElementById('osResultNotice');
+                    resNotice.classList.remove('hidden');
+                    if (!uid) {
+                        resNotice.innerHTML = '<span class="text-rose-400 font-bold">Please select a trainer profile first.</span>';
+                        return;
+                    }
+                    resNotice.innerHTML = `<span class="text-amber-300 animate-pulse">Linking ${uid} to OneSignal...</span>`;
+                    try {
+                        await OneSignal.login(uid);
+                        await OneSignal.User.addTags({ role: 'TRAINER', mentry_user_id: uid });
+                        await updateOsStatus();
+                        resNotice.innerHTML = `<span class="text-emerald-400 font-bold">✓ Successfully linked External ID "${uid}" in OneSignal!</span>`;
+                    } catch (err) {
+                        resNotice.innerHTML = `<span class="text-rose-400 font-bold">OneSignal Link Error: ${err.message}</span>`;
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('[OneSignal Init Error]', e);
+        }
     });
     </script>
 </body>
