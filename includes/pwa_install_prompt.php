@@ -155,30 +155,7 @@ if (!empty($_SESSION['user']['id'])) {
         return '';
     }
 
-    // 1. Service Worker & Push Notification Initialization
-    function initPwaAndPush() {
-        if ('serviceWorker' in navigator) {
-            const base = getPwaBaseUrl();
-            navigator.serviceWorker.register(base + '/sw.js', { scope: base + '/' })
-                .then((reg) => {
-                    activeSwReg = reg;
-                    try { reg.update(); } catch(e) {}
-                    checkPushPermission(reg);
-                })
-                .catch((err) => {
-                    console.log('[Mentry PWA] SW notice:', err);
-                    checkPushPermission(null);
-                });
-        } else {
-            checkPushPermission(null);
-        }
-    }
-
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        initPwaAndPush();
-    } else {
-        window.addEventListener('DOMContentLoaded', initPwaAndPush);
-    }
+    // Service worker registration is handled authoritatively by push-notifications.js
 
     // 2. Capture Chrome/Android/Edge beforeinstallprompt
     window.addEventListener('beforeinstallprompt', (e) => {

@@ -147,9 +147,20 @@ class PushService {
                 }
             }
 
+            $finalStatusCode = $statusCode ?: ($accepted ? 201 : 500);
+
+            // Step 12: Safe server-side push transport diagnostic logging
+            $userIdStr = '';
+            if (is_array($subDoc)) {
+                $userIdStr = (string)($subDoc['userId'] ?? ($subDoc['trainerId'] ?? 'unknown'));
+            } elseif (is_object($subDoc)) {
+                $userIdStr = (string)($subDoc->userId ?? ($subDoc->trainerId ?? 'unknown'));
+            }
+            self::recordServerLog($userIdStr, $endpoint, $finalStatusCode, $reason, $accepted);
+
             return [
                 'accepted' => $accepted,
-                'statusCode' => $statusCode ?: ($accepted ? 201 : 500),
+                'statusCode' => $finalStatusCode,
                 'reason' => $reason,
                 'expired' => ($statusCode === 404 || $statusCode === 410 || $isSubscriptionExpired),
                 'endpoint' => $endpoint
@@ -158,6 +169,15 @@ class PushService {
         } catch (\Throwable $e) {
             $reason = $e->getMessage();
             PushSubscriptionRepository::recordFailure($endpoint, 500, 'EXCEPTION: ' . $reason, false);
+
+            $userIdStr = '';
+            if (is_array($subDoc)) {
+                $userIdStr = (string)($subDoc['userId'] ?? ($subDoc['trainerId'] ?? 'unknown'));
+            } elseif (is_object($subDoc)) {
+                $userIdStr = (string)($subDoc->userId ?? ($subDoc->trainerId ?? 'unknown'));
+            }
+            self::recordServerLog($userIdStr, $endpoint, 500, 'EXCEPTION: ' . $reason, false);
+
             return [
                 'accepted' => false,
                 'statusCode' => 500,
@@ -166,6 +186,47 @@ class PushService {
                 'endpoint' => $endpoint
             ];
         }
+    }
+
+    /**
+     * Temporary server-side diagnostic logging (Requirement 12)
+     * Records: user ID, subscription ID/hash, push HTTP status, timestamp, endpoint hostname.
+     * NEVER logs private keys, auth tokens, or p256dh values.
+     */
+    private static function recordServerLog(string $userId, string $endpoint, int $httpStatus, string $reason, bool $accepted): void {
+        $endpointHost = parse_url($endpoint, PHP_URL_HOST) ?: 'unknown-host';
+        $subHash = substr(hash('sha256', $endpoint), 0, 16);
+        $timestamp = date('c');
+
+        $logData = [
+            'timestamp' => $timestamp,
+            'userId' => $userId,
+            'subscriptionHash' => $subHash,
+            'httpStatus' => $httpStatus,
+            'endpointHostname' => $endpointHost,
+            'reason' => $reason,
+            'accepted' => $accepted
+        ];
+
+        error_log('[Mentry Push Diagnostic Log] ' . json_encode($logData));
+
+        try {
+            if (function_exists('getCollection')) {
+                $logCol = getCollection("PushTransportLog");
+                if ($logCol) {
+                    $logCol->insertOne([
+                        'timestamp' => new \MongoDB\BSON\UTCDateTime(),
+                        'isoTimestamp' => $timestamp,
+                        'userId' => $userId,
+                        'subscriptionHash' => $subHash,
+                        'httpStatus' => $httpStatus,
+                        'endpointHostname' => $endpointHost,
+                        'reason' => $reason,
+                        'accepted' => $accepted
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {}
     }
 
     /**

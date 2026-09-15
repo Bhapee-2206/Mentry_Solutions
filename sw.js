@@ -2,8 +2,8 @@
 // Authoritative Web Push implementation
 // Version: mentry-push-v2
 
-const MENTRY_SW_VERSION = 'mentry-push-v2';
-const CACHE_NAME = 'mentry-push-v2';
+const MENTRY_SW_VERSION = 'mentry-push-v3';
+const CACHE_NAME = 'mentry-push-v3';
 const PRECACHE_ASSETS = [
     './manifest.json',
     './public/push-icon.png',
@@ -38,142 +38,33 @@ self.addEventListener('activate', event => {
  * ========================================================
  * AUTHORITATIVE BACKGROUND PUSH EVENT (MINIMAL & ROBUST)
  * ========================================================
- * Must NOT depend on:
- * - clients.matchAll()
- * - visibilityState
- * - focused
- * - window / document
- * - whether PWA is open / closed / backgrounded
  */
 self.addEventListener('push', event => {
     console.log('[Mentry SW] PUSH EVENT RECEIVED');
-
-    event.waitUntil(
-        handlePush(event)
-    );
+    event.waitUntil(handlePush(event));
 });
 
 async function handlePush(event) {
-    const receivedTs = Date.now();
-    let payload = {};
+    let data = {};
 
     try {
-        if (event.data) {
-            payload = event.data.json();
-        }
-    } catch (error) {
-        console.error('[Mentry SW] Payload JSON failed', error);
-        try {
-            payload = {
-                body: event.data ? event.data.text() : 'You have a new notification.'
-            };
-        } catch {
-            payload = {
-                body: 'You have a new notification.'
-            };
-        }
+        data = event.data ? event.data.json() : {};
+    } catch (e) {
+        console.error('[Mentry SW] Push payload parse failed', e);
     }
 
-    const notificationId = payload.id || ('push-' + receivedTs);
-    const title = payload.title || 'Mentry Solutions';
-    const body = payload.body || payload.message || 'You have a new notification.';
-    const url = payload.url || '/';
+    const title = data.title || 'Mentry';
+    const body = data.body || 'You have a new notification.';
 
-    console.log('[Mentry SW] Preparing native notification', {
-        id: notificationId,
-        title,
+    await self.registration.showNotification(title, {
         body,
-        url
+        icon: '/public/push-icon.png',
+        data: {
+            id: data.id || null,
+            type: data.type || 'GENERAL',
+            url: data.url || '/trainer/notifications.php'
+        }
     });
-
-    let safeUrl;
-    try {
-        safeUrl = new URL(url, self.registration.scope);
-        const scopeUrl = new URL(self.registration.scope);
-        if (safeUrl.origin !== scopeUrl.origin) {
-            safeUrl = new URL('/', self.registration.scope);
-        }
-    } catch {
-        safeUrl = new URL('/', self.registration.scope);
-    }
-
-    // Step 10: Safe Diagnostic Logging (records ONLY timing and safe ID, zero credentials)
-    const diagStartTs = Date.now();
-    try {
-        await self.registration.showNotification(
-            title,
-            {
-                body: body,
-                icon: '/public/push-icon.png',
-                tag: 'mentry-' + notificationId,
-                data: {
-                    id: notificationId,
-                    type: payload.type || 'GENERAL',
-                    url: safeUrl.href
-                }
-            }
-        );
-
-        console.log('[Mentry SW] showNotification RESOLVED', {
-            id: notificationId,
-            durationMs: Date.now() - diagStartTs
-        });
-
-        // Record diagnostic state in background cache/store for inspectability
-        recordDiagnosticState({
-            notificationId,
-            receivedAt: receivedTs,
-            showNotificationStartedAt: diagStartTs,
-            showNotificationResolvedAt: Date.now(),
-            status: 'RESOLVED',
-            error: null
-        });
-
-    } catch (err) {
-        console.error('[Mentry SW] showNotification FAILED', err);
-
-        // Record failed state
-        recordDiagnosticState({
-            notificationId,
-            receivedAt: receivedTs,
-            showNotificationStartedAt: diagStartTs,
-            showNotificationFailedAt: Date.now(),
-            status: 'FAILED',
-            error: err.message || String(err)
-        });
-
-        // Fallback minimal notification without image if asset decoding fails on Android
-        try {
-            await self.registration.showNotification(
-                title,
-                {
-                    body: body,
-                    tag: 'mentry-' + notificationId,
-                    data: {
-                        id: notificationId,
-                        type: payload.type || 'GENERAL',
-                        url: safeUrl.href
-                    }
-                }
-            );
-            console.log('[Mentry SW] Fallback showNotification RESOLVED');
-        } catch (fallbackErr) {
-            console.error('[Mentry SW] Fallback showNotification also failed:', fallbackErr);
-        }
-    }
-}
-
-/**
- * Record safe diagnostic state (zero endpoints, zero keys, zero payloads)
- */
-async function recordDiagnosticState(diag) {
-    try {
-        const cache = await caches.open('mentry-sw-diagnostics');
-        const resp = new Response(JSON.stringify(diag), {
-            headers: { 'Content-Type': 'application/json' }
-        });
-        await cache.put('/sw-diag-last.json', resp);
-    } catch (e) {}
 }
 
 /*

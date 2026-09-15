@@ -27,14 +27,7 @@
 
     const basePath = getAppBasePath();
 
-    // Ensure Service Worker is registered immediately for mobile PWA push & notifications
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' }).then(function(reg) {
-            try { reg.update(); } catch(e) {}
-        }).catch(function(err) {
-            console.warn('[Mentry LiveSync] SW registration note:', err);
-        });
-    }
+    // Service Worker registration is authoritatively handled by push-notifications.js with scope '/'
 
     let lastSyncTs = Date.now() - 30000; // Baseline: last 30 seconds
     let pollTimer = null;

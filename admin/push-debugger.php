@@ -14,6 +14,7 @@ $user = getCurrentUser();
 $trainerCol = getCollection("Trainer");
 $userCol = getCollection("User");
 $subCol = getCollection("PushSubscription");
+$transportLogCol = getCollection("PushTransportLog");
 
 $trainersList = [];
 if ($trainerCol) {
@@ -64,6 +65,41 @@ try {
 
 $webPushInstalled = class_exists('\Minishlink\WebPush\WebPush');
 $totalActiveSubs = $subCol ? $subCol->countDocuments(['isActive' => true, 'isDead' => ['$ne' => true]]) : 0;
+
+// Step 12: Fetch recent server-side push transport logs
+$recentLogs = [];
+if ($transportLogCol) {
+    $cursor = $transportLogCol->find([], ['sort' => ['_id' => -1], 'limit' => 8]);
+    foreach ($cursor as $doc) {
+        $recentLogs[] = [
+            'timestamp' => $doc['isoTimestamp'] ?? '',
+            'userId' => (string)($doc['userId'] ?? ''),
+            'subscriptionHash' => (string)($doc['subscriptionHash'] ?? ''),
+            'httpStatus' => (int)($doc['httpStatus'] ?? 0),
+            'endpointHostname' => (string)($doc['endpointHostname'] ?? ''),
+            'reason' => (string)($doc['reason'] ?? ''),
+            'accepted' => !empty($doc['accepted'])
+        ];
+    }
+}
+
+// Step 11: Active registered subscriptions (Database view - NEVER expose secret keys)
+$activeSubscriptions = [];
+if ($subCol) {
+    $subCursor = $subCol->find(['isActive' => true, 'isDead' => ['$ne' => true]], ['sort' => ['updatedAt' => -1], 'limit' => 10]);
+    foreach ($subCursor as $s) {
+        $ep = $s['endpoint'] ?? '';
+        $activeSubscriptions[] = [
+            'userId' => (string)($s['userId'] ?? ($s['trainerId'] ?? 'N/A')),
+            'endpointHostname' => parse_url($ep, PHP_URL_HOST) ?: 'unknown',
+            'subscriptionHash' => substr(hash('sha256', $ep), 0, 14),
+            'device' => $s['meta']['device'] ?? ($s['device'] ?? 'Unknown'),
+            'browser' => $s['meta']['browser'] ?? ($s['browser'] ?? 'Unknown'),
+            'platform' => $s['meta']['platform'] ?? ($s['platform'] ?? 'Unknown'),
+            'updatedAt' => isset($s['updatedAt']) ? (is_object($s['updatedAt']) ? $s['updatedAt']->toDateTime()->format('M d, H:i') : (string)$s['updatedAt']) : 'N/A'
+        ];
+    }
+}
 
 include __DIR__ . '/includes/sidebar.php';
 ?>
@@ -119,6 +155,48 @@ include __DIR__ . '/includes/sidebar.php';
         </div>
     </div>
 
+    <!-- Step 11: Real-Time Client Service Worker & Subscription Diagnostics -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm text-[#FE5E04]">phonelink_setup</span>
+                LOCAL CLIENT SERVICE WORKER & SUBSCRIPTION DIAGNOSTICS
+            </h2>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="loadClientDiagnostics()" class="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition-colors flex items-center gap-1 cursor-pointer">
+                    <span class="material-symbols-outlined text-[15px]">refresh</span> Refresh
+                </button>
+                <button type="button" onclick="triggerClientMigration()" id="btnMigrate" class="px-3 py-1 rounded-xl bg-[#FE5E04]/20 hover:bg-[#FE5E04]/30 text-[#FE5E04] border border-[#FE5E04]/40 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer">
+                    <span class="material-symbols-outlined text-[15px]">sync</span> Run Migration
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs font-mono">
+            <div class="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800/80">
+                <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Active SW Script URL</div>
+                <div id="diagActiveScript" class="font-bold mt-1 text-slate-300 truncate">Inspecting...</div>
+            </div>
+            <div class="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800/80">
+                <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">SW Scope</div>
+                <div id="diagScope" class="font-bold mt-1 text-slate-300 truncate">Inspecting...</div>
+            </div>
+            <div class="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800/80">
+                <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Subscription Exists</div>
+                <div id="diagSubExists" class="font-bold mt-1 text-slate-300">Inspecting...</div>
+            </div>
+            <div class="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800/80">
+                <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Endpoint Hostname</div>
+                <div id="diagEndpointHost" class="font-bold mt-1 text-slate-300 truncate">Inspecting...</div>
+            </div>
+            <div class="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800/80">
+                <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Migrated / Updated At</div>
+                <div id="diagMigratedAt" class="font-bold mt-1 text-slate-300 truncate">Inspecting...</div>
+            </div>
+        </div>
+        <div id="diagNotice" class="text-[11px] text-slate-400 font-sans italic hidden"></div>
+    </div>
+
     <!-- Testing & Dispatch Card -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Target Selector Form -->
@@ -167,7 +245,7 @@ include __DIR__ . '/includes/sidebar.php';
                     LAST SEND RESULT
                 </h2>
                 <div id="testResultContainer" class="mt-4 p-4 bg-slate-950 border border-slate-800 rounded-2xl min-h-[140px] flex flex-col justify-center text-xs font-mono text-slate-400 space-y-2">
-                    <div class="text-slate-500 italic">No push sent yet in this session. Select a trainer and click "Send Live Push".</div>
+                    <div class="text-slate-500 italic">No push sent yet in this session. Select a trainer and click a send button.</div>
                 </div>
             </div>
 
@@ -176,15 +254,97 @@ include __DIR__ . '/includes/sidebar.php';
             </div>
         </div>
     </div>
+
+    <!-- Step 12: Server-Side Dispatch Logs Table -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm text-[#FE5E04]">history_edu</span>
+            RECENT SERVER-SIDE PUSH DISPATCH LOGS
+        </h2>
+        <?php if (empty($recentLogs)): ?>
+            <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-slate-500 italic">
+                No server dispatch logs recorded yet. Send a test push to populate.
+            </div>
+        <?php else: ?>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="text-slate-500 border-b border-slate-800 font-mono">
+                            <th class="py-2.5 px-3">Timestamp</th>
+                            <th class="py-2.5 px-3">User ID</th>
+                            <th class="py-2.5 px-3">Subscription Hash</th>
+                            <th class="py-2.5 px-3">HTTP Status</th>
+                            <th class="py-2.5 px-3">Gateway Host</th>
+                            <th class="py-2.5 px-3">Gateway Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 font-mono text-slate-300">
+                        <?php foreach ($recentLogs as $rl): ?>
+                            <tr>
+                                <td class="py-2 px-3 text-slate-400"><?= htmlspecialchars(substr($rl['timestamp'], 0, 19)) ?></td>
+                                <td class="py-2 px-3"><?= htmlspecialchars($rl['userId']) ?></td>
+                                <td class="py-2 px-3 text-slate-400"><?= htmlspecialchars($rl['subscriptionHash']) ?></td>
+                                <td class="py-2 px-3">
+                                    <span class="px-2 py-0.5 rounded font-bold text-[11px] <?= $rl['accepted'] ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300' ?>">
+                                        <?= $rl['httpStatus'] ?>
+                                    </span>
+                                </td>
+                                <td class="py-2 px-3 text-slate-400"><?= htmlspecialchars($rl['endpointHostname']) ?></td>
+                                <td class="py-2 px-3 text-slate-400"><?= htmlspecialchars($rl['reason']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Active Subscriptions in Database (Safe view: zero secrets) -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm text-[#FE5E04]">devices</span>
+            REGISTERED SUBSCRIPTIONS IN DATABASE (HASHED SAFE VIEW)
+        </h2>
+        <?php if (empty($activeSubscriptions)): ?>
+            <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-slate-500 italic">
+                No active push subscriptions found in database.
+            </div>
+        <?php else: ?>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead>
+                        <tr class="text-slate-500 border-b border-slate-800">
+                            <th class="py-2.5 px-3">User ID</th>
+                            <th class="py-2.5 px-3">Sub Hash (sha256)</th>
+                            <th class="py-2.5 px-3">Push Gateway</th>
+                            <th class="py-2.5 px-3">Device / Browser</th>
+                            <th class="py-2.5 px-3">Updated At</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-slate-300">
+                        <?php foreach ($activeSubscriptions as $as): ?>
+                            <tr>
+                                <td class="py-2 px-3"><?= htmlspecialchars($as['userId']) ?></td>
+                                <td class="py-2 px-3 text-slate-400"><?= htmlspecialchars($as['subscriptionHash']) ?></td>
+                                <td class="py-2 px-3 text-emerald-400"><?= htmlspecialchars($as['endpointHostname']) ?></td>
+                                <td class="py-2 px-3 text-slate-400"><?= htmlspecialchars($as['device'] . ' • ' . $as['browser']) ?></td>
+                                <td class="py-2 px-3 text-slate-500"><?= htmlspecialchars($as['updatedAt']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
 
+<script src="/assets/js/push-notifications.js?v=<?= time() ?>"></script>
 <script>
 const trainerSelector = document.getElementById('trainerSelector');
 const btnSendTestPush = document.getElementById('btnSendTestPush');
 const deviceInfo = document.getElementById('trainerDeviceInfo');
 const deviceCountSpan = document.getElementById('deviceCountSpan');
 const resultContainer = document.getElementById('testResultContainer');
-
 const btnSendBgTestPush = document.getElementById('btnSendBgTestPush');
 
 trainerSelector.addEventListener('change', function() {
@@ -260,6 +420,60 @@ async function dispatchTestPush(isBackground = false) {
         if (targetBtn) targetBtn.innerHTML = origHtml;
     }
 }
+
+// Step 11: Real-time Client Diagnostics Inspector
+async function loadClientDiagnostics() {
+    if (!window.MentryPush || typeof window.MentryPush.getDiagnostics !== 'function') {
+        document.getElementById('diagActiveScript').textContent = 'MentryPush not ready';
+        return;
+    }
+
+    try {
+        const diag = await window.MentryPush.getDiagnostics();
+        document.getElementById('diagActiveScript').textContent = diag.activeScriptURL ? diag.activeScriptURL.replace(window.location.origin, '') : 'None';
+        document.getElementById('diagActiveScript').className = diag.activeScriptURL ? 'font-bold mt-1 text-emerald-400 truncate' : 'font-bold mt-1 text-rose-400';
+
+        document.getElementById('diagScope').textContent = diag.scope ? diag.scope.replace(window.location.origin, '') : 'None';
+        document.getElementById('diagSubExists').textContent = diag.subscriptionExists ? '✓ Yes' : '○ No';
+        document.getElementById('diagSubExists').className = diag.subscriptionExists ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
+
+        document.getElementById('diagEndpointHost').textContent = diag.endpointHostname || 'None';
+        document.getElementById('diagMigratedAt').textContent = diag.migratedTimestamp ? diag.migratedTimestamp.replace('T', ' ').substring(0, 19) : 'Not recorded';
+
+        const notice = document.getElementById('diagNotice');
+        if (diag.totalRegistrations > 1) {
+            notice.classList.remove('hidden');
+            notice.textContent = `Notice: ${diag.totalRegistrations} Service Worker registrations detected. Clicking "Run Migration" will unregister non-authoritative registrations and re-subscribe cleanly.`;
+        } else {
+            notice.classList.add('hidden');
+        }
+    } catch (e) {
+        console.error('Error loading client diagnostics:', e);
+    }
+}
+
+async function triggerClientMigration() {
+    const btn = document.getElementById('btnMigrate');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">refresh</span> Migrating...';
+
+    try {
+        if (window.MentryPush && typeof window.MentryPush.migrateSubscription === 'function') {
+            const ok = await window.MentryPush.migrateSubscription();
+            await loadClientDiagnostics();
+            alert(ok ? 'Subscription migration complete! Fresh subscription registered on /sw.js with scope /.' : 'Migration did not complete. Check notification permissions.');
+        }
+    } catch (e) {
+        alert('Migration error: ' + (e.message || String(e)));
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
+}
+
+window.addEventListener('DOMContentLoaded', loadClientDiagnostics);
+setTimeout(loadClientDiagnostics, 1000);
 </script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>

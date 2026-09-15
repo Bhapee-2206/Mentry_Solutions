@@ -581,24 +581,6 @@ async function enableNotifications() {
             showNotificationState('unsupported');
             return;
         }
-
-        let permission = Notification.permission;
-        if (permission === 'default') {
-            permission = await withTimeout(Notification.requestPermission(), 15000);
-        }
-
-        if (permission === 'granted') {
-            await connectPushSubscription();
-            showNotificationState('connected');
-            return;
-        }
-
-        if (permission === 'denied') {
-            showNotificationState('blocked');
-            return;
-        }
-
-        showNotificationState('default');
     } catch (error) {
         console.error('[Mentry Notifications]', error);
         showNotificationState('error', error);
@@ -809,49 +791,36 @@ async function handleCheckAgainFromModal() {
  */
 async function refreshNotificationStatus() {
     try {
+        if (window.MentryPush && typeof window.MentryPush.checkStatus === 'function') {
+            const state = await window.MentryPush.checkStatus();
+            if (state === 'CONNECTED') {
+                showNotificationState('connected');
+            } else if (state === 'BLOCKED') {
+                showNotificationState('blocked');
+            } else if (state === 'UNSUPPORTED') {
+                showNotificationState('unsupported');
+            } else {
+                showNotificationState('default');
+            }
+            return;
+        }
+
         if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
             showNotificationState('unsupported');
             return;
         }
 
         const permission = Notification.permission;
-
         if (permission === 'denied') {
             showNotificationState('blocked');
-            return;
-        }
-
-        if (permission === 'default') {
-            showNotificationState('default');
-            return;
-        }
-
-        // Permission is 'granted'
-        const registration = await withTimeout(navigator.serviceWorker.ready, 10000);
-        let subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
-
-        if (!subscription) {
-            // Step 14: Stale / missing subscription recovery
-            try {
-                const conn = await connectPushSubscription();
-                subscription = conn.subscription;
-            } catch (recoveryErr) {
-                console.warn('[Mentry Notifications] Background recovery attempt:', recoveryErr);
-            }
-        }
-
-        if (subscription) {
+        } else if (permission === 'granted') {
             showNotificationState('connected');
         } else {
             showNotificationState('default');
         }
     } catch (error) {
         console.error('[Mentry Notifications] Status check failed:', error);
-        if ('Notification' in window && Notification.permission === 'default') {
-            showNotificationState('default');
-        } else {
-            showNotificationState('error', error);
-        }
+        showNotificationState('default');
     }
 }
 
