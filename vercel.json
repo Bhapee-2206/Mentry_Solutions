@@ -17,7 +17,14 @@
       ]
     },
     {
-      "source": "^/(sw|OneSignalSDKWorker)\.js$",
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Service-Worker-Allowed", "value": "/" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/OneSignalSDKWorker.js",
       "headers": [
         { "key": "Service-Worker-Allowed", "value": "/" },
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
@@ -28,7 +35,7 @@
       "headers": [
         { "key": "Service-Worker-Allowed", "value": "/push/onesignal/" },
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Content-Type", "value": "application/javascript" }
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" }
       ]
     }
   ],
@@ -37,13 +44,6 @@
       "src": "^/(data|config|includes|scratch|scripts|uploads/documents|public/uploads/documents|\\.env|composer\\.(json|lock)|package(-lock)?\\.json)(/.*)?$",
       "status": 403,
       "dest": "/404.php"
-    },
-    {
-      "src": "^/push/onesignal/OneSignalSDKWorker\\.js$",
-      "dest": "/api/index.php"
-    },
-    {
-      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
