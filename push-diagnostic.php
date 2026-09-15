@@ -18,8 +18,9 @@ try {
 
 $serverOsAppId = OneSignalService::getAppId();
 $serverOsKey = OneSignalService::getApiKey();
+$serverOsKeySource = OneSignalService::getApiKeySource();
 $serverOsConfigured = OneSignalService::isConfigured();
-$serverOsKeyMasked = !empty($serverOsKey) ? (substr($serverOsKey, 0, 6) . '...' . substr($serverOsKey, -4)) : 'NOT SET';
+$serverOsKeyMasked = !empty($serverOsKey) ? (substr($serverOsKey, 0, 6) . '...' . substr($serverOsKey, -4) . ' [' . $serverOsKeySource . ']') : 'NOT SET';
 
 $trainerCol = getCollection("Trainer");
 $userCol = getCollection("User");

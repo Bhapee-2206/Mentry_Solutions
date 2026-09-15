@@ -21,6 +21,20 @@ class OneSignalService {
         return !empty($env) ? trim((string)$env) : self::DEFAULT_APP_ID;
     }
 
+    public static function getApiKeySource(): string {
+        $candidates = ['ONESIGNAL_REST_API_KEY', 'ONESIGNAL_API_KEY', 'ONESIGNAL_KEY', 'ONESIGNAL_SECRET'];
+        foreach ($candidates as $c) {
+            $val = getenv($c) ?: ($_ENV[$c] ?? ($_SERVER[$c] ?? ''));
+            if (!empty($val)) return $c;
+        }
+        foreach (array_merge($_SERVER, $_ENV) as $k => $v) {
+            if (stripos($k, 'ONESIGNAL') !== false && (stripos($k, 'API_KEY') !== false || stripos($k, 'KEY') !== false) && stripos($k, 'APP_ID') === false && !empty($v)) {
+                return (string)$k;
+            }
+        }
+        return 'NONE';
+    }
+
     public static function getApiKey(): string {
         // Direct checks for common names
         $candidates = ['ONESIGNAL_REST_API_KEY', 'ONESIGNAL_API_KEY', 'ONESIGNAL_KEY', 'ONESIGNAL_SECRET'];
