@@ -72,6 +72,9 @@
         for (const reg of registrations) {
             const isRootScope = (reg.scope === rootScopeUrl);
             const activeState = reg.active ? reg.active.state : (reg.waiting ? reg.waiting.state : (reg.installing ? reg.installing.state : 'unknown'));
+            const activeScript = reg.active ? reg.active.scriptURL : null;
+            const waitingScript = reg.waiting ? reg.waiting.scriptURL : null;
+            const installingScript = reg.installing ? reg.installing.scriptURL : null;
 
             let hasSub = false;
             let hasAppServerKey = false;
@@ -232,18 +235,21 @@
             return PushStates.UNSUPPORTED;
         }
 
-        if (Notification.permission === 'denied') {
-            notifyState(PushStates.BLOCKED);
-            return PushStates.BLOCKED;
-        }
-
-        if (Notification.permission === 'default') {
-            notifyState(PushStates.DEFAULT);
-            return PushStates.DEFAULT;
-        }
-
         try {
+            // Eagerly ensure authoritative Service Worker is registered
             const reg = await getAuthoritativeRegistration();
+
+            if (Notification.permission === 'denied') {
+                notifyState(PushStates.BLOCKED);
+                return PushStates.BLOCKED;
+            }
+
+            if (Notification.permission === 'default') {
+                notifyState(PushStates.DEFAULT);
+                return PushStates.DEFAULT;
+            }
+
+            // Permission is 'granted': verify existing subscription
             const sub = await reg.pushManager.getSubscription();
             if (sub) {
                 notifyState(PushStates.CONNECTED, sub);
@@ -509,6 +515,8 @@
         getPushReceipt,
         isSupported: isPushSupported
     };
+
+    window.resetSubscription = (targetUserId = null) => resetPushSubscription(targetUserId);
 
     // Auto-check on DOM ready
     if (document.readyState === 'loading') {

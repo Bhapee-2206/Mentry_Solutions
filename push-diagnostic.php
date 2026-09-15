@@ -1,8 +1,7 @@
 <?php
-// push-diagnostic.php - Dedicated Real-Device Web Push Diagnostic Console
-// Provides instant on-device verification of ServiceWorker registrations,
-// PushSubscription ownership, freshness comparison, VAPID key matching,
-// clean subscription rotation, and real-time receipt checking.
+// push-diagnostic.php - Self-Contained Web Push Diagnostic Console & SW Initializer
+// Fully independent: registers /sw.js directly, manages lifecycle, provides resetSubscription,
+// and verifies Push JS loading and registration state without third-party script dependencies.
 
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/push/PushConfig.php';
@@ -51,27 +50,67 @@ if ($trainerCol) {
             <div>
                 <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-[#FE5E04] text-3xl">troubleshoot</span>
-                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">Push Diagnostics Console</h1>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">Push Diagnostic Console</h1>
                 </div>
-                <p class="text-xs text-slate-400 mt-1">Real-device inspection: subscription freshness, VAPID key validation, and background wake-up verification.</p>
+                <p class="text-xs text-slate-400 mt-1">Self-contained client initialization, service worker lifecycle, and subscription inspector.</p>
             </div>
             <div class="flex items-center gap-2">
-                <button type="button" onclick="runFullDiagnostic()" class="px-4 py-2 rounded-xl bg-[#FE5E04] hover:bg-[#e04e00] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg cursor-pointer">
+                <button type="button" id="btnRefreshDiagnostics" class="px-4 py-2 rounded-xl bg-[#FE5E04] hover:bg-[#e04e00] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg cursor-pointer">
                     <span class="material-symbols-outlined text-sm">refresh</span> Refresh Status
                 </button>
             </div>
         </div>
 
+        <!-- 9. PRE-FLIGHT VERIFICATION CHECKLIST -->
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-3">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-[#FE5E04] flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">checklist</span>
+                CLIENT INITIALIZATION STATUS (MUST ALL BE GREEN BEFORE BACKGROUND TEST)
+            </h2>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-xs font-mono">
+                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">PUSH JS LOADED</div>
+                    <div id="statPushJs" class="font-bold mt-1 text-slate-400">CHECKING...</div>
+                </div>
+                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">SW API SUPPORTED</div>
+                    <div id="statSwApi" class="font-bold mt-1 text-slate-400">CHECKING...</div>
+                </div>
+                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">REG FOUND</div>
+                    <div id="statRegFound" class="font-bold mt-1 text-slate-400">CHECKING...</div>
+                </div>
+                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">REG COUNT</div>
+                    <div id="statRegCount" class="font-bold mt-1 text-slate-400">0</div>
+                </div>
+                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">ACTIVE SCRIPT</div>
+                    <div id="statActiveScript" class="font-bold mt-1 text-slate-400 truncate">CHECKING...</div>
+                </div>
+                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">ACTIVE STATE</div>
+                    <div id="statActiveState" class="font-bold mt-1 text-slate-400">CHECKING...</div>
+                </div>
+                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                    <div class="text-slate-500 text-[9px] uppercase font-sans font-bold">SUB EXISTS</div>
+                    <div id="statSubExists" class="font-bold mt-1 text-slate-400">CHECKING...</div>
+                </div>
+            </div>
+            <div id="statErrorNotice" class="hidden text-xs text-rose-400 font-mono p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl"></div>
+        </div>
+
         <!-- Target Trainer Linker -->
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl text-xs space-y-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl text-xs space-y-2">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span class="font-bold text-slate-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[#FE5E04] text-sm">person</span>
-                    Device Profile Linker
+                    Device Trainer Profile Linker
                 </span>
-                <span class="text-slate-500 text-[11px]">Select your trainer account to link this device's subscription</span>
+                <span class="text-slate-500 text-[11px]">Select your trainer account to associate this device's subscription</span>
             </div>
-            <select id="selectTargetTrainer" onchange="runFullDiagnostic()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-[#FE5E04]">
+            <select id="selectTargetTrainer" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-[#FE5E04]">
                 <option value="">-- Choose registered trainer (e.g. Bharath Bharath) --</option>
                 <?php foreach ($trainersList as $tr): ?>
                     <option value="<?= htmlspecialchars($tr['userId']) ?>" data-trainer-id="<?= htmlspecialchars($tr['id']) ?>">
@@ -81,12 +120,12 @@ if ($trainerCol) {
             </select>
         </div>
 
-        <!-- 1. INSPECT THE ACTUAL ANDROID SUBSCRIPTION -->
+        <!-- 1 & 5: INSPECT THE ACTUAL ANDROID SUBSCRIPTION -->
         <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
             <div class="flex items-center justify-between">
                 <h2 class="text-xs font-bold uppercase tracking-wider text-[#FE5E04] flex items-center gap-2">
                     <span class="material-symbols-outlined text-sm">badge</span>
-                    1. ACTUAL ANDROID SUBSCRIPTION & SERVICE WORKER
+                    1 &amp; 5. AUTHORITATIVE SERVICE WORKER REGISTRATION DETAILS
                 </h2>
                 <span id="singleSwBadge" class="text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-800 text-slate-400 border-slate-700">Checking...</span>
             </div>
@@ -141,11 +180,11 @@ if ($trainerCol) {
             </div>
         </div>
 
-        <!-- 2. VERIFY SUBSCRIPTION IS FRESH (CLIENT VS SERVER HASH) -->
+        <!-- 2 & 3: FRESHNESS & RESET PUSH SUBSCRIPTION -->
         <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
             <h2 class="text-xs font-bold uppercase tracking-wider text-[#FE5E04] flex items-center gap-2">
                 <span class="material-symbols-outlined text-sm">fingerprint</span>
-                2. SUBSCRIPTION FRESHNESS VERIFICATION (HASH COMPARISON)
+                2 &amp; 3. SUBSCRIPTION FRESHNESS (HASH COMPARISON) &amp; RESET
             </h2>
 
             <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3 font-mono text-xs">
@@ -154,7 +193,7 @@ if ($trainerCol) {
                     <div id="valClientSubHash" class="font-bold text-amber-400 break-all mt-0.5">Calculating...</div>
                 </div>
                 <div>
-                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">SERVER_SUBSCRIPTION_HASH (Active in Database):</div>
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">SERVER_SUBSCRIPTION_HASH (Active in Database for linked profile):</div>
                     <div id="valServerSubHash" class="font-bold text-slate-300 break-all mt-0.5">Querying server...</div>
                 </div>
                 <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
@@ -163,20 +202,20 @@ if ($trainerCol) {
                 </div>
             </div>
 
-            <!-- 3. FORCE A CLEAN SUBSCRIPTION ROTATION BUTTON -->
+            <!-- 3. RESET PUSH SUBSCRIPTION BUTTON -->
             <div class="pt-1 flex flex-col sm:flex-row items-center gap-3">
-                <button type="button" onclick="executeCleanSubscriptionRotation()" id="btnResetSub" class="w-full sm:w-auto px-5 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer">
+                <button type="button" id="reset-push-subscription" class="w-full sm:w-auto px-5 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer">
                     <span class="material-symbols-outlined text-base">restart_alt</span>
                     <span>RESET PUSH SUBSCRIPTION</span>
                 </button>
                 <div class="text-[11px] text-slate-400 font-sans">
-                    Unsubscribes old worker, deactivates old DB entry, creates a brand-new subscription on <code class="text-slate-200 font-mono">/sw.js</code>, and confirms exactly 1 active subscription.
+                    Guarantees clean 9-step rotation: unregisters obsolete workers, subscribes directly from <code class="text-slate-200 font-mono">/sw.js</code> scope <code class="text-slate-200 font-mono">/</code>, and establishes single active database subscription.
                 </div>
             </div>
             <div id="resetSubResult" class="hidden text-xs font-mono p-3 bg-slate-950 border border-slate-800 rounded-xl"></div>
         </div>
 
-        <!-- 4. CHECK VAPID PUBLIC KEY MATCH -->
+        <!-- 4. VAPID PUBLIC KEY MATCH -->
         <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
             <h2 class="text-xs font-bold uppercase tracking-wider text-[#FE5E04] flex items-center gap-2">
                 <span class="material-symbols-outlined text-sm">key</span>
@@ -199,29 +238,27 @@ if ($trainerCol) {
             </div>
         </div>
 
-        <!-- 6. TEST WITH BRAND NEW SUBSCRIPTION -->
+        <!-- 6. THREE BACKGROUND WAKE-UP TESTS -->
         <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
             <h2 class="text-xs font-bold uppercase tracking-wider text-[#FE5E04] flex items-center gap-2">
                 <span class="material-symbols-outlined text-sm">science</span>
-                6. THREE BACKGROUND WAKE-UP TESTS
+                6. THREE BACKGROUND WAKE-UP TESTS (Run after checklist is all green)
             </h2>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <!-- Test A -->
                 <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3 flex flex-col justify-between">
                     <div>
                         <div class="font-bold text-slate-200 text-xs flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                             TEST A: MENTRY OPEN
                         </div>
-                        <p class="text-[11px] text-slate-400 mt-1">Send push while this tab is actively in the foreground. Should display immediately.</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Send push while this tab is actively in the foreground.</p>
                     </div>
-                    <button type="button" onclick="runSpecificTest('A')" id="btnTestA" class="w-full px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all cursor-pointer">
+                    <button type="button" id="btnTestA" class="w-full px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all cursor-pointer">
                         Run Test A
                     </button>
                 </div>
 
-                <!-- Test B -->
                 <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3 flex flex-col justify-between">
                     <div>
                         <div class="font-bold text-amber-300 text-xs flex items-center gap-1.5">
@@ -230,12 +267,11 @@ if ($trainerCol) {
                         </div>
                         <p class="text-[11px] text-slate-400 mt-1">Press Android Home immediately. Do NOT reopen. Wait 60s.</p>
                     </div>
-                    <button type="button" onclick="runSpecificTest('B')" id="btnTestB" class="w-full px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-all cursor-pointer">
+                    <button type="button" id="btnTestB" class="w-full px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-all cursor-pointer">
                         Run Test B
                     </button>
                 </div>
 
-                <!-- Test C -->
                 <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3 flex flex-col justify-between">
                     <div>
                         <div class="font-bold text-purple-300 text-xs flex items-center gap-1.5">
@@ -244,7 +280,7 @@ if ($trainerCol) {
                         </div>
                         <p class="text-[11px] text-slate-400 mt-1">Press Power button immediately to lock phone. Wait 60s.</p>
                     </div>
-                    <button type="button" onclick="runSpecificTest('C')" id="btnTestC" class="w-full px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all cursor-pointer">
+                    <button type="button" id="btnTestC" class="w-full px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all cursor-pointer">
                         Run Test C
                     </button>
                 </div>
@@ -311,13 +347,54 @@ if ($trainerCol) {
 
     </div>
 
-    <script src="/assets/js/push-notifications.js?v=<?= time() ?>"></script>
+    <!-- Error trap for external script loading -->
+    <script>
+    let pushJsLoaded = false;
+    window.addEventListener('error', function(e) {
+        if (e.filename && e.filename.includes('push-notifications.js')) {
+            handlePushJsError(e.message || 'Script execution exception');
+        }
+    });
+
+    function handlePushJsLoaded() {
+        if (window.MentryPush) {
+            pushJsLoaded = true;
+            const el = document.getElementById('statPushJs');
+            if (el) {
+                el.textContent = 'YES';
+                el.className = 'font-bold mt-1 text-emerald-400';
+            }
+        } else {
+            handlePushJsError('window.MentryPush object was not exported.');
+        }
+    }
+
+    function handlePushJsError(err) {
+        pushJsLoaded = false;
+        const msg = (typeof err === 'string') ? err : (err && err.message ? err.message : 'Network / 404 error');
+        const el = document.getElementById('statPushJs');
+        if (el) {
+            el.textContent = 'NO';
+            el.className = 'font-bold mt-1 text-rose-400';
+        }
+        const notice = document.getElementById('statErrorNotice');
+        if (notice) {
+            notice.classList.remove('hidden');
+            notice.textContent = 'PUSH JS LOADED = NO | ERROR = ' + msg;
+        }
+    }
+    </script>
+    <script src="/assets/js/push-notifications.js?v=<?= time() ?>" onload="handlePushJsLoaded()" onerror="handlePushJsError('HTTP / Network error loading /assets/js/push-notifications.js')"></script>
+
+    <!-- Self-Contained Diagnostics & Initializer -->
     <script>
     const serverVapidRawBytesHash = "<?= htmlspecialchars($serverVapidRawBytesHash) ?>";
+    let authoritativeRegistration = null;
     let clientSubHash = '';
     let clientVapidHash = '';
     let currentRawSub = null;
 
+    // Helpers
     async function sha256Buffer(buffer) {
         const hashBuf = await crypto.subtle.digest('SHA-256', buffer);
         return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -328,90 +405,198 @@ if ($trainerCol) {
         return await sha256Buffer(enc.encode(text));
     }
 
-    async function runFullDiagnostic() {
-        if (!window.MentryPush || typeof window.MentryPush.getDiagnostics !== 'function') {
+    function urlB64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    /**
+     * Requirement 1 & 2: Self-Contained Service Worker Initializer
+     * Directly registers /sw.js with scope / and captures returned registration object.
+     */
+    async function initializePushDiagnostics() {
+        const swSupported = ('serviceWorker' in navigator) && ('PushManager' in window);
+        const elSwApi = document.getElementById('statSwApi');
+        if (elSwApi) {
+            elSwApi.textContent = swSupported ? 'YES' : 'NO';
+            elSwApi.className = swSupported ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
+        }
+
+        if (!swSupported) {
+            const notice = document.getElementById('statErrorNotice');
+            if (notice) {
+                notice.classList.remove('hidden');
+                notice.textContent = 'ServiceWorker or PushManager is not supported on this browser.';
+            }
             return;
         }
 
         try {
-            const diag = await window.MentryPush.getDiagnostics();
+            // Explicitly register authoritative worker
+            const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+            authoritativeRegistration = reg;
 
-            document.getElementById('valScope').textContent = diag.scope || 'None';
-            document.getElementById('valScriptURL').textContent = diag.activeScriptURL || 'None';
-            document.getElementById('valActiveState').textContent = diag.activeState || 'None';
-            document.getElementById('valActiveState').className = (diag.activeState === 'activated') ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
+            // Trigger update check
+            try { await reg.update(); } catch (e) {}
 
-            document.getElementById('valSubExists').textContent = diag.subscriptionExists ? '✓ Yes' : '○ No';
-            document.getElementById('valSubExists').className = diag.subscriptionExists ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
+            // Wait for service worker ready
+            await navigator.serviceWorker.ready;
 
-            document.getElementById('valAppKeyExists').textContent = diag.applicationServerKeyExists ? '✓ Yes' : '○ No';
-            document.getElementById('valAppKeyExists').className = diag.applicationServerKeyExists ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
-
-            document.getElementById('valEndpointHost').textContent = diag.endpointHostname || 'None';
-
-            // Registrations table
-            const regs = diag.allRegistrations || [];
-            document.getElementById('regCount').textContent = regs.length;
-
-            const tbody = document.getElementById('regsTableBody');
-            tbody.innerHTML = '';
-
-            const singleBadge = document.getElementById('singleSwBadge');
-            const isSingleAuthoritative = (regs.length === 1) && regs[0].isAuthoritative;
-
-            if (isSingleAuthoritative) {
-                singleBadge.textContent = '✓ Exactly 1 Mentry SW';
-                singleBadge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-            } else {
-                singleBadge.textContent = (regs.length > 1) ? `⚠ ${regs.length} Registrations Detected` : '⚠ No SW Active';
-                singleBadge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-rose-500/20 text-rose-300 border-rose-500/30';
+            // Handle installing/waiting lifecycle
+            if (reg.installing) {
+                await new Promise(resolve => {
+                    const worker = reg.installing;
+                    const stateChangeHandler = () => {
+                        if (worker.state === 'activated' || worker.state === 'redundant') {
+                            worker.removeEventListener('statechange', stateChangeHandler);
+                            resolve();
+                        }
+                    };
+                    worker.addEventListener('statechange', stateChangeHandler);
+                    setTimeout(resolve, 3000);
+                });
+            } else if (reg.waiting) {
+                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
             }
 
-            regs.forEach(r => {
+        } catch (regErr) {
+            console.error('Direct SW registration failed:', regErr);
+            const notice = document.getElementById('statErrorNotice');
+            if (notice) {
+                notice.classList.remove('hidden');
+                notice.textContent = 'ServiceWorker registration error: ' + regErr.message;
+            }
+        }
+
+        // Refresh all display elements
+        await refreshRegistrationState();
+    }
+
+    /**
+     * Requirement 5 & 8: Inspect and display actual registration & subscription
+     */
+    async function refreshRegistrationState() {
+        if (!('serviceWorker' in navigator)) return;
+
+        const allRegs = await navigator.serviceWorker.getRegistrations();
+        const count = allRegs.length;
+        document.getElementById('statRegCount').textContent = count;
+        document.getElementById('regCount').textContent = count;
+
+        // Find root authoritative registration
+        let authoritative = allRegs.find(r => r.scope === (window.location.origin + '/')) || authoritativeRegistration;
+
+        const regFound = !!authoritative;
+        document.getElementById('statRegFound').textContent = regFound ? 'YES' : 'NO';
+        document.getElementById('statRegFound').className = regFound ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
+
+        const activeWorker = authoritative ? authoritative.active : null;
+        const activeScript = activeWorker ? activeWorker.scriptURL : (authoritative?.waiting ? authoritative.waiting.scriptURL : (authoritative?.installing ? authoritative.installing.scriptURL : 'None'));
+        const activeState = activeWorker ? activeWorker.state : (authoritative?.waiting ? 'waiting' : (authoritative?.installing ? 'installing' : 'none'));
+
+        document.getElementById('valScope').textContent = authoritative ? authoritative.scope : 'None';
+        document.getElementById('valScriptURL').textContent = activeScript;
+        document.getElementById('valActiveState').textContent = activeState;
+        document.getElementById('valActiveState').className = (activeState === 'activated') ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
+
+        document.getElementById('statActiveScript').textContent = activeScript.replace(window.location.origin, '');
+        document.getElementById('statActiveState').textContent = activeState;
+        document.getElementById('statActiveState').className = (activeState === 'activated') ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
+
+        // Single SW badge
+        const singleBadge = document.getElementById('singleSwBadge');
+        if (count === 1 && activeScript.endsWith('/sw.js')) {
+            singleBadge.textContent = '✓ Exactly 1 Mentry SW';
+            singleBadge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+        } else if (count > 1) {
+            singleBadge.textContent = `⚠ ${count} Registrations Detected`;
+            singleBadge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-rose-500/20 text-rose-300 border-rose-500/30';
+        } else {
+            singleBadge.textContent = '○ None Active';
+            singleBadge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-800 text-slate-400 border-slate-700';
+        }
+
+        // Render table of all registrations
+        const tbody = document.getElementById('regsTableBody');
+        tbody.innerHTML = '';
+        if (count === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-rose-400 italic">No ServiceWorker registrations found.</td></tr>';
+        } else {
+            allRegs.forEach(r => {
+                const sURL = r.active?.scriptURL || r.waiting?.scriptURL || r.installing?.scriptURL || 'None';
+                const sState = r.active?.state || (r.waiting ? 'waiting' : (r.installing ? 'installing' : 'none'));
+                const isAuth = (r.scope === (window.location.origin + '/')) && sURL.endsWith('/sw.js');
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="py-2 px-3 break-all ${r.isAuthoritative ? 'text-emerald-400 font-bold' : 'text-amber-400'}">${r.scope}</td>
-                    <td class="py-2 px-3 break-all text-slate-300">${r.activeScript || 'N/A'}</td>
-                    <td class="py-2 px-3 text-slate-400">${r.activeState || 'unknown'}</td>
-                    <td class="py-2 px-3">${r.isAuthoritative ? '<span class="text-emerald-400 font-bold">Authoritative (/)</span>' : '<span class="text-rose-400 font-bold">Obsolete</span>'}</td>
+                    <td class="py-2 px-3 break-all ${isAuth ? 'text-emerald-400 font-bold' : 'text-amber-400'}">${r.scope}</td>
+                    <td class="py-2 px-3 break-all text-slate-300">${sURL}</td>
+                    <td class="py-2 px-3 text-slate-400">${sState}</td>
+                    <td class="py-2 px-3">${isAuth ? '<span class="text-emerald-400 font-bold">Authoritative (/)</span>' : '<span class="text-rose-400 font-bold">Obsolete</span>'}</td>
                 `;
                 tbody.appendChild(tr);
             });
-
-            // Inspect actual subscription from SW registration
-            if ('serviceWorker' in navigator) {
-                const reg = await navigator.serviceWorker.getRegistration('/');
-                if (reg) {
-                    const sub = await reg.pushManager.getSubscription();
-                    currentRawSub = sub;
-
-                    if (sub) {
-                        clientSubHash = await sha256Text(sub.endpoint);
-                        document.getElementById('valClientSubHash').textContent = clientSubHash;
-
-                        // Check VAPID key
-                        if (sub.options && sub.options.applicationServerKey) {
-                            clientVapidHash = await sha256Buffer(sub.options.applicationServerKey);
-                            document.getElementById('valClientVapidHash').textContent = clientVapidHash;
-
-                            const vMatch = (clientVapidHash === serverVapidRawBytesHash);
-                            document.getElementById('valVapidMatch').textContent = vMatch ? 'MATCH = YES' : 'MATCH = NO';
-                            document.getElementById('valVapidMatch').className = vMatch ? 'font-bold px-3 py-1 rounded-xl text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'font-bold px-3 py-1 rounded-xl text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30';
-                        }
-                    } else {
-                        document.getElementById('valClientSubHash').textContent = 'No subscription exists on client.';
-                    }
-                }
-            }
-
-            // Check server subscription hash
-            await checkServerSubscriptionFreshness();
-
-        } catch (e) {
-            console.error('runFullDiagnostic error:', e);
         }
+
+        // Requirement 8: Inspect subscription on authoritative registration
+        if (authoritative) {
+            try {
+                const sub = await authoritative.pushManager.getSubscription();
+                currentRawSub = sub;
+
+                const subExists = !!sub;
+                document.getElementById('valSubExists').textContent = subExists ? 'YES' : 'NO';
+                document.getElementById('valSubExists').className = subExists ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
+                document.getElementById('statSubExists').textContent = subExists ? 'YES' : 'NO';
+                document.getElementById('statSubExists').className = subExists ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
+
+                const hasAppKey = !!(sub && sub.options && sub.options.applicationServerKey);
+                document.getElementById('valAppKeyExists').textContent = hasAppKey ? 'YES' : 'NO';
+                document.getElementById('valAppKeyExists').className = hasAppKey ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
+
+                if (sub) {
+                    try {
+                        const epHost = new URL(sub.endpoint).hostname;
+                        document.getElementById('valEndpointHost').textContent = epHost;
+                    } catch {
+                        document.getElementById('valEndpointHost').textContent = 'valid-endpoint';
+                    }
+
+                    clientSubHash = await sha256Text(sub.endpoint);
+                    document.getElementById('valClientSubHash').textContent = clientSubHash;
+
+                    if (hasAppKey) {
+                        clientVapidHash = await sha256Buffer(sub.options.applicationServerKey);
+                        document.getElementById('valClientVapidHash').textContent = clientVapidHash;
+
+                        const vMatch = (clientVapidHash === serverVapidRawBytesHash);
+                        document.getElementById('valVapidMatch').textContent = vMatch ? 'MATCH = YES' : 'MATCH = NO';
+                        document.getElementById('valVapidMatch').className = vMatch ? 'font-bold px-3 py-1 rounded-xl text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'font-bold px-3 py-1 rounded-xl text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                    }
+                } else {
+                    document.getElementById('valEndpointHost').textContent = 'None';
+                    document.getElementById('valClientSubHash').textContent = 'No subscription on device.';
+                    document.getElementById('valClientVapidHash').textContent = 'N/A';
+                    document.getElementById('valVapidMatch').textContent = 'N/A';
+                }
+            } catch (subErr) {
+                console.error('Error inspecting subscription:', subErr);
+            }
+        }
+
+        // Compare with server database subscription
+        await checkServerSubscriptionFreshness();
     }
 
+    /**
+     * Requirement 2: Check server subscription freshness comparison
+     */
     async function checkServerSubscriptionFreshness() {
         const targetUserId = document.getElementById('selectTargetTrainer').value;
         const url = '/actions/push/check-subscription.php?clientHash=' + encodeURIComponent(clientSubHash) + (targetUserId ? ('&userId=' + encodeURIComponent(targetUserId)) : '');
@@ -421,7 +606,7 @@ if ($trainerCol) {
             const data = await res.json();
 
             if (data.success) {
-                const sHash = data.serverSubscriptionHash || 'None registered in database';
+                const sHash = data.serverSubscriptionHash || 'None in database for this profile';
                 document.getElementById('valServerSubHash').textContent = sHash;
 
                 const isMatch = !!data.match;
@@ -430,43 +615,125 @@ if ($trainerCol) {
                 matchEl.className = isMatch ? 'font-bold px-3 py-1 rounded-xl text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'font-bold px-3 py-1 rounded-xl text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30';
             }
         } catch (e) {
-            document.getElementById('valServerSubHash').textContent = 'Error checking server: ' + e.message;
+            document.getElementById('valServerSubHash').textContent = 'Server query error: ' + e.message;
         }
     }
 
-    async function executeCleanSubscriptionRotation() {
-        const btn = document.getElementById('btnResetSub');
+    /**
+     * Requirement 3: Self-Contained resetSubscription Function
+     * Unsubscribes, deactivates on server, creates fresh subscription on /sw.js scope /,
+     * and links to the selected profile.
+     */
+    async function resetSubscription() {
+        const btn = document.getElementById('reset-push-subscription');
         const resDiv = document.getElementById('resetSubResult');
         const targetUserId = document.getElementById('selectTargetTrainer').value;
 
-        const orig = btn.innerHTML;
+        const origHtml = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">refresh</span> Rotating...';
+        btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">refresh</span> Resetting...';
         resDiv.classList.remove('hidden');
-        resDiv.innerHTML = '<span class="text-amber-300">Executing clean 9-step rotation...</span>';
+        resDiv.innerHTML = '<span class="text-amber-300 animate-pulse">1. Registering & updating /sw.js with scope /...</span>';
 
         try {
-            if (!window.MentryPush || typeof window.MentryPush.resetSubscription !== 'function') {
-                throw new Error('resetSubscription function not loaded.');
+            // Step 1: Ensure authoritative registration
+            const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+            await reg.update();
+            await navigator.serviceWorker.ready;
+            authoritativeRegistration = reg;
+
+            // Step 2 & 3: Unsubscribe existing subscription
+            resDiv.innerHTML = '<span class="text-amber-300 animate-pulse">2. Unsubscribing existing subscription...</span>';
+            const oldSub = await reg.pushManager.getSubscription();
+            if (oldSub) {
+                try { await oldSub.unsubscribe(); } catch (e) {}
+
+                // Step 4: Deactivate on server
+                try {
+                    await fetch('/actions/push/unsubscribe.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ endpoint: oldSub.endpoint })
+                    });
+                } catch (e) {}
             }
 
-            const rotRes = await window.MentryPush.resetSubscription(targetUserId);
-            await runFullDiagnostic();
+            // Clean any obsolete registrations
+            const allRegs = await navigator.serviceWorker.getRegistrations();
+            for (const r of allRegs) {
+                if (r.scope !== (window.location.origin + '/')) {
+                    try { await r.unregister(); } catch (e) {}
+                }
+            }
+
+            // Request permission if not already granted
+            resDiv.innerHTML = '<span class="text-amber-300 animate-pulse">3. Verifying notification permission...</span>';
+            const perm = await Notification.requestPermission();
+            if (perm !== 'granted') {
+                throw new Error('Notification permission was ' + perm + '. You must allow notifications in browser.');
+            }
+
+            // Step 5: Create completely fresh subscription using THIS registration
+            resDiv.innerHTML = '<span class="text-amber-300 animate-pulse">4. Fetching VAPID key & subscribing...</span>';
+            const vapidResp = await fetch('/actions/push/public-key.php?_t=' + Date.now());
+            const vapidData = await vapidResp.json();
+            if (!vapidData.success || !vapidData.publicKey) {
+                throw new Error('Failed to retrieve VAPID key: ' + (vapidData.error || 'Empty key'));
+            }
+
+            const convertedKey = urlB64ToUint8Array(vapidData.publicKey);
+            const newSub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: convertedKey
+            });
+
+            // Step 6: Send to subscribe.php
+            resDiv.innerHTML = '<span class="text-amber-300 animate-pulse">5. Saving fresh subscription to server...</span>';
+            const json = newSub.toJSON();
+            const payload = {
+                endpoint: newSub.endpoint,
+                keys: {
+                    p256dh: json.keys ? json.keys.p256dh : '',
+                    auth: json.keys ? json.keys.auth : ''
+                },
+                device: /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+                browser: /Chrome/i.test(navigator.userAgent) ? 'Chrome' : 'Browser',
+                platform: /Android/i.test(navigator.userAgent) ? 'Android' : 'Desktop',
+                resetUserSubscriptions: true,
+                targetUserId: targetUserId || ''
+            };
+
+            const subResp = await fetch('/actions/push/subscribe.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const subData = await subResp.json();
+
+            // Step 7, 8, 9: Re-check everything and display
+            await refreshRegistrationState();
 
             resDiv.innerHTML = `
                 <div class="text-emerald-400 font-bold">✓ RESET PUSH SUBSCRIPTION COMPLETE!</div>
                 <div class="text-slate-300">New Client Hash: <span class="text-white">${clientSubHash}</span></div>
-                <div class="text-slate-300">Server Subscribed: <span class="text-white">${rotRes.serverResult && rotRes.serverResult.subscribed ? 'YES' : 'NO'}</span></div>
-                <div class="text-slate-300">Linked User ID: <span class="text-white">${rotRes.serverResult.userId || targetUserId || 'Session User'}</span></div>
+                <div class="text-slate-300">Server Subscribed: <span class="text-emerald-300 font-bold">${subData.subscribed ? 'YES' : 'NO'}</span></div>
+                <div class="text-slate-300">Target User: <span class="text-white">${subData.userId || targetUserId || 'Session'}</span></div>
+                <div class="text-amber-300 font-bold mt-1 font-sans">Ready! Verify the status checklist above is all green.</div>
             `;
-        } catch (e) {
-            resDiv.innerHTML = `<span class="text-rose-400 font-bold">Reset failed: ${e.message}</span>`;
+
+        } catch (err) {
+            console.error('resetSubscription error:', err);
+            resDiv.innerHTML = `<span class="text-rose-400 font-bold">Reset failed: ${err.message}</span>`;
         } finally {
             btn.disabled = false;
-            btn.innerHTML = orig;
+            btn.innerHTML = origHtml;
         }
     }
+    window.resetSubscription = resetSubscription;
 
+    /**
+     * Requirement 6: Run Specific Test (A, B, C)
+     */
     async function runSpecificTest(testType) {
         const targetUserId = document.getElementById('selectTargetTrainer').value;
         const outCard = document.getElementById('testOutputCard');
@@ -510,7 +777,7 @@ if ($trainerCol) {
                         <div class="text-slate-300">Target Devices: <span class="text-white">${data.subscriptionCount || 1}</span></div>
                         <div class="text-amber-300 mt-1 font-sans">Tab is in foreground. Did the native notification appear?</div>
                         <div class="pt-1">
-                            <button type="button" onclick="pollReceipt('${testId}', 1)" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
+                            <button type="button" onclick="pollReceipt('${testId}')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
                                 Check sw.js Receipt
                             </button>
                         </div>
@@ -525,7 +792,7 @@ if ($trainerCol) {
                             <div>Wait 60 seconds. Observe if status bar notification appears.</div>
                         </div>
                         <div class="pt-2">
-                            <button type="button" onclick="pollReceipt('${testId}', 60)" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
+                            <button type="button" onclick="pollReceipt('${testId}')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
                                 Check Receipt for ${testId}
                             </button>
                         </div>
@@ -539,7 +806,7 @@ if ($trainerCol) {
                             <div>Leave phone locked for 60 seconds. Observe if lock screen lights up or notification rings.</div>
                         </div>
                         <div class="pt-2">
-                            <button type="button" onclick="pollReceipt('${testId}', 60)" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
+                            <button type="button" onclick="pollReceipt('${testId}')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
                                 Check Receipt for ${testId}
                             </button>
                         </div>
@@ -554,49 +821,76 @@ if ($trainerCol) {
         }
     }
 
-    async function pollReceipt(testId, waitSeconds = 0) {
+    async function pollReceipt(testId) {
         const outCard = document.getElementById('testOutputCard');
         outCard.innerHTML = `<div class="text-amber-300 font-bold animate-pulse">Checking receipt for ${testId}...</div>`;
 
+        let r = null;
         try {
-            const receiptRes = await window.MentryPush.getPushReceipt(testId);
-            const r = receiptRes.serverReceipt || receiptRes.cacheReceipt;
+            const cache = await caches.open('mentry-push-diagnostics');
+            const cResp = await cache.match('/last-push-diag.json');
+            if (cResp) r = await cResp.json();
+        } catch (e) {}
 
-            if (r && (r.testId === testId || !testId)) {
-                outCard.innerHTML = `
-                    <div class="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-xl space-y-1">
-                        <div class="text-emerald-400 font-bold text-sm">✓ QUESTION A: YES — sw.js received push event!</div>
-                        <div class="text-slate-300 text-xs">Received At: <span class="text-white">${r.receivedAt}</span></div>
-                        <div class="text-slate-300 text-xs">showNotification(): <span class="${r.showNotificationSuccess ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}">${r.showNotificationSuccess ? 'SUCCESS' : 'THREW: ' + r.showNotificationError}</span></div>
-                        <div class="text-slate-400 text-[11px]">SW Scope: ${r.swScope}</div>
-                        <div class="text-[11px] text-amber-200 pt-1 font-sans">
-                            Result: Server → FCM: PASS, FCM → Chrome: PASS, Chrome → SW: PASS.
-                            If no popup appeared, the issue is strictly Android Notification Channel or Battery restriction.
-                        </div>
-                    </div>
-                `;
-            } else {
-                outCard.innerHTML = `
-                    <div class="p-3 bg-rose-500/20 border border-rose-500/30 rounded-xl space-y-1">
-                        <div class="text-rose-400 font-bold text-sm">QUESTION A: NO receipt recorded for ${testId}</div>
-                        <div class="text-slate-300 text-xs">sw.js did NOT execute while in background.</div>
-                        <div class="text-slate-400 text-[11px] pt-1 font-sans">
-                            Failure layer is BEFORE sw.js (FCM → Chrome or Chrome background wake-up).
-                            Ensure:
-                            1. Subscription Freshness Match is YES above.
-                            2. VAPID Match is YES above.
-                            3. Android Chrome battery is NOT set to "Restricted".
-                            4. Click "RESET PUSH SUBSCRIPTION" above and re-test.
-                        </div>
-                    </div>
-                `;
+        try {
+            const sResp = await fetch('/actions/push/record-receipt.php?testId=' + encodeURIComponent(testId), { cache: 'no-store' });
+            if (sResp.ok) {
+                const sData = await sResp.json();
+                if (sData.success && sData.found) r = sData.receipt;
             }
-        } catch (e) {
-            outCard.innerHTML = `<div class="text-rose-400">Error polling receipt: ${e.message}</div>`;
+        } catch (e) {}
+
+        if (r && (r.testId === testId || !testId)) {
+            outCard.innerHTML = `
+                <div class="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-xl space-y-1">
+                    <div class="text-emerald-400 font-bold text-sm">✓ QUESTION A: YES — sw.js received push event!</div>
+                    <div class="text-slate-300 text-xs">Received At: <span class="text-white">${r.receivedAt}</span></div>
+                    <div class="text-slate-300 text-xs">showNotification(): <span class="${r.showNotificationSuccess ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}">${r.showNotificationSuccess ? 'SUCCESS' : 'THREW: ' + r.showNotificationError}</span></div>
+                    <div class="text-slate-400 text-[11px]">SW Scope: ${r.swScope}</div>
+                </div>
+            `;
+        } else {
+            outCard.innerHTML = `
+                <div class="p-3 bg-rose-500/20 border border-rose-500/30 rounded-xl space-y-1">
+                    <div class="text-rose-400 font-bold text-sm">QUESTION A: NO receipt recorded for ${testId}</div>
+                    <div class="text-slate-300 text-xs">sw.js did NOT execute while in background.</div>
+                    <div class="text-slate-400 text-[11px] pt-1 font-sans">
+                        Ensure all 7 checklist items above are green, and click "RESET PUSH SUBSCRIPTION" before retrying.
+                    </div>
+                </div>
+            `;
         }
     }
 
-    window.addEventListener('DOMContentLoaded', runFullDiagnostic);
+    // Requirement 3: Attach event listeners on DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', async () => {
+        const resetButton = document.getElementById('reset-push-subscription');
+        if (resetButton) {
+            resetButton.addEventListener('click', resetSubscription);
+        }
+
+        const refreshButton = document.getElementById('btnRefreshDiagnostics');
+        if (refreshButton) {
+            refreshButton.addEventListener('click', refreshRegistrationState);
+        }
+
+        const btnA = document.getElementById('btnTestA');
+        if (btnA) btnA.addEventListener('click', () => runSpecificTest('A'));
+
+        const btnB = document.getElementById('btnTestB');
+        if (btnB) btnB.addEventListener('click', () => runSpecificTest('B'));
+
+        const btnC = document.getElementById('btnTestC');
+        if (btnC) btnC.addEventListener('click', () => runSpecificTest('C'));
+
+        const selTrainer = document.getElementById('selectTargetTrainer');
+        if (selTrainer) {
+            selTrainer.addEventListener('change', checkServerSubscriptionFreshness);
+        }
+
+        // Initialize directly
+        await initializePushDiagnostics();
+    });
     </script>
 </body>
 </html>
