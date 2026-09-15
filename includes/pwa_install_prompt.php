@@ -273,34 +273,24 @@ if (!empty($_SESSION['user']['id'])) {
         }
     };
 
-    // 3. Web Push Notification Logic
-    function checkPushPermission(swReg) {
-        if (!('Notification' in window)) return;
-
-        if (Notification.permission === 'default') {
-            const pushDismissed = localStorage.getItem('mentry_push_dismissed');
-            const now = Date.now();
-            const dismissedTime = parseInt(pushDismissed || '0', 10);
-            // Re-prompt after 24h if dismissed
-            if (!pushDismissed || (now - dismissedTime > 24 * 60 * 60 * 1000)) {
-                setTimeout(() => {
-                    showPushBanner();
-                }, 2000);
-            }
-        } else if (Notification.permission === 'granted' && swReg) {
-            subscribeUserToPush(swReg);
+    // 3. Web Push Notification Integration
+    window.enablePushNotifications = async function() {
+        if (pushBanner) {
+            pushBanner.classList.add('hidden');
+            pushBanner.classList.remove('block');
         }
-    }
+        if (window.MentryPush && typeof window.MentryPush.enable === 'function') {
+            const success = await window.MentryPush.enable();
+            if (!success && Notification.permission === 'denied') {
+                localStorage.setItem('mentry_push_dismissed', Date.now().toString());
+            }
+        }
+    };
 
     window.showPushBanner = function(force = false) {
         if (!pushBanner) return;
-        if (!('Notification' in window)) {
-            if (force) alert('Push notifications are not supported by this browser.');
-            return;
-        }
-        if (Notification.permission === 'granted' && !force) {
-            return;
-        }
+        if (!('Notification' in window)) return;
+        if (Notification.permission === 'granted' && !force) return;
         pushBanner.classList.remove('hidden');
         pushBanner.classList.add('block');
     };
@@ -313,182 +303,16 @@ if (!empty($_SESSION['user']['id'])) {
         localStorage.setItem('mentry_push_dismissed', Date.now().toString());
     };
 
-    window.enablePushNotifications = function() {
-        if (!('Notification' in window)) {
-            alert('Push notifications are not supported by this browser.');
-            return;
+    // Auto-prompt banner if default and not dismissed
+    if ('Notification' in window && Notification.permission === 'default') {
+        const pushDismissed = localStorage.getItem('mentry_push_dismissed');
+        const dismissedTime = parseInt(pushDismissed || '0', 10);
+        if (!pushDismissed || (Date.now() - dismissedTime > 24 * 60 * 60 * 1000)) {
+            setTimeout(() => {
+                showPushBanner();
+            }, 3000);
         }
-
-        Notification.requestPermission().then((permission) => {
-            if (pushBanner) {
-                pushBanner.classList.add('hidden');
-                pushBanner.classList.remove('block');
-            }
-            if (typeof window.updateDeviceNotificationUI === 'function') {
-                window.updateDeviceNotificationUI();
-            }
-            if (permission === 'granted') {
-                localStorage.removeItem('mentry_push_dismissed');
-                if ('serviceWorker' in navigator) {
-                    const base = getPwaBaseUrl();
-                    navigator.serviceWorker.ready.then((reg) => {
-                        subscribeUserToPush(reg);
-                        reg.showNotification('Mentry Notifications Active! 🔔', {
-                            body: 'You will now receive real-time alerts on your phone screen for opportunities and selections.',
-                            icon: base + '/public/icon-192.png',
-                            badge: base + '/public/badge-96.png',
-                            vibrate: [200, 100, 200]
-                        });
-                    }).catch(() => {});
-                }
-            } else if (permission === 'denied') {
-                localStorage.setItem('mentry_push_dismissed', Date.now().toString());
-                alert('Notifications are blocked in your browser settings. To receive alerts, please enable notifications for Mentry in your browser address bar.');
-            }
-        }).catch((e) => {
-            console.warn('[Mentry Push] Permission error:', e);
-        });
-    };
-
-    async function getVapidPublicKey() {
-        const base = getPwaBaseUrl();
-        try {
-            const res = await fetch(base + '/actions/get-vapid-public-key.php?_t=' + Date.now(), {
-                cache: 'no-store'
-            });
-            const data = await res.json();
-            if (data && data.success && data.publicKey) {
-                return data.publicKey;
-            }
-        } catch(e) {}
-        return null;
-    }
-
-    function getOrCreateDeviceId() {
-        try {
-            let id = localStorage.getItem('mentry_device_id');
-            if (!id || typeof id !== 'string' || id.length < 10) {
-                id = 'dev_' + (window.crypto && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : (Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10)));
-                localStorage.setItem('mentry_device_id', id);
-            }
-            return id;
-        } catch(e) {
-            return 'dev_anon_' + Date.now().toString(36);
-        }
-    }
-
-    async function subscribeUserToPush(swReg) {
-        if (!swReg || !swReg.pushManager) return;
-        const base = getPwaBaseUrl();
-        const deviceId = getOrCreateDeviceId();
-
-        try {
-            const vapidKey = await getVapidPublicKey();
-            if (!vapidKey) {
-                return;
-            }
-
-            const existingSub = await swReg.pushManager.getSubscription();
-
-            if (existingSub) {
-                // 1. Check if existing subscription used current VAPID key
-                const currentKeyArray = urlB64ToUint8Array(vapidKey);
-                const subKey = existingSub.options && existingSub.options.applicationServerKey;
-                let keyMatches = false;
-                if (subKey) {
-                    const subKeyBytes = new Uint8Array(subKey);
-                    if (subKeyBytes.length === currentKeyArray.length) {
-                        keyMatches = subKeyBytes.every((v, i) => v === currentKeyArray[i]);
-                    }
-                }
-
-                if (keyMatches) {
-                    // REUSE RULE: Valid subscription exists. Do NOT call subscribe() again!
-                    // Sync device identity and subscription with server
-                    await sendSubscriptionToServer(existingSub, null, deviceId);
-                    return existingSub;
-                } else {
-                    // Only unsubscribe if VAPID key was changed
-                    try { await existingSub.unsubscribe(); } catch(e) {}
-                }
-            }
-
-            // No valid subscription exists: create fresh subscription
-            const convertedKey = urlB64ToUint8Array(vapidKey);
-            const newSub = await swReg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: convertedKey
-            });
-            await sendSubscriptionToServer(newSub, null, deviceId);
-            return newSub;
-        } catch (err) {
-            console.log('[Mentry Push] Notice:', err.message);
-        }
-    }
-
-    async function sendSubscriptionToServer(sub, oldEndpoint = null, deviceId = null) {
-        if (!sub) return;
-        const base = getPwaBaseUrl();
-        const subData = JSON.parse(JSON.stringify(sub));
-        subData.deviceId = deviceId || getOrCreateDeviceId();
-        subData.platform = navigator.platform || 'Unknown';
-        subData.device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
-        subData.browser = getBrowserName();
-        if (MENTRY_CURRENT_USER_ID) {
-            subData.userId = MENTRY_CURRENT_USER_ID;
-        }
-        if (oldEndpoint) {
-            subData.oldEndpoint = oldEndpoint;
-        }
-
-        try {
-            const res = await fetch(base + '/actions/save-push-subscription.php', {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(subData)
-            });
-            const data = await res.json();
-            if (data && data.requireNewSubscription) {
-                // If server indicated this endpoint was permanently rejected (e.g. HTTP 410 / 403),
-                // automatically unsubscribe and request a fresh token without requiring manual trainer reload
-                try {
-                    await sub.unsubscribe();
-                    const vapidKey = await getVapidPublicKey();
-                    if (vapidKey && 'serviceWorker' in navigator) {
-                        const swReg = await navigator.serviceWorker.ready;
-                        if (swReg && swReg.pushManager) {
-                            const convertedKey = urlB64ToUint8Array(vapidKey);
-                            const brandNewSub = await swReg.pushManager.subscribe({
-                                userVisibleOnly: true,
-                                applicationServerKey: convertedKey
-                            });
-                            await sendSubscriptionToServer(brandNewSub, sub.endpoint, deviceId);
-                        }
-                    }
-                } catch(e) {}
-            }
-        } catch(e) {}
-    }
-
-    function getBrowserName() {
-        const ua = navigator.userAgent;
-        if (/Edg/i.test(ua)) return 'Edge';
-        if (/Chrome/i.test(ua)) return 'Chrome';
-        if (/Safari/i.test(ua)) return 'Safari';
-        if (/Firefox/i.test(ua)) return 'Firefox';
-        return 'Browser';
-    }
-
-    function urlB64ToUint8Array(base64String) {
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-            outputArray[i] = rawData.charCodeAt(i);
-        }
-        return outputArray;
     }
 })();
 </script>
+<script src="/assets/js/push-notifications.js" defer></script>

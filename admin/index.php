@@ -19,6 +19,8 @@ $newApps = $appCol ? $appCol->countDocuments(['status' => 'PENDING']) : 0;
 $shortlistedApps = $appCol ? $appCol->countDocuments(['status' => 'SHORTLISTED']) : 0;
 $activeAsg = $asgCol ? $asgCol->countDocuments(['status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS']]]) : 0;
 $inboundReqs = $reqCol ? $reqCol->countDocuments(['status' => 'PENDING']) : 0;
+$downloadCol = getCollection("DownloadLog");
+$totalDownloadCount = $downloadCol ? $downloadCol->countDocuments(['success' => true]) : 0;
 
 $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => ['joinedAt' => -1]])->toArray() : [];
 ?>
@@ -42,8 +44,8 @@ $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => [
     </div>
 </div>
 
-<!-- 7-Stat Operational Grid -->
-<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5 sm:gap-3 md:gap-4">
+<!-- 8-Stat Operational Grid -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-2.5 sm:gap-3 md:gap-4">
     <div class="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between h-28 col-span-2 sm:col-span-1">
         <div class="flex items-center gap-2 text-slate-500">
             <span class="material-symbols-outlined text-blue-600 text-lg">group</span>
@@ -102,6 +104,17 @@ $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => [
         </div>
         <span class="text-xl md:text-2xl font-black text-slate-900"><?= $activeAsg ?></span>
     </div>
+
+    <a href="/admin/downloads.php" class="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between h-28 group border-l-4 border-l-[#FE5E04]">
+        <div class="flex items-center justify-between text-slate-500">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#FE5E04] text-lg">download</span>
+                <h3 class="text-[11px] font-bold uppercase tracking-wider">Downloads</h3>
+            </div>
+            <span class="text-[10px] font-bold text-[#FE5E04] group-hover:underline">Analytics →</span>
+        </div>
+        <span class="text-xl md:text-2xl font-black text-slate-900"><?= number_format($totalDownloadCount) ?></span>
+    </a>
 </div>
 
 <!-- Compact Zervy AI Quick Matcher Widget -->

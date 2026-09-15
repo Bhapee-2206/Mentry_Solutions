@@ -207,6 +207,7 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
                                         $opIsClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']));
                                         ?>
                                         <form action="/actions/toggle-opportunity-status.php" method="POST" class="inline">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                             <input type="hidden" name="opportunityId" value="<?= $opId ?>">
                                             <?php if ($opIsClosed): ?>
                                                 <input type="hidden" name="action" value="reopen">
@@ -221,6 +222,7 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
                                             <?php endif; ?>
                                         </form>
                                         <form action="/actions/delete-opportunity.php" method="POST" class="inline" onsubmit="return confirm('Delete opportunity \'<?= htmlspecialchars(addslashes($op['title'])) ?>\'?');">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                             <input type="hidden" name="id" value="<?= $opId ?>">
                                             <button type="submit" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors" title="Delete">
                                                 <span class="material-symbols-outlined text-[18px]">delete</span>

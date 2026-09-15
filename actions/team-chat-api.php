@@ -104,9 +104,24 @@ if ($action === 'send_message') {
 
     // Handle file attachment if present
     if (!empty($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+        $rawExt = strtolower(pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION));
+        $disallowedExts = ['php', 'phtml', 'php3', 'php4', 'php5', 'phar', 'exe', 'sh', 'bat', 'cmd', 'vbs', 'msi'];
+        if (in_array($rawExt, $disallowedExts, true)) {
+            echo json_encode(['success' => false, 'message' => 'Executable files and scripts cannot be sent in chat.']);
+            exit();
+        }
+
         $fileName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $_FILES['file']['name']);
-        $uniqueName = time() . '_' . $fileName;
-        $mimeType = $_FILES['file']['type'] ?? 'application/octet-stream';
+        $uniqueName = time() . '_' . bin2hex(random_bytes(4)) . '_' . $fileName;
+
+        $mimeType = 'application/octet-stream';
+        if (function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $_FILES['file']['tmp_name']) ?: 'application/octet-stream';
+            finfo_close($finfo);
+        } elseif (function_exists('mime_content_type')) {
+            $mimeType = @mime_content_type($_FILES['file']['tmp_name']) ?: 'application/octet-stream';
+        }
 
         $uploadRes = uploadFileToCloudOrLocal($_FILES['file']['tmp_name'], $uniqueName, 'chat', $mimeType);
         if ($uploadRes && !empty($uploadRes['success'])) {

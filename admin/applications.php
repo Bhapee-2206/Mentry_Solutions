@@ -136,6 +136,7 @@ $acceptedApps = $appCol ? $appCol->countDocuments(['status' => 'ACCEPTED']) : 0;
 
                                         <?php if (($app['status'] ?? 'PENDING') !== 'ACCEPTED'): ?>
                                             <form action="/actions/update-application.php" method="POST" class="inline">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                                 <input type="hidden" name="applicationId" value="<?= $appId ?>">
                                                 <input type="hidden" name="status" value="ACCEPTED">
                                                 <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl shadow-xs" title="Accept & Assign to Job">
@@ -145,6 +146,7 @@ $acceptedApps = $appCol ? $appCol->countDocuments(['status' => 'ACCEPTED']) : 0;
 
                                             <?php if (($app['status'] ?? 'PENDING') !== 'SHORTLISTED'): ?>
                                                 <form action="/actions/update-application.php" method="POST" class="inline">
+                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                                     <input type="hidden" name="applicationId" value="<?= $appId ?>">
                                                     <input type="hidden" name="status" value="SHORTLISTED">
                                                     <button type="submit" class="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-bold text-[11px] px-2.5 py-1.5 rounded-xl" title="Shortlist Candidate">
@@ -154,6 +156,7 @@ $acceptedApps = $appCol ? $appCol->countDocuments(['status' => 'ACCEPTED']) : 0;
                                             <?php endif; ?>
 
                                             <form action="/actions/update-application.php" method="POST" class="inline">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                                 <input type="hidden" name="applicationId" value="<?= $appId ?>">
                                                 <input type="hidden" name="status" value="REJECTED">
                                                 <button type="submit" class="text-rose-600 hover:bg-rose-50 border border-rose-200 font-bold text-[11px] px-2 py-1.5 rounded-xl" title="Reject Candidate">

@@ -214,6 +214,7 @@ $assignments = ($assignmentCol && !empty($trainerId)) ? $assignmentCol->find(
         </div>
 
         <form action="/actions/submit-training-feedback.php" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="assignmentId" id="tfAssignmentId" value="">
             <input type="hidden" name="feedbackType" value="TRAINER">
             <input type="hidden" name="redirectUrl" value="/trainer/assignments.php">

@@ -30,6 +30,7 @@ $dbTrainer = $trainerCol ? $trainerCol->findOne($trainerQuery) : null;
 
 // Handle Form Submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrfToken();
     $action = $_POST['action'] ?? 'password';
 
     if ($action === 'notifications') {
@@ -235,6 +236,7 @@ $primaryDeviceName = !empty($userPushSubs) ? ($userPushSubs[0]['device'] ?? 'Mob
         </div>
 
         <form method="POST" action="/trainer/settings.php" class="space-y-5">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="action" value="notifications">
 
             <!-- Master Toggle (All Notifications ON / OFF) -->
@@ -416,6 +418,7 @@ $primaryDeviceName = !empty($userPushSubs) ? ($userPushSubs[0]['device'] ?? 'Mob
         </div>
 
         <form method="POST" action="/trainer/settings.php" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="action" value="password">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Current Password</label>
@@ -493,15 +496,21 @@ async function triggerSettingsPushTest() {
     if (!btn || !res) return;
 
     if (!('Notification' in window)) {
-        alert('Push notifications are not supported on this browser.');
+        res.classList.remove('hidden');
+        res.className = 'text-xs text-rose-300 font-medium';
+        res.textContent = 'Push notifications are not supported on this browser.';
         return;
     }
 
     if (Notification.permission !== 'granted') {
-        const perm = await Notification.requestPermission();
-        updateSettingsDeviceStatus();
-        if (perm !== 'granted') {
-            alert('Notifications are blocked or not allowed. Please allow notifications in browser settings to receive alerts.');
+        if (window.MentryPush && typeof window.MentryPush.enable === 'function') {
+            await window.MentryPush.enable();
+            updateSettingsDeviceStatus();
+        }
+        if (Notification.permission !== 'granted') {
+            res.classList.remove('hidden');
+            res.className = 'text-xs text-amber-300 font-medium';
+            res.textContent = 'Notifications are blocked in browser settings. Please allow notifications for Mentry to receive alerts.';
             return;
         }
     }
@@ -513,7 +522,7 @@ async function triggerSettingsPushTest() {
     try {
         const base = getAppBaseUrl();
         const fd = new FormData();
-        fd.append('title', '🔔 Mentry Alert Test');
+        fd.append('title', 'Mentry Alert Test');
         fd.append('message', 'Test notification successfully delivered to your device!');
 
         const response = await fetch(base + '/actions/send-test-trainer-notification.php', {
@@ -524,10 +533,10 @@ async function triggerSettingsPushTest() {
 
         if (data.success) {
             res.className = 'text-xs text-emerald-400 font-mono font-bold';
-            res.textContent = '✓ ' + (data.message || 'Notification sent!');
+            res.textContent = '✓ Push service accepted notification (HTTP ' + (data.statusCode || 201) + ')';
         } else {
             res.className = 'text-xs text-amber-400 font-mono';
-            res.textContent = 'Alert saved! It will appear in your notifications.';
+            res.textContent = 'Notice: ' + (data.error || 'Notification saved to dashboard.');
         }
     } catch(e) {
         res.className = 'text-xs text-amber-400 font-mono';
@@ -537,6 +546,7 @@ async function triggerSettingsPushTest() {
 
 document.addEventListener('DOMContentLoaded', updateSettingsDeviceStatus);
 </script>
+<script src="/assets/js/push-notifications.js" defer></script>
 
 </main>
 </div>

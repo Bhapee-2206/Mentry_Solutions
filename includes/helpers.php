@@ -506,6 +506,38 @@ function getUserAvatar($userOrName, $size = 128) {
 }
 
 /**
+ * Resolves Supabase credentials strictly from environment or .env without hardcoded fallbacks
+ */
+function getSupabaseStorageCredentials(): array {
+    static $creds = null;
+    if ($creds !== null) return $creds;
+
+    $url = getenv('SUPABASE_URL') ?: ($_ENV['SUPABASE_URL'] ?? ($_SERVER['SUPABASE_URL'] ?? ''));
+    $key = getenv('SUPABASE_KEY') ?: ($_ENV['SUPABASE_KEY'] ?? ($_SERVER['SUPABASE_KEY'] ?? (getenv('SUPABASE_SERVICE_ROLE_KEY') ?: ($_ENV['SUPABASE_SERVICE_ROLE_KEY'] ?? ''))));
+
+    if (empty($url) || empty($key)) {
+        $envPath = __DIR__ . '/../.env';
+        if (file_exists($envPath)) {
+            $lines = @file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if ($lines !== false) {
+                foreach ($lines as $l) {
+                    $l = trim($l);
+                    if (strpos($l, '=') !== false && !empty($l) && $l[0] !== '#') {
+                        list($k, $v) = explode('=', $l, 2);
+                        $k = trim($k);
+                        $v = trim(trim($v), '"\'');
+                        if (($k === 'SUPABASE_URL' || $k === 'NEXT_PUBLIC_SUPABASE_URL') && empty($url)) $url = $v;
+                        if (($k === 'SUPABASE_KEY' || $k === 'SUPABASE_SERVICE_ROLE_KEY') && empty($key)) $key = $v;
+                    }
+                }
+            }
+        }
+    }
+    $creds = ['url' => rtrim($url, '/'), 'key' => $key];
+    return $creds;
+}
+
+/**
  * Universal Storage Handler: Supports Supabase Cloud Storage (primary for Serverless/Vercel/Read-Only systems)
  * with graceful fallback to local filesystem (for local XAMPP/Apache).
  */
@@ -520,34 +552,9 @@ function uploadFileToCloudOrLocal($tmpFilePath, $desiredFilename, $folder = 'doc
     }
 
     // 1. Try Supabase Cloud Storage (Ideal for Vercel/Serverless & persistent storage)
-    $supabaseUrl = getenv('SUPABASE_URL') ?: ($_ENV['SUPABASE_URL'] ?? ($_SERVER['SUPABASE_URL'] ?? ''));
-    $supabaseKey = getenv('SUPABASE_KEY') ?: ($_ENV['SUPABASE_KEY'] ?? ($_SERVER['SUPABASE_KEY'] ?? (getenv('SUPABASE_SERVICE_ROLE_KEY') ?: ($_ENV['SUPABASE_SERVICE_ROLE_KEY'] ?? ''))));
-
-    if (empty($supabaseUrl) || empty($supabaseKey)) {
-        $envPath = __DIR__ . '/../.env';
-        if (file_exists($envPath)) {
-            $lines = @file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            if ($lines !== false) {
-                foreach ($lines as $l) {
-                    $l = trim($l);
-                    if (strpos($l, '=') !== false && !empty($l) && $l[0] !== '#') {
-                        list($k, $v) = explode('=', $l, 2);
-                        $k = trim($k);
-                        $v = trim(trim($v), '"\'');
-                        if (($k === 'SUPABASE_URL' || $k === 'NEXT_PUBLIC_SUPABASE_URL') && empty($supabaseUrl)) $supabaseUrl = $v;
-                        if (($k === 'SUPABASE_KEY' || $k === 'SUPABASE_SERVICE_ROLE_KEY' || $k === 'SUPABASE_ANON_KEY') && empty($supabaseKey)) $supabaseKey = $v;
-                    }
-                }
-            }
-        }
-    }
-
-    if (empty($supabaseUrl)) {
-        $supabaseUrl = 'https://bmqzwrkhxyptdhqwvhob.supabase.co';
-    }
-    if (empty($supabaseKey)) {
-        $supabaseKey = base64_decode('c2Jfc2VjcmV0X05pNS1xaE9RYWR0OEdyZ0FPdF9sQkFfNVktZHBLc3U=');
-    }
+    $sbCreds = getSupabaseStorageCredentials();
+    $supabaseUrl = $sbCreds['url'];
+    $supabaseKey = $sbCreds['key'];
 
     if (!empty($supabaseUrl) && !empty($supabaseKey)) {
         $bucket = 'documents';
@@ -569,7 +576,11 @@ function uploadFileToCloudOrLocal($tmpFilePath, $desiredFilename, $folder = 'doc
         curl_setopt($ch, CURLOPT_POSTFIELDS, $fileContent);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        if (file_exists(__DIR__ . '/cacert.pem')) {
+            curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
+        }
 
         $res = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -659,8 +670,10 @@ function deleteStoredFile($fileUrl) {
 
     // 3. Supabase Cloud Storage
     if (strpos($trimmedUrl, 'supabase.co') !== false && strpos($trimmedUrl, '/storage/v1/object/public/') !== false) {
-        $supabaseUrl = getenv('SUPABASE_URL') ?: ($_ENV['SUPABASE_URL'] ?? ($_SERVER['SUPABASE_URL'] ?? 'https://bmqzwrkhxyptdhqwvhob.supabase.co'));
-        $supabaseKey = getenv('SUPABASE_KEY') ?: ($_ENV['SUPABASE_KEY'] ?? ($_SERVER['SUPABASE_KEY'] ?? base64_decode('c2Jfc2VjcmV0X05pNS1xaE9RYWR0OEdyZ0FPdF9sQkFfNVktZHBLc3U=')));
+        $sbCreds = getSupabaseStorageCredentials();
+        $supabaseUrl = $sbCreds['url'];
+        $supabaseKey = $sbCreds['key'];
+        if (empty($supabaseUrl) || empty($supabaseKey)) return false;
 
         $parts = explode('/storage/v1/object/public/', $trimmedUrl, 2);
         if (!empty($parts[1])) {
@@ -675,7 +688,11 @@ function deleteStoredFile($fileUrl) {
                 'Authorization: Bearer ' . $supabaseKey
             ]);
             curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+            if (file_exists(__DIR__ . '/cacert.pem')) {
+                curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
+            }
             $res = curl_exec($ch);
             $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
@@ -1334,3 +1351,97 @@ function mentryShutdownHandler() {
         }
     }
 }
+
+/**
+ * Log a successful document or profile download event into DownloadLog collection.
+ * Called only AFTER the backend has verified authorization, located the file, and
+ * is actively preparing/starting transmission to the client.
+ */
+function logSuccessfulDownload(array $params): ?string {
+    try {
+        $logCol = getCollection("DownloadLog");
+        if (!$logCol) return null;
+
+        $downloadId = 'dl_' . bin2hex(random_bytes(8));
+        $now = new MongoDB\BSON\UTCDateTime();
+
+        $currentUser = function_exists('getCurrentUser') ? getCurrentUser() : ($_SESSION['user'] ?? null);
+        $downloadedByUserId = !empty($params['downloadedByUserId']) ? (string)$params['downloadedByUserId'] : (string)($currentUser['id'] ?? ($_SESSION['user']['id'] ?? 'anonymous'));
+        $downloadedByName = !empty($params['downloadedByName']) ? (string)$params['downloadedByName'] : (string)($currentUser['name'] ?? ($_SESSION['user']['name'] ?? 'Authorized User'));
+        $downloadedByRole = !empty($params['downloadedByRole']) ? (string)$params['downloadedByRole'] : (string)($currentUser['role'] ?? ($_SESSION['user']['role'] ?? 'GUEST'));
+
+        $record = [
+            '_id' => $downloadId,
+            'downloadId' => $downloadId,
+            'documentId' => (string)($params['documentId'] ?? ''),
+            'fileName' => (string)($params['fileName'] ?? 'document.pdf'),
+            'fileType' => strtolower((string)($params['fileType'] ?? pathinfo($params['fileName'] ?? '', PATHINFO_EXTENSION) ?: 'pdf')),
+            'documentType' => (string)($params['documentType'] ?? 'Document'),
+            'trainerId' => (string)($params['trainerId'] ?? ''),
+            'trainerName' => (string)($params['trainerName'] ?? ''),
+            'ownerUserId' => (string)($params['ownerUserId'] ?? ''),
+            'downloadedByUserId' => $downloadedByUserId,
+            'downloadedByName' => $downloadedByName,
+            'downloadedByRole' => $downloadedByRole,
+            'source' => (string)($params['source'] ?? 'web'),
+            'success' => true,
+            'createdAt' => $now
+        ];
+
+        if (!empty($params['opportunityId'])) {
+            $record['opportunityId'] = (string)$params['opportunityId'];
+        }
+        if (!empty($params['applicationId'])) {
+            $record['applicationId'] = (string)$params['applicationId'];
+        }
+        if (!empty($params['assignmentId'])) {
+            $record['assignmentId'] = (string)$params['assignmentId'];
+        }
+
+        $logCol->insertOne($record);
+        return $downloadId;
+    } catch (\Throwable $e) {
+        error_log("logSuccessfulDownload error: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Get total successful downloads for a specific document ID
+ */
+function getDocumentDownloadCount(string $documentId): int {
+    try {
+        $logCol = getCollection("DownloadLog");
+        if (!$logCol || empty($documentId)) return 0;
+        return $logCol->countDocuments([
+            '$or' => [
+                ['documentId' => $documentId],
+                ['documentId' => (string)$documentId]
+            ],
+            'success' => true
+        ]);
+    } catch (\Throwable $e) {
+        return 0;
+    }
+}
+
+/**
+ * Get total successful downloads for a trainer profile
+ */
+function getTrainerProfileDownloadCount(string $trainerId): int {
+    try {
+        $logCol = getCollection("DownloadLog");
+        if (!$logCol || empty($trainerId)) return 0;
+        return $logCol->countDocuments([
+            '$or' => [
+                ['trainerId' => $trainerId],
+                ['trainerId' => (string)$trainerId]
+            ],
+            'documentType' => 'Profile',
+            'success' => true
+        ]);
+    } catch (\Throwable $e) {
+        return 0;
+    }
+}
+

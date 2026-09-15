@@ -1,25 +1,13 @@
 <?php
-// scripts/migrate_to_atlas.php - Full One-Click Sync from Local JSON Collections to MongoDB Atlas
-require_once __DIR__ . '/../vendor/autoload.php';
-
-header('Content-Type: text/plain; charset=utf-8');
-
-$envPath = __DIR__ . '/../.env';
-$uri = '';
-if (file_exists($envPath)) {
-    $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if (strpos($line, 'DATABASE_URL=') === 0) {
-            $uri = trim(substr($line, strlen('DATABASE_URL=')), '"\'');
-        }
-    }
+// scripts/migrate_to_atlas.php - DEPRECATED (Supabase is the single source of truth database)
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    die("Access Denied: Mentry Solutions uses Supabase as its single source of truth database. MongoDB Atlas migration is deprecated and disabled.");
 }
 
-if (empty($uri)) {
-    echo "ERROR: DATABASE_URL not found in .env\n";
-    exit(1);
-}
+echo "NOTICE: Mentry Solutions uses Supabase as its single source of truth database.\n";
+echo "MongoDB Atlas migration is disabled to preserve database architecture integrity.\n";
+exit(0);
 
 echo "========================================================\n";
 echo " MENTRY SOLUTIONS - MONGODB ATLAS SYNCHRONIZATION ENGINE \n";

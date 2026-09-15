@@ -144,6 +144,7 @@ $assignments = $asgCol ? $asgCol->find($filter, ['sort' => ['createdAt' => -1]])
 
                     <!-- Update Assignment Logistics & Status Form -->
                     <form action="/actions/update-assignment.php" method="POST" class="bg-slate-50/70 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 space-y-3 sm:space-y-4">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                         <input type="hidden" name="assignmentId" value="<?= $asgId ?>">
 
                         <div class="flex items-center justify-between">
@@ -243,6 +244,7 @@ $assignments = $asgCol ? $asgCol->find($filter, ['sort' => ['createdAt' => -1]])
         </div>
 
         <form action="/actions/relieve-trainer.php" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="assignmentId" id="reliefAssignmentId" value="">
             <input type="hidden" name="trainerId" id="reliefTrainerId" value="">
             <input type="hidden" name="opportunityId" id="reliefOpportunityId" value="">

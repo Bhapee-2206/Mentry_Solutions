@@ -16,6 +16,7 @@ $error = null;
 
 // Handle Add Skill
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['addSkill'])) {
+    requireCsrfToken();
     $name = trim($_POST['skillName'] ?? '');
     $category = trim($_POST['category'] ?? 'Languages');
     $level = trim($_POST['level'] ?? 'ADVANCED');
@@ -40,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['addSkill'])) {
 
 // Handle Add Experience
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['addExp'])) {
+    requireCsrfToken();
     $organization = trim($_POST['organization'] ?? '');
     $role = trim($_POST['role'] ?? '');
     $type = trim($_POST['type'] ?? 'COLLEGE_TRAINING');
@@ -110,6 +112,7 @@ $experiences = $expCol && $trainerId ? $expCol->find(['trainerId' => $trainerId]
 
         <!-- Add Skill Form -->
         <form method="POST" action="/trainer/expertise.php" class="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card space-y-4 min-w-0">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="addSkill" value="1">
             <h3 class="font-bold text-xs text-slate-700 uppercase">Add Technology Skill</h3>
             <div class="grid sm:grid-cols-4 gap-3">
@@ -186,6 +189,7 @@ $experiences = $expCol && $trainerId ? $expCol->find(['trainerId' => $trainerId]
 
         <!-- Add Experience Form -->
         <form method="POST" action="/trainer/expertise.php" class="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card space-y-4 min-w-0">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="addExp" value="1">
             <h3 class="font-bold text-xs text-slate-700 uppercase">Add Past Training Engagement</h3>
             <div class="grid sm:grid-cols-2 gap-4">

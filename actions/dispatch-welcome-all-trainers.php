@@ -3,8 +3,13 @@
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
-require_once __DIR__ . '/../includes/PushNotificationService.php';
+require_once __DIR__ . '/../includes/push/PushService.php';
+
+// Security: Require administrative authorization and CSRF validation
+requireAdminOrStaff();
+requireCsrfToken();
 
 try {
     $subCol = getCollection("PushSubscription");
@@ -36,7 +41,7 @@ try {
     $notifType = "WELCOME_TRAINER";
     $timestamp = time();
 
-    // 3. Create In-App Notification in DB for each trainer
+    // 3. Create In-App Notification in DB for each trainer (Idempotent: unique deterministic _id per trainer)
     $trainers = $trainerCol ? $trainerCol->find([])->toArray() : [];
     $trainerUserIds = [];
     foreach ($trainers as $t) {
@@ -58,30 +63,26 @@ try {
     $inAppCreated = 0;
     if ($notifCol) {
         foreach ($trainerUserIds as $uId) {
-            $notifCol->insertOne([
-                'userId' => $uId,
-                'type' => $notifType,
-                'title' => $title,
-                'message' => $body,
-                'link' => $url,
-                'read' => false,
-                'createdAt' => new MongoDB\BSON\UTCDateTime()
-            ]);
-            $inAppCreated++;
+            $dedupId = 'welcome_' . $uId;
+            $existing = $notifCol->findOne(['_id' => $dedupId]);
+            if (!$existing) {
+                $notifCol->insertOne([
+                    '_id' => $dedupId,
+                    'userId' => $uId,
+                    'type' => $notifType,
+                    'title' => $title,
+                    'message' => $body,
+                    'link' => $url,
+                    'read' => false,
+                    'createdAt' => new MongoDB\BSON\UTCDateTime()
+                ]);
+                $inAppCreated++;
+            }
         }
     }
 
-    // 4. Fetch all active subscriptions to send native out-of-app push
-    $localPath = __DIR__ . '/../data/collections/PushSubscription.json';
-    $tmpDir = rtrim(sys_get_temp_dir(), '/\\') . '/mentry_collections';
-    $tmpPath = $tmpDir . '/PushSubscription.json';
-
-    $subscriptions = [];
-    if (file_exists($localPath)) {
-        $subscriptions = json_decode(file_get_contents($localPath), true) ?: [];
-    } elseif ($subCol) {
-        $subscriptions = $subCol->find([])->toArray();
-    }
+    // 4. Fetch all active subscriptions directly from Supabase collection
+    $subscriptions = $subCol->find(['isActive' => ['$ne' => false]])->toArray();
 
     $activeSubs = [];
     foreach ($subscriptions as $s) {
@@ -115,7 +116,7 @@ try {
             'priority' => 'high'
         ];
 
-        $res = PushNotificationService::sendToSubscription($sub, $payload, 'high');
+        $res = PushService::sendToSubscription($sub, $payload, 'high');
 
         $endpointSnippet = substr($sub['endpoint'] ?? '', 0, 48) . '...';
 
@@ -127,13 +128,13 @@ try {
             'device' => $sub['device'] ?? ($sub['userAgent'] ?? 'Mobile/Desktop'),
             'endpoint' => $endpointSnippet,
             'statusCode' => $res['statusCode'] ?? 0,
-            'success' => $res['success'] ?? false,
-            'error' => $res['error'] ?? null
+            'success' => $res['accepted'] ?? false,
+            'error' => $res['reason'] ?? null
         ];
 
         $results[] = $entry;
 
-        if (!empty($res['success'])) {
+        if (!empty($res['accepted'])) {
             $sentCount++;
         } else {
             $failedCount++;

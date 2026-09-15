@@ -11,6 +11,8 @@ if (!$user) {
     exit();
 }
 
+requireCsrfToken();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $assignmentId = trim($_POST['assignmentId'] ?? '');
     $feedbackType = strtoupper(trim($_POST['feedbackType'] ?? '')); // 'TRAINER' or 'VENDOR' or 'ADMIN'

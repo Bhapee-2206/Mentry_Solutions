@@ -525,6 +525,7 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
 
                 <!-- Application Form -->
                 <form id="modalAppForm" action="/actions/apply.php" method="POST" class="space-y-4 pt-4 border-t border-slate-100">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                     <input type="hidden" id="modalOppId" name="opportunityId" value="">
 
                     <!-- Attached Resume Confirmation -->

@@ -12,6 +12,8 @@ if (!$currentUser) {
     exit();
 }
 
+requireCsrfToken();
+
 $isAdminOrStaff = in_array($currentUser['role'] ?? '', ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
 $trainerId = $_POST['trainerId'] ?? '';
 $title = trim($_POST['title'] ?? 'Resume / CV');
@@ -41,8 +43,35 @@ if (!empty($trainerId) && isset($_FILES['document'])) {
             $allowedExtensions = ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'];
             $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
 
-            if (in_array($extension, $allowedExtensions)) {
-                $fileName = 'doc_' . $trainerId . '_' . time() . '_' . rand(100, 999) . '.' . $extension;
+            // Security (Requirement 10): Server-side MIME & Magic-byte validation
+            $detectedMime = '';
+            if (function_exists('finfo_open')) {
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $detectedMime = finfo_file($finfo, $file['tmp_name']);
+                finfo_close($finfo);
+            }
+            if (empty($detectedMime) && function_exists('mime_content_type')) {
+                $detectedMime = @mime_content_type($file['tmp_name']);
+            }
+
+            $allowedMimeMap = [
+                'pdf'  => ['application/pdf', 'application/x-pdf'],
+                'doc'  => ['application/msword', 'application/vnd.ms-office', 'application/octet-stream'],
+                'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/octet-stream'],
+                'png'  => ['image/png'],
+                'jpg'  => ['image/jpeg', 'image/pjpeg'],
+                'jpeg' => ['image/jpeg', 'image/pjpeg']
+            ];
+
+            $isMimeValid = false;
+            if (!empty($detectedMime) && isset($allowedMimeMap[$extension])) {
+                $isMimeValid = in_array($detectedMime, $allowedMimeMap[$extension], true);
+            } elseif (empty($detectedMime)) {
+                $isMimeValid = in_array($extension, $allowedExtensions, true);
+            }
+
+            if (in_array($extension, $allowedExtensions) && $isMimeValid) {
+                $fileName = 'doc_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $trainerId) . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
 
                 // Run resume parser on the temporary file before moving it (temporary file is always readable in /tmp)
                 $parseResult = [];
@@ -55,8 +84,8 @@ if (!empty($trainerId) && isset($_FILES['document'])) {
                     }
                 }
 
-                // Universal Cloud/Local storage upload (works across read-only Vercel/serverless and local XAMPP)
-                $uploadRes = uploadFileToCloudOrLocal($file['tmp_name'], $fileName, 'documents', $file['type'] ?? 'application/pdf');
+                // Universal Cloud/Local storage upload using verified server-detected MIME type
+                $uploadRes = uploadFileToCloudOrLocal($file['tmp_name'], $fileName, 'documents', $detectedMime ?: 'application/pdf');
 
                 if ($uploadRes['success']) {
                     $finalFileUrl = $uploadRes['url'];

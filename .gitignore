@@ -1,9 +1,5 @@
 # Composer dependencies
-/vendor/composer/
-/vendor/mongodb/
-/vendor/psr/
-/vendor/symfony/
-/vendor/autoload.php
+/vendor/
 
 # Environment files
 .env

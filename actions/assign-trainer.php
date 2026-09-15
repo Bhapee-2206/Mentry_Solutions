@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/notifications.php';
 requireAdminOrStaff();
+requireCsrfToken();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $opportunityId = $_POST['opportunityId'] ?? '';

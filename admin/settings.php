@@ -94,6 +94,7 @@ $adminPrefs = array_merge([
             </div>
 
             <form action="/actions/toggle-maintenance.php" method="POST" class="shrink-0" onsubmit="return confirm('<?= $isMaintActive ? "Turn OFF Maintenance Mode and make the website live for everyone?" : "Turn ON Maintenance Mode? Public visitors will be redirected to Work in Progress." ?>');">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                 <input type="hidden" name="active" value="<?= $isMaintActive ? '0' : '1' ?>">
                 <input type="hidden" name="return_url" value="/admin/settings.php">
                 

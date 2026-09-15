@@ -107,10 +107,13 @@ class PersistentDocumentStore {
         curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
         curl_setopt($ch, CURLOPT_ENCODING, '');
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        if (file_exists(__DIR__ . '/cacert.pem')) {
+            curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
+        }
         $res = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
@@ -131,21 +134,8 @@ class PersistentDocumentStore {
 
                 foreach ($byCol as $cName => $cDocs) {
                     $cTmpPath = $tmpDir . '/' . $cName . '.json';
-                    $existing = [];
-                    if (file_exists($cTmpPath)) {
-                        $raw = @file_get_contents($cTmpPath);
-                        $existing = $raw ? (@json_decode($raw, true) ?: []) : [];
-                    } elseif (file_exists(__DIR__ . '/../data/collections/' . $cName . '.json')) {
-                        $raw = @file_get_contents(__DIR__ . '/../data/collections/' . $cName . '.json');
-                        $existing = $raw ? (@json_decode($raw, true) ?: []) : [];
-                    }
-
+                    // Supabase Postgres is the Single Source of Truth
                     $indexed = [];
-                    foreach ($existing as $d) {
-                        $id = (string)($d['_id'] ?? ($d['id'] ?? ''));
-                        if (!empty($id)) $indexed[$id] = $d;
-                        else $indexed[] = $d;
-                    }
                     foreach ($cDocs as $cd) {
                         $cId = (string)($cd['_id'] ?? ($cd['id'] ?? ''));
                         if (!empty($cId)) $indexed[$cId] = $cd;
@@ -187,15 +177,11 @@ class PersistentDocumentStore {
             }
         }
 
-        // Production verified fallback (ensures cloud persistence on serverless hosts even when .env is omitted)
-        if (empty($url)) {
-            $url = 'https://bmqzwrkhxyptdhqwvhob.supabase.co';
-        }
-        if (empty($key)) {
-            $key = base64_decode('c2Jfc2VjcmV0X05pNS1xaE9RYWR0OEdyZ0FPdF9sQkFfNVktZHBLc3U=');
+        if (empty($url) || empty($key)) {
+            error_log("CRITICAL: Supabase credentials (SUPABASE_URL / SUPABASE_KEY) are not configured.");
         }
 
-        $cached = ['url' => rtrim($url, '/'), 'key' => $key];
+        $cached = ['url' => rtrim($url ?? '', '/'), 'key' => $key ?? ''];
         return $cached;
     }
 
@@ -216,10 +202,13 @@ class PersistentDocumentStore {
         curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
         curl_setopt($ch, CURLOPT_ENCODING, '');
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        if (file_exists(__DIR__ . '/cacert.pem')) {
+            curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
+        }
         $res = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
@@ -298,14 +287,6 @@ class PersistentDocumentStore {
             $cloudDocs = $this->fetchFromSupabase();
             if (!empty($cloudDocs)) {
                 $indexed = [];
-                foreach ($docs as $d) {
-                    $id = (string)($d['_id'] ?? ($d['id'] ?? ''));
-                    if (!empty($id)) {
-                        $indexed[$id] = $d;
-                    } else {
-                        $indexed[] = $d;
-                    }
-                }
                 foreach ($cloudDocs as $cd) {
                     $cId = (string)($cd['_id'] ?? ($cd['id'] ?? ''));
                     if (!empty($cId)) {
@@ -328,7 +309,7 @@ class PersistentDocumentStore {
         return $docs;
     }
 
-    private function writeDocuments(array $docs): bool {
+    private function writeDocuments(array $docs, ?array $specificDoc = null): bool {
         self::$memoryCache[$this->name] = $docs;
         $raw = json_encode($docs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
@@ -342,9 +323,55 @@ class PersistentDocumentStore {
         $savedTmp = @file_put_contents($this->tmpPath, $raw, LOCK_EX) !== false;
 
         // 3. Immediately sync to Supabase Cloud
-        $this->syncToSupabaseBatch($docs);
+        if ($specificDoc !== null) {
+            $this->syncSingleDocToSupabase($specificDoc);
+        } else {
+            $this->syncToSupabaseBatch($docs);
+        }
 
         return $savedLocal || $savedTmp;
+    }
+
+    public function syncSingleDocToSupabase(array $doc): void {
+        $supabase = self::getSupabaseCredentials();
+        if (empty($supabase['url']) || empty($supabase['key']) || empty($doc)) {
+            return;
+        }
+        $docId = (string)($doc['_id'] ?? ($doc['id'] ?? ''));
+        if (empty($docId)) return;
+
+        try {
+            $payload = [
+                'collection' => $this->name,
+                'id' => $docId,
+                'data' => $doc,
+                'updated_at' => date('c')
+            ];
+
+            $ch = curl_init($supabase['url'] . '/rest/v1/mentry_documents?on_conflict=collection,id');
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'apikey: ' . $supabase['key'],
+                'Authorization: Bearer ' . $supabase['key'],
+                'Content-Type: application/json',
+                'Prefer: resolution=merge-duplicates,return=minimal'
+            ]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+            curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+            if (file_exists(__DIR__ . '/cacert.pem')) {
+                curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
+            }
+            @curl_exec($ch);
+            @curl_close($ch);
+        } catch (\Throwable $e) {
+            // Non-blocking fail-safe
+        }
     }
 
     private function syncToSupabaseBatch(array $docs): void {
@@ -379,10 +406,13 @@ class PersistentDocumentStore {
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
             curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+            if (file_exists(__DIR__ . '/cacert.pem')) {
+                curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
+            }
             @curl_exec($ch);
             @curl_close($ch);
         } catch (\Throwable $e) {
@@ -402,10 +432,13 @@ class PersistentDocumentStore {
             ]);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 2);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+            if (file_exists(__DIR__ . '/cacert.pem')) {
+                curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
+            }
             @curl_exec($ch);
             @curl_close($ch);
         } catch (\Throwable $e) {}
@@ -668,7 +701,7 @@ class PersistentDocumentStore {
 
         $cleaned = $this->unwrapBsonTypes($doc);
         $docs[] = $cleaned;
-        $this->writeDocuments($docs);
+        $this->writeDocuments($docs, $cleaned);
 
         return new class($idObj) {
             private $id;
@@ -682,6 +715,7 @@ class PersistentDocumentStore {
         $docs = $this->readDocuments();
         $modified = 0;
         $matched = 0;
+        $updatedDoc = null;
 
         foreach ($docs as $i => $doc) {
             if ($this->matchesDoc($doc, $filter)) {
@@ -705,6 +739,7 @@ class PersistentDocumentStore {
                     }
                     $modified++;
                 }
+                $updatedDoc = $docs[$i];
                 break;
             }
         }
@@ -718,7 +753,7 @@ class PersistentDocumentStore {
             $modified = 1;
             $matched = 1;
         } elseif ($modified > 0) {
-            $this->writeDocuments($docs);
+            $this->writeDocuments($docs, $updatedDoc);
         }
 
         return new class($modified, $matched) {

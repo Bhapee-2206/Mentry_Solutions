@@ -22,9 +22,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
               || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false);
 
     $resetCol = getCollection("PasswordReset");
+    $codeHash = hash('sha256', $code);
     $record = $resetCol ? $resetCol->findOne([
         'email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i'),
-        'code' => $code,
+        '$or' => [
+            ['codeHash' => $codeHash],
+            ['code' => $code]
+        ],
         'used' => false
     ]) : null;
 
@@ -117,20 +121,15 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_PO
         $resetCol = getCollection("PasswordReset");
         $userCol = getCollection("User");
 
+        $codeHash = hash('sha256', $code);
         $record = $resetCol ? $resetCol->findOne([
-            'email' => $email,
-            'code' => $code,
+            'email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i'),
+            '$or' => [
+                ['codeHash' => $codeHash],
+                ['code' => $code]
+            ],
             'used' => false
         ]) : null;
-
-        // Fallback check if case variation in email
-        if (!$record && $resetCol) {
-            $record = $resetCol->findOne([
-                'email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i'),
-                'code' => $code,
-                'used' => false
-            ]);
-        }
 
         if (!$record) {
             $error = "Invalid or expired verification code. Please check your code or request a new one.";
@@ -160,21 +159,11 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_PO
                 // Mark reset token used
                 $resetCol->updateOne(['_id' => $record['_id']], ['$set' => ['used' => true]]);
 
-                // Fetch updated user and establish session automatically
+                // Fetch updated user and establish session safely with ID regeneration
                 $authenticatedUser = $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]);
                 if ($authenticatedUser) {
-                    $sessionPayload = [
-                        'id' => (string)$authenticatedUser['_id'],
-                        'email' => $authenticatedUser['email'],
-                        'name' => $authenticatedUser['name'] ?? 'User',
-                        'role' => $authenticatedUser['role'] ?? 'TRAINER',
-                        'avatar' => $authenticatedUser['avatar'] ?? '',
-                        'trainerCode' => $authenticatedUser['trainerCode'] ?? '',
-                        'mentryId' => $authenticatedUser['mentryId'] ?? '',
-                        'organizationName' => $authenticatedUser['organizationName'] ?? ''
-                    ];
-                    $_SESSION['user'] = $sessionPayload;
-                    issuePersistentSessionCookie($sessionPayload, 30);
+                    loginUserSession($authenticatedUser);
+                    $sessionPayload = $_SESSION['user'];
 
                     $userRole = strtoupper($sessionPayload['role'] ?? 'TRAINER');
                     if ($userRole === 'COLLEGE' || $userRole === 'VENDOR') {
@@ -239,9 +228,10 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($resetCol) {
                     $resetCol->deleteMany(['email' => $email]);
+                    $codeHash = hash('sha256', $code);
                     $resetCol->insertOne([
                         'email' => $email,
-                        'code' => $code,
+                        'codeHash' => $codeHash,
                         'token' => $token,
                         'expiresAt' => $expiresAt,
                         'used' => false,
@@ -266,9 +256,9 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } else {
-            // Non-existent email
-            $error = "No account found matching this email address. Please verify your email or register.";
-            $step = 1;
+            // Security (Requirement 16): Prevent account enumeration
+            $step = 2;
+            $notice = "If an account exists for <strong>" . htmlspecialchars($email) . "</strong>, a 6-digit verification code has been dispatched. Please check your inbox.";
         }
     }
 }

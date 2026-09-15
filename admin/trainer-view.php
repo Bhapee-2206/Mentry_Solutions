@@ -91,9 +91,11 @@ require_once __DIR__ . '/includes/sidebar.php';
         </a>
 
         <div class="flex flex-wrap items-center gap-2">
+            <?php $trainerProfileDlCount = getTrainerProfileDownloadCount($trainerId); ?>
             <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>" class="bg-[#FE5E04] hover:bg-[#e05202] text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5" title="Download Official Trainer Profile Dossier PDF (Includes Photo)">
                 <span class="material-symbols-outlined text-[16px]">download</span>
-                Download Trainer Profile
+                <span>Download Trainer Profile</span>
+                <span class="bg-white/25 text-white text-[10px] font-black px-1.5 py-0.2 rounded-md ml-0.5" title="<?= $trainerProfileDlCount ?> downloads"><?= $trainerProfileDlCount ?></span>
             </a>
             <a href="/actions/download-trainer-profile.php?id=<?= $trainerId ?>&type=pic" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 border border-slate-200 shadow-2xs" title="Download Trainer Profile Photo / Headshot">
                 <span class="material-symbols-outlined text-[16px]">photo_camera</span>
@@ -154,6 +156,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                     Approved & Active
                 </span>
                 <form action="/actions/update-trainer.php" method="POST" onsubmit="return confirm('Are you sure you want to suspend this trainer? They will not appear in matching results.');">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                     <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
                     <input type="hidden" name="action_type" value="update_status">
                     <input type="hidden" name="status" value="SUSPENDED">
@@ -168,6 +171,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                     Currently Suspended
                 </span>
                 <form action="/actions/update-trainer.php" method="POST">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                     <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
                     <input type="hidden" name="action_type" value="update_status">
                     <input type="hidden" name="status" value="APPROVED">
@@ -178,6 +182,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </form>
             <?php else: /* PENDING_APPROVAL */ ?>
                 <form action="/actions/update-trainer.php" method="POST">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                     <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
                     <input type="hidden" name="action_type" value="update_status">
                     <input type="hidden" name="status" value="APPROVED">
@@ -187,6 +192,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                     </button>
                 </form>
                 <form action="/actions/update-trainer.php" method="POST" onsubmit="return confirm('Are you sure you want to reject/suspend this application?');">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                     <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
                     <input type="hidden" name="action_type" value="update_status">
                     <input type="hidden" name="status" value="SUSPENDED">
@@ -360,6 +366,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                                     <?php if ($appStatus !== 'ACCEPTED'): ?>
                                         <form action="/actions/update-application.php" method="POST" class="inline">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                             <input type="hidden" name="applicationId" value="<?= $appId ?>">
                                             <input type="hidden" name="status" value="ACCEPTED">
                                             <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-colors flex items-center gap-1" title="Accept and Assign to Training">
@@ -370,6 +377,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                                         <?php if ($appStatus !== 'SHORTLISTED'): ?>
                                             <form action="/actions/update-application.php" method="POST" class="inline">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                                 <input type="hidden" name="applicationId" value="<?= $appId ?>">
                                                 <input type="hidden" name="status" value="SHORTLISTED">
                                                 <button type="submit" class="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-bold text-xs px-2.5 py-1.5 rounded-xl transition-colors" title="Shortlist Candidate">
@@ -380,6 +388,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                                         <?php if ($appStatus !== 'REJECTED'): ?>
                                             <form action="/actions/update-application.php" method="POST" class="inline">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                                 <input type="hidden" name="applicationId" value="<?= $appId ?>">
                                                 <input type="hidden" name="status" value="REJECTED">
                                                 <button type="submit" class="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 font-bold text-xs px-2.5 py-1.5 rounded-xl transition-colors" title="Reject Application">
@@ -591,7 +600,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     <span class="material-symbols-outlined text-blue-600 text-2xl">description</span>
                                     <div>
                                         <h4 class="font-bold text-xs text-slate-900"><?= htmlspecialchars($primaryResumeDoc['title'] ?? 'Primary Candidate Resume') ?></h4>
-                                        <p class="text-[10px] text-blue-600 font-semibold">Active Verified Resume <?= !empty($primaryResumeDoc['uploadedAt']) ? '• ' . formatDate($primaryResumeDoc['uploadedAt']) : '' ?></p>
+                                        <?php $primaryDlCount = getDocumentDownloadCount($primaryResumeDocId); ?>
+                                        <p class="text-[10px] text-blue-600 font-semibold">Active Verified Resume <?= !empty($primaryResumeDoc['uploadedAt']) ? '• ' . formatDate($primaryResumeDoc['uploadedAt']) : '' ?> • <span class="text-blue-800 font-extrabold">Downloads: <?= $primaryDlCount ?></span></p>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -604,6 +614,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     </a>
                                     <?php if (!empty($primaryResumeDocId)): ?>
                                     <form action="/actions/update-trainer.php" method="POST" class="inline" onsubmit="return confirm('Delete this resume?');">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                         <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
                                         <input type="hidden" name="action_type" value="delete_document">
                                         <input type="hidden" name="docId" value="<?= $primaryResumeDocId ?>">
@@ -622,13 +633,14 @@ require_once __DIR__ . '/includes/sidebar.php';
                             $cleanDocTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', trim($d['title'] ?? ($d['type'] ?? 'Document')));
                             $docDownloadName = $cleanTrainerName . '_' . $cleanDocTitle . '_' . $cleanTrainerCode . '.' . $docExt;
                             $docDownloadUrl = '/actions/download-document.php?url=' . urlencode($d['fileUrl'] ?? '') . '&filename=' . urlencode($docDownloadName);
+                            $credDlCount = getDocumentDownloadCount($docId);
                         ?>
                             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between hover:bg-slate-100/50 transition-colors">
                                 <div class="flex items-center gap-3">
                                     <span class="material-symbols-outlined text-slate-600 text-2xl">picture_as_pdf</span>
                                     <div>
                                         <h4 class="font-bold text-xs text-slate-900"><?= htmlspecialchars($d['title'] ?? 'Document') ?></h4>
-                                        <p class="text-[10px] text-slate-400"><?= htmlspecialchars($d['type'] ?? 'DOCUMENT') ?> • <?= formatDate($d['uploadedAt'] ?? null) ?></p>
+                                        <p class="text-[10px] text-slate-400"><?= htmlspecialchars($d['type'] ?? 'DOCUMENT') ?> • <?= formatDate($d['uploadedAt'] ?? null) ?> • <span class="text-slate-600 font-bold">Downloads: <?= $credDlCount ?></span></p>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -641,6 +653,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     </a>
                                     <?php if (!empty($docId)): ?>
                                     <form action="/actions/update-trainer.php" method="POST" class="inline" onsubmit="return confirm('Delete this document?');">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                         <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
                                         <input type="hidden" name="action_type" value="delete_document">
                                         <input type="hidden" name="docId" value="<?= $docId ?>">
@@ -726,6 +739,7 @@ require_once __DIR__ . '/includes/sidebar.php';
         </div>
 
         <form action="/actions/update-trainer.php" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
             <input type="hidden" name="action_type" value="edit_profile">
 
@@ -840,6 +854,7 @@ require_once __DIR__ . '/includes/sidebar.php';
         </div>
 
         <form action="/actions/upload-document.php" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
 
             <div>
@@ -979,6 +994,7 @@ require_once __DIR__ . '/includes/sidebar.php';
         </div>
 
         <form action="/actions/update-trainer.php" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
             <input type="hidden" name="action_type" value="update_admin_notes">
 
@@ -1102,13 +1118,26 @@ function closeAdminDocViewer() {
 
 function sendAdminTestAlertToTrainer(trainerId, trainerName) {
     if (!confirm('Send an instant live push alert to ' + trainerName + '\'s phone and account?')) return;
-    fetch('/actions/send-test-trainer-notification.php?trainerId=' + encodeURIComponent(trainerId), {
-        method: 'POST'
+    const base = '<?= defined("APP_URL") ? rtrim(APP_URL, "/") : "" ?>';
+    const csrfToken = '<?= getCsrfToken() ?>';
+    
+    fetch((base || '') + '/actions/send-test-trainer-notification.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': csrfToken
+        },
+        body: 'csrf_token=' + encodeURIComponent(csrfToken) + '&trainerId=' + encodeURIComponent(trainerId)
     })
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            alert('✓ Success! Live notification sent to ' + trainerName + '.\nIt will pop on their device and appear in their notifications.');
+            const accepted = data.pushAcceptedCount !== undefined ? data.pushAcceptedCount : data.pushDeliveredCount;
+            if (accepted > 0) {
+                alert('✓ Success! Live notification delivered to ' + trainerName + ' (' + accepted + ' device accepted).\nIt will pop on their device and appear in their notifications.');
+            } else {
+                alert('In-app notification created for ' + trainerName + '.\nNote: ' + (data.details || data.message || 'No active device accepted the push.'));
+            }
         } else {
             alert('Notice: ' + (data.error || 'Failed to dispatch alert.'));
         }

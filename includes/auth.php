@@ -139,6 +139,32 @@ function restoreSessionFromCookie() {
         return null;
     }
 
+    // Security (Requirement 15): Re-verify account status and role from database
+    // Ensures revoked admin privileges or suspended accounts are invalidated immediately
+    $userCol = getCollection("User");
+    $dbUser = null;
+    if ($userCol && !empty($data['id'])) {
+        try {
+            $dbUser = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$data['id'])]);
+        } catch (\Throwable $e) {
+            $dbUser = $userCol->findOne(['_id' => (string)$data['id']]);
+        }
+    }
+
+    if ($dbUser) {
+        if (!empty($dbUser['isSuspended']) || ($dbUser['status'] ?? '') === 'SUSPENDED') {
+            clearPersistentSessionCookie();
+            return null;
+        }
+        $effectiveRole = $dbUser['role'] ?? ($data['role'] ?? 'TRAINER');
+        $effectiveName = $dbUser['name'] ?? ($data['name'] ?? 'User');
+        $effectiveEmail = $dbUser['email'] ?? ($data['email'] ?? '');
+    } else {
+        $effectiveRole = $data['role'] ?? 'TRAINER';
+        $effectiveName = $data['name'] ?? 'User';
+        $effectiveEmail = $data['email'] ?? '';
+    }
+
     $restoredAvatar = $data['avatar'] ?? '';
     if (empty($restoredAvatar) || strpos($restoredAvatar, 'ui-avatars.com') !== false || strpos($restoredAvatar, 'avatar.vercel.sh') !== false) {
         $liveAvatar = getLiveUserAvatar((string)$data['id']);
@@ -147,19 +173,85 @@ function restoreSessionFromCookie() {
         }
     }
     if (empty($restoredAvatar)) {
-        $restoredAvatar = 'https://ui-avatars.com/api/?name=' . urlencode($data['name'] ?? 'User');
+        $restoredAvatar = 'https://ui-avatars.com/api/?name=' . urlencode($effectiveName);
     }
 
     $_SESSION['user'] = [
         'id' => (string)$data['id'],
-        'email' => $data['email'] ?? '',
-        'name' => $data['name'] ?? '',
-        'role' => $data['role'] ?? 'TRAINER',
+        'email' => $effectiveEmail,
+        'name' => $effectiveName,
+        'role' => $effectiveRole,
         'avatar' => $restoredAvatar,
         'trainerCode' => $data['trainerCode'] ?? '',
         'mentryId' => $data['mentryId'] ?? ''
     ];
     return $_SESSION['user'];
+}
+
+/**
+ * Requirement 13: Centralized CSRF Protection
+ */
+function getCsrfToken(): string {
+    if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+        @session_start();
+    }
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function validateCsrfToken(?string $token = null): bool {
+    if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+        @session_start();
+    }
+    $sessionToken = $_SESSION['csrf_token'] ?? '';
+    if (empty($sessionToken)) {
+        return false;
+    }
+    $candidate = $token 
+        ?? ($_POST['csrf_token'] 
+        ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] 
+        ?? ($_SERVER['HTTP_X_XSRF_TOKEN'] ?? '')));
+    if (empty($candidate) || !is_string($candidate)) {
+        return false;
+    }
+    return hash_equals($sessionToken, $candidate);
+}
+
+function requireCsrfToken(): void {
+    if (!validateCsrfToken()) {
+        http_response_code(403);
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Security validation failed: Invalid or missing CSRF token. Please refresh the page and try again.']);
+        } else {
+            die("Security Error: Invalid or missing CSRF security token. Please return to the previous page and try again.");
+        }
+        exit();
+    }
+}
+
+/**
+ * Requirement 14: Session Fixation Defense Helper
+ */
+function loginUserSession(array $user, ?array $trainer = null, ?array $vendor = null): void {
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        @session_regenerate_id(true);
+    }
+    $_SESSION['user'] = [
+        'id' => (string)($user['_id'] ?? ($user['id'] ?? '')),
+        'email' => $user['email'] ?? '',
+        'name' => $user['name'] ?? '',
+        'role' => $user['role'] ?? 'TRAINER',
+        'organizationName' => $user['organizationName'] ?? ($vendor['organizationName'] ?? ($user['name'] ?? null)),
+        'avatar' => $user['avatar'] ?? ($trainer['avatar'] ?? null),
+        'trainerCode' => $trainer['trainerCode'] ?? ($user['trainerCode'] ?? null),
+        'mentryId' => $trainer['mentryId'] ?? ($user['mentryId'] ?? null),
+        'trainerId' => $trainer ? (string)($trainer['_id'] ?? '') : null,
+        'status' => $trainer['status'] ?? ($user['status'] ?? 'ACTIVE')
+    ];
+    setPersistentSessionCookie($_SESSION['user']);
 }
 
 /**

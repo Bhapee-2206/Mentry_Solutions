@@ -38,11 +38,11 @@ class MentryMailer {
         $this->host = $resolveConfig('SMTP_HOST', 'smtp.gmail.com');
         $portVal = (int)$resolveConfig('SMTP_PORT', '465');
         $this->port = ($portVal > 0) ? $portVal : 465;
-        $this->username = $resolveConfig('SMTP_USER', 'bhapeestudios@gmail.com');
-        $passRaw = $resolveConfig('SMTP_PASS', 'ywnv kgpv khmx qrlz');
+        $this->username = $resolveConfig('SMTP_USER', '');
+        $passRaw = $resolveConfig('SMTP_PASS', '');
         $this->password = preg_replace('/\s+/', '', $passRaw);
         $this->fromName = $resolveConfig('SMTP_FROM_NAME', 'Mentry Solutions');
-        $this->fromEmail = $resolveConfig('SMTP_FROM_EMAIL', $this->username);
+        $this->fromEmail = $resolveConfig('SMTP_FROM_EMAIL', $this->username ?: 'support@mentry.solutions');
         $this->timeout = 10; // Generous timeout to allow SSL/TLS handshake on cloud networks
     }
 
@@ -98,13 +98,16 @@ class MentryMailer {
             $connectHost = 'ssl://' . $this->host;
         }
 
-        $context = stream_context_create([
-            'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            ]
-        ]);
+        $sslOpts = [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+            'allow_self_signed' => false
+        ];
+        $caCert = __DIR__ . '/cacert.pem';
+        if (file_exists($caCert)) {
+            $sslOpts['cafile'] = $caCert;
+        }
+        $context = stream_context_create(['ssl' => $sslOpts]);
 
         $socket = @stream_socket_client($connectHost . ':' . $port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $context);
 

@@ -85,6 +85,7 @@ $requirements = $reqCol ? $reqCol->find([], ['sort' => ['createdAt' => -1]])->to
                     <?php if (!$isConverted): ?>
                         <!-- Price Adjustment & Convert Form -->
                         <form action="/actions/convert-requirement.php" method="POST" class="bg-gradient-to-r from-blue-50/60 to-slate-50 p-4 rounded-2xl border border-blue-200/80 space-y-3">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                             <input type="hidden" name="requirementId" value="<?= $rqId ?>">
                             <div class="flex items-center justify-between">
                                 <h4 class="font-bold text-xs text-blue-950 flex items-center gap-1.5">

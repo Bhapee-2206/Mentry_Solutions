@@ -72,6 +72,10 @@ if (empty($customStaff)) {
     saveCustomStaffData($customStaffFile, $customStaff);
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrfToken();
+}
+
 // 1. Handle CREATE STAFF
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['createStaff'])) {
     $name = trim($_POST['name'] ?? '');
@@ -297,6 +301,7 @@ $teamMembers = $customStaff;
             </button>
         </div>
         <form method="POST" action="/admin/staff.php" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="createStaff" value="1">
             <div>
                 <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Full Name *</label>
@@ -376,6 +381,7 @@ $teamMembers = $customStaff;
                     </button>
 
                     <form method="POST" action="/admin/staff.php" onsubmit="return confirm('Are you sure you want to remove <?= htmlspecialchars(addslashes($tm['name'])) ?> from the directory?');" class="inline">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                         <input type="hidden" name="deleteStaff" value="1">
                         <input type="hidden" name="delete_email" value="<?= htmlspecialchars($tm['email']) ?>">
                         <button type="submit" class="p-1.5 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors cursor-pointer" title="Delete member">
@@ -403,6 +409,7 @@ $teamMembers = $customStaff;
         </div>
 
         <form method="POST" action="/admin/staff.php" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="updateStaff" value="1">
             <input type="hidden" id="edit_target_email" name="target_email" value="">
 

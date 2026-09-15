@@ -12,6 +12,7 @@ $user = getCurrentUser();
 $vendorId = $user['id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrfToken();
     $title = trim($_POST['title'] ?? '');
     $institutionName = trim($_POST['institutionName'] ?? '');
     $domain = trim($_POST['domain'] ?? 'Programming');
@@ -124,6 +125,7 @@ require_once __DIR__ . '/includes/sidebar.php';
     <?php endif; ?>
 
     <form method="POST" action="/vendor/request-create.php" class="bg-white p-5 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card space-y-6 min-w-0">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
         <div class="grid sm:grid-cols-2 gap-4">
             <div class="sm:col-span-2">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Requirement Title *</label>

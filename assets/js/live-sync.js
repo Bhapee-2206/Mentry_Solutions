@@ -116,14 +116,14 @@
                 }
             });
 
-            // Listen for Service Worker foreground message (when SW push arrived while app was focused)
-            // Listen for Service Worker foreground message (when push arrives while app is active)
+            // Listen for Service Worker message (when push arrives and notifies page)
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.addEventListener('message', (event) => {
-                    if (event.data && (event.data.type === 'PUSH_FOREGROUND_EVENT' || event.data.type === 'PUSH_RECEIVED_IN_APP' || event.data.type === 'PUSH_NOTIFICATION_DELIVERED') && event.data.notification) {
+                    if (!event.data) return;
+                    if ((event.data.type === 'PUSH_RECEIVED' || event.data.type === 'PUSH_FOREGROUND_EVENT' || event.data.type === 'PUSH_RECEIVED_IN_APP' || event.data.type === 'PUSH_NOTIFICATION_DELIVERED') && event.data.notification) {
+                        console.log('[PUSH] foreground page received message:', event.data.notification.notification_id || event.data.notification.id);
                         const notifData = event.data.notification;
-                        const id = this.getCanonicalId(notifData);
-                        this.markProcessed(id);
+                        this.handleIncomingNotification(notifData, 'push');
                         if (typeof this.fetchUnreadCount === 'function') {
                             this.fetchUnreadCount();
                         }
@@ -199,14 +199,6 @@
             if (this.isUserActive()) {
                 // User is actively looking at Mentry: show in-app popup card
                 this.enqueue(cleanNotif);
-                if (source === 'test' && 'Notification' in window && Notification.permission === 'granted') {
-                    triggerNativeSystemNotification(cleanNotif);
-                }
-            } else {
-                // User is away or tab is backgrounded
-                if (source === 'poll' && 'Notification' in window && Notification.permission === 'granted') {
-                    triggerNativeSystemNotification(cleanNotif);
-                }
             }
             return true;
         },
@@ -493,69 +485,14 @@
     // Initialize Notification Manager
     NotificationManager.init();
 
-    // 4. Native OS System Notification Trigger (Used strictly when user is not active or explicitly requested)
-    async function triggerNativeSystemNotification(options) {
-        if (!('Notification' in window)) return false;
-        if (Notification.permission !== 'granted') return false;
-
-        const title = options.title || 'Mentry Solutions';
-        const body = options.message || options.body || 'New update on your training portal.';
-        let targetUrl = options.link || options.url || (basePath + '/trainer/notifications.php');
-        if (targetUrl.startsWith('/') && !targetUrl.startsWith(basePath) && basePath) {
-            targetUrl = basePath + targetUrl;
-        }
-        const notifId = NotificationManager.getCanonicalId(options);
-        const tag = 'mentry-' + notifId;
-        const iconUrl = new URL(basePath + '/public/icon-192.png', window.location.origin).href;
-        const badgeUrl = new URL(basePath + '/public/badge-96.png', window.location.origin).href;
-        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-
-        // A. Service Worker Registration showNotification (clean single PWA icon, no duplicate logo)
-        if ('serviceWorker' in navigator) {
-            try {
-                let reg = await navigator.serviceWorker.ready;
-                if (!reg) {
-                    reg = await navigator.serviceWorker.getRegistration();
-                }
-                if (!reg) {
-                    reg = await navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' });
-                }
-                if (reg && reg.showNotification) {
-                    const swOpts = {
-                        body: body,
-                        icon: iconUrl,
-                        badge: badgeUrl,
-                        tag: tag,
-                        renotify: true,
-                        vibrate: [200, 100, 200],
-                        data: { id: notifId, url: targetUrl }
-                    };
-                    if (!isMobile) {
-                        swOpts.requireInteraction = true;
-                    }
-                    await reg.showNotification(title, swOpts);
-                    return true;
-                }
-            } catch (err) {
-                console.warn('[Mentry LiveSync] SW showNotification note:', err);
-            }
-        }
-
-        // B. Desktop Notification constructor fallback ONLY if SW showNotification was unavailable
-        try {
-            const n = new Notification(title, {
-                body: body,
-                icon: iconUrl,
-                badge: badgeUrl,
-                tag: tag
-            });
-            n.onclick = function() {
-                window.focus();
-                window.location.href = targetUrl;
-            };
+    // 4. Native In-App Notification Dispatcher (Authoritative background push is strictly handled by sw.js)
+    function triggerNativeSystemNotification(options) {
+        // Authoritative production native OS notifications are delivered exclusively via service worker push events.
+        // Foreground events are routed through the in-app toast notification manager.
+        if (options && typeof NotificationManager.showToast === 'function') {
+            NotificationManager.showToast(options);
             return true;
-        } catch (err) {}
-
+        }
         return false;
     }
 
@@ -833,32 +770,32 @@
         }
     };
 
-    window.requestMentryDeviceNotifications = function() {
-        if (!('Notification' in window)) {
-            alert('Notifications are not supported on this browser.');
-            return;
-        }
-
-        Notification.requestPermission().then(async (permission) => {
+    window.requestMentryDeviceNotifications = async function() {
+        if (window.MentryPush && typeof window.MentryPush.enable === 'function') {
+            await window.MentryPush.enable();
             if (typeof window.updateDeviceNotificationUI === 'function') {
                 window.updateDeviceNotificationUI();
             }
-            if (permission === 'granted') {
-                if ('serviceWorker' in navigator) {
-                    try {
-                        await navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' });
-                    } catch(e) {}
+            return;
+        }
+
+        if (!('Notification' in window)) {
+            console.warn('[Mentry LiveSync] Notifications are not supported on this browser.');
+            return;
+        }
+
+        if (Notification.permission === 'default') {
+            Notification.requestPermission().then(() => {
+                if (typeof window.updateDeviceNotificationUI === 'function') {
+                    window.updateDeviceNotificationUI();
                 }
-                window.sendTestDeviceNotification();
-            } else if (permission === 'denied') {
-                alert('Notifications are blocked in browser settings. Please tap the lock icon in your address bar to allow notifications.');
-            }
-        });
+            });
+        }
     };
 
     window.sendTestDeviceNotification = async function() {
         if (!('Notification' in window)) {
-            alert('Notifications not supported by this browser.');
+            console.warn('[Mentry LiveSync] Notifications not supported by this browser.');
             return;
         }
 
@@ -867,23 +804,36 @@
             return;
         }
 
-        const testId = 'test_' + Date.now();
-        // 1. Fire actual native browser / OS push notification
-        await triggerNativeSystemNotification({
-            id: testId,
-            title: '🎉 Mentry Live Alert Active!',
-            message: 'Your device is connected! Real-time match notifications and selection updates will appear here outside the app.',
-            link: basePath + '/trainer/notifications.php'
-        });
+        try {
+            // Trigger genuine server-side Web Push
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').content) || '';
+            const formData = new FormData();
+            if (csrfToken) formData.append('csrf_token', csrfToken);
 
-        // 2. Also display in-app feedback popup card
-        NotificationManager.handleIncomingNotification({
-            id: 'toast_' + testId,
-            title: 'Mobile Alert Sent',
-            message: 'Check your phone notification drawer or lock screen outside the app!',
-            link: basePath + '/trainer/notifications.php',
-            type: 'SYSTEM_ALERT'
-        }, 'test');
+            const res = await fetch(basePath + '/actions/send-test-trainer-notification.php', {
+                method: 'POST',
+                body: formData,
+                headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {}
+            });
+            const data = await res.json();
+
+            NotificationManager.handleIncomingNotification({
+                id: 'toast_' + Date.now(),
+                title: data.success ? '🎉 Web Push Dispatched' : 'Notification Note',
+                message: data.message || 'Check your phone notification drawer or lock screen outside the app!',
+                link: basePath + '/trainer/notifications.php',
+                type: 'SYSTEM_ALERT'
+            }, 'test');
+        } catch (e) {
+            console.warn('[Mentry LiveSync] Test dispatch exception:', e);
+            NotificationManager.handleIncomingNotification({
+                id: 'toast_' + Date.now(),
+                title: 'Alert Dispatched',
+                message: 'Check your phone notification drawer or lock screen outside the app!',
+                link: basePath + '/trainer/notifications.php',
+                type: 'SYSTEM_ALERT'
+            }, 'test');
+        }
     };
 
     if (document.readyState === 'loading') {

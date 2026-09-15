@@ -174,9 +174,9 @@ $isNewSignup = isset($_GET['new_signup']) && $isProfileIncomplete;
 
     function enableDashboardPush() {
         dismissDashboardPushBanner();
-        if (typeof window.requestMentryDeviceNotifications === 'function') {
-            window.requestMentryDeviceNotifications();
-        } else if ('Notification' in window) {
+        if (window.MentryPush && typeof window.MentryPush.enable === 'function') {
+            window.MentryPush.enable();
+        } else if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
     }
@@ -391,6 +391,7 @@ $isNewSignup = isset($_GET['new_signup']) && $isProfileIncomplete;
 
         <!-- Form: Scrollable Content + Pinned Footer -->
         <form action="/actions/update-trainer-availability.php" method="POST" class="flex flex-col flex-1 min-h-0 overflow-hidden" style="display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; overflow: hidden;">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <!-- Scrollable Content -->
             <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4" style="overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; flex: 1 1 auto;">
                 <div>

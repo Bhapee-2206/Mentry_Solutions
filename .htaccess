@@ -113,8 +113,10 @@ ErrorDocument 500 /500.php
     RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-    # Block direct HTTP access to data, config, and scratch storage directories
+    # Block direct HTTP access to data, config, scripts, scratch, and private uploads
     RewriteRule ^data(/|$) - [F,L]
     RewriteRule ^config(/|$) - [F,L]
     RewriteRule ^scratch(/|$) - [F,L]
+    RewriteRule ^scripts(/|$) - [F,L]
+    RewriteRule ^public/uploads/documents(/|$) - [F,L]
 </IfModule>

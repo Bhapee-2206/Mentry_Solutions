@@ -956,6 +956,7 @@ if (!empty($recentActivities)) {
         </div>
 
         <form action="/actions/update-trainer.php" method="POST" class="space-y-3.5 text-xs">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="action_type" value="create_trainer">
             
             <div>

@@ -12,6 +12,7 @@ $dbUser = $userCol ? $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId($vend
 
 $success = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrfToken();
     $organizationName = trim($_POST['organizationName'] ?? '');
     $contactPerson = trim($_POST['contactPerson'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
@@ -89,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <p class="text-xs text-slate-500">Official logo or coordinator photo shown on campus workshop postings.</p>
 
                 <form action="/actions/upload-avatar.php" method="POST" enctype="multipart/form-data" class="flex flex-col sm:flex-row items-center gap-2.5 pt-1">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                     <input type="file" name="avatar" required accept="image/jpeg,image/png,image/webp" class="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-2 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#FE5E04]/10 file:text-[#FE5E04] hover:file:bg-[#FE5E04]/20 cursor-pointer">
                     <button type="submit" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1 shrink-0">
                         <span class="material-symbols-outlined text-[16px]">upload</span>
@@ -100,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <form method="POST" action="/vendor/profile.php" class="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-6">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
         <div class="grid sm:grid-cols-2 gap-4">
             <div class="sm:col-span-2">
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Organization / College Name</label>

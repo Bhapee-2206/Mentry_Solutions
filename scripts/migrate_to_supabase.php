@@ -4,6 +4,15 @@
  * Automated Synchronization & Migration Engine for Supabase Cloud Database
  */
 
+// Security (Requirement 58): Restrict execution strictly to CLI or authorized administrators
+if (php_sapi_name() !== 'cli') {
+    require_once __DIR__ . '/../includes/auth.php';
+    if (!isLoggedIn() || !isAdminOrStaff()) {
+        http_response_code(403);
+        die("Access Denied: Administrative authorization or CLI environment required.");
+    }
+}
+
 $envFile = __DIR__ . '/../.env';
 $env = [];
 if (file_exists($envFile)) {
@@ -77,7 +86,11 @@ function supabaseRequest($url, $method = 'GET', $data = null, $key = '') {
     ];
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    if (file_exists(__DIR__ . '/../includes/cacert.pem')) {
+        curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/../includes/cacert.pem');
+    }
     curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
     if ($method === 'POST') {

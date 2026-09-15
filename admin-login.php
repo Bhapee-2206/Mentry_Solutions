@@ -20,66 +20,64 @@ if (isset($_GET['error']) && $_GET['error'] === 'unauthorized') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = strtolower(trim($_POST['email'] ?? ''));
-    $password = $_POST['password'] ?? '';
-
-    $emailErr = validateEmailInput($email);
-    if ($emailErr) {
-        $error = $emailErr;
-    } elseif (empty($password)) {
-        $error = "Password is required.";
+    if (!validateCsrfToken($_POST['csrf_token'] ?? null)) {
+        $error = "Security token invalid or expired. Please refresh the page and try again.";
     } else {
-        // Check if account is locked out due to wrong password attempts
-        $lockCheck = checkLoginRateLimit($email);
-        if ($lockCheck['isLocked']) {
-            $error = $lockCheck['message'];
+        $email = strtolower(trim($_POST['email'] ?? ''));
+        $password = $_POST['password'] ?? '';
+
+        $emailErr = validateEmailInput($email);
+        if ($emailErr) {
+            $error = $emailErr;
+        } elseif (empty($password)) {
+            $error = "Password is required.";
         } else {
-            $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
-
-            // Built-in demo credentials fallback using secure bcrypt hashes (no plaintext passwords in code)
-            $demoAdminAccounts = [
-                'admin@mentry.test' => ['hash' => '$2y$10$uuj71c/RpLiWaZiOx.XnF.7RgogZOg2fPHjb8.gFdtqNIwVq3j8E6', 'name' => 'Operations Director (Admin 1)', 'role' => 'ADMIN', 'id' => '65e000000000000000000001'],
-                'admin2@mentry.test' => ['hash' => '$2y$10$KVX1kXyHKDY2ShUb.Wi5n.Bxip8ARejEvuQd0fguzFXRdKJoz3//i', 'name' => 'Lead Administrator (Admin 2)', 'role' => 'ADMIN', 'id' => '65e000000000000000000002'],
-                'staff1@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Operations Coordinator (Staff 1)', 'role' => 'STAFF', 'id' => '65e000000000000000000003'],
-                'staff2@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Talent Sourcing Specialist (Staff 2)', 'role' => 'STAFF', 'id' => '65e000000000000000000004'],
-            ];
-
-            $authenticated = false;
-            if ($user && isset($user['password']) && verifyPassword($password, $user['password'])) {
-                $authenticated = true;
-            } elseif (isset($demoAdminAccounts[$email]) && password_verify($password, $demoAdminAccounts[$email]['hash'])) {
-                $demo = $demoAdminAccounts[$email];
-                $user = [
-                    '_id' => $user['_id'] ?? $demo['id'],
-                    'email' => $email,
-                    'name' => $user['name'] ?? $demo['name'],
-                    'role' => $user['role'] ?? $demo['role'],
-                    'avatar' => $user['avatar'] ?? ('https://avatar.vercel.sh/' . urlencode($demo['name']) . '.png')
-                ];
-                $authenticated = true;
-            }
-
-            if (!$authenticated || !$user) {
-                $failResult = recordFailedLoginAttempt($email);
-                $error = $failResult['message'];
-            } elseif (!in_array($user['role'], ['ADMIN', 'SUPER_ADMIN', 'STAFF'])) {
-                $error = "Access Restricted: This account is registered as a <strong>{$user['role']}</strong>. Please use the appropriate portal to sign in.";
+            // Check if account is locked out due to wrong password attempts
+            $lockCheck = checkLoginRateLimit($email);
+            if ($lockCheck['isLocked']) {
+                $error = $lockCheck['message'];
             } else {
-                // Successful verification: clear failed attempt counters
-                resetLoginAttempts($email);
-            $_SESSION['user'] = [
-                'id' => (string)$user['_id'],
-                'email' => $user['email'],
-                'name' => $user['name'],
-                'role' => $user['role'],
-                'avatar' => $user['avatar'] ?? ('https://avatar.vercel.sh/' . urlencode($user['name']) . '.png')
-            ];
+                $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
 
-            setPersistentSessionCookie($_SESSION['user']);
+                // Built-in demo credentials fallback using secure bcrypt hashes (no plaintext passwords in code)
+                $demoAdminAccounts = [
+                    'admin@mentry.test' => ['hash' => '$2y$10$uuj71c/RpLiWaZiOx.XnF.7RgogZOg2fPHjb8.gFdtqNIwVq3j8E6', 'name' => 'Operations Director (Admin 1)', 'role' => 'ADMIN', 'id' => '65e000000000000000000001'],
+                    'admin2@mentry.test' => ['hash' => '$2y$10$KVX1kXyHKDY2ShUb.Wi5n.Bxip8ARejEvuQd0fguzFXRdKJoz3//i', 'name' => 'Lead Administrator (Admin 2)', 'role' => 'ADMIN', 'id' => '65e000000000000000000002'],
+                    'staff1@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Operations Coordinator (Staff 1)', 'role' => 'STAFF', 'id' => '65e000000000000000000003'],
+                    'staff2@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Talent Sourcing Specialist (Staff 2)', 'role' => 'STAFF', 'id' => '65e000000000000000000004'],
+                ];
 
-            $redirect = $_GET['redirect'] ?? '/admin/index.php';
-            header("Location: " . $redirect);
-            exit();
+                $authenticated = false;
+                if ($user && isset($user['password']) && verifyPassword($password, $user['password'])) {
+                    $authenticated = true;
+                } elseif (isset($demoAdminAccounts[$email]) && password_verify($password, $demoAdminAccounts[$email]['hash'])) {
+                    $demo = $demoAdminAccounts[$email];
+                    $user = [
+                        '_id' => $user['_id'] ?? $demo['id'],
+                        'email' => $email,
+                        'name' => $user['name'] ?? $demo['name'],
+                        'role' => $user['role'] ?? $demo['role'],
+                        'avatar' => $user['avatar'] ?? ('https://avatar.vercel.sh/' . urlencode($demo['name']) . '.png')
+                    ];
+                    $authenticated = true;
+                }
+
+                if (!$authenticated || !$user) {
+                    $failResult = recordFailedLoginAttempt($email);
+                    $error = $failResult['message'];
+                } elseif (!in_array($user['role'], ['ADMIN', 'SUPER_ADMIN', 'STAFF'])) {
+                    $error = "Access Restricted: This account is registered as a <strong>{$user['role']}</strong>. Please use the appropriate portal to sign in.";
+                } else {
+                    // Successful verification: clear failed attempt counters
+                    resetLoginAttempts($email);
+
+                    loginUserSession($user);
+
+                    $redirect = $_GET['redirect'] ?? '/admin/index.php';
+                    header("Location: " . $redirect);
+                    exit();
+                }
+            }
         }
     }
 }
@@ -159,6 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" action="/admin-login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" autocomplete="off" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <div>
                 <label class="block text-xs font-bold text-slate-300 uppercase mb-1.5">Official Email ID</label>
                 <input type="email" id="emailInput" name="email" required placeholder="operations@mentry.in" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>" class="w-full bg-slate-800/90 border border-slate-700 rounded-xl p-3 text-sm focus:bg-slate-800 focus:border-[#FE5E04] focus:ring-2 focus:ring-[#FE5E04]/20 outline-none text-white font-medium transition-all">

@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 
 requireAuth();
+requireCsrfToken();
 
 $currentUser = getCurrentUser();
 $isAdminOrStaff = in_array($currentUser['role'] ?? '', ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
@@ -17,7 +18,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 1. Direct Avatar Image URL update
     if (!empty($_POST['avatarUrl'])) {
         $avatarUrl = trim($_POST['avatarUrl']);
-        if (filter_var($avatarUrl, FILTER_VALIDATE_URL) || strpos($avatarUrl, '/public/') === 0) {
+        $scheme = parse_url($avatarUrl, PHP_URL_SCHEME);
+        $isValidUrl = (in_array($scheme, ['http', 'https'], true) && filter_var($avatarUrl, FILTER_VALIDATE_URL)) 
+                   || (strpos($avatarUrl, '/public/') === 0 && strpos($avatarUrl, '..') === false);
+        if ($isValidUrl) {
             $userQuery = ['_id' => (string)$userId];
             if (preg_match('/^[a-f\d]{24}$/i', (string)$userId)) {
                 try {

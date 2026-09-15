@@ -9,85 +9,87 @@ $success = false;
 $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = strtolower(trim($_POST['email'] ?? ''));
-    $code = trim($_POST['code'] ?? '');
-    $postToken = trim($_POST['token'] ?? '');
-    $newPassword = $_POST['newPassword'] ?? '';
-    $confirmPassword = $_POST['confirmPassword'] ?? '';
-
-    if (empty($newPassword) || strlen($newPassword) < 6) {
-        $error = "Password must be at least 6 characters long.";
-    } elseif ($newPassword !== $confirmPassword) {
-        $error = "Passwords do not match. Please re-enter.";
+    if (!validateCsrfToken($_POST['csrf_token'] ?? null)) {
+        $error = "Security token invalid or expired. Please refresh the page and try again.";
     } else {
-        $resetCol = getCollection("PasswordReset");
-        $userCol = getCollection("User");
+        $email = strtolower(trim($_POST['email'] ?? ''));
+        $code = trim($_POST['code'] ?? '');
+        $postToken = trim($_POST['token'] ?? '');
+        $newPassword = $_POST['newPassword'] ?? '';
+        $confirmPassword = $_POST['confirmPassword'] ?? '';
 
-        $query = ['used' => false];
-        if (!empty($postToken) && !empty($code)) {
-            $query['$or'] = [
-                ['token' => $postToken],
-                ['email' => $email, 'code' => $code]
-            ];
-        } elseif (!empty($postToken)) {
-            $query['token'] = $postToken;
+        if (empty($newPassword) || strlen($newPassword) < 6) {
+            $error = "Password must be at least 6 characters long.";
+        } elseif ($newPassword !== $confirmPassword) {
+            $error = "Passwords do not match. Please re-enter.";
         } else {
-            $query['email'] = new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i');
-            $query['code'] = $code;
-        }
+            $resetCol = getCollection("PasswordReset");
+            $userCol = getCollection("User");
 
-        $resetRecord = $resetCol ? $resetCol->findOne($query) : null;
+            $codeHash = !empty($code) ? hash('sha256', $code) : '';
+            $query = ['used' => false];
 
-        if (!$resetRecord) {
-            $error = "Invalid or expired verification code / reset link.";
-        } else {
-            $recordTime = null;
-            if (isset($resetRecord['expiresAt'])) {
-                $exp = $resetRecord['expiresAt'];
-                if ($exp instanceof MongoDB\BSON\UTCDateTime) {
-                    $recordTime = round($exp->toDateTime()->getTimestamp());
-                } elseif (is_numeric($exp)) {
-                    $recordTime = ($exp > 20000000000) ? round($exp / 1000) : (int)$exp;
-                } elseif (is_string($exp)) {
-                    $recordTime = strtotime($exp) ?: (is_numeric($exp) ? (int)$exp : null);
-                }
-            }
-            if (!$recordTime || time() > $recordTime) {
-                $error = "This verification code / reset link has expired (valid for 30 minutes). Please request a new code.";
+            if (!empty($postToken) && !empty($code)) {
+                $query['$or'] = [
+                    ['token' => $postToken],
+                    ['email' => $email, 'codeHash' => $codeHash],
+                    ['email' => $email, 'code' => $code]
+                ];
+            } elseif (!empty($postToken)) {
+                $query['token'] = $postToken;
             } else {
-                // Update User password
-                $targetEmail = $resetRecord['email'];
-                $userCol->updateOne(
-                    ['email' => new MongoDB\BSON\Regex('^' . preg_quote($targetEmail) . '$', 'i')],
-                    ['$set' => [
-                        'password' => hashPassword($newPassword),
-                        'updatedAt' => new MongoDB\BSON\UTCDateTime()
-                    ]]
-                );
+                $query['email'] = new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i');
+                $query['$or'] = [
+                    ['codeHash' => $codeHash],
+                    ['code' => $code]
+                ];
+            }
 
-                // Mark reset token as used
-                $resetCol->updateOne(['_id' => $resetRecord['_id']], ['$set' => ['used' => true]]);
+            $resetRecord = $resetCol ? $resetCol->findOne($query) : null;
 
-                // Auto-authenticate user into session so they don't have to re-enter password
-                $authenticatedUser = $userCol->findOne([
-                    'email' => new MongoDB\BSON\Regex('^' . preg_quote($targetEmail) . '$', 'i')
-                ]);
+            if (!$resetRecord) {
+                $error = "Invalid or expired verification code / reset link.";
+            } else {
+                $recordTime = null;
+                if (isset($resetRecord['expiresAt'])) {
+                    $exp = $resetRecord['expiresAt'];
+                    if ($exp instanceof MongoDB\BSON\UTCDateTime) {
+                        $recordTime = round($exp->toDateTime()->getTimestamp());
+                    } elseif (is_numeric($exp)) {
+                        $recordTime = ($exp > 20000000000) ? round($exp / 1000) : (int)$exp;
+                    } elseif (is_string($exp)) {
+                        $recordTime = strtotime($exp) ?: (is_numeric($exp) ? (int)$exp : null);
+                    }
+                }
+                if (!$recordTime || time() > $recordTime) {
+                    $error = "This verification code / reset link has expired (valid for 30 minutes). Please request a new code.";
+                } else {
+                    // Update User password
+                    $targetEmail = $resetRecord['email'];
+                    $userCol->updateOne(
+                        ['email' => new MongoDB\BSON\Regex('^' . preg_quote($targetEmail) . '$', 'i')],
+                        ['$set' => [
+                            'password' => hashPassword($newPassword),
+                            'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                        ]]
+                    );
 
-                if ($authenticatedUser) {
-                    $sessionPayload = [
-                        'id' => (string)($authenticatedUser['_id'] ?? ''),
-                        'name' => $authenticatedUser['name'] ?? 'User',
-                        'email' => $authenticatedUser['email'] ?? $targetEmail,
-                        'role' => $authenticatedUser['role'] ?? 'TRAINER',
-                        'profileImage' => $authenticatedUser['profileImage'] ?? null,
-                    ];
-                    $_SESSION['user'] = $sessionPayload;
-                    issuePersistentSessionCookie($sessionPayload, 30);
+                    // Mark reset token as used
+                    $resetCol->updateOne(['_id' => $resetRecord['_id']], ['$set' => ['used' => true]]);
 
-                    // Determine role-specific dashboard link
-                    $userRole = strtoupper($sessionPayload['role'] ?? 'TRAINER');
-                    if ($userRole === 'COLLEGE' || $userRole === 'VENDOR') {
-                        $redirectUrl = '/vendor/dashboard.php';
+                    // Auto-authenticate user into session safely with session regeneration
+                    $authenticatedUser = $userCol->findOne([
+                        'email' => new MongoDB\BSON\Regex('^' . preg_quote($targetEmail) . '$', 'i')
+                    ]);
+
+                    if ($authenticatedUser) {
+                        loginUserSession($authenticatedUser);
+                        $sessionPayload = $_SESSION['user'];
+
+                        // Determine role-specific dashboard link
+                        $userRole = strtoupper($sessionPayload['role'] ?? 'TRAINER');
+                        if ($userRole === 'COLLEGE' || $userRole === 'VENDOR') {
+                            $redirectUrl = '/vendor/dashboard.php';
                         $roleBadgeName = 'College / Vendor Partner';
                         $dashboardBtnText = 'Proceed to Partner Dashboard';
                         $btnStyle = 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20';
@@ -108,6 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+}
 }
 ?>
 <!DOCTYPE html>
@@ -207,6 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </script>
         <?php else: ?>
             <form method="POST" action="/reset-password.php" class="space-y-4" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                 <?php if (!empty($token)): ?>
                     <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
                 <?php else: ?>

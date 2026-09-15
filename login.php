@@ -31,14 +31,17 @@ if (isset($_GET['error']) && $_GET['error'] === 'trainer_required') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = strtolower(trim($_POST['email'] ?? ''));
-    $password = $_POST['password'] ?? '';
-    $emailErr = validateEmailInput($email);
-    if ($emailErr) {
-        $error = $emailErr;
-    } elseif (empty($password)) {
-        $error = "Password is required.";
+    if (!validateCsrfToken($_POST['csrf_token'] ?? null)) {
+        $error = "Security token invalid or expired. Please refresh the page and try again.";
     } else {
+        $email = strtolower(trim($_POST['email'] ?? ''));
+        $password = $_POST['password'] ?? '';
+        $emailErr = validateEmailInput($email);
+        if ($emailErr) {
+            $error = $emailErr;
+        } elseif (empty($password)) {
+            $error = "Password is required.";
+        } else {
         // Check if account is locked out due to wrong password attempts
         $lockCheck = checkLoginRateLimit($email);
         if ($lockCheck['isLocked']) {
@@ -97,19 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         );
                     }
 
-                    $_SESSION['user'] = [
-                        'id' => (string)$user['_id'],
-                        'email' => $user['email'],
-                        'name' => $user['name'],
-                        'role' => $user['role'] ?? 'TRAINER',
-                        'avatar' => $user['avatar'] ?? ($trainer['avatar'] ?? null),
-                        'trainerCode' => $trainer['trainerCode'] ?? ($user['trainerCode'] ?? null),
-                        'mentryId' => $trainer['mentryId'] ?? ($user['mentryId'] ?? null),
-                        'trainerId' => $trainer ? (string)$trainer['_id'] : null,
-                        'status' => $trainer['status'] ?? 'PENDING_APPROVAL'
-                    ];
-
-                    setPersistentSessionCookie($_SESSION['user']);
+                    loginUserSession($user, $trainer);
 
                     $redirect = $_GET['redirect'] ?? '/trainer/dashboard.php';
                     // Sanitize redirect
@@ -122,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+}
 }
 }
 ?>
@@ -202,6 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" action="/login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" autocomplete="off" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Registered Trainer Email</label>
                 <input type="email" id="emailInput" name="email" required placeholder="trainer@example.com" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900 font-medium">

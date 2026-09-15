@@ -2,10 +2,34 @@
   "functions": {
     "api/index.php": {
       "runtime": "vercel-php@0.9.0",
-      "includeFiles": "{public/**,includes/**,admin/**,trainer/**,actions/**,vendor/**,data/**,config/**,*.png,*.ico,*.php,*.xml,*.txt,manifest.json,sw.js,.env}"
+      "includeFiles": "{public/**,includes/**,admin/**,trainer/**,actions/**,vendor/**,data/**,config/**,*.png,*.ico,*.php,*.xml,*.txt,manifest.json,sw.js}"
     }
   },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
+        { "key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()" }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Service-Worker-Allowed", "value": "/" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    }
+  ],
   "routes": [
+    {
+      "src": "^/(data|config|includes|scratch|scripts|uploads/documents|public/uploads/documents|\\.env|composer\\.(json|lock)|package(-lock)?\\.json)(/.*)?$",
+      "status": 403,
+      "dest": "/404.php"
+    },
     {
       "handle": "filesystem"
     },

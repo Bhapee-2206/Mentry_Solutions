@@ -196,6 +196,7 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                 Edit Opportunity
             </a>
             <form action="/actions/delete-opportunity.php" method="POST" onsubmit="return confirm('Are you sure you want to delete this opportunity?');">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                 <input type="hidden" name="id" value="<?= $oppId ?>">
                 <button type="submit" class="bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 text-xs font-bold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1">
                     <span class="material-symbols-outlined text-[16px]">delete</span>

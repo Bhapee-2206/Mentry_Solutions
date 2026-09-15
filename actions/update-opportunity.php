@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/locations.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/notifications.php';
 requireAdminOrStaff();
+requireCsrfToken();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id'] ?? '';

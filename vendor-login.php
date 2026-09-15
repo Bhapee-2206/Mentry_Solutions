@@ -26,60 +26,55 @@ if (isset($_GET['error']) && $_GET['error'] === 'vendor_required') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = strtolower(trim($_POST['email'] ?? ''));
-    $password = $_POST['password'] ?? '';
-
-    $emailErr = validateEmailInput($email);
-    if ($emailErr) {
-        $error = $emailErr;
-    } elseif (empty($password)) {
-        $error = "Password is required.";
+    if (!validateCsrfToken($_POST['csrf_token'] ?? null)) {
+        $error = "Security token invalid or expired. Please refresh the page and try again.";
     } else {
-        $userCol = getCollection("User");
-        $user = $userCol ? $userCol->findOne(['email' => $email]) : null;
+        $email = strtolower(trim($_POST['email'] ?? ''));
+        $password = $_POST['password'] ?? '';
 
-        // Check if account is locked out due to wrong password attempts
-        $lockCheck = checkLoginRateLimit($email);
-        if ($lockCheck['isLocked']) {
-            $error = $lockCheck['message'];
+        $emailErr = validateEmailInput($email);
+        if ($emailErr) {
+            $error = $emailErr;
+        } elseif (empty($password)) {
+            $error = "Password is required.";
         } else {
-            // Auto-seed demo vendor account or use fallback if database is offline/pending (bcrypt hash used, no plaintext)
-            if ((!$user || !isset($user['password'])) && $email === 'vendor@mentry.test' && password_verify($password, '$2y$10$5r2PqvH0GX2SF5e00FGyZeod4y4oPlzLSXljZjh25YVQQGgrc.REW')) {
-                $user = [
-                    '_id' => '65e000000000000000000010',
-                    'name' => 'Nexus EdTech Staffing Solutions',
-                    'email' => 'vendor@mentry.test',
-                    'role' => 'VENDOR',
-                    'organizationName' => 'Nexus EdTech Staffing Solutions',
-                    'organizationType' => 'STAFFING_VENDOR',
-                    'city' => 'Bengaluru',
-                    'state' => 'Karnataka'
-                ];
-            }
+            $userCol = getCollection("User");
+            $user = $userCol ? $userCol->findOne(['email' => $email]) : null;
 
-            if (!$user || (isset($user['password']) && !verifyPassword($password, $user['password']))) {
-                $failResult = recordFailedLoginAttempt($email);
-                $error = $failResult['message'];
-            } elseif ($user['role'] !== 'VENDOR' && $user['role'] !== 'COLLEGE' && $user['role'] !== 'ADMIN' && $user['role'] !== 'SUPER_ADMIN') {
-                $error = "This account is registered as a <strong>Trainer</strong>. Please use the <a href='/login.php' class='underline font-bold text-blue-700'>Trainer Login Portal</a>.";
+            // Check if account is locked out due to wrong password attempts
+            $lockCheck = checkLoginRateLimit($email);
+            if ($lockCheck['isLocked']) {
+                $error = $lockCheck['message'];
             } else {
-                // Successful verification: clear failed attempt counters
-                resetLoginAttempts($email);
+                // Auto-seed demo vendor account or use fallback if database is offline/pending (bcrypt hash used, no plaintext)
+                if ((!$user || !isset($user['password'])) && $email === 'vendor@mentry.test' && password_verify($password, '$2y$10$5r2PqvH0GX2SF5e00FGyZeod4y4oPlzLSXljZjh25YVQQGgrc.REW')) {
+                    $user = [
+                        '_id' => '65e000000000000000000010',
+                        'name' => 'Nexus EdTech Staffing Solutions',
+                        'email' => 'vendor@mentry.test',
+                        'role' => 'VENDOR',
+                        'organizationName' => 'Nexus EdTech Staffing Solutions',
+                        'organizationType' => 'STAFFING_VENDOR',
+                        'city' => 'Bengaluru',
+                        'state' => 'Karnataka'
+                    ];
+                }
 
-                $_SESSION['user'] = [
-                    'id' => (string)$user['_id'],
-                    'email' => $user['email'],
-                    'name' => $user['name'],
-                    'role' => $user['role'],
-                    'organizationName' => $user['organizationName'] ?? ($user['name'] ?? 'Partner Organization'),
-                    'avatar' => $user['avatar'] ?? null
-                ];
+                if (!$user || (isset($user['password']) && !verifyPassword($password, $user['password']))) {
+                    $failResult = recordFailedLoginAttempt($email);
+                    $error = $failResult['message'];
+                } elseif ($user['role'] !== 'VENDOR' && $user['role'] !== 'COLLEGE' && $user['role'] !== 'ADMIN' && $user['role'] !== 'SUPER_ADMIN') {
+                    $error = "This account is registered as a <strong>Trainer</strong>. Please use the <a href='/login.php' class='underline font-bold text-blue-700'>Trainer Login Portal</a>.";
+                } else {
+                    // Successful verification: clear failed attempt counters
+                    resetLoginAttempts($email);
 
-                setPersistentSessionCookie($_SESSION['user']);
+                    loginUserSession($user);
 
-                $redirect = $_GET['redirect'] ?? '/vendor/dashboard.php';
-                header("Location: " . $redirect);
-                exit();
+                    $redirect = $_GET['redirect'] ?? '/vendor/dashboard.php';
+                    header("Location: " . $redirect);
+                    exit();
+                }
             }
         }
     }
@@ -144,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" action="/vendor-login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" autocomplete="off" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Official Work Email ID</label>
                 <input type="email" id="emailInput" name="email" required placeholder="name@company.com" pattern="^[a-zA-Z0-9._%+-]+@(?!gmail\.co$)(?!yahoo\.co$)(?!hotmail\.co$)(?!outlook\.co$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid work email address (.co domain is not permitted for this provider)" value="<?= htmlspecialchars($_GET['email'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-900 font-medium">

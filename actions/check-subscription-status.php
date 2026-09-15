@@ -10,14 +10,14 @@ if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
-require_once __DIR__ . '/../includes/PushNotificationService.php';
+require_once __DIR__ . '/../includes/push/PushConfig.php';
 
 $rawInput = file_get_contents('php://input');
 $data = json_decode($rawInput, true) ?: [];
 $endpoint = cleanString($data['endpoint'] ?? ($_GET['endpoint'] ?? ($_POST['endpoint'] ?? '')), 2000);
 
 try {
-    $serverVapidKey = PushNotificationService::getPublicKey();
+    $serverVapidKey = PushConfig::getPublicKey();
     $currentUser = getCurrentUser();
     $userId = $currentUser['id'] ?? null;
 

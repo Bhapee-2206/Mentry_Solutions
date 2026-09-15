@@ -84,6 +84,7 @@ unset($_SESSION['upload_error']);
 
     <!-- Upload Card Form -->
     <form action="/actions/upload-document.php" method="POST" enctype="multipart/form-data" class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card p-4 sm:p-8 space-y-4 min-w-0">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
         <input type="hidden" name="trainerId" value="<?= $trainerId ?>">
 
         <div class="flex items-center gap-3 border-b border-slate-100 pb-3">

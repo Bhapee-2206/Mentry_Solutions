@@ -48,6 +48,7 @@ $endDateVal = $endTs ? date('Y-m-d', $endTs) : '';
         </a>
 
         <form action="/actions/delete-opportunity.php" method="POST" onsubmit="return confirm('Are you sure you want to permanently delete this opportunity and its applications?');">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="id" value="<?= $oppId ?>">
             <button type="submit" class="text-rose-600 hover:bg-rose-50 border border-rose-200 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1">
                 <span class="material-symbols-outlined text-[16px]">delete</span>
@@ -58,16 +59,17 @@ $endDateVal = $endTs ? date('Y-m-d', $endTs) : '';
 
     <div>
         <h1 class="text-2xl font-black text-slate-900 tracking-tight">Edit Training Opportunity</h1>
-        <p class="text-xs text-slate-500 mt-0.5">Job ID: <span class="font-mono font-bold text-slate-700"><?= htmlspecialchars($opp['jobId'] ?? $oppId) ?></span></p>
+        <p class="text-xs text-slate-500 mt-1 font-medium">Update parameters, domain, remuneration, or dates for Job ID <span class="font-bold text-slate-700"><?= htmlspecialchars($opp['jobId'] ?? $oppId) ?></span></p>
     </div>
 
-    <?php if (!empty($_GET['error'])): ?>
+    <?php if (isset($_GET['error'])): ?>
         <div class="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-bold">
             <?= htmlspecialchars($_GET['error']) ?>
         </div>
     <?php endif; ?>
 
     <form method="POST" action="/actions/update-opportunity.php" class="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-6">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
         <input type="hidden" name="id" value="<?= $oppId ?>">
 
         <div class="grid sm:grid-cols-2 gap-4">

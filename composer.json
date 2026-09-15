@@ -1,5 +1,9 @@
 {
     "name": "mentry/solution",
     "description": "Mentry Solutions Enterprise Technical Training Platform",
-    "require": {}
+    "license": "proprietary",
+    "require": {
+        "minishlink/web-push": "^11.0",
+        "guzzlehttp/guzzle": "^8.2"
+    }
 }

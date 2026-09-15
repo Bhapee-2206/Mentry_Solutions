@@ -113,6 +113,7 @@ $defaultMaxRate = max(5000, round($vendorBudget * 0.85 / 500) * 500);
 
     <!-- Review, Price Configuration & Approval Form -->
     <form action="/actions/process-vendor-request.php" method="POST" class="bg-white rounded-3xl border border-slate-200/90 shadow-card p-8 space-y-6">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
         <input type="hidden" name="requestId" value="<?= $reqId ?>">
 
         <div class="border-b border-slate-100 pb-4">

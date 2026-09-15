@@ -211,6 +211,7 @@ if (!empty($opportunityIds) && $asgCol) {
         </div>
 
         <form action="/actions/submit-training-feedback.php" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="assignmentId" id="vfAssignmentId" value="">
             <input type="hidden" name="feedbackType" value="VENDOR">
             <input type="hidden" name="redirectUrl" value="/vendor/assignments.php">

@@ -3,6 +3,9 @@
 ini_set('display_errors', '0');
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_WARNING);
 
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+}
 if (file_exists(__DIR__ . '/../includes/mongo_polyfill.php')) {
     require_once __DIR__ . '/../includes/mongo_polyfill.php';
 }
@@ -14,23 +17,61 @@ if (file_exists(__DIR__ . '/../includes/helpers.php')) {
 }
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+$cleanUri = ltrim($uri, '/');
+
+// Security: Enforce production security headers across all responses
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')) {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
+header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+
+// Security: Block direct HTTP access to data, config, .env, includes, scripts, and scratch directories
+if (preg_match('#^(?:data|config|includes|scratch|scripts|\.env|\.git|composer\.(?:json|lock)|package(?:-lock)?\.json)(?:/|$)#i', $cleanUri)) {
+    http_response_code(403);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => false, 'error' => 'Forbidden']);
+    exit();
+}
 
 // 1. Static asset bypass (images, icons, styles, fonts, sitemaps, robots, PWA manifest, service worker)
 if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xml|txt|json|webmanifest)$/i', $uri)) {
-    $cleanUri = ltrim($uri, '/');
     $basename = basename($cleanUri);
 
+    // Strict JSON restriction: Only public manifest.json may be served statically
+    $extCheck = strtolower(pathinfo($cleanUri, PATHINFO_EXTENSION));
+    if ($extCheck === 'json' && $basename !== 'manifest.json') {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'error' => 'Forbidden']);
+        exit();
+    }
+
+    // Never serve private trainer documents via static bypass (must go through authorized download/preview handlers)
+    if (strpos($cleanUri, 'uploads/documents') !== false) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'error' => 'Forbidden: Documents must be accessed via authorized viewer']);
+        exit();
+    }
+
     $candidates = [
-        __DIR__ . '/../' . $cleanUri,
         __DIR__ . '/../public/' . $basename,
         __DIR__ . '/../public/' . $cleanUri,
-        __DIR__ . '/../public/uploads/documents/' . $basename,
         __DIR__ . '/../public/uploads/avatars/' . $basename,
         __DIR__ . '/../' . $basename
     ];
 
     foreach ($candidates as $filePath) {
-        if (file_exists($filePath) && is_file($filePath)) {
+        // Ensure resolved realpath stays strictly outside protected directories
+        $realPath = realpath($filePath);
+        if ($realPath && is_file($realPath)) {
+            $normalizedPath = str_replace('\\', '/', $realPath);
+            if (preg_match('#/(?:data|config|includes|scratch|scripts|\.env)(?:/|$)#i', $normalizedPath)) {
+                continue;
+            }
             $mimeTypes = [
                 'png' => 'image/png',
                 'jpg' => 'image/jpeg',

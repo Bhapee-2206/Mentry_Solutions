@@ -29,6 +29,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 $saved = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrfToken();
     $professionalTitle = trim($_POST['professionalTitle'] ?? '');
     $primaryDomain = trim($_POST['primaryDomain'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
@@ -239,6 +240,7 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
                 <p class="text-xs text-slate-500 break-words">Upload a professional headshot for your college trainer dossier. JPG, PNG, or WebP format.</p>
 
                 <form action="/actions/upload-avatar.php" method="POST" enctype="multipart/form-data" class="flex flex-col sm:flex-row items-center gap-2.5 pt-1 w-full">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                     <input type="file" name="avatar" required accept="image/jpeg,image/png,image/webp" class="w-full sm:w-auto text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-2 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#FE5E04]/10 file:text-[#FE5E04] hover:file:bg-[#FE5E04]/20 cursor-pointer">
                     <button type="submit" class="w-full sm:w-auto justify-center bg-[#FE5E04] hover:bg-[#E04E00] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1 shrink-0">
                         <span class="material-symbols-outlined text-[16px]">upload</span>
@@ -294,6 +296,7 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
 
         <!-- Upload Form -->
         <form action="/actions/upload-document.php" method="POST" enctype="multipart/form-data" class="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-3">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="trainerId" value="<?= (string)($trainer['_id'] ?? '') ?>">
             <input type="hidden" name="type" value="RESUME">
             <input type="hidden" name="title" value="Technical Trainer Resume - <?= htmlspecialchars($user['name']) ?>">
@@ -313,6 +316,7 @@ $resumeUrl = $trainer['resumeUrl'] ?? ($resumeDoc['fileUrl'] ?? null);
     </div>
 
     <form method="POST" action="/trainer/profile.php" class="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-card space-y-6 min-w-0">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
         <div class="grid sm:grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name</label>

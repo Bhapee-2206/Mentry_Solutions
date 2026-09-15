@@ -60,6 +60,20 @@ if (!$trainer && !$user) {
     die("Trainer profile not found.");
 }
 
+// Security (Requirement 51 & 52): IDOR Protection
+// Trainers may strictly only download their own verified profile unless administrator or staff
+if (isTrainer() && !isAdminOrStaff()) {
+    $myTrainerId = (string)($_SESSION['user']['trainerId'] ?? '');
+    $myUserId = (string)($_SESSION['user']['id'] ?? '');
+    $targetTrainerId = (string)($trainer['_id'] ?? '');
+    $targetUserId = (string)($trainer['userId'] ?? ($user['_id'] ?? ''));
+
+    if ($targetTrainerId !== $myTrainerId && $targetUserId !== $myUserId) {
+        http_response_code(403);
+        die("Access Denied: You may only access your own verified trainer profile.");
+    }
+}
+
 $trainerName = trim($user['name'] ?? ($trainer['name'] ?? 'Faculty Trainer'));
 $mentryId = trim(getMentryCode('TRAINER', $trainer ?? $user));
 
@@ -102,8 +116,8 @@ function getTrainerAvatarData($user, $trainer) {
             $ch = curl_init($avatar);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
             curl_setopt($ch, CURLOPT_TIMEOUT, 6);
             $bytes = curl_exec($ch);
             curl_close($ch);
@@ -111,7 +125,7 @@ function getTrainerAvatarData($user, $trainer) {
         if (empty($bytes)) {
             $ctx = stream_context_create([
                 'http' => ['timeout' => 6, 'user_agent' => 'Mozilla/5.0'],
-                'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+                'ssl' => ['verify_peer' => true, 'verify_peer_name' => true]
             ]);
             $bytes = @file_get_contents($avatar, false, $ctx);
         }
@@ -140,6 +154,17 @@ if ($isPicDownload) {
         if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp'])) $ext = 'png';
         $picFilename = "{$cleanTrainerName}_{$cleanMentryId}_Photo.{$ext}";
         $mime = ($ext === 'jpg' || $ext === 'jpeg') ? 'image/jpeg' : (($ext === 'webp') ? 'image/webp' : 'image/png');
+
+        logSuccessfulDownload([
+            'documentId' => (string)($trainer['_id'] ?? $trainerId),
+            'fileName' => $picFilename,
+            'fileType' => $ext,
+            'documentType' => 'Photo',
+            'trainerId' => (string)($trainer['_id'] ?? $trainerId),
+            'trainerName' => $trainerName,
+            'ownerUserId' => (string)($trainer['userId'] ?? ($user['_id'] ?? '')),
+            'source' => 'trainer_photo'
+        ]);
 
         while (ob_get_level()) { ob_end_clean(); }
         header('Content-Description: File Transfer');
@@ -507,6 +532,17 @@ while (ob_get_level()) { ob_end_clean(); }
 
 $isInline = isset($_GET['view']) || isset($_GET['inline']);
 $disposition = $isInline ? 'inline' : 'attachment';
+
+logSuccessfulDownload([
+    'documentId' => (string)($trainer['_id'] ?? $trainerId),
+    'fileName' => $filename,
+    'fileType' => 'pdf',
+    'documentType' => 'Profile',
+    'trainerId' => (string)($trainer['_id'] ?? $trainerId),
+    'trainerName' => $trainerName,
+    'ownerUserId' => (string)($trainer['userId'] ?? ($user['_id'] ?? '')),
+    'source' => $isInline ? 'profile_inline_view' : 'trainer_dossier_pdf'
+]);
 
 header('Content-Description: File Transfer');
 header('Content-Type: application/pdf');

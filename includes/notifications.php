@@ -50,14 +50,18 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
             }
 
             if (!empty($trainerUserId)) {
-                // Check if already notified
+                $dedupNotifId = 'match_' . $trainerUserId . '_' . (string)$opportunityId;
+                // Check if already notified using deterministic ID or query
                 $existingNotif = $notifCol->findOne([
-                    'userId' => $trainerUserId,
-                    'opportunityId' => (string)$opportunityId
+                    '$or' => [
+                        ['_id' => $dedupNotifId],
+                        ['userId' => $trainerUserId, 'opportunityId' => (string)$opportunityId]
+                    ]
                 ]);
 
                 if (!$existingNotif) {
                     $insertRes = $notifCol->insertOne([
+                        '_id' => $dedupNotifId,
                         'userId' => $trainerUserId,
                         'trainerId' => (string)$trainer['_id'],
                         'opportunityId' => (string)$opportunityId,
@@ -69,7 +73,7 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
                         'read' => false,
                         'createdAt' => new MongoDB\BSON\UTCDateTime()
                     ]);
-                    $notifId = (string)$insertRes->getInsertedId();
+                    $notifId = $dedupNotifId;
 
                     $notifiedCount++;
                     $notifiedNames[] = $userName;
@@ -129,6 +133,15 @@ function notifyAdmin($type, $title, $message, $link = '', $metadata = []) {
         $notifCol = getCollection("Notification");
         if (!$notifCol) return false;
 
+        $idempotencyKey = $metadata['idempotencyKey'] ?? (!empty($metadata['opportunityId']) && !empty($metadata['milestone']) ? 'admin_' . $type . '_' . $metadata['opportunityId'] . '_' . $metadata['milestone'] : (!empty($metadata['opportunityId']) && $type === 'OPPORTUNITY_AUTO_CLOSED' ? 'admin_' . $type . '_' . $metadata['opportunityId'] : null));
+
+        if ($idempotencyKey) {
+            $existing = $notifCol->findOne(['_id' => $idempotencyKey]);
+            if ($existing) {
+                return true; // Already recorded idempotently, prevent duplicate creation
+            }
+        }
+
         $notifDoc = [
             'recipientRole' => 'ADMIN',
             'isAdminAlert' => true,
@@ -144,6 +157,9 @@ function notifyAdmin($type, $title, $message, $link = '', $metadata = []) {
             'read' => false,
             'createdAt' => new MongoDB\BSON\UTCDateTime()
         ];
+        if ($idempotencyKey) {
+            $notifDoc['_id'] = $idempotencyKey;
+        }
 
         $insertRes = $notifCol->insertOne($notifDoc);
         $adminNotifId = (string)$insertRes->getInsertedId();
@@ -384,10 +400,7 @@ function checkOpportunityScheduleMilestones($force = false) {
  */
 function dispatchWebPushNotification(array $filter, string $title, string $body, string $url = '/', array $extraData = []) {
     try {
-        require_once __DIR__ . '/PushNotificationService.php';
-
-        $subCol = getCollection("PushSubscription");
-        if (!$subCol) return false;
+        require_once __DIR__ . '/push/PushService.php';
 
         $notifType = strtoupper($extraData['type'] ?? 'GENERAL');
 
@@ -442,49 +455,30 @@ function dispatchWebPushNotification(array $filter, string $title, string $body,
             }
         }
 
-        $query = ['isActive' => true, 'isDead' => ['$ne' => true]];
-        if (isset($filter['userId'])) {
-            $uId = (string)$filter['userId'];
-            $trainerId = $extraData['trainerId'] ?? null;
-            if (empty($trainerId)) {
-                $trCol = getCollection("Trainer");
-                $t = $trCol ? $trCol->findOne(['userId' => $uId]) : null;
-                if ($t) $trainerId = (string)$t['_id'];
-            }
-
-            $orConditions = [
-                ['userId' => $uId],
-                ['userId' => (string)$uId]
-            ];
-            if (!empty($trainerId)) {
-                $orConditions[] = ['trainerId' => $trainerId];
-                $orConditions[] = ['trainerId' => (string)$trainerId];
-            }
-            $query['$or'] = $orConditions;
-        } else {
-            $query = array_merge($query, $filter);
-        }
-        $subscriptions = $subCol->find($query)->toArray();
-        if (empty($subscriptions)) return true;
-
         $notifId = (string)($extraData['notification_id'] ?? ($extraData['id'] ?? ('notif_' . substr(md5($title . $url . microtime()), 0, 12))));
         $priority = $extraData['priority'] ?? 'high';
 
-        $payloadData = array_merge([
-            'notification_id' => $notifId,
+        $payloadData = [
             'id' => $notifId,
             'title' => $title,
             'body' => $body,
-            'message' => $body,
             'url' => $url,
-            'link' => $url,
-            'opportunity_id' => $extraData['opportunity_id'] ?? ($extraData['opportunityId'] ?? null),
-            'type' => $extraData['type'] ?? 'GENERAL'
-        ], $extraData);
+            'type' => $notifType
+        ];
 
-        foreach ($subscriptions as $sub) {
-            PushNotificationService::sendToSubscription($sub, $payloadData, $priority);
+        if (isset($filter['userId'])) {
+            PushService::sendToUser((string)$filter['userId'], $payloadData, $priority);
+        } else {
+            // Broadcast or filtered query
+            $subCol = getCollection("PushSubscription");
+            if ($subCol) {
+                $subs = $subCol->find(array_merge(['isActive' => true, 'isDead' => ['$ne' => true]], $filter))->toArray();
+                foreach ($subs as $s) {
+                    PushService::sendToSubscription($s, $payloadData, $priority);
+                }
+            }
         }
+
         return true;
     } catch (\Throwable $e) {
         error_log("dispatchWebPushNotification notice: " . $e->getMessage());
