@@ -2,7 +2,7 @@
   "functions": {
     "api/index.php": {
       "runtime": "vercel-php@0.9.0",
-      "includeFiles": "{public/**,assets/**,includes/**,admin/**,trainer/**,actions/**,push/**,vendor/**,data/**,config/**,*.png,*.ico,*.php,*.xml,*.txt,manifest.json,sw.js,OneSignalSDKWorker.js}"
+      "includeFiles": "{public/**,assets/**,includes/**,admin/**,trainer/**,actions/**,push/**,vendor/**,data/**,config/**,*.png,*.ico,*.php,*.xml,*.txt,manifest.json,sw.js}"
     }
   },
   "headers": [
@@ -37,6 +37,10 @@
       "src": "^/(data|config|includes|scratch|scripts|uploads/documents|public/uploads/documents|\\.env|composer\\.(json|lock)|package(-lock)?\\.json)(/.*)?$",
       "status": 403,
       "dest": "/404.php"
+    },
+    {
+      "src": "^/push/onesignal/OneSignalSDKWorker\\.js$",
+      "dest": "/api/index.php"
     },
     {
       "handle": "filesystem"
