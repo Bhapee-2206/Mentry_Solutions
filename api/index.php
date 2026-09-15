@@ -57,13 +57,19 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xm
         exit();
     }
 
+    // Build candidate paths. For URIs with subdirectories, only use path-specific candidates
+    // to prevent stale root-level files from matching by basename alone.
+    $hasSubdir = strpos($cleanUri, '/') !== false;
     $candidates = [
         __DIR__ . '/../' . $cleanUri,
-        __DIR__ . '/../public/' . $basename,
         __DIR__ . '/../public/' . $cleanUri,
-        __DIR__ . '/../public/uploads/avatars/' . $basename,
-        __DIR__ . '/../' . $basename
     ];
+    if (!$hasSubdir) {
+        // Root-level files: also check public/ and root basename fallbacks
+        $candidates[] = __DIR__ . '/../public/' . $basename;
+        $candidates[] = __DIR__ . '/../public/uploads/avatars/' . $basename;
+        $candidates[] = __DIR__ . '/../' . $basename;
+    }
 
     foreach ($candidates as $filePath) {
         // Ensure resolved realpath stays strictly outside protected directories
