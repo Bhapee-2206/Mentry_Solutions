@@ -27,11 +27,11 @@ class MentryMailer {
         }
 
         $resolveConfig = function($key, $default = '') use ($env) {
-            if (!empty($env[$key]) && trim((string)$env[$key]) !== '') return trim((string)$env[$key]);
-            if (!empty($_ENV[$key]) && trim((string)$_ENV[$key]) !== '') return trim((string)$_ENV[$key]);
-            if (!empty($_SERVER[$key]) && trim((string)$_SERVER[$key]) !== '') return trim((string)$_SERVER[$key]);
             $val = getenv($key);
             if ($val !== false && trim((string)$val) !== '') return trim((string)$val);
+            if (!empty($_ENV[$key]) && trim((string)$_ENV[$key]) !== '') return trim((string)$_ENV[$key]);
+            if (!empty($_SERVER[$key]) && trim((string)$_SERVER[$key]) !== '') return trim((string)$_SERVER[$key]);
+            if (!empty($env[$key]) && trim((string)$env[$key]) !== '') return trim((string)$env[$key]);
             return $default;
         };
 
