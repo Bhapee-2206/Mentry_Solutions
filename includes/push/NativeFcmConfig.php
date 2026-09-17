@@ -110,8 +110,17 @@ class NativeFcmConfig {
         }
 
         if (!empty($privateKey)) {
-            // Normalize newline sequences in private key
-            $privateKey = str_replace('\n', "\n", $privateKey);
+            // Strip any existing PEM boundaries, whitespace, and escaped newlines
+            $cleanedKey = str_replace([
+                '-----BEGIN PRIVATE KEY-----',
+                '-----END PRIVATE KEY-----',
+                '-----BEGIN RSA PRIVATE KEY-----',
+                '-----END RSA PRIVATE KEY-----',
+                '\n', '\r', "\n", "\r", ' '
+            ], '', (string)$privateKey);
+
+            // Reconstruct canonical 64-character chunked PEM format accepted by OpenSSL
+            $privateKey = "-----BEGIN PRIVATE KEY-----\n" . chunk_split($cleanedKey, 64, "\n") . "-----END PRIVATE KEY-----\n";
         }
 
         self::$credentials = [
