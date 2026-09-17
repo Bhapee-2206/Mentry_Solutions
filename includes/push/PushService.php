@@ -6,7 +6,6 @@
 
 require_once __DIR__ . '/PushConfig.php';
 require_once __DIR__ . '/PushSubscriptionRepository.php';
-require_once __DIR__ . '/OneSignalService.php';
 
 use Minishlink\WebPush\WebPush;
 use Minishlink\WebPush\Subscription;
@@ -279,49 +278,6 @@ class PushService {
      * ]
      */
     public static function sendToUser(string $userId, array $payload, string $urgency = 'high'): array {
-        // Primary: If OneSignal is configured, dispatch via OneSignal REST API
-        if (OneSignalService::isConfigured()) {
-            $osRes = OneSignalService::sendToUser($userId, $payload, $urgency);
-            $accepted = !empty($osRes['accepted']);
-            $statusCode = $osRes['statusCode'] ?? ($accepted ? 200 : 500);
-            $recipients = $osRes['recipients'] ?? 0;
-            $reason = $osRes['reason'] ?? ($accepted ? 'Dispatched via OneSignal' : 'OneSignal dispatch failed');
-            $oneSignalId = $osRes['oneSignalId'] ?? null;
-
-            return [
-                'sent' => $accepted && ($recipients > 0 || empty($osRes['errors'])),
-                'provider' => 'OneSignal',
-                'acceptedCount' => $accepted ? 1 : 0,
-                'failedCount' => $accepted ? 0 : 1,
-                'subscriptionCount' => $recipients,
-                'statusCode' => $statusCode,
-                'reason' => $reason,
-                'oneSignalId' => $oneSignalId,
-                'errors' => $osRes['errors'] ?? null,
-                'rawResponse' => $osRes['rawResponse'] ?? null,
-                'results' => [
-                    [
-                        'accepted' => $accepted,
-                        'statusCode' => $statusCode,
-                        'reason' => $reason,
-                        'provider' => 'OneSignal',
-                        'oneSignalId' => $oneSignalId,
-                        'recipients' => $recipients,
-                        'endpointHost' => 'api.onesignal.com',
-                        'audience' => 'https://api.onesignal.com',
-                        'urgency' => $urgency,
-                        'ttl' => 86400,
-                        'safeHeaders' => [
-                            'x-provider' => 'OneSignal REST API v16',
-                            'x-onesignal-id' => (string)$oneSignalId,
-                            'x-recipients' => (string)$recipients
-                        ]
-                    ]
-                ]
-            ];
-        }
-
-        // Fallback: Local Custom VAPID subscriptions (only active if OneSignal is NOT configured)
         $subscriptions = PushSubscriptionRepository::findActiveForUser($userId);
         if (empty($subscriptions)) {
             return [

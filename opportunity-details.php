@@ -25,6 +25,13 @@ if (!$opp) {
 }
 
 $pageTitle = $opp['title'];
+$publicOpportunityId = (string)($opp['jobId'] ?? ($opp['_id'] ?? $id));
+$publicOpportunityUrl = rtrim(getAppUrl(), '/') . '/opportunity-details.php?id=' . rawurlencode($publicOpportunityId);
+$metaLocation = trim((string)($opp['city'] ?? '') . ', ' . (string)($opp['state'] ?? ''), ' ,');
+$metaDescription = trim(($opp['title'] ?? 'Training opportunity') . ' in ' . $metaLocation . '. ' . formatDate($opp['startDate']) . (!empty($opp['endDate']) ? ' to ' . formatDate($opp['endDate']) : '') . '. Daily remuneration: ' . formatINR($opp['dailyRateMin'] ?? 0) . ' - ' . formatINR($opp['dailyRateMax'] ?? 0) . '.');
+$canonicalUrl = $publicOpportunityUrl;
+$ogType = 'article';
+$ogImage = rtrim(getAppUrl(), '/') . '/public/mentry.png';
 $opStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
 $isOpportunityClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($opp['assignedTrainerId']) || isOpportunityPastCutoff($opp));
 $skills = is_string($opp['skillsRequired']) ? json_decode($opp['skillsRequired'], true) : (array)$opp['skillsRequired'];
@@ -186,6 +193,9 @@ require_once __DIR__ . '/includes/header.php';
                     <h1 class="text-2xl md:text-3xl font-extrabold text-slate-950 leading-tight">
                         <?= htmlspecialchars($opp['title']) ?>
                     </h1>
+                    <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode($publicOpportunityUrl)) ?>, <?= htmlspecialchars(json_encode($metaDescription)) ?>)">
+                        <span class="material-symbols-outlined text-base">share</span> Share Opportunity
+                    </button>
                     <p class="text-sm text-slate-500 font-medium flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-blue-600 text-lg">location_on</span>
                         <?= htmlspecialchars($opp['city']) ?>, <?= htmlspecialchars($opp['state']) ?>
@@ -323,6 +333,9 @@ require_once __DIR__ . '/includes/header.php';
                         <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                     </button>
                 <?php endif; ?>
+                <button type="button" class="inline-flex items-center gap-1.5 border border-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-slate-50" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode($publicOpportunityUrl)) ?>, <?= htmlspecialchars(json_encode($metaDescription)) ?>)">
+                    <span class="material-symbols-outlined text-[17px]">share</span> Share
+                </button>
             </div>
         </div>
     </div>
@@ -348,7 +361,7 @@ require_once __DIR__ . '/includes/header.php';
                     </p>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-                    <a href="/login.php" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 px-6 rounded-xl transition-all shadow-md text-center">Trainer Login</a>
+                    <a href="/login.php?redirect=<?= urlencode('/opportunity-details.php?id=' . $publicOpportunityId) ?>" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 px-6 rounded-xl transition-all shadow-md text-center">Trainer Login</a>
                     <a href="/register.php" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-3 px-6 rounded-xl transition-all shadow-md text-center">Join Network</a>
                 </div>
             </div>

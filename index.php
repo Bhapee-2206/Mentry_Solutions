@@ -436,6 +436,9 @@ require_once __DIR__ . '/includes/header.php';
                                     Apply Now
                                     <span class="material-symbols-outlined text-base">arrow_forward</span>
                                 </a>
+                                <button type="button" class="text-slate-600 hover:text-blue-600 text-xs font-bold inline-flex items-center gap-1" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode(rtrim(getAppUrl(), '/') . '/opportunity-details.php?id=' . rawurlencode($oppId))) ?>, <?= htmlspecialchars(json_encode(($opp['title'] ?? 'Opportunity') . ' - ' . ($opp['city'] ?? '') . ', ' . ($opp['state'] ?? ''))) ?>)">
+                                    <span class="material-symbols-outlined text-base">share</span>
+                                </button>
                             </div>
                         </div>
                     </div>

@@ -250,16 +250,11 @@ if (!empty($_SESSION['user']['id'])) {
         }
     };
 
-    // 3. Web Push Notification Integration (OneSignal + Mentry Push)
+    // 3. Native Web Push Notification Integration
     window.enablePushNotifications = async function() {
         if (pushBanner) {
             pushBanner.classList.add('hidden');
             pushBanner.classList.remove('block');
-        }
-        if (window.OneSignal) {
-            try {
-                await window.OneSignal.User.PushSubscription.optIn();
-            } catch (e) {}
         }
         if (window.MentryPush && typeof window.MentryPush.enable === 'function') {
             const success = await window.MentryPush.enable();
@@ -298,31 +293,4 @@ if (!empty($_SESSION['user']['id'])) {
 })();
 </script>
 
-<!-- OneSignal Web Push SDK v16 -->
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-<script>
-window.OneSignalDeferred = window.OneSignalDeferred || [];
-OneSignalDeferred.push(async function(OneSignal) {
-    try {
-        await OneSignal.init({
-            appId: "e2443de9-128c-4e5f-a964-03260aa8c627",
-            safari_web_id: "web.onesignal.auto.16fe94fe-85b7-4f18-b294-6465f1482156",
-            serviceWorkerPath: "push/onesignal/OneSignalSDKWorker.js",
-            serviceWorkerParam: { scope: "/push/onesignal/" }
-        });
-
-        const currentPwaUserId = "<?= htmlspecialchars($pwaUserId ?? '') ?>";
-        if (currentPwaUserId) {
-            await OneSignal.login(currentPwaUserId);
-            await OneSignal.User.addTags({
-                role: 'TRAINER',
-                mentry_user_id: currentPwaUserId
-            });
-            console.log('[OneSignal] Trainer identity registered:', currentPwaUserId);
-        }
-    } catch (osErr) {
-        console.warn('[OneSignal Init Note]', osErr);
-    }
-});
-</script>
 <script src="/assets/js/push-notifications.js" defer></script>

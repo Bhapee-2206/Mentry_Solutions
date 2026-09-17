@@ -19,15 +19,6 @@ if (file_exists(__DIR__ . '/../includes/helpers.php')) {
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $cleanUri = ltrim($uri, '/');
 
-// OneSignal dedicated service worker — hardcoded to bypass Vercel build artifact cache
-if ($cleanUri === 'push/onesignal/OneSignalSDKWorker.js') {
-    header('Content-Type: application/javascript; charset=utf-8');
-    header('Service-Worker-Allowed: /push/onesignal/');
-    header('Cache-Control: no-cache, no-store, must-revalidate');
-    echo "importScripts(\"https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js\");\n";
-    exit();
-}
-
 // Security: Enforce production security headers across all responses
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
@@ -113,14 +104,6 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|pdf|webp|xm
             // Service worker and push controller specific caching requirements
             if ($basename === 'sw.js') {
                 header('Service-Worker-Allowed: /');
-                header('Cache-Control: no-cache, no-store, must-revalidate');
-            } elseif ($basename === 'OneSignalSDKWorker.js') {
-                // Scope depends on which path is being served
-                if (strpos($cleanUri, 'push/onesignal/') !== false) {
-                    header('Service-Worker-Allowed: /push/onesignal/');
-                } else {
-                    header('Service-Worker-Allowed: /');
-                }
                 header('Cache-Control: no-cache, no-store, must-revalidate');
             } elseif ($basename === 'push-notifications.js') {
                 header('Cache-Control: no-cache, no-store, must-revalidate');

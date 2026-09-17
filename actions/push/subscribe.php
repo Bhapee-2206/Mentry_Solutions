@@ -11,6 +11,13 @@ if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/push/PushSubscriptionRepository.php';
 
+$currentUser = getCurrentUser();
+if (!$currentUser || empty($currentUser['id'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Authentication required.']);
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Method not allowed']);
@@ -44,13 +51,7 @@ if (strlen($p256dh) < 20 || strlen($auth) < 10) {
 }
 
 try {
-    $currentUser = getCurrentUser();
-    $userId = $currentUser['id'] ?? null;
-
-    // Allow diagnostic console or admin to link to specific trainer user ID
-    if (!empty($data['targetUserId'])) {
-        $userId = cleanString($data['targetUserId'], 50);
-    }
+    $userId = (string)$currentUser['id'];
 
     $meta = [
         'device' => $data['device'] ?? '',

@@ -5,7 +5,6 @@
 
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/push/PushConfig.php';
-require_once __DIR__ . '/includes/push/OneSignalService.php';
 
 $serverVapidRawBytesHash = 'N/A';
 $serverVapidStringHash = 'N/A';
@@ -15,14 +14,6 @@ try {
     $serverVapidRawBytesHash = hash('sha256', $rawBytes);
     $serverVapidStringHash = hash('sha256', $serverPubKey);
 } catch (\Throwable $e) {}
-
-$serverOsAppId = OneSignalService::getAppId();
-$serverOsKey = OneSignalService::getApiKey();
-$serverOsKeySource = OneSignalService::getApiKeySource();
-$serverOsConfigured = OneSignalService::isConfigured();
-$serverOsKeyPrefix = !empty($serverOsKey) ? substr($serverOsKey, 0, min(14, strlen($serverOsKey))) : '';
-$serverOsKeyMasked = !empty($serverOsKey) ? ($serverOsKeyPrefix . '...' . substr($serverOsKey, -4) . ' (len:' . strlen($serverOsKey) . ') [' . $serverOsKeySource . ']') : 'NOT SET';
-$osCredVerification = $serverOsConfigured ? OneSignalService::verifyCredentials() : ['valid' => false, 'error' => 'Not configured'];
 
 $trainerCol = getCollection("Trainer");
 $userCol = getCollection("User");
@@ -259,66 +250,31 @@ if ($trainerCol) {
             </div>
         </div>
 
-        <!-- 5. ONESIGNAL WEB PUSH STATUS & CONTROLLER -->
+        <!-- 5. NATIVE WEB PUSH STATUS -->
         <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
             <div class="flex items-center justify-between">
                 <h2 class="text-xs font-bold uppercase tracking-wider text-[#FE5E04] flex items-center gap-2">
                     <span class="material-symbols-outlined text-sm">notifications_active</span>
-                    5. ONESIGNAL WEB PUSH CONTROLLER
+                    5. NATIVE WEB PUSH CONTROLLER
                 </h2>
-                <span id="osStatusBadge" class="text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-800 text-slate-400 border-slate-700">Checking OneSignal...</span>
+                <span id="nativePushStatusBadge" class="text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-800 text-slate-400 border-slate-700">Checking...</span>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs font-mono">
                 <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Server API Key (Vercel)</div>
-                    <div class="font-bold mt-1 <?= $serverOsConfigured ? 'text-emerald-400' : 'text-rose-400' ?>">
-                        <?= $serverOsConfigured ? 'CONFIGURED (' . htmlspecialchars($serverOsKeyMasked) . ')' : 'NOT DETECTED' ?>
-                    </div>
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Push API</div>
+                    <div class="font-bold mt-1 text-emerald-400">Native Web Push + VAPID</div>
                 </div>
                 <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">OneSignal Gateway Auth</div>
-                    <div class="font-bold mt-1 <?= ($osCredVerification['valid'] ?? false) ? 'text-emerald-400' : 'text-rose-400' ?>">
-                        <?php if ($osCredVerification['valid'] ?? false): ?>
-                            ✓ VALID (<?= htmlspecialchars($osCredVerification['endpoint'] ?? '') ?>, Prefix: <?= htmlspecialchars($osCredVerification['authPrefix'] ?? 'Key') ?>)
-                        <?php else: ?>
-                            ✗ <?= htmlspecialchars($osCredVerification['error'] ?? ('HTTP ' . ($osCredVerification['httpCode'] ?? 401) . ' ' . json_encode($osCredVerification['raw'] ?? ''))) ?>
-                        <?php endif; ?>
-                    </div>
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">VAPID Configuration</div>
+                    <div class="font-bold mt-1 text-emerald-400">Loaded server-side</div>
                 </div>
                 <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Server App ID</div>
-                    <div class="font-bold mt-1 text-slate-300 break-all"><?= htmlspecialchars($serverOsAppId) ?></div>
-                </div>
-                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">OneSignal SDK (Client)</div>
-                    <div id="valOsLoaded" class="font-bold mt-1 text-slate-300">Checking...</div>
-                </div>
-                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Push Permission</div>
-                    <div id="valOsPermission" class="font-bold mt-1 text-slate-300">Checking...</div>
-                </div>
-                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Opted-In on Device</div>
-                    <div id="valOsOptedIn" class="font-bold mt-1 text-slate-300">Checking...</div>
-                </div>
-                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Linked External ID</div>
-                    <div id="valOsExternalId" class="font-bold mt-1 text-slate-300 break-all">Checking...</div>
+                    <div class="text-slate-500 text-[10px] uppercase font-sans font-bold">Gateway</div>
+                    <div class="font-bold mt-1 text-slate-300 break-all">Browser Push Service</div>
                 </div>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2 pt-1">
-                <button type="button" id="btnOsOptIn" class="px-4 py-2.5 rounded-xl bg-[#FE5E04] hover:bg-[#e04e00] text-white font-bold text-xs shadow-lg transition-all flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-sm">notifications_active</span>
-                    <span>1. Subscribe / Opt-In OneSignal</span>
-                </button>
-                <button type="button" id="btnOsLinkUser" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs shadow-lg transition-all flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-sm">link</span>
-                    <span>2. Link Trainer ID to OneSignal</span>
-                </button>
-            </div>
-            <div id="osResultNotice" class="hidden text-xs font-mono p-3 bg-slate-950 border border-slate-800 rounded-xl"></div>
         </div>
 
         <!-- 6. THREE BACKGROUND WAKE-UP TESTS -->
@@ -380,11 +336,11 @@ if ($trainerCol) {
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                     <div class="p-2 bg-slate-900 rounded-xl border border-slate-800">
                         <div id="lblEndpointHost" class="text-slate-500 text-[10px]">Gateway Host</div>
-                        <div id="detEndpointHost" class="font-bold text-slate-300 mt-0.5">api.onesignal.com</div>
+                        <div id="detEndpointHost" class="font-bold text-slate-300 mt-0.5">Browser Push Service</div>
                     </div>
                     <div class="p-2 bg-slate-900 rounded-xl border border-slate-800">
                         <div id="lblAudience" class="text-slate-500 text-[10px]">Audience / Provider</div>
-                        <div id="detAudience" class="font-bold text-slate-300 mt-0.5">https://api.onesignal.com</div>
+                        <div id="detAudience" class="font-bold text-slate-300 mt-0.5">Browser Push Gateway</div>
                     </div>
                     <div class="p-2 bg-slate-900 rounded-xl border border-slate-800">
                         <div class="text-slate-500 text-[10px]">TTL / Urgency</div>
@@ -915,15 +871,13 @@ if ($trainerCol) {
             // Populate push service details
             if (data.pushDetails) {
                 detCard.classList.remove('hidden');
-                const isOs = (data.provider === 'OneSignal' || data.pushDetails.provider === 'OneSignal');
-                document.getElementById('detEndpointHost').textContent = data.pushDetails.endpointHost || (isOs ? 'api.onesignal.com' : 'fcm.googleapis.com');
-                document.getElementById('detAudience').textContent = data.pushDetails.audience || (isOs ? 'https://api.onesignal.com' : 'https://fcm.googleapis.com');
-                document.getElementById('detTtlUrgency').textContent = `${data.pushDetails.ttl || 86400}s / ${data.pushDetails.urgency || 'high'}` + (data.oneSignalId ? ` [ID: ${data.oneSignalId.substring(0, 8)}...]` : '');
+                document.getElementById('detEndpointHost').textContent = data.pushDetails.endpointHost || 'unknown';
+                document.getElementById('detAudience').textContent = data.pushDetails.audience || 'unknown';
+                document.getElementById('detTtlUrgency').textContent = `${data.pushDetails.ttl || 86400}s / ${data.pushDetails.urgency || 'high'}`;
                 document.getElementById('detHttpStatus').textContent = `HTTP ${data.statusCode || 200} (${data.reason || 'Accepted'})`;
             }
 
-            const isOneSignal = (data.provider === 'OneSignal');
-            const providerName = isOneSignal ? 'OneSignal Push' : 'Push Gateway';
+            const providerName = 'Native Web Push';
 
             if (data.pushServiceAccepted || data.success) {
                 if (testType === 'A') {
@@ -931,7 +885,6 @@ if ($trainerCol) {
                         <div class="text-emerald-400 font-bold text-sm">✓ TEST A SENT via ${providerName} (HTTP ${data.statusCode || 200})</div>
                         <div class="text-slate-300">TEST_ID: <span class="text-white font-bold">${testId}</span></div>
                         <div class="text-slate-300">Target Recipients: <span class="text-white">${data.subscriptionCount || 1}</span></div>
-                        ${data.oneSignalId ? `<div class="text-slate-400 text-[11px]">OneSignal ID: <span class="text-emerald-300 font-mono">${data.oneSignalId}</span></div>` : ''}
                         <div class="text-amber-300 mt-1 font-sans">Tab is in foreground. Did the native notification appear?</div>
                         <div class="pt-1">
                             <button type="button" onclick="pollReceipt('${testId}')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
@@ -944,11 +897,10 @@ if ($trainerCol) {
                         <div class="text-emerald-400 font-bold text-sm">✓ TEST B DISPATCHED via ${providerName} (HTTP ${data.statusCode || 200})</div>
                         <div class="text-slate-300">TEST_ID: <span class="text-white font-bold">${testId}</span></div>
                         <div class="text-slate-300">Target Recipients: <span class="text-white">${data.subscriptionCount || 1}</span></div>
-                        ${data.oneSignalId ? `<div class="text-slate-400 text-[11px]">OneSignal ID: <span class="text-emerald-300 font-mono">${data.oneSignalId}</span></div>` : ''}
                         <div class="p-3 bg-amber-500/20 border border-amber-500/30 rounded-xl text-amber-200 font-sans mt-2 space-y-1">
                             <div class="font-bold text-sm">👉 PRESS ANDROID HOME BUTTON NOW!</div>
                             <div>Do NOT reopen Mentry. Do NOT swipe Chrome away.</div>
-                            <div>Wait 15–30 seconds. OneSignal will wake Chrome and display the notification.</div>
+                            <div>Wait 15–30 seconds for the browser push service to deliver the notification.</div>
                         </div>
                         <div class="pt-2">
                             <button type="button" onclick="pollReceipt('${testId}')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer">
@@ -961,7 +913,6 @@ if ($trainerCol) {
                         <div class="text-emerald-400 font-bold text-sm">✓ TEST C DISPATCHED via ${providerName} (HTTP ${data.statusCode || 200})</div>
                         <div class="text-slate-300">TEST_ID: <span class="text-white font-bold">${testId}</span></div>
                         <div class="text-slate-300">Target Recipients: <span class="text-white">${data.subscriptionCount || 1}</span></div>
-                        ${data.oneSignalId ? `<div class="text-slate-400 text-[11px]">OneSignal ID: <span class="text-emerald-300 font-mono">${data.oneSignalId}</span></div>` : ''}
                         <div class="p-3 bg-purple-500/20 border border-purple-500/30 rounded-xl text-purple-200 font-sans mt-2 space-y-1">
                             <div class="font-bold text-sm">👉 PRESS POWER BUTTON TO LOCK PHONE NOW!</div>
                             <div>Leave phone locked for 15–30 seconds. Observe if lock screen lights up or notification rings.</div>
@@ -976,7 +927,6 @@ if ($trainerCol) {
             } else {
                 outCard.innerHTML = `
                     <div class="text-rose-400 font-bold">Dispatch failed (${providerName}): HTTP ${data.statusCode || 500} - ${data.reason || data.error}</div>
-                    ${data.oneSignalId ? `<div class="text-slate-400 text-[11px]">OneSignal ID: ${data.oneSignalId}</div>` : ''}
                 `;
             }
 
@@ -1051,7 +1001,6 @@ if ($trainerCol) {
         if (selTrainer) {
             selTrainer.addEventListener('change', () => {
                 checkServerSubscriptionFreshness();
-                updateOsStatus();
             });
         }
 
@@ -1059,110 +1008,6 @@ if ($trainerCol) {
         await initializePushDiagnostics();
     });
 
-    // OneSignal Web Push SDK v16 Integration
-    async function updateOsStatus() {
-        if (!window.OneSignal) return;
-        try {
-            document.getElementById('valOsLoaded').textContent = 'YES (v16)';
-            document.getElementById('valOsLoaded').className = 'font-bold mt-1 text-emerald-400';
-
-            const perm = Notification.permission;
-            document.getElementById('valOsPermission').textContent = perm;
-            document.getElementById('valOsPermission').className = (perm === 'granted') ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-amber-400';
-
-            const optedIn = OneSignal.User.PushSubscription.optedIn;
-            document.getElementById('valOsOptedIn').textContent = optedIn ? 'YES' : 'NO';
-            document.getElementById('valOsOptedIn').className = optedIn ? 'font-bold mt-1 text-emerald-400' : 'font-bold mt-1 text-rose-400';
-
-            const extId = OneSignal.User.externalId || 'None';
-            document.getElementById('valOsExternalId').textContent = extId;
-            document.getElementById('valOsExternalId').className = (extId !== 'None') ? 'font-bold mt-1 text-emerald-400 break-all' : 'font-bold mt-1 text-slate-400 break-all';
-
-            const badge = document.getElementById('osStatusBadge');
-            if (badge) {
-                if (optedIn && extId !== 'None') {
-                    badge.textContent = '✓ Active on Device';
-                    badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-                } else if (optedIn) {
-                    badge.textContent = '⚠ Opted-In (No User Linked)';
-                    badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30';
-                } else {
-                    badge.textContent = '○ Not Subscribed';
-                    badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-800 text-slate-400 border-slate-700';
-                }
-            }
-        } catch (e) {
-            console.warn('[OneSignal Status Error]', e);
-        }
-    }
-    </script>
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-    <script>
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    OneSignalDeferred.push(async function(OneSignal) {
-        try {
-            await OneSignal.init({
-                appId: "e2443de9-128c-4e5f-a964-03260aa8c627",
-                safari_web_id: "web.onesignal.auto.16fe94fe-85b7-4f18-b294-6465f1482156",
-                serviceWorkerPath: "push/onesignal/OneSignalSDKWorker.js",
-                serviceWorkerParam: { scope: "/push/onesignal/" }
-            });
-
-            // Auto-link selected trainer
-            const selEl = document.getElementById('selectTargetTrainer');
-            const targetId = selEl ? selEl.value : '';
-            if (targetId) {
-                await OneSignal.login(targetId);
-                await OneSignal.User.addTags({ role: 'TRAINER', mentry_id: targetId });
-            }
-
-            await updateOsStatus();
-
-            OneSignal.User.PushSubscription.addEventListener('change', updateOsStatus);
-
-            // Bind OneSignal buttons
-            const btnOptIn = document.getElementById('btnOsOptIn');
-            if (btnOptIn) {
-                btnOptIn.addEventListener('click', async () => {
-                    const resNotice = document.getElementById('osResultNotice');
-                    resNotice.classList.remove('hidden');
-                    resNotice.innerHTML = '<span class="text-amber-300 animate-pulse">Requesting notification permission via OneSignal...</span>';
-                    try {
-                        await OneSignal.User.PushSubscription.optIn();
-                        await updateOsStatus();
-                        resNotice.innerHTML = '<span class="text-emerald-400 font-bold">✓ OneSignal Opt-In Successful! Device subscribed.</span>';
-                    } catch (err) {
-                        resNotice.innerHTML = `<span class="text-rose-400 font-bold">OneSignal Opt-In Error: ${err.message}</span>`;
-                    }
-                });
-            }
-
-            const btnLink = document.getElementById('btnOsLinkUser');
-            if (btnLink) {
-                btnLink.addEventListener('click', async () => {
-                    const sel = document.getElementById('selectTargetTrainer');
-                    const uid = sel ? sel.value : '';
-                    const resNotice = document.getElementById('osResultNotice');
-                    resNotice.classList.remove('hidden');
-                    if (!uid) {
-                        resNotice.innerHTML = '<span class="text-rose-400 font-bold">Please select a trainer profile first.</span>';
-                        return;
-                    }
-                    resNotice.innerHTML = `<span class="text-amber-300 animate-pulse">Linking ${uid} to OneSignal...</span>`;
-                    try {
-                        await OneSignal.login(uid);
-                        await OneSignal.User.addTags({ role: 'TRAINER', mentry_user_id: uid });
-                        await updateOsStatus();
-                        resNotice.innerHTML = `<span class="text-emerald-400 font-bold">✓ Successfully linked External ID "${uid}" in OneSignal!</span>`;
-                    } catch (err) {
-                        resNotice.innerHTML = `<span class="text-rose-400 font-bold">OneSignal Link Error: ${err.message}</span>`;
-                    }
-                });
-            }
-        } catch (e) {
-            console.error('[OneSignal Init Error]', e);
-        }
-    });
     </script>
 </body>
 </html>

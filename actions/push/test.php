@@ -45,11 +45,9 @@ if (empty($targetUserId)) {
     exit();
 }
 
-require_once __DIR__ . '/../../includes/push/OneSignalService.php';
-
 $subscriptions = PushSubscriptionRepository::findActiveForUser($targetUserId);
 
-if (!OneSignalService::isConfigured() && empty($subscriptions)) {
+if (empty($subscriptions)) {
     echo json_encode([
         'success' => false,
         'pushServiceAccepted' => false,
@@ -84,26 +82,22 @@ if ($isBackgroundTest) {
 
 $res = PushService::sendToUser($targetUserId, $payload, 'high');
 
-$provider = $res['provider'] ?? (OneSignalService::isConfigured() ? 'OneSignal' : 'VAPID');
+$provider = 'Native Web Push';
 $primaryResult = !empty($res['results']) ? $res['results'][0] : null;
 
-$isOneSignal = ($provider === 'OneSignal');
-$defaultHost = $isOneSignal ? 'api.onesignal.com' : 'fcm.googleapis.com';
-$defaultAudience = $isOneSignal ? 'https://api.onesignal.com' : 'https://fcm.googleapis.com';
+$defaultHost = 'unknown';
+$defaultAudience = 'unknown';
 
 $statusCode = $primaryResult['statusCode'] ?? ($res['statusCode'] ?? ($res['sent'] ? 200 : 500));
 $reason = $primaryResult['reason'] ?? ($res['reason'] ?? ($res['sent'] ? 'Accepted by push service' : 'Dispatch failed'));
 $endpointHost = $primaryResult['endpointHost'] ?? $defaultHost;
 $audience = $primaryResult['audience'] ?? $defaultAudience;
-$oneSignalId = $res['oneSignalId'] ?? ($primaryResult['oneSignalId'] ?? null);
-
 $pushDetails = [
     'provider' => $provider,
     'endpointHost' => $endpointHost,
     'audience' => $audience,
     'urgency' => $primaryResult['urgency'] ?? 'high',
     'ttl' => 86400,
-    'oneSignalId' => $oneSignalId,
     'safeHeaders' => $primaryResult['safeHeaders'] ?? []
 ];
 
@@ -117,6 +111,5 @@ echo json_encode([
     'acceptedCount' => $res['acceptedCount'] ?? 0,
     'failedCount' => $res['failedCount'] ?? 0,
     'testId' => $testNotificationId,
-    'oneSignalId' => $oneSignalId,
     'pushDetails' => $pushDetails
 ]);

@@ -1,8 +1,6 @@
-// OneSignal Web Push SDK Worker Integration
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
-const MENTRY_SW_VERSION = 'mentry-onesignal-v1';
-const CACHE_NAME = 'mentry-onesignal-v1';
+// Mentry native Web Push service worker.
+const MENTRY_SW_VERSION = 'mentry-native-webpush-v1';
+const CACHE_NAME = 'mentry-native-webpush-v1';
 const PRECACHE_ASSETS = [
     './manifest.json',
     './public/push-icon.png',
@@ -50,6 +48,20 @@ self.addEventListener('push', event => {
     event.waitUntil(handlePush(event, payload, testId));
 });
 
+self.addEventListener('pushsubscriptionchange', event => {
+    event.waitUntil((async () => {
+        const subscription = await self.registration.pushManager.getSubscription();
+        if (!subscription) return;
+        const json = subscription.toJSON();
+        await fetch('/actions/push/subscribe.php', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: subscription.endpoint, keys: json.keys || {} })
+        });
+    })().catch(() => {}));
+});
+
 async function handlePush(event, data, testId) {
     if (!data) {
         try {
@@ -69,8 +81,12 @@ async function handlePush(event, data, testId) {
         await self.registration.showNotification(title, {
             body,
             icon: '/public/push-icon.png',
+            badge: '/public/push-icon.png',
+            tag: data.id ? 'mentry-' + String(data.id) : undefined,
+            renotify: true,
             data: {
                 id: data.id || null,
+                notificationId: data.id || null,
                 type: data.type || 'GENERAL',
                 url: data.url || '/trainer/notifications.php',
                 testId: testId
@@ -107,6 +123,15 @@ async function handlePush(event, data, testId) {
             body: JSON.stringify(diagData)
         });
     } catch (e) {}
+
+    try {
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clients.forEach(client => client.postMessage({
+            type: 'PUSH_RECEIPT',
+            notification: { id: data.id || null, type: data.type || 'GENERAL' },
+            displayed: showSuccess
+        }));
+    } catch (e) {}
 }
 
 /*
@@ -118,13 +143,13 @@ self.addEventListener('notificationclick', event => {
     event.notification.close();
 
     const notifData = event.notification.data || {};
-    const rawUrl = notifData.url || '/';
+    const rawUrl = notifData.url || '/trainer/notifications.php';
 
     let targetUrl;
     try {
         targetUrl = new URL(rawUrl, self.registration.scope);
         const scopeUrl = new URL(self.registration.scope);
-        if (targetUrl.origin !== scopeUrl.origin) {
+        if (targetUrl.origin !== scopeUrl.origin || !targetUrl.pathname.startsWith(scopeUrl.pathname)) {
             targetUrl = new URL('/', self.registration.scope);
         }
     } catch {

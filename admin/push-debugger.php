@@ -56,15 +56,27 @@ $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
 $vapidValid = false;
 $vapidPublicKey = '';
 $vapidError = '';
+$vapidFingerprint = '';
 try {
     $vapidPublicKey = PushConfig::getPublicKey();
     $vapidValid = !empty($vapidPublicKey);
+    $vapidFingerprint = hash('sha256', base64_decode(strtr($vapidPublicKey, '-_', '+/')));
 } catch (\Throwable $e) {
     $vapidError = $e->getMessage();
 }
 
 $webPushInstalled = class_exists('\Minishlink\WebPush\WebPush');
 $totalActiveSubs = $subCol ? $subCol->countDocuments(['isActive' => true, 'isDead' => ['$ne' => true]]) : 0;
+$currentUser = getCurrentUser();
+$latestSubscriptionUpdate = 'N/A';
+if ($subCol) {
+    $latestSub = $subCol->findOne(['isActive' => true, 'isDead' => ['$ne' => true]], ['sort' => ['updatedAt' => -1]]);
+    if ($latestSub && isset($latestSub['updatedAt'])) {
+        $latestSubscriptionUpdate = is_object($latestSub['updatedAt'])
+            ? $latestSub['updatedAt']->toDateTime()->format('Y-m-d H:i:s')
+            : (string)$latestSub['updatedAt'];
+    }
+}
 
 // Step 12: Fetch recent server-side push transport logs
 $recentLogs = [];
@@ -152,6 +164,18 @@ include __DIR__ . '/includes/sidebar.php';
                     <?= $webPushInstalled ? '✓ Library Loaded' : '✗ Missing' ?>
                 </div>
             </div>
+            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+                <div class="text-slate-400">VAPID Public Fingerprint</div>
+                <div class="font-bold mt-1 text-slate-300 font-mono break-all"><?= htmlspecialchars($vapidFingerprint ?: 'Unavailable') ?></div>
+            </div>
+            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+                <div class="text-slate-400">Current Admin Session</div>
+                <div class="font-bold mt-1 text-slate-300"><?= htmlspecialchars(($currentUser['role'] ?? 'UNKNOWN') . ' / ' . ($currentUser['email'] ?? 'unknown')) ?></div>
+            </div>
+            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+                <div class="text-slate-400">Latest Subscription Update</div>
+                <div class="font-bold mt-1 text-slate-300"><?= htmlspecialchars($latestSubscriptionUpdate) ?></div>
+            </div>
         </div>
     </div>
 
@@ -221,7 +245,7 @@ include __DIR__ . '/includes/sidebar.php';
 
                 <div id="trainerDeviceInfo" class="hidden p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl text-xs space-y-1">
                     <div class="text-slate-400">Active Devices: <span id="deviceCountSpan" class="font-bold text-white">0</span></div>
-                    <div class="text-slate-500 text-[11px]">Push notifications will be sent directly to registered endpoints via Google FCM / browser push service.</div>
+                    <div class="text-slate-500 text-[11px]">Push notifications will be sent directly to registered browser push endpoints.</div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
