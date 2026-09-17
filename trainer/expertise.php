@@ -14,6 +14,43 @@ $trainerId = $trainer ? (string)$trainer['_id'] : '';
 $message = null;
 $error = null;
 
+// Handle skill edits and removal for this trainer only.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['updateSkill']) || isset($_POST['deleteSkill']))) {
+    requireCsrfToken();
+    $skillId = trim($_POST['skillId'] ?? '');
+    if ($skillCol && $trainerId && $skillId !== '') {
+        try {
+            $skillObjectId = new MongoDB\BSON\ObjectId($skillId);
+            $skillIdQuery = ['_id' => $skillObjectId];
+        } catch (\Throwable $e) {
+            $skillIdQuery = ['_id' => $skillId];
+        }
+        $ownedSkillQuery = array_merge($skillIdQuery, ['trainerId' => $trainerId]);
+
+        if (isset($_POST['deleteSkill'])) {
+            $skillCol->deleteOne($ownedSkillQuery);
+            $message = 'Technology skill removed.';
+        } else {
+            $name = trim($_POST['skillName'] ?? '');
+            $category = trim($_POST['category'] ?? 'Languages');
+            $level = trim($_POST['level'] ?? 'ADVANCED');
+            $years = max(0, (int)($_POST['yearsOfExperience'] ?? 0));
+            if ($name !== '') {
+                $skillCol->updateOne($ownedSkillQuery, ['$set' => [
+                    'name' => $name,
+                    'category' => $category,
+                    'proficiencyLevel' => $level,
+                    'yearsOfExperience' => $years,
+                    'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                ]]);
+                $message = "Skill '{$name}' updated.";
+            } else {
+                $error = 'Technology skill name is required.';
+            }
+        }
+    }
+}
+
 // Handle Add Skill
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['addSkill'])) {
     requireCsrfToken();
@@ -160,7 +197,8 @@ $experiences = $expCol && $trainerId ? $expCol->find(['trainerId' => $trainerId]
             <?php else: ?>
                 <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <?php foreach ($skills as $s): ?>
-                        <div class="p-3.5 rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-between">
+                        <div class="p-3.5 rounded-2xl border border-slate-100 bg-slate-50 space-y-3">
+                            <div class="flex items-center justify-between gap-3">
                             <div>
                                 <p class="font-bold text-xs text-slate-900"><?= htmlspecialchars($s['name']) ?></p>
                                 <p class="text-[10px] text-slate-400"><?= htmlspecialchars($s['category'] ?? 'Tech') ?> • <?= htmlspecialchars($s['yearsOfExperience'] ?? 3) ?> Yrs</p>
@@ -168,6 +206,38 @@ $experiences = $expCol && $trainerId ? $expCol->find(['trainerId' => $trainerId]
                             <span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
                                 <?= htmlspecialchars($s['proficiencyLevel'] ?? 'ADVANCED') ?>
                             </span>
+                            </div>
+                            <details>
+                                <summary class="cursor-pointer text-[11px] font-bold text-blue-600">Edit skill</summary>
+                                <form method="POST" action="/trainer/expertise.php" class="mt-3 space-y-2">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                                    <input type="hidden" name="updateSkill" value="1">
+                                    <input type="hidden" name="skillId" value="<?= htmlspecialchars((string)$s['_id']) ?>">
+                                    <input type="text" name="skillName" required value="<?= htmlspecialchars($s['name'] ?? '') ?>" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs">
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <select name="category" class="bg-white border border-slate-200 rounded-lg p-2 text-xs">
+                                            <?php foreach (['Languages' => 'Programming Languages', 'Frameworks' => 'Frameworks & Libraries', 'Cloud' => 'Cloud & Infrastructure', 'Database' => 'Databases & Big Data', 'AI' => 'AI & Machine Learning', 'Hardware' => 'Embedded & VLSI', 'Aptitude' => 'Quantitative & Verbal Aptitude', 'Soft Skills' => 'Soft Skills & Communication'] as $categoryValue => $categoryLabel): ?>
+                                                <option value="<?= htmlspecialchars($categoryValue) ?>" <?= ($s['category'] ?? '') === $categoryValue ? 'selected' : '' ?>><?= htmlspecialchars($categoryLabel) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <select name="level" class="bg-white border border-slate-200 rounded-lg p-2 text-xs">
+                                            <?php foreach (['EXPERT', 'ADVANCED', 'INTERMEDIATE'] as $levelValue): ?>
+                                                <option value="<?= $levelValue ?>" <?= ($s['proficiencyLevel'] ?? 'ADVANCED') === $levelValue ? 'selected' : '' ?>><?= $levelValue ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="number" name="yearsOfExperience" min="0" max="30" value="<?= htmlspecialchars($s['yearsOfExperience'] ?? 0) ?>" class="w-24 bg-white border border-slate-200 rounded-lg p-2 text-xs">
+                                        <button type="submit" class="flex-1 bg-blue-600 text-white rounded-lg p-2 text-xs font-bold">Save</button>
+                                    </div>
+                                </form>
+                                <form method="POST" action="/trainer/expertise.php" class="mt-2" onsubmit="return confirm('Remove this skill?');">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                                    <input type="hidden" name="deleteSkill" value="1">
+                                    <input type="hidden" name="skillId" value="<?= htmlspecialchars((string)$s['_id']) ?>">
+                                    <button type="submit" class="text-[11px] font-bold text-rose-600">Remove skill</button>
+                                </form>
+                            </details>
                         </div>
                     <?php endforeach; ?>
                 </div>

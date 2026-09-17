@@ -175,6 +175,7 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
             <?php endif; ?>
 
             <form action="/actions/toggle-opportunity-status.php" method="POST" class="inline">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                 <input type="hidden" name="opportunityId" value="<?= $oppId ?>">
                 <?php if ($isClosedOrMatched): ?>
                     <input type="hidden" name="action" value="reopen">
