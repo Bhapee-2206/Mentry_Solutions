@@ -137,6 +137,8 @@ if ($subCol) {
             'updatedAt' => isset($s['updatedAt']) ? (is_object($s['updatedAt']) ? $s['updatedAt']->toDateTime()->format('M d, H:i') : (string)$s['updatedAt']) : 'N/A'
         ];
     }
+}
+
 // Step 13: Query Native Android FCM Tokens & Configuration
 $totalNativeTokens = $nativeTokenCol ? $nativeTokenCol->countDocuments(['isActive' => true, 'isDead' => ['$ne' => true]]) : 0;
 $fcmConfigured = NativeFcmConfig::isConfigured();
