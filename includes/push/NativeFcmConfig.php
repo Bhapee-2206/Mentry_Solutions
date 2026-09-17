@@ -27,7 +27,21 @@ class NativeFcmConfig {
         // Check for full JSON payload in single env var (common in Vercel / serverless deployments)
         $fullJson = getenv('FCM_SERVICE_ACCOUNT_JSON') ?: ($_ENV['FCM_SERVICE_ACCOUNT_JSON'] ?? ($_SERVER['FCM_SERVICE_ACCOUNT_JSON'] ?? ''));
         if (!empty($fullJson)) {
-            $parsed = json_decode($fullJson, true);
+            $rawJson = trim($fullJson);
+            if ((str_starts_with($rawJson, "'") && str_ends_with($rawJson, "'")) ||
+                (str_starts_with($rawJson, '"') && str_ends_with($rawJson, '"') && !str_contains(substr($rawJson, 1, -1), '"'))) {
+                $rawJson = substr($rawJson, 1, -1);
+            }
+            $parsed = json_decode($rawJson, true);
+            if (!is_array($parsed)) {
+                $parsed = json_decode(stripslashes($rawJson), true);
+            }
+            if (!is_array($parsed)) {
+                $b64 = base64_decode($rawJson, true);
+                if ($b64) {
+                    $parsed = json_decode($b64, true);
+                }
+            }
             if (is_array($parsed)) {
                 $projectId = $projectId ?: ($parsed['project_id'] ?? '');
                 $clientEmail = $clientEmail ?: ($parsed['client_email'] ?? '');

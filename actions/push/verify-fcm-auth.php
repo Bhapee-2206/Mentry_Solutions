@@ -62,10 +62,22 @@ $fcmRelatedKeys = array_values(array_filter($allKeys, function($k) {
     return stripos($k, 'fcm') !== false || stripos($k, 'firebase') !== false;
 }));
 
+$rawFullJson = getenv('FCM_SERVICE_ACCOUNT_JSON') ?: ($_ENV['FCM_SERVICE_ACCOUNT_JSON'] ?? ($_SERVER['FCM_SERVICE_ACCOUNT_JSON'] ?? ''));
+$jsonParseDiagnostic = 'empty';
+if (!empty($rawFullJson)) {
+    $testParsed = json_decode($rawFullJson, true);
+    if (is_array($testParsed)) {
+        $jsonParseDiagnostic = 'valid_json_keys: ' . implode(',', array_keys($testParsed));
+    } else {
+        $jsonParseDiagnostic = 'json_decode_error: ' . json_last_error_msg() . ' (length: ' . strlen($rawFullJson) . ', starts: ' . substr($rawFullJson, 0, 10) . ')';
+    }
+}
+
 echo json_encode([
     'timestamp' => date('c'),
     'environment' => getenv('VERCEL') ? 'vercel_production' : 'local',
     'detectedFcmKeys' => $fcmRelatedKeys,
+    'jsonParseDiagnostic' => $jsonParseDiagnostic,
     'fcmConfigured' => $isConfigured,
     'projectId' => $projectId ?: 'missing',
     'clientEmailMasked' => $maskedEmail,
