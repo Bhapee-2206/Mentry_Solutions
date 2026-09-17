@@ -2,6 +2,9 @@
 // api/index.php - Vercel Serverless Entrypoint & Front Controller
 ini_set('display_errors', '0');
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_WARNING);
+if (!ob_get_level()) {
+    @ob_start();
+}
 
 if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     require_once __DIR__ . '/../vendor/autoload.php';

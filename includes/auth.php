@@ -189,13 +189,22 @@ function restoreSessionFromCookie() {
 }
 
 /**
- * Requirement 13: Centralized CSRF Protection with Serverless Cookie-Persistence
+ * Requirement 13: Centralized CSRF Protection with Serverless Cookie & HMAC Persistence
  */
 function getCsrfToken(): string {
     if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
         @session_start();
     }
 
+    // 1. For authenticated users, generate a secure HMAC-signed deterministic token based on user ID
+    $user = $_SESSION['user'] ?? null;
+    if (!empty($user['id'])) {
+        $userCsrf = hash_hmac('sha256', 'mentry_csrf:' . (string)$user['id'], getAuthSecret());
+        $_SESSION['csrf_token'] = $userCsrf;
+        return $userCsrf;
+    }
+
+    // 2. For guest forms, check session then cookie
     $token = $_SESSION['csrf_token'] ?? '';
     if (empty($token) && !empty($_COOKIE['mentry_csrf_token']) && preg_match('/^[a-f0-9]{32,64}$/i', (string)$_COOKIE['mentry_csrf_token'])) {
         $token = (string)$_COOKIE['mentry_csrf_token'];
@@ -238,13 +247,24 @@ function validateCsrfToken(?string $token = null): bool {
         return false;
     }
 
-    $sessionToken = $_SESSION['csrf_token'] ?? '';
-    $cookieToken = $_COOKIE['mentry_csrf_token'] ?? '';
+    // 1. Authenticated deterministic HMAC token validation
+    $user = getCurrentUser();
+    if (!empty($user['id'])) {
+        $expectedUserToken = hash_hmac('sha256', 'mentry_csrf:' . (string)$user['id'], getAuthSecret());
+        if (hash_equals($expectedUserToken, $candidate)) {
+            $_SESSION['csrf_token'] = $candidate;
+            return true;
+        }
+    }
 
+    // 2. Session token validation
+    $sessionToken = $_SESSION['csrf_token'] ?? '';
     if (!empty($sessionToken) && hash_equals($sessionToken, $candidate)) {
         return true;
     }
 
+    // 3. Cookie token validation
+    $cookieToken = $_COOKIE['mentry_csrf_token'] ?? '';
     if (!empty($cookieToken) && hash_equals($cookieToken, $candidate)) {
         $_SESSION['csrf_token'] = $candidate;
         return true;
@@ -260,6 +280,15 @@ function requireCsrfToken(): void {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Security validation failed: Invalid or missing CSRF token. Please refresh the page and try again.']);
         } else {
+            $referer = $_SERVER['HTTP_REFERER'] ?? '';
+            if (!empty($referer)) {
+                if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+                    @session_start();
+                }
+                $_SESSION['flash_error'] = "Security session expired. Please refresh the page and try again.";
+                header("Location: " . $referer);
+                exit();
+            }
             die("Security Error: Invalid or missing CSRF security token. Please return to the previous page and try again.");
         }
         exit();
