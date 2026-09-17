@@ -46,7 +46,32 @@ class NativeFcmConfig {
                 $projectId = $projectId ?: ($parsed['project_id'] ?? '');
                 $clientEmail = $clientEmail ?: ($parsed['client_email'] ?? '');
                 $privateKey = $privateKey ?: ($parsed['private_key'] ?? '');
+            } else {
+                // User may have pasted the private key string into FCM_SERVICE_ACCOUNT_JSON
+                if (str_contains($rawJson, 'MIIEv') || str_contains($rawJson, 'PRIVATE KEY')) {
+                    $cleanKey = $rawJson;
+                    if (!str_contains($cleanKey, 'BEGIN PRIVATE KEY')) {
+                        $cleanKey = "-----BEGIN PRIVATE KEY-----\n" . trim($cleanKey) . "\n-----END PRIVATE KEY-----\n";
+                    }
+                    $privateKey = $privateKey ?: $cleanKey;
+                }
             }
+        }
+
+        // Fallback to android/app/google-services.json for project_id if not yet set
+        if (empty($projectId)) {
+            $gsPath = __DIR__ . '/../../android/app/google-services.json';
+            if (file_exists($gsPath)) {
+                $gs = json_decode(file_get_contents($gsPath) ?: '', true);
+                if (!empty($gs['project_info']['project_id'])) {
+                    $projectId = (string)$gs['project_info']['project_id'];
+                }
+            }
+        }
+
+        // Fallback to project service account email if not set
+        if (empty($clientEmail) && !empty($projectId)) {
+            $clientEmail = "firebase-adminsdk-fbsvc@{$projectId}.iam.gserviceaccount.com";
         }
 
         // Try reading from .env file if env vars are empty
