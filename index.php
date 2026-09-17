@@ -366,7 +366,9 @@ require_once __DIR__ . '/includes/header.php';
             <?php foreach ($featuredOpportunities as $opp): 
                 $skills = is_string($opp['skillsRequired']) ? json_decode($opp['skillsRequired'], true) : (array)$opp['skillsRequired'];
                 if (!$skills) $skills = explode(',', (string)$opp['skillsRequired']);
-                $oppId = (string)$opp['_id'];
+                $oppId = (string)($opp['jobId'] ?? $opp['_id']);
+                $cardShareUrl = getCanonicalOpportunityShareUrl($opp);
+                $cardShareMessage = formatOpportunityShareMessage($opp);
             ?>
                 <div class="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-7 shadow-card hover:shadow-card-hover hover:border-blue-400 transition-all duration-300 group">
                     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
@@ -435,7 +437,7 @@ require_once __DIR__ . '/includes/header.php';
                                     Apply Now
                                     <span class="material-symbols-outlined text-base">arrow_forward</span>
                                 </a>
-                                <button type="button" class="text-slate-600 hover:text-blue-600 text-xs font-bold inline-flex items-center gap-1" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode(rtrim(getAppUrl(), '/') . '/opportunity-details.php?id=' . rawurlencode($oppId))) ?>, <?= htmlspecialchars(json_encode(($opp['title'] ?? 'Opportunity') . ' - ' . ($opp['city'] ?? '') . ', ' . ($opp['state'] ?? ''))) ?>)">
+                                <button type="button" class="text-slate-600 hover:text-blue-600 text-xs font-bold inline-flex items-center gap-1" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'] ?? 'Training Opportunity'), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars(json_encode($cardShareUrl), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars(json_encode($cardShareMessage), ENT_QUOTES, 'UTF-8') ?>)">
                                     <span class="material-symbols-outlined text-base">share</span>
                                 </button>
                             </div>

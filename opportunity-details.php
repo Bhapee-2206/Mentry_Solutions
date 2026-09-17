@@ -5,16 +5,7 @@ require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/auth.php';
 
 $id = $_GET['id'] ?? '';
-$opportunityCol = getCollection("Opportunity");
-
-$opp = null;
-if (!empty($id)) {
-    try {
-        $opp = $opportunityCol->findOne(['_id' => new MongoDB\BSON\ObjectId($id)]);
-    } catch (Exception $e) {
-        $opp = $opportunityCol->findOne(['jobId' => $id]);
-    }
-}
+$opp = findOpportunityById((string)$id);
 
 require_once __DIR__ . '/includes/notifications.php';
 checkOpportunityScheduleMilestones();
@@ -25,21 +16,26 @@ if (!$opp) {
 }
 
 $pageTitle = $opp['title'];
-$publicOpportunityId = (string)($opp['jobId'] ?? ($opp['_id'] ?? $id));
-$publicOpportunityUrl = rtrim(getAppUrl(), '/') . '/opportunity-details.php?id=' . rawurlencode($publicOpportunityId);
-$metaLocation = trim((string)($opp['city'] ?? '') . ', ' . (string)($opp['state'] ?? ''), ' ,');
-$metaDescription = trim(($opp['title'] ?? 'Training opportunity') . ' in ' . $metaLocation . '. ' . formatDate($opp['startDate']) . (!empty($opp['endDate']) ? ' to ' . formatDate($opp['endDate']) : '') . '. Daily remuneration: ' . formatINR($opp['dailyRateMin'] ?? 0) . ' - ' . formatINR($opp['dailyRateMax'] ?? 0) . '.');
-$shareDateStr = formatDate($opp['startDate']) . (!empty($opp['endDate']) ? ' - ' . formatDate($opp['endDate']) : '');
-$shareRateStr = formatINR($opp['dailyRateMin'] ?? 0) . (($opp['dailyRateMax'] ?? 0) > ($opp['dailyRateMin'] ?? 0) ? ' - ' . formatINR($opp['dailyRateMax']) : '') . '/day';
-$shareMessage = "New Mentry Solutions Training Opportunity\n\n" .
-    ($opp['title'] ?? 'Technical Trainer') . "\n" .
-    "Location: " . $metaLocation . "\n" .
-    "Dates: " . $shareDateStr . "\n" .
-    "Remuneration: " . $shareRateStr . "\n\n" .
-    "View details:\n" . $publicOpportunityUrl;
+$ogTitle = $opp['title'] . ' | Mentry Solutions';
+
+$publicOpportunityId = (string)($opp['jobId'] ?? ($opp['mentryId'] ?? ($opp['_id'] ?? $id)));
+$canonicalUrl = getCanonicalOpportunityShareUrl($opp);
+$publicOpportunityUrl = $canonicalUrl;
+
+$metaLocation = trim((string)($opp['city'] ?? '') . ', ' . (string)($opp['state'] ?? 'India'), ' ,');
+if (empty($metaLocation)) $metaLocation = 'Pan-India';
+
+$shareDateStr = formatDate($opp['startDate']) . (!empty($opp['endDate']) && $opp['endDate'] !== $opp['startDate'] ? ' – ' . formatDate($opp['endDate']) : '');
+$shareRateStr = formatINR($opp['dailyRateMin'] ?? 0) . (($opp['dailyRateMax'] ?? 0) > ($opp['dailyRateMin'] ?? 0) ? '–' . formatINR($opp['dailyRateMax']) : '') . '/day';
+
+$metaDescription = "Training opportunity in " . $metaLocation . (!empty($shareDateStr) ? " on " . $shareDateStr : "") . (!empty($shareRateStr) ? " — " . $shareRateStr : "") . ".";
+
+$shareMessage = formatOpportunityShareMessage($opp);
 $canonicalUrl = $publicOpportunityUrl;
 $ogType = 'article';
-$ogImage = rtrim(getAppUrl(), '/') . '/public/mentry.png';
+$ogImage = getCanonicalOpportunityImageUrl($opp);
+$twitterTitle = $ogTitle;
+$twitterDescription = $metaDescription;
 $opStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
 $isOpportunityClosed = !isOpportunityOpenForApplications($opp);
 $skills = is_string($opp['skillsRequired']) ? json_decode($opp['skillsRequired'], true) : (array)$opp['skillsRequired'];

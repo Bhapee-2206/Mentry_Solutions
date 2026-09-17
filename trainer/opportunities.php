@@ -347,17 +347,9 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
                 $conflict = ($trainer && !empty($trainerId)) ? checkTrainerOpportunityDateConflict($trainerId, $opp) : ['hasConflict' => false];
                 $hasConflict = !empty($conflict['hasConflict']);
 
-                $shareJobId = (string)($opp['jobId'] ?? $oppId);
-                $publicOppUrl = rtrim(getAppUrl(), '/') . '/opportunity-details.php?id=' . rawurlencode($shareJobId);
-                $cardLocation = trim((string)($opp['city'] ?? '') . ', ' . (string)($opp['state'] ?? ''), ' ,');
-                $cardDates = formatDate($opp['startDate'] ?? null) . (!empty($opp['endDate']) ? ' – ' . formatDate($opp['endDate']) : '');
-                $cardRate = formatINR($opp['dailyRateMin'] ?? 0) . (($opp['dailyRateMax'] ?? 0) > ($opp['dailyRateMin'] ?? 0) ? ' – ' . formatINR($opp['dailyRateMax']) : '') . '/day';
-                $cardShareMessage = "New Mentry Solutions Training Opportunity\n\n" .
-                    ($opp['title'] ?? 'Technical Trainer') . "\n" .
-                    "Location: " . $cardLocation . "\n" .
-                    "Dates: " . $cardDates . "\n" .
-                    "Remuneration: " . $cardRate . "\n\n" .
-                    "View details:\n" . $publicOppUrl;
+                $shareJobId = (string)($opp['jobId'] ?? ($opp['mentryId'] ?? $oppId));
+                $publicOppUrl = getCanonicalOpportunityShareUrl($opp);
+                $cardShareMessage = formatOpportunityShareMessage($opp);
 
                 // Data for inline modal
                 $oppDataJson = htmlspecialchars(json_encode([

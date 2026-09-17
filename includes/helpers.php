@@ -1163,6 +1163,122 @@ function getAppUrl(): string {
 }
 
 /**
+ * Canonical Mentry public production domain.
+ */
+const CANONICAL_PUBLIC_DOMAIN = 'https://mentry-solutions.vercel.app';
+
+/**
+ * Returns the single authoritative canonical public URL for an opportunity.
+ * Example: https://mentry-solutions.vercel.app/opportunity-details.php?id=MEN-OPP-1016
+ */
+function getCanonicalOpportunityShareUrl($oppOrId): string {
+    $publicId = '';
+    if (is_array($oppOrId) || is_object($oppOrId)) {
+        $arr = (array)$oppOrId;
+        $publicId = (string)($arr['jobId'] ?? ($arr['mentryId'] ?? ($arr['_id'] ?? '')));
+    } elseif (is_string($oppOrId)) {
+        $publicId = trim($oppOrId);
+    }
+    return CANONICAL_PUBLIC_DOMAIN . '/opportunity-details.php?id=' . rawurlencode($publicId);
+}
+
+/**
+ * Returns the authoritative Open Graph share preview image URL for an opportunity.
+ * Example: https://mentry-solutions.vercel.app/actions/share-opportunity-image.php?id=MEN-OPP-1016
+ */
+function getCanonicalOpportunityImageUrl($oppOrId): string {
+    $publicId = '';
+    if (is_array($oppOrId) || is_object($oppOrId)) {
+        $arr = (array)$oppOrId;
+        $publicId = (string)($arr['jobId'] ?? ($arr['mentryId'] ?? ($arr['_id'] ?? '')));
+    } elseif (is_string($oppOrId)) {
+        $publicId = trim($oppOrId);
+    }
+    return CANONICAL_PUBLIC_DOMAIN . '/actions/share-opportunity-image.php?id=' . rawurlencode($publicId);
+}
+
+/**
+ * Clean, authoritative WhatsApp / social message generator.
+ * Never duplicates URL. Uses structured emoji bullets.
+ */
+function formatOpportunityShareMessage($opp): string {
+    $arr = (array)$opp;
+    $title = trim((string)($arr['title'] ?? 'Technical Training Opportunity'));
+    $city = trim((string)($arr['city'] ?? ''));
+    $state = trim((string)($arr['state'] ?? 'India'));
+    $location = trim($city . (!empty($city) && !empty($state) ? ', ' : '') . $state);
+
+    $startDate = !empty($arr['startDate']) ? formatDate($arr['startDate']) : '';
+    $endDate = !empty($arr['endDate']) ? formatDate($arr['endDate']) : '';
+    $dates = $startDate . (!empty($endDate) && $endDate !== $startDate ? ' – ' . $endDate : '');
+
+    $minRate = (float)($arr['dailyRateMin'] ?? 0);
+    $maxRate = (float)($arr['dailyRateMax'] ?? 0);
+    $rate = '';
+    if ($minRate > 0 && $maxRate > 0 && $minRate !== $maxRate) {
+        $rate = formatINR($minRate) . ' – ' . formatINR($maxRate) . '/day';
+    } elseif ($minRate > 0) {
+        $rate = formatINR($minRate) . '/day';
+    } elseif ($maxRate > 0) {
+        $rate = formatINR($maxRate) . '/day';
+    }
+
+    $url = getCanonicalOpportunityShareUrl($arr);
+
+    $lines = ["📢 New Mentry Solutions Training Opportunity", "", $title];
+    if (!empty($location)) {
+        $lines[] = "📍 " . $location;
+    }
+    if (!empty($dates)) {
+        $lines[] = "📅 " . $dates;
+    }
+    if (!empty($rate)) {
+        $lines[] = "💰 " . $rate;
+    }
+    $lines[] = "";
+    $lines[] = "View full details and apply here 👇";
+    $lines[] = $url;
+
+    return implode("\n", $lines);
+}
+
+/**
+ * Safely finds an opportunity by public Job ID, Mentry ID, or string / ObjectId.
+ * Never throws on non-hex IDs. Returns null if not found.
+ */
+function findOpportunityById(string $id): ?array {
+    $cleanId = trim($id);
+    if (empty($cleanId)) return null;
+
+    $col = getCollection("Opportunity");
+    if (!$col) return null;
+
+    try {
+        $opp = $col->findOne(['jobId' => $cleanId]);
+        if ($opp) return (array)$opp;
+    } catch (\Throwable $e) {}
+
+    try {
+        $opp = $col->findOne(['mentryId' => $cleanId]);
+        if ($opp) return (array)$opp;
+    } catch (\Throwable $e) {}
+
+    try {
+        $opp = $col->findOne(['_id' => $cleanId]);
+        if ($opp) return (array)$opp;
+    } catch (\Throwable $e) {}
+
+    if (preg_match('/^[a-f0-9]{24}$/i', $cleanId)) {
+        try {
+            $opp = $col->findOne(['_id' => new \MongoDB\BSON\ObjectId($cleanId)]);
+            if ($opp) return (array)$opp;
+        } catch (\Throwable $e) {}
+    }
+
+    return null;
+}
+
+/**
  * Automatically evaluates assignment dates and synchronizes assignment & trainer statuses:
  * - If past end date (time() > endDate) => status becomes COMPLETED
  * - If current (startDate <= time() <= endDate) => status becomes IN_PROGRESS

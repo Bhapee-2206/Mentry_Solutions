@@ -63,7 +63,7 @@ if ($currentUser) {
     <!-- Open Graph (Facebook, LinkedIn, AI Social Previews) -->
     <meta property="og:type" content="<?= htmlspecialchars($ogType) ?>">
     <meta property="og:site_name" content="Mentry Solutions">
-    <meta property="og:title" content="<?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Mentry Solutions - Managed Trainer Network">
+    <meta property="og:title" content="<?= htmlspecialchars($ogTitle ?? (isset($pageTitle) ? $pageTitle . ' | Mentry Solutions - Managed Trainer Network' : 'Mentry Solutions - Managed Trainer Network')) ?>">
     <meta property="og:description" content="<?= htmlspecialchars($metaDescription) ?>">
     <meta property="og:url" content="<?= htmlspecialchars($canonicalUrl) ?>">
     <meta property="og:image" content="<?= htmlspecialchars($ogImage) ?>">
@@ -71,7 +71,7 @@ if ($currentUser) {
 
     <!-- Twitter / X Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="<?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?>Mentry Solutions">
+    <meta name="twitter:title" content="<?= htmlspecialchars($twitterTitle ?? ($ogTitle ?? (isset($pageTitle) ? $pageTitle . ' | Mentry Solutions' : 'Mentry Solutions'))) ?>">
     <meta name="twitter:description" content="<?= htmlspecialchars($metaDescription) ?>">
     <meta name="twitter:image" content="<?= htmlspecialchars($ogImage) ?>">
 
