@@ -1135,6 +1135,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
 
         <form action="/actions/relieve-trainer.php" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="assignmentId" id="reliefAssignmentId" value="">
             <input type="hidden" name="trainerId" id="reliefTrainerId" value="">
             <input type="hidden" name="opportunityId" value="<?= $oppId ?>">
