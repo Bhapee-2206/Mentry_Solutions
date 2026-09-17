@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mentry_orange">#FE5E04</color>
+    <color name="mentry_dark">#060D17</color>
+    <color name="mentry_slate_900">#0F172A</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+</resources>

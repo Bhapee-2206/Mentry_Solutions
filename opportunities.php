@@ -189,7 +189,17 @@ require_once __DIR__ . '/includes/header.php';
                         <?php foreach ($opportunities as $opp): 
                             $skills = is_string($opp['skillsRequired']) ? json_decode($opp['skillsRequired'], true) : (array)$opp['skillsRequired'];
                             if (!$skills) $skills = explode(',', (string)$opp['skillsRequired']);
-                            $oppId = (string)$opp['_id'];
+                            $oppId = (string)($opp['jobId'] ?? ($opp['_id'] ?? ''));
+                            $cardOppUrl = rtrim(getAppUrl(), '/') . '/opportunity-details.php?id=' . rawurlencode($oppId);
+                            $cardLocation = trim((string)($opp['city'] ?? '') . ', ' . (string)($opp['state'] ?? ''), ' ,');
+                            $cardDates = formatDate($opp['startDate']) . (!empty($opp['endDate']) ? ' - ' . formatDate($opp['endDate']) : '');
+                            $cardRate = formatINR($opp['dailyRateMin'] ?? 0) . (($opp['dailyRateMax'] ?? 0) > ($opp['dailyRateMin'] ?? 0) ? ' - ' . formatINR($opp['dailyRateMax']) : '') . '/day';
+                            $cardShareMessage = "New Mentry Solutions Training Opportunity\n\n" .
+                                ($opp['title'] ?? 'Technical Trainer') . "\n" .
+                                "Location: " . $cardLocation . "\n" .
+                                "Dates: " . $cardDates . "\n" .
+                                "Remuneration: " . $cardRate . "\n\n" .
+                                "View details:\n" . $cardOppUrl;
                         ?>
                             <div class="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-7 shadow-card hover:shadow-card-hover hover:border-blue-400 transition-all duration-300 group">
                                 <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
@@ -258,7 +268,7 @@ require_once __DIR__ . '/includes/header.php';
                                                 Apply Now
                                                 <span class="material-symbols-outlined text-base">arrow_forward</span>
                                             </a>
-                                            <button type="button" class="text-slate-600 hover:text-blue-600 text-xs font-bold inline-flex items-center gap-1" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode(rtrim(getAppUrl(), '/') . '/opportunity-details.php?id=' . rawurlencode($oppId))) ?>, <?= htmlspecialchars(json_encode(($opp['title'] ?? 'Opportunity') . ' - ' . ($opp['city'] ?? '') . ', ' . ($opp['state'] ?? ''))) ?>)">
+                                            <button type="button" class="text-slate-600 hover:text-blue-600 text-xs font-bold inline-flex items-center gap-1" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode($cardOppUrl)) ?>, <?= htmlspecialchars(json_encode($cardShareMessage)) ?>)">
                                                 <span class="material-symbols-outlined text-base">share</span> Share
                                             </button>
                                         </div>

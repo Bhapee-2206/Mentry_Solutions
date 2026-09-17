@@ -33,7 +33,14 @@
         });
     }
 
+    function isNativeAndroid() {
+        return !!(window.MentryAndroid || (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.includes('MentryAndroidApp')));
+    }
+
     function isPushSupported() {
+        if (isNativeAndroid()) {
+            return false;
+        }
         return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
     }
 
@@ -232,6 +239,11 @@
      * Check current subscription status without prompting user
      */
     async function checkStatus() {
+        if (isNativeAndroid()) {
+            notifyState(PushStates.CONNECTED, { nativeFcm: true, message: 'Managed by Native Android FCM' });
+            return PushStates.CONNECTED;
+        }
+
         if (!isPushSupported()) {
             notifyState(PushStates.UNSUPPORTED);
             return PushStates.UNSUPPORTED;

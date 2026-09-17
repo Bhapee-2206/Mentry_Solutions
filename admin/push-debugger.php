@@ -1,20 +1,24 @@
 <?php
-// admin/push-debugger.php - Clean Web Push Diagnostics & Live Testing
+// admin/push-debugger.php - Web Push & Native Android FCM Diagnostics & Live Testing
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/push/PushConfig.php';
 require_once __DIR__ . '/../includes/push/PushSubscriptionRepository.php';
+require_once __DIR__ . '/../includes/push/NativeFcmConfig.php';
+require_once __DIR__ . '/../includes/push/NativePushTokenRepository.php';
 
 requireAdminOrStaff();
 
-$pageTitle = 'Web Push Diagnostics & Live Testing';
+$pageTitle = 'Push Diagnostics (Browser Web Push & Native Android FCM)';
 $user = getCurrentUser();
 
 $trainerCol = getCollection("Trainer");
 $userCol = getCollection("User");
 $subCol = getCollection("PushSubscription");
+$nativeTokenCol = getCollection("NativePushToken");
 $transportLogCol = getCollection("PushTransportLog");
+$nativeTransportLogCol = getCollection("NativePushTransportLog");
 
 $trainersList = [];
 if ($trainerCol) {
@@ -37,12 +41,25 @@ if ($trainerCol) {
             ]);
         }
 
+        $nativeCount = 0;
+        if ($nativeTokenCol) {
+            $nativeCount = $nativeTokenCol->countDocuments([
+                'isActive' => true,
+                'isDead' => ['$ne' => true],
+                '$or' => [
+                    ['userId' => $tUserId],
+                    ['trainerId' => $tId]
+                ]
+            ]);
+        }
+
         $trainersList[] = [
             'id' => $tId,
             'userId' => $tUserId,
             'code' => $t['trainerCode'] ?? ($t['mentryId'] ?? 'N/A'),
             'name' => $tName,
-            'activeDevices' => $deviceCount
+            'activeDevices' => $deviceCount,
+            'nativeDevices' => $nativeCount
         ];
     }
 }
@@ -111,6 +128,25 @@ if ($subCol) {
             'updatedAt' => isset($s['updatedAt']) ? (is_object($s['updatedAt']) ? $s['updatedAt']->toDateTime()->format('M d, H:i') : (string)$s['updatedAt']) : 'N/A'
         ];
     }
+// Step 13: Query Native Android FCM Tokens & Configuration
+$totalNativeTokens = $nativeTokenCol ? $nativeTokenCol->countDocuments(['isActive' => true, 'isDead' => ['$ne' => true]]) : 0;
+$fcmConfigured = NativeFcmConfig::isConfigured();
+$fcmProjectId = NativeFcmConfig::getProjectId();
+
+$activeNativeDevices = [];
+if ($nativeTokenCol) {
+    $nativeCursor = $nativeTokenCol->find(['isActive' => true, 'isDead' => ['$ne' => true]], ['sort' => ['updatedAt' => -1], 'limit' => 10]);
+    foreach ($nativeCursor as $nd) {
+        $th = $nd['tokenHash'] ?? hash('sha256', $nd['fcmToken'] ?? '');
+        $activeNativeDevices[] = [
+            'userId' => (string)($nd['userId'] ?? 'N/A'),
+            'tokenHash' => substr($th, 0, 14),
+            'deviceModel' => $nd['deviceModel'] ?? 'Android Device',
+            'androidVersion' => $nd['androidVersion'] ?? 'Unknown',
+            'appVersion' => $nd['appVersion'] ?? '1.0.0',
+            'updatedAt' => isset($nd['updatedAt']) ? (is_object($nd['updatedAt']) ? $nd['updatedAt']->toDateTime()->format('M d, H:i') : (string)$nd['updatedAt']) : 'N/A'
+        ];
+    }
 }
 
 include __DIR__ . '/includes/sidebar.php';
@@ -167,6 +203,16 @@ include __DIR__ . '/includes/sidebar.php';
             <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
                 <div class="text-slate-400">VAPID Public Fingerprint</div>
                 <div class="font-bold mt-1 text-slate-300 font-mono break-all"><?= htmlspecialchars($vapidFingerprint ?: 'Unavailable') ?></div>
+            </div>
+            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+                <div class="text-slate-400">Native Android FCM</div>
+                <div class="font-bold mt-1 <?= $fcmConfigured ? 'text-emerald-400' : 'text-amber-400' ?>">
+                    <?= $fcmConfigured ? '✓ HTTP v1 (' . htmlspecialchars($fcmProjectId) . ')' : '⚠ Service Account Pending' ?>
+                </div>
+            </div>
+            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+                <div class="text-slate-400">Active Android Devices</div>
+                <div class="font-bold mt-1 text-emerald-400 font-mono"><?= $totalNativeTokens ?> Registered</div>
             </div>
             <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
                 <div class="text-slate-400">Current Admin Session</div>
@@ -236,26 +282,32 @@ include __DIR__ . '/includes/sidebar.php';
                     <select id="trainerSelector" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-[#FE5E04]">
                         <option value="">-- Choose a registered trainer --</option>
                         <?php foreach ($trainersList as $tr): ?>
-                            <option value="<?= htmlspecialchars($tr['userId']) ?>" data-trainer-id="<?= htmlspecialchars($tr['id']) ?>" data-devices="<?= $tr['activeDevices'] ?>">
-                                <?= htmlspecialchars($tr['name']) ?> (<?= htmlspecialchars($tr['code']) ?>) — <?= $tr['activeDevices'] ?> device(s)
+                            <option value="<?= htmlspecialchars($tr['userId']) ?>" data-trainer-id="<?= htmlspecialchars($tr['id']) ?>" data-devices="<?= $tr['activeDevices'] ?>" data-native-devices="<?= $tr['nativeDevices'] ?>">
+                                <?= htmlspecialchars($tr['name']) ?> (<?= htmlspecialchars($tr['code']) ?>) — Web: <?= $tr['activeDevices'] ?>, Android: <?= $tr['nativeDevices'] ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
                 <div id="trainerDeviceInfo" class="hidden p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl text-xs space-y-1">
-                    <div class="text-slate-400">Active Devices: <span id="deviceCountSpan" class="font-bold text-white">0</span></div>
-                    <div class="text-slate-500 text-[11px]">Push notifications will be sent directly to registered browser push endpoints.</div>
+                    <div class="text-slate-400">Browser WebPush Devices: <span id="deviceCountSpan" class="font-bold text-white">0</span></div>
+                    <div class="text-slate-400">Native Android Devices: <span id="nativeDeviceCountSpan" class="font-bold text-emerald-400">0</span></div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                    <button type="button" id="btnSendTestPush" onclick="dispatchTestPush(false)" disabled class="w-full bg-[#FE5E04] hover:bg-[#e04e00] disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs py-3 px-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
-                        <span class="material-symbols-outlined text-[17px]">send</span>
-                        <span>Send Normal Test</span>
-                    </button>
-                    <button type="button" id="btnSendBgTestPush" onclick="dispatchTestPush(true)" disabled class="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800 disabled:text-slate-500 text-amber-300 font-bold text-xs py-3 px-3 rounded-xl border border-amber-500/30 shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
-                        <span class="material-symbols-outlined text-[17px]">phonelink_ring</span>
-                        <span>BACKGROUND ONLY TEST</span>
+                <div class="space-y-2 pt-1">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button type="button" id="btnSendTestPush" onclick="dispatchTestPush(false)" disabled class="w-full bg-[#FE5E04] hover:bg-[#e04e00] disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs py-3 px-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                            <span class="material-symbols-outlined text-[17px]">send</span>
+                            <span>Browser Web Push</span>
+                        </button>
+                        <button type="button" id="btnSendBgTestPush" onclick="dispatchTestPush(true)" disabled class="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800 disabled:text-slate-500 text-amber-300 font-bold text-xs py-3 px-3 rounded-xl border border-amber-500/30 shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                            <span class="material-symbols-outlined text-[17px]">phonelink_ring</span>
+                            <span>Browser BG Test</span>
+                        </button>
+                    </div>
+                    <button type="button" id="btnSendNativeFcmTest" onclick="dispatchNativeFcmTest()" disabled class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs py-3 px-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span class="material-symbols-outlined text-[17px]">android</span>
+                        <span>Send Native Android FCM Test</span>
                     </button>
                 </div>
             </div>
@@ -359,6 +411,49 @@ include __DIR__ . '/includes/sidebar.php';
                 </table>
             </div>
         <?php endif; ?>
+    <!-- Active Native Android Devices in Database (Safe view: zero secret tokens) -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm text-emerald-400">android</span>
+                ACTIVE ANDROID FCM DEVICES (HASHED SAFE VIEW)
+            </h2>
+            <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
+                <?= $totalNativeTokens ?> Active Android Devices
+            </span>
+        </div>
+        <?php if (empty($activeNativeDevices)): ?>
+            <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-slate-500 italic">
+                No active Android FCM devices registered yet. Open the Mentry Android app and sign in to register.
+            </div>
+        <?php else: ?>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead>
+                        <tr class="text-slate-500 border-b border-slate-800">
+                            <th class="py-2.5 px-3">User ID</th>
+                            <th class="py-2.5 px-3">Token Hash (sha256)</th>
+                            <th class="py-2.5 px-3">Device Model</th>
+                            <th class="py-2.5 px-3">OS Version</th>
+                            <th class="py-2.5 px-3">App Version</th>
+                            <th class="py-2.5 px-3">Last Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-slate-300">
+                        <?php foreach ($activeNativeDevices as $ad): ?>
+                            <tr>
+                                <td class="py-2 px-3"><?= htmlspecialchars($ad['userId']) ?></td>
+                                <td class="py-2 px-3 text-slate-400"><?= htmlspecialchars($ad['tokenHash']) ?>...</td>
+                                <td class="py-2 px-3 text-emerald-400"><?= htmlspecialchars($ad['deviceModel']) ?></td>
+                                <td class="py-2 px-3 text-slate-400"><?= htmlspecialchars($ad['androidVersion']) ?></td>
+                                <td class="py-2 px-3 text-slate-400"><?= htmlspecialchars($ad['appVersion']) ?></td>
+                                <td class="py-2 px-3 text-slate-500"><?= htmlspecialchars($ad['updatedAt']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -366,25 +461,81 @@ include __DIR__ . '/includes/sidebar.php';
 <script>
 const trainerSelector = document.getElementById('trainerSelector');
 const btnSendTestPush = document.getElementById('btnSendTestPush');
+const btnSendBgTestPush = document.getElementById('btnSendBgTestPush');
+const btnSendNativeFcmTest = document.getElementById('btnSendNativeFcmTest');
 const deviceInfo = document.getElementById('trainerDeviceInfo');
 const deviceCountSpan = document.getElementById('deviceCountSpan');
+const nativeDeviceCountSpan = document.getElementById('nativeDeviceCountSpan');
 const resultContainer = document.getElementById('testResultContainer');
-const btnSendBgTestPush = document.getElementById('btnSendBgTestPush');
 
 trainerSelector.addEventListener('change', function() {
     const opt = this.options[this.selectedIndex];
     if (this.value) {
         const devices = parseInt(opt.getAttribute('data-devices') || '0', 10);
+        const nativeDevices = parseInt(opt.getAttribute('data-native-devices') || '0', 10);
         deviceCountSpan.textContent = devices;
+        if (nativeDeviceCountSpan) nativeDeviceCountSpan.textContent = nativeDevices;
         deviceInfo.classList.remove('hidden');
         btnSendTestPush.disabled = false;
         if (btnSendBgTestPush) btnSendBgTestPush.disabled = false;
+        if (btnSendNativeFcmTest) btnSendNativeFcmTest.disabled = false;
     } else {
         deviceInfo.classList.add('hidden');
         btnSendTestPush.disabled = true;
         if (btnSendBgTestPush) btnSendBgTestPush.disabled = true;
+        if (btnSendNativeFcmTest) btnSendNativeFcmTest.disabled = true;
     }
 });
+
+async function dispatchNativeFcmTest() {
+    const opt = trainerSelector.options[trainerSelector.selectedIndex];
+    const userId = trainerSelector.value;
+    const trainerId = opt.getAttribute('data-trainer-id') || '';
+
+    if (!userId) return;
+
+    const origHtml = btnSendNativeFcmTest.innerHTML;
+    btnSendNativeFcmTest.disabled = true;
+    btnSendNativeFcmTest.innerHTML = '<span class="material-symbols-outlined text-[17px] animate-spin">refresh</span><span>Dispatching Native FCM...</span>';
+    resultContainer.innerHTML = '<div class="text-emerald-400 animate-pulse font-bold">Connecting to Firebase Cloud Messaging HTTP v1 API...</div>';
+
+    try {
+        const fd = new FormData();
+        fd.append('userId', userId);
+        fd.append('trainerId', trainerId);
+
+        const res = await fetch('/actions/push/test-native-fcm.php', {
+            method: 'POST',
+            body: fd
+        });
+        const data = await res.json();
+
+        if (data.fcmAccepted || data.success) {
+            resultContainer.innerHTML = `
+                <div class="text-emerald-400 font-bold text-sm">✓ Firebase Cloud Messaging (HTTP v1) Accepted!</div>
+                <div class="text-slate-300">HTTP Status: <span class="text-emerald-300 font-bold">${data.statusCode || 200}</span></div>
+                <div class="text-slate-300">FCM Response: <span class="text-slate-400">${data.reason || 'Accepted by FCM'}</span></div>
+                <div class="text-slate-300">Target Devices: <span class="text-white font-bold">${data.tokenCount || 1}</span> (Accepted: ${data.acceptedCount || 1})</div>
+                <div class="text-slate-300">Message ID: <span class="text-sky-300 font-mono text-[11px] break-all">${data.messageId || 'N/A'}</span></div>
+                <div class="text-slate-300">Test ID: <span class="text-amber-300 font-bold font-mono">${data.testId}</span></div>
+                <div class="text-[11px] text-emerald-300/80 mt-2 font-sans bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/20">
+                    ✓ Native Android message delivered via Google Play Services / FCM daemon. Notification will display in Android system tray regardless of whether app is open, minimized, locked, or backgrounded.
+                </div>
+            `;
+        } else {
+            resultContainer.innerHTML = `
+                <div class="text-rose-400 font-bold text-sm">✗ Native FCM Dispatch Failed</div>
+                <div class="text-slate-300 mt-1">${data.error || data.reason || 'Dispatch rejected'}</div>
+                <div class="text-slate-500 text-[11px] mt-1 font-sans">Verify FCM credentials in environment (FCM_PROJECT_ID, FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY) and ensure target trainer has registered an active Android app.</div>
+            `;
+        }
+    } catch (e) {
+        resultContainer.innerHTML = `<div class="text-rose-400 font-bold">Network / Script Error: ${e.message}</div>`;
+    } finally {
+        btnSendNativeFcmTest.disabled = false;
+        btnSendNativeFcmTest.innerHTML = origHtml;
+    }
+}
 
 async function dispatchTestPush(isBackground = false) {
     const opt = trainerSelector.options[trainerSelector.selectedIndex];

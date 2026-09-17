@@ -5,6 +5,23 @@
 
 <script src="/assets/js/opportunity-share.js" defer></script>
 
+<!-- Native Android FCM Bridge Integration -->
+<script>
+(function() {
+    if (window.MentryAndroid) {
+        <?php if (!empty($currentUser['id'])): ?>
+        if (typeof window.MentryAndroid.syncUserSession === 'function') {
+            try {
+                window.MentryAndroid.syncUserSession('<?= htmlspecialchars($currentUser['id'], ENT_QUOTES, 'UTF-8') ?>');
+            } catch (e) {
+                console.warn('[MentryAndroid] Session sync exception:', e);
+            }
+        }
+        <?php endif; ?>
+    }
+})();
+</script>
+
 <footer class="bg-[#060D17] text-slate-300 border-t border-slate-800/80 pt-16 pb-12 antialiased">
     <div class="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-slate-800/80">

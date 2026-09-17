@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mentry Solutions</string>
+    <string name="channel_name">Mentry Alerts</string>
+    <string name="channel_description">Instant notifications for college training opportunities, invitations, and schedule updates.</string>
+    <string name="notification_permission_title">Enable Mentry Notifications</string>
+    <string name="notification_permission_message">Stay instantly informed about new campus requirements and training assignments.</string>
+</resources>

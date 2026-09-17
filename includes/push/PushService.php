@@ -6,6 +6,8 @@
 
 require_once __DIR__ . '/PushConfig.php';
 require_once __DIR__ . '/PushSubscriptionRepository.php';
+require_once __DIR__ . '/NativeFcmService.php';
+require_once __DIR__ . '/NativePushTokenRepository.php';
 
 use Minishlink\WebPush\WebPush;
 use Minishlink\WebPush\Subscription;
@@ -278,20 +280,28 @@ class PushService {
      * ]
      */
     public static function sendToUser(string $userId, array $payload, string $urgency = 'high'): array {
-        $subscriptions = PushSubscriptionRepository::findActiveForUser($userId);
-        if (empty($subscriptions)) {
-            return [
-                'sent' => false,
-                'acceptedCount' => 0,
-                'failedCount' => 0,
-                'subscriptionCount' => 0,
-                'results' => []
-            ];
-        }
-
         $acceptedCount = 0;
         $failedCount = 0;
-        $results = [];
+        $allResults = [];
+        $totalTargets = 0;
+
+        // 1. Dispatch to Native Android FCM devices
+        $nativeResult = null;
+        try {
+            $nativeResult = NativeFcmService::sendToUser($userId, $payload);
+            $acceptedCount += $nativeResult['acceptedCount'];
+            $failedCount += $nativeResult['failedCount'];
+            $totalTargets += $nativeResult['tokenCount'];
+            foreach ($nativeResult['results'] as $nr) {
+                $allResults[] = array_merge($nr, ['transport' => 'native_fcm']);
+            }
+        } catch (\Throwable $e) {
+            error_log('[PushService Native FCM Error] ' . $e->getMessage());
+        }
+
+        // 2. Dispatch to Browser Web Push subscriptions
+        $subscriptions = PushSubscriptionRepository::findActiveForUser($userId);
+        $totalTargets += count($subscriptions);
 
         foreach ($subscriptions as $sub) {
             $res = self::sendToSubscription($sub, $payload, $urgency);
@@ -300,15 +310,17 @@ class PushService {
             } else {
                 $failedCount++;
             }
-            $results[] = $res;
+            $allResults[] = array_merge($res, ['transport' => 'browser_webpush']);
         }
 
         return [
             'sent' => ($acceptedCount > 0),
             'acceptedCount' => $acceptedCount,
             'failedCount' => $failedCount,
-            'subscriptionCount' => count($subscriptions),
-            'results' => $results
+            'subscriptionCount' => $totalTargets,
+            'nativeFcmCount' => $nativeResult ? $nativeResult['tokenCount'] : 0,
+            'browserWebPushCount' => count($subscriptions),
+            'results' => $allResults
         ];
     }
 

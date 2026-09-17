@@ -29,6 +29,14 @@ $publicOpportunityId = (string)($opp['jobId'] ?? ($opp['_id'] ?? $id));
 $publicOpportunityUrl = rtrim(getAppUrl(), '/') . '/opportunity-details.php?id=' . rawurlencode($publicOpportunityId);
 $metaLocation = trim((string)($opp['city'] ?? '') . ', ' . (string)($opp['state'] ?? ''), ' ,');
 $metaDescription = trim(($opp['title'] ?? 'Training opportunity') . ' in ' . $metaLocation . '. ' . formatDate($opp['startDate']) . (!empty($opp['endDate']) ? ' to ' . formatDate($opp['endDate']) : '') . '. Daily remuneration: ' . formatINR($opp['dailyRateMin'] ?? 0) . ' - ' . formatINR($opp['dailyRateMax'] ?? 0) . '.');
+$shareDateStr = formatDate($opp['startDate']) . (!empty($opp['endDate']) ? ' - ' . formatDate($opp['endDate']) : '');
+$shareRateStr = formatINR($opp['dailyRateMin'] ?? 0) . (($opp['dailyRateMax'] ?? 0) > ($opp['dailyRateMin'] ?? 0) ? ' - ' . formatINR($opp['dailyRateMax']) : '') . '/day';
+$shareMessage = "New Mentry Solutions Training Opportunity\n\n" .
+    ($opp['title'] ?? 'Technical Trainer') . "\n" .
+    "Location: " . $metaLocation . "\n" .
+    "Dates: " . $shareDateStr . "\n" .
+    "Remuneration: " . $shareRateStr . "\n\n" .
+    "View details:\n" . $publicOpportunityUrl;
 $canonicalUrl = $publicOpportunityUrl;
 $ogType = 'article';
 $ogImage = rtrim(getAppUrl(), '/') . '/public/mentry.png';
@@ -193,7 +201,7 @@ require_once __DIR__ . '/includes/header.php';
                     <h1 class="text-2xl md:text-3xl font-extrabold text-slate-950 leading-tight">
                         <?= htmlspecialchars($opp['title']) ?>
                     </h1>
-                    <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode($publicOpportunityUrl)) ?>, <?= htmlspecialchars(json_encode($metaDescription)) ?>)">
+                    <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode($publicOpportunityUrl)) ?>, <?= htmlspecialchars(json_encode($shareMessage)) ?>)">
                         <span class="material-symbols-outlined text-base">share</span> Share Opportunity
                     </button>
                     <p class="text-sm text-slate-500 font-medium flex items-center gap-1.5">
@@ -333,7 +341,7 @@ require_once __DIR__ . '/includes/header.php';
                         <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                     </button>
                 <?php endif; ?>
-                <button type="button" class="inline-flex items-center gap-1.5 border border-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-slate-50" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode($publicOpportunityUrl)) ?>, <?= htmlspecialchars(json_encode($metaDescription)) ?>)">
+                <button type="button" class="inline-flex items-center gap-1.5 border border-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-slate-50" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode($publicOpportunityUrl)) ?>, <?= htmlspecialchars(json_encode($shareMessage)) ?>)">
                     <span class="material-symbols-outlined text-[17px]">share</span> Share
                 </button>
             </div>

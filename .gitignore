@@ -6,6 +6,11 @@
 .env.local
 .env.*.local
 config/vapid.json
+config/firebase_credentials.json
+/android/.gradle/
+/android/app/build/
+/android/.gradle_home/
+/android/local.properties
 
 # Large demo video artifacts
 *.webp
