@@ -57,9 +57,15 @@ if ($isConfigured && $privateKeyValid) {
     }
 }
 
+$allKeys = array_unique(array_merge(array_keys($_SERVER), array_keys($_ENV)));
+$fcmRelatedKeys = array_values(array_filter($allKeys, function($k) {
+    return stripos($k, 'fcm') !== false || stripos($k, 'firebase') !== false;
+}));
+
 echo json_encode([
     'timestamp' => date('c'),
     'environment' => getenv('VERCEL') ? 'vercel_production' : 'local',
+    'detectedFcmKeys' => $fcmRelatedKeys,
     'fcmConfigured' => $isConfigured,
     'projectId' => $projectId ?: 'missing',
     'clientEmailMasked' => $maskedEmail,
