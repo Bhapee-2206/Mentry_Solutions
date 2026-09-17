@@ -96,6 +96,28 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
         </div>
     </div>
 
+    <?php if (!empty($_SESSION['flash_success']) || !empty($_GET['success'])): ?>
+        <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between shadow-2xs">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
+                <span><?= htmlspecialchars($_SESSION['flash_success'] ?? 'Action completed successfully.') ?></span>
+            </div>
+            <button type="button" onclick="this.parentElement.remove()" class="text-emerald-500 hover:text-emerald-700"><span class="material-symbols-outlined text-sm">close</span></button>
+        </div>
+        <?php unset($_SESSION['flash_success']); ?>
+    <?php endif; ?>
+
+    <?php if (!empty($_SESSION['flash_error']) || !empty($_GET['error'])): ?>
+        <div class="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between shadow-2xs">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-rose-600 text-base">error</span>
+                <span><?= htmlspecialchars($_SESSION['flash_error'] ?? $_GET['error']) ?></span>
+            </div>
+            <button type="button" onclick="this.parentElement.remove()" class="text-rose-400 hover:text-rose-700"><span class="material-symbols-outlined text-sm">close</span></button>
+        </div>
+        <?php unset($_SESSION['flash_error']); ?>
+    <?php endif; ?>
+
     <!-- Quick Stats Metric Cards -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <a href="/admin/opportunities.php" class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card hover:border-slate-300 transition-colors block">
@@ -204,7 +226,7 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
                                         </a>
                                         <?php 
                                         $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
-                                        $opIsClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']));
+                                        $opIsClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || (function_exists('isOpportunityFullyStaffed') ? isOpportunityFullyStaffed($op) : !empty($op['assignedTrainerId'])));
                                         ?>
                                         <form action="/actions/toggle-opportunity-status.php" method="POST" class="inline">
                                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">

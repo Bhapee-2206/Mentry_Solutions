@@ -189,34 +189,68 @@ function restoreSessionFromCookie() {
 }
 
 /**
- * Requirement 13: Centralized CSRF Protection
+ * Requirement 13: Centralized CSRF Protection with Serverless Cookie-Persistence
  */
 function getCsrfToken(): string {
     if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
         @session_start();
     }
-    if (empty($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+    $token = $_SESSION['csrf_token'] ?? '';
+    if (empty($token) && !empty($_COOKIE['mentry_csrf_token']) && preg_match('/^[a-f0-9]{32,64}$/i', (string)$_COOKIE['mentry_csrf_token'])) {
+        $token = (string)$_COOKIE['mentry_csrf_token'];
+        $_SESSION['csrf_token'] = $token;
     }
-    return $_SESSION['csrf_token'];
+    if (empty($token)) {
+        $token = bin2hex(random_bytes(32));
+        $_SESSION['csrf_token'] = $token;
+    }
+
+    if (!headers_sent()) {
+        $isHttps = isHttpsRequest();
+        $cookieOptions = [
+            'expires' => time() + (30 * 86400),
+            'path' => '/',
+            'secure' => $isHttps,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ];
+        if (empty($_COOKIE['mentry_csrf_token']) || $_COOKIE['mentry_csrf_token'] !== $token) {
+            setcookie('mentry_csrf_token', $token, $cookieOptions);
+            $_COOKIE['mentry_csrf_token'] = $token;
+        }
+    }
+
+    return $token;
 }
 
 function validateCsrfToken(?string $token = null): bool {
     if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
         @session_start();
     }
-    $sessionToken = $_SESSION['csrf_token'] ?? '';
-    if (empty($sessionToken)) {
-        return false;
-    }
+
     $candidate = $token 
         ?? ($_POST['csrf_token'] 
         ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] 
         ?? ($_SERVER['HTTP_X_XSRF_TOKEN'] ?? '')));
+
     if (empty($candidate) || !is_string($candidate)) {
         return false;
     }
-    return hash_equals($sessionToken, $candidate);
+
+    $sessionToken = $_SESSION['csrf_token'] ?? '';
+    $cookieToken = $_COOKIE['mentry_csrf_token'] ?? '';
+
+    if (!empty($sessionToken) && hash_equals($sessionToken, $candidate)) {
+        return true;
+    }
+
+    if (!empty($cookieToken) && hash_equals($cookieToken, $candidate)) {
+        $_SESSION['csrf_token'] = $candidate;
+        return true;
+    }
+
+    return false;
 }
 
 function requireCsrfToken(): void {

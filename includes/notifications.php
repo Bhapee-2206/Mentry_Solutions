@@ -245,7 +245,7 @@ function checkOpportunityScheduleMilestones($force = false) {
             $title = $opp['title'] ?? 'Training Opportunity';
             $city = $opp['city'] ?? 'Campus';
             $status = strtoupper($opp['status'] ?? 'PUBLISHED');
-            $isAssigned = !empty($opp['assignedTrainerId']) || $status === 'MATCHED';
+            $isFullyStaffed = function_exists('isOpportunityFullyStaffed') ? isOpportunityFullyStaffed($opp) : (!empty($opp['assignedTrainerId']) || $status === 'MATCHED');
 
             $startTs = getOpportunityStartTimestamp($opp);
             if (!$startTs) continue;
@@ -259,9 +259,18 @@ function checkOpportunityScheduleMilestones($force = false) {
             $closeCutoffTs = strtotime($startDateStr . ' 18:00:00 -1 day');
             $isPastCutoff = ($now >= $closeCutoffTs) || ($todayDateStr >= $startDateStr);
 
-            // CASE 1: Cutoff has passed AND opportunity is unassigned
-            // The opportunity must be closed on the evening of the day before start date
-            if ($isPastCutoff && !$isAssigned) {
+            // Check if explicitly reopened by admin recently (within 7 days grace period)
+            $reopenedAt = $opp['reopenedAt'] ?? null;
+            $reopenedTs = function_exists('parseDateToTimestamp') ? parseDateToTimestamp($reopenedAt) : null;
+            $isRecentlyReopened = ($reopenedTs && ($now - $reopenedTs) < (7 * 86400));
+
+            // Check if end date is still in the future
+            $endTs = function_exists('parseDateToTimestamp') ? parseDateToTimestamp($opp['endDate'] ?? null) : null;
+            $hasActiveFutureEndDate = ($endTs && $endTs >= $now);
+
+            // CASE 1: Cutoff has passed AND opportunity has no assigned trainers and no active window
+            // Do not auto-close if recently reopened by admin or if the program is ongoing through end date
+            if ($isPastCutoff && !$isFullyStaffed && !$isRecentlyReopened && !$hasActiveFutureEndDate) {
                 if ($status === 'PUBLISHED') {
                     $oppCol->updateOne(
                         ['_id' => $opp['_id']],

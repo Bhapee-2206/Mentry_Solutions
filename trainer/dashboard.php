@@ -31,8 +31,7 @@ $allPublishedOpps = $opportunityCol ? $opportunityCol->find(
 
 $recommendedOpportunities = [];
 foreach ($allPublishedOpps as $op) {
-    $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
-    if ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']) || isOpportunityPastCutoff($op)) continue;
+    if (!isOpportunityOpenForApplications($op)) continue;
     $recommendedOpportunities[] = $op;
     if (count($recommendedOpportunities) >= 3) break;
 }

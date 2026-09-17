@@ -22,8 +22,7 @@ try {
         $allPublished = $opportunityCol->find(['status' => 'PUBLISHED'], ['sort' => ['createdAt' => -1]])->toArray();
         $openOpps = [];
         foreach ($allPublished as $op) {
-            $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
-            if ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']) || isOpportunityPastCutoff($op)) continue;
+            if (!isOpportunityOpenForApplications($op)) continue;
             $openOpps[] = $op;
         }
         $totalOpportunities = count($openOpps);

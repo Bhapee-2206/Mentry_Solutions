@@ -33,7 +33,7 @@ $canonicalUrl = $publicOpportunityUrl;
 $ogType = 'article';
 $ogImage = rtrim(getAppUrl(), '/') . '/public/mentry.png';
 $opStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
-$isOpportunityClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($opp['assignedTrainerId']) || isOpportunityPastCutoff($opp));
+$isOpportunityClosed = !isOpportunityOpenForApplications($opp);
 $skills = is_string($opp['skillsRequired']) ? json_decode($opp['skillsRequired'], true) : (array)$opp['skillsRequired'];
 if (!$skills) $skills = explode(',', (string)$opp['skillsRequired']);
 

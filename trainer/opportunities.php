@@ -78,8 +78,7 @@ $modeFilter = trim($_GET['mode'] ?? 'ALL');
 $statusFilter = trim($_GET['status'] ?? 'ALL');
 
 $conditions = [
-    ['status' => 'PUBLISHED'],
-    ['status' => ['$nin' => ['CLOSED', 'MATCHED', 'COMPLETED', 'CANCELLED', 'DRAFT']]]
+    ['status' => 'PUBLISHED']
 ];
 
 if ($domainFilter !== 'ALL') {
@@ -121,9 +120,7 @@ $rawOpportunities = $opportunityCol ? $opportunityCol->find(
 $opportunities = [];
 foreach ($rawOpportunities as $opp) {
     $oppId = (string)$opp['_id'];
-    $oppStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
-    $isClosed = ($oppStatus === 'CLOSED' || $oppStatus === 'MATCHED' || !empty($opp['assignedTrainerId']) || isOpportunityPastCutoff($opp));
-    if ($isClosed) continue; // Exclude filled/closed/expired opportunities
+    if (!isOpportunityOpenForApplications($opp)) continue; // Exclude filled/closed/expired opportunities
 
     $hasApplied = in_array($oppId, $appliedOppIds);
     if ($statusFilter === 'NOT_APPLIED' && $hasApplied) continue;
@@ -329,8 +326,19 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
             <?php foreach ($opportunities as $opp): 
                 $oppId = (string)$opp['_id'];
                 $hasApplied = in_array($oppId, $appliedOppIds);
-                $skills = is_string($opp['skillsRequired']) ? json_decode($opp['skillsRequired'], true) : (array)$opp['skillsRequired'];
-                if (!$skills) $skills = explode(',', (string)$opp['skillsRequired']);
+                $rawSkills = $opp['skillsRequired'] ?? [];
+                $skills = [];
+                if (is_array($rawSkills)) {
+                    $skills = $rawSkills;
+                } elseif (is_string($rawSkills) && !empty($rawSkills)) {
+                    $decoded = json_decode($rawSkills, true);
+                    $skills = is_array($decoded) ? $decoded : explode(',', $rawSkills);
+                }
+                $skills = array_values(array_filter(array_map('trim', (array)$skills)));
+
+                $trainersNeeded = max(1, (int)($opp['trainersNeeded'] ?? 1));
+                $assignedCount = !empty($opp['assignedTrainerIds']) && is_array($opp['assignedTrainerIds']) ? count($opp['assignedTrainerIds']) : (!empty($opp['assignedTrainerId']) ? 1 : 0);
+                $openSlots = max(1, $trainersNeeded - $assignedCount);
 
                 $match = ($trainer) ? MatchingEngine::evaluateMatch($opp, $trainer, $mySkills) : ['score' => 75];
                 $matchScore = $match['score'] ?? 75;
@@ -369,6 +377,13 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
                     <div class="space-y-2 flex-1 min-w-0">
                         <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
                             <span class="bg-orange-50 text-[#FE5E04] font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase shrink-0"><?= htmlspecialchars($opp['mode']) ?></span>
+
+                            <?php if ($trainersNeeded > 1): ?>
+                                <span class="bg-blue-50 text-blue-700 border border-blue-200 font-bold text-[10px] px-2.5 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[12px]">group</span>
+                                    <?= $openSlots ?> of <?= $trainersNeeded ?> Slots Open
+                                </span>
+                            <?php endif; ?>
                             
                             <!-- Personalized Match Badge -->
                             <span class="inline-flex items-center gap-0.5 text-[10px] font-black px-2.5 py-0.5 rounded-full shrink-0 <?= $matchScore >= 80 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-orange-50 text-[#FE5E04] border border-orange-200' ?>">

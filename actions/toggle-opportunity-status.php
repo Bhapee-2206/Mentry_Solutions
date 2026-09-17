@@ -35,16 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $newStatus = $targetStatus;
             }
 
-            if ($newStatus === 'PUBLISHED') {
-                require_once __DIR__ . '/../includes/notifications.php';
-                $startTs = getOpportunityStartTimestamp($opp);
-                if ($startTs && strtotime(date('Y-m-d', $startTs)) < strtotime(date('Y-m-d'))) {
-                    $referer = $_SERVER['HTTP_REFERER'] ?? ('/admin/opportunity-view.php?id=' . urlencode($opportunityId));
-                    $separator = (strpos($referer, '?') !== false) ? '&' : '?';
-                    header("Location: " . $referer . $separator . "error=" . urlencode("Cannot reopen opportunity because its start date (" . date('M j, Y', $startTs) . ") has passed. Please edit the opportunity and set a future start date first."));
-                    exit();
-                }
-            }
+            require_once __DIR__ . '/../includes/helpers.php';
+            require_once __DIR__ . '/../includes/notifications.php';
 
             $updateData = [
                 'status' => $newStatus,
@@ -54,9 +46,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($newStatus === 'CLOSED') {
                 $updateData['closedAt'] = new MongoDB\BSON\UTCDateTime();
                 $updateData['autoClosedReason'] = 'ADMIN_MANUAL_CLOSE';
+                $_SESSION['flash_success'] = "Opportunity has been closed to new applications.";
             } elseif ($newStatus === 'PUBLISHED') {
                 $updateData['closedAt'] = null;
                 $updateData['autoClosedReason'] = null;
+                $updateData['reopenedAt'] = new MongoDB\BSON\UTCDateTime();
+
+                // If start date was in the past, roll dates forward so opportunity is immediately live and visible
+                $startTs = getOpportunityStartTimestamp($opp);
+                if ($startTs && strtotime(date('Y-m-d', $startTs)) < strtotime(date('Y-m-d'))) {
+                    $durationDays = max(1, (int)($opp['durationDays'] ?? 5));
+                    $newStartTs = strtotime('today 09:00:00');
+                    $newEndTs = strtotime("+{$durationDays} days", $newStartTs);
+                    $updateData['startDate'] = new MongoDB\BSON\UTCDateTime($newStartTs * 1000);
+                    $updateData['endDate'] = new MongoDB\BSON\UTCDateTime($newEndTs * 1000);
+                }
+
+                // If all positions were previously filled, expand quota by 1 so new candidates can apply
+                $trainersNeeded = max(1, (int)($opp['trainersNeeded'] ?? 1));
+                $assignedCount = 0;
+                if (!empty($opp['assignedTrainerIds']) && is_array($opp['assignedTrainerIds'])) {
+                    $assignedCount = count($opp['assignedTrainerIds']);
+                } elseif (!empty($opp['assignedTrainerId'])) {
+                    $assignedCount = 1;
+                }
+                if ($assignedCount >= $trainersNeeded) {
+                    $updateData['trainersNeeded'] = $assignedCount + 1;
+                }
+
+                // Notify matching trainers of reopened opportunity
+                if (function_exists('notifyMatchingTrainersForOpportunity')) {
+                    notifyMatchingTrainersForOpportunity($opportunityId);
+                }
+
+                $_SESSION['flash_success'] = "Opportunity '" . htmlspecialchars($opp['title'] ?? 'Opportunity') . "' reopened successfully and is now active for trainer applications.";
             }
 
             try {

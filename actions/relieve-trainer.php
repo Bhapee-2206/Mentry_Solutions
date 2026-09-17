@@ -170,6 +170,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($reopenSlot && $activeCount < $trainersNeeded) {
                         $oppUpdates['status'] = 'PUBLISHED';
                         $oppUpdates['reopenedAt'] = new MongoDB\BSON\UTCDateTime();
+                        $oppUpdates['closedAt'] = null;
+                        $oppUpdates['autoClosedReason'] = null;
                     }
 
                     $oppCol->updateOne(['_id' => $opp['_id']], ['$set' => $oppUpdates]);

@@ -218,14 +218,15 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
         <?php unset($_SESSION['flash_success']); ?>
     <?php endif; ?>
 
-    <?php if (!empty($_GET['error'])): ?>
+    <?php if (!empty($_SESSION['flash_error']) || !empty($_GET['error'])): ?>
         <div class="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between shadow-2xs">
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-rose-600 text-base">error</span>
-                <span><?= htmlspecialchars($_GET['error']) ?></span>
+                <span><?= htmlspecialchars($_SESSION['flash_error'] ?? $_GET['error']) ?></span>
             </div>
             <button type="button" onclick="this.parentElement.remove()" class="text-rose-400 hover:text-rose-700"><span class="material-symbols-outlined text-sm">close</span></button>
         </div>
+        <?php unset($_SESSION['flash_error']); ?>
     <?php endif; ?>
 
     <!-- Prominent Capacity & Quota Metric Banner -->
@@ -299,6 +300,7 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                 </div>
             </div>
             <form action="/actions/toggle-opportunity-status.php" method="POST" class="shrink-0 w-full sm:w-auto">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                 <input type="hidden" name="opportunityId" value="<?= $oppId ?>">
                 <input type="hidden" name="action" value="reopen">
                 <button type="submit" class="w-full sm:w-auto bg-white hover:bg-slate-100 text-slate-950 text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-xs flex items-center justify-center gap-1.5">

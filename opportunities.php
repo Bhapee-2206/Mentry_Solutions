@@ -16,8 +16,7 @@ $selectedType = $_GET['type'] ?? 'ALL';
 $opportunityCol = getCollection("Opportunity");
 
 $conditions = [
-    ['status' => 'PUBLISHED'],
-    ['status' => ['$nin' => ['CLOSED', 'MATCHED', 'COMPLETED', 'CANCELLED', 'DRAFT']]]
+    ['status' => 'PUBLISHED']
 ];
 
 if ($selectedMode !== 'ALL') {
@@ -56,9 +55,7 @@ $filter = count($conditions) === 1 ? $conditions[0] : ['$and' => $conditions];
 $rawOpportunities = $opportunityCol ? $opportunityCol->find($filter, ['sort' => ['createdAt' => -1]])->toArray() : [];
 $opportunities = [];
 foreach ($rawOpportunities as $op) {
-    $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
-    $isClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || !empty($op['assignedTrainerId']) || isOpportunityPastCutoff($op));
-    if ($isClosed) continue;
+    if (!isOpportunityOpenForApplications($op)) continue;
     $opportunities[] = $op;
 }
 $totalCount = count($opportunities);

@@ -1032,9 +1032,66 @@ function checkTrainerOpportunityDateConflict($trainerId, $targetOpp) {
 }
 
 /**
+ * Checks if an opportunity has filled all required trainer positions.
+ * Accurately tracks multi-trainer positions (trainersNeeded) and verified assigned candidates.
+ *
+ * @param array|object $opp Opportunity document
+ * @return bool True if all required slots are filled
+ */
+function isOpportunityFullyStaffed($opp): bool {
+    if (empty($opp)) return false;
+    $status = strtoupper($opp['status'] ?? 'PUBLISHED');
+    if ($status === 'MATCHED' || $status === 'COMPLETED') {
+        return true;
+    }
+
+    $trainersNeeded = max(1, (int)($opp['trainersNeeded'] ?? 1));
+    $assignedList = [];
+    if (!empty($opp['assignedTrainerIds']) && is_array($opp['assignedTrainerIds'])) {
+        foreach ($opp['assignedTrainerIds'] as $tid) {
+            $s = trim((string)$tid);
+            if (!empty($s)) $assignedList[] = $s;
+        }
+    } elseif (!empty($opp['assignedTrainerId'])) {
+        $assignedList[] = trim((string)$opp['assignedTrainerId']);
+    }
+    $assignedList = array_values(array_unique($assignedList));
+
+    return count($assignedList) >= $trainersNeeded;
+}
+
+/**
+ * Authoritative check if an opportunity is open and accepting trainer applications.
+ * An opportunity is open if:
+ * 1. Status is PUBLISHED (or actively reopened)
+ * 2. Not fully staffed (open slots remain)
+ * 3. Has not passed final delivery cutoff (endDate is not in the past)
+ *
+ * @param array|object $opp Opportunity document
+ * @return bool True if opportunity is open for applications
+ */
+function isOpportunityOpenForApplications($opp): bool {
+    if (empty($opp)) return false;
+    $status = strtoupper($opp['status'] ?? 'PUBLISHED');
+    if (in_array($status, ['CLOSED', 'COMPLETED', 'CANCELLED', 'DRAFT'])) {
+        return false;
+    }
+    if ($status === 'MATCHED' || isOpportunityFullyStaffed($opp)) {
+        return false;
+    }
+
+    // Check cutoff
+    if (isOpportunityPastCutoff($opp)) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Checks if an unassigned opportunity has passed its application closing cutoff.
  * The application window strictly closes at 18:00 (6:00 PM) on the eve (day before)
- * of the scheduled start date, or anytime on/after the start date itself.
+ * of the scheduled start date, unless explicitly reopened or active with upcoming end date.
  *
  * @param array|object $opp Opportunity document
  * @return bool True if unassigned and past cutoff
@@ -1042,28 +1099,38 @@ function checkTrainerOpportunityDateConflict($trainerId, $targetOpp) {
 function isOpportunityPastCutoff($opp) {
     if (empty($opp)) return false;
     $status = strtoupper($opp['status'] ?? 'PUBLISHED');
-    $isAssigned = !empty($opp['assignedTrainerId']) || $status === 'MATCHED';
-    // If faculty is already assigned, it's not subject to unassigned auto-close
-    if ($isAssigned) return false;
+    if ($status !== 'PUBLISHED') return true;
+
+    // If fully staffed, cutoff for new applications is closed
+    if (isOpportunityFullyStaffed($opp)) return true;
+
+    $now = time();
+
+    // Check if explicitly reopened by admin recently (within 7 days)
+    $reopenedAt = $opp['reopenedAt'] ?? null;
+    $reopenedTs = parseDateToTimestamp($reopenedAt);
+    $isRecentlyReopened = ($reopenedTs && ($now - $reopenedTs) < (7 * 86400));
+
+    // End date check: if program has already completely concluded, it is past cutoff
+    $endTs = parseDateToTimestamp($opp['endDate'] ?? null);
+    if ($endTs && $endTs < $now) {
+        return true;
+    }
 
     $startTs = null;
     if (function_exists('getOpportunityStartTimestamp')) {
         $startTs = getOpportunityStartTimestamp($opp);
     } else {
-        $rawStart = $opp['startDate'] ?? null;
-        if ($rawStart instanceof MongoDB\BSON\UTCDateTime) {
-            $startTs = round($rawStart->toDateTime()->getTimestamp());
-        } elseif (is_numeric($rawStart)) {
-            $startTs = ($rawStart > 20000000000) ? round($rawStart / 1000) : (int)$rawStart;
-        } elseif (is_string($rawStart) && !empty($rawStart)) {
-            $parsed = strtotime($rawStart);
-            if ($parsed !== false) $startTs = $parsed;
-        }
+        $startTs = parseDateToTimestamp($opp['startDate'] ?? null);
     }
 
     if (!$startTs) return false;
 
-    $now = time();
+    // If recently reopened by admin or has active future end date, do not block open recruitment
+    if ($isRecentlyReopened || ($endTs && $endTs >= $now)) {
+        return false;
+    }
+
     $startDateStr = date('Y-m-d', $startTs);
     $todayDateStr = date('Y-m-d', $now);
 

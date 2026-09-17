@@ -38,11 +38,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $opp = $oppCol->findOne(['_id' => $opportunityId]);
             }
         }
+        require_once __DIR__ . '/../includes/helpers.php';
         if ($opp) {
-            $oppStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
-            $isClosed = ($oppStatus === 'CLOSED' || $oppStatus === 'MATCHED' || !empty($opp['assignedTrainerId']) || isOpportunityPastCutoff($opp));
+            $isClosed = !isOpportunityOpenForApplications($opp);
             if ($isClosed) {
-                $_SESSION['apply_error'] = "This opportunity is closed. The deadline to apply has passed or a trainer has already been assigned.";
+                $_SESSION['apply_error'] = "This opportunity is closed. The deadline to apply has passed or all trainer positions have been filled.";
                 $referer = $_SERVER['HTTP_REFERER'] ?? '/trainer/opportunities.php';
                 header("Location: " . $referer);
                 exit();
@@ -50,7 +50,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Enforce Schedule Conflict Check: Trainer cannot apply if current project hasn't finished and new project starts while teaching
-        require_once __DIR__ . '/../includes/helpers.php';
         if ($opp) {
             $conflictCheck = checkTrainerOpportunityDateConflict($trainerId, $opp);
             if ($conflictCheck['hasConflict']) {
