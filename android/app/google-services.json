@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "100000000001",
+    "project_number": "614426786036",
     "project_id": "mentry-solutions",
-    "storage_bucket": "mentry-solutions.appspot.com"
+    "storage_bucket": "mentry-solutions.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:100000000001:android:abcdef0123456789abcdef",
+        "mobilesdk_app_id": "1:614426786036:android:7938c838a32298a51e06a1",
         "android_client_info": {
           "package_name": "com.mentrysolutions.app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDummyKeyReplaceWithYourFirebaseApiKey"
+          "current_key": "AIzaSyB8Lm1CnlwLosmFC5zN7V0Rs_iTT7S4Iaw"
         }
       ],
       "services": {
