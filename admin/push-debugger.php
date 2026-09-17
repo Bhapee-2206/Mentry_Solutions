@@ -24,7 +24,16 @@ $trainersList = [];
 if ($trainerCol) {
     $trainersCursor = $trainerCol->find([], ['sort' => ['name' => 1], 'limit' => 50]);
     foreach ($trainersCursor as $t) {
-        $uDoc = ($userCol && !empty($t['userId'])) ? $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$t['userId'])]) : null;
+        $uDoc = null;
+        if ($userCol && !empty($t['userId'])) {
+            try {
+                $uDoc = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$t['userId'])]);
+            } catch (\Throwable $e) {
+                try {
+                    $uDoc = $userCol->findOne(['_id' => (string)$t['userId']]);
+                } catch (\Throwable $e2) {}
+            }
+        }
         $tName = $uDoc['name'] ?? ($t['name'] ?? 'Trainer');
         $tUserId = (string)($t['userId'] ?? '');
         $tId = (string)$t['_id'];
