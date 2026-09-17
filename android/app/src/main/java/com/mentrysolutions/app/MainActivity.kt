@@ -75,15 +75,13 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl(initialUrl)
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        intent?.let {
-            val targetUrl = resolveTargetUrl(it)
-            if (targetUrl != HOME_URL) {
-                Log.d(TAG, "Navigating to deep link URL: $targetUrl")
-                webView.loadUrl(targetUrl)
-            }
+        val targetUrl = resolveTargetUrl(intent)
+        if (targetUrl != HOME_URL) {
+            Log.d(TAG, "Navigating to deep link URL: $targetUrl")
+            webView.loadUrl(targetUrl)
         }
     }
 
