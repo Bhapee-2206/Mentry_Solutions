@@ -37,6 +37,12 @@
                     android:scheme="https"
                     android:host="mentry-solutions.vercel.app" />
             </intent-filter>
+
+            <!-- FCM Notification Tap Intent Filter (matches click_action: OPEN_MENTRY_URL) -->
+            <intent-filter>
+                <action android:name="OPEN_MENTRY_URL" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <!-- Firebase Cloud Messaging Receiver Service -->

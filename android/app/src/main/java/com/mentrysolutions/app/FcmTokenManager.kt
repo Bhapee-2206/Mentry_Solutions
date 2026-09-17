@@ -2,6 +2,8 @@ package com.mentrysolutions.app
 
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.webkit.CookieManager
 import com.google.firebase.messaging.FirebaseMessaging
@@ -9,6 +11,7 @@ import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import java.util.UUID
 import kotlin.concurrent.thread
 
@@ -41,31 +44,95 @@ object FcmTokenManager {
         prefs.edit().putString(KEY_FCM_TOKEN, token).apply()
     }
 
+    private fun maskToken(token: String): String {
+        if (token.isEmpty()) return "[EMPTY]"
+        return try {
+            val md = MessageDigest.getInstance("SHA-256")
+            val digest = md.digest(token.toByteArray(Charsets.UTF_8))
+            val hashStr = digest.joinToString("") { "%02x".format(it) }
+            hashStr.take(12) + "..."
+        } catch (e: Exception) {
+            if (token.length > 12) "${token.take(4)}...${token.takeLast(4)}" else "***"
+        }
+    }
+
     /**
      * Fetch current FCM registration token and persist locally.
      */
     fun retrieveCurrentToken(context: Context, onTokenReady: ((String) -> Unit)? = null) {
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (!task.isSuccessful) {
+            if (!task.isSuccessful || task.result.isNullOrEmpty()) {
                 Log.w(TAG, "Fetching FCM registration token failed", task.exception)
                 return@addOnCompleteListener
             }
             val token = task.result
-            Log.d(TAG, "Current FCM Token retrieved successfully")
+            Log.d(TAG, "Current FCM Token retrieved successfully (${maskToken(token)})")
             saveToken(context, token)
             onTokenReady?.invoke(token)
         }
     }
 
     /**
-     * Send the registration token to Mentry server using the current WebView session cookies.
-     * Guaranteed to bind to the authenticated user on the server.
+     * Safely flush and capture cookies from CookieManager on the current thread.
      */
-    fun syncTokenWithServer(context: Context, baseUrl: String = DEFAULT_BASE_URL, explicitUserId: String? = null) {
-        val token = getCachedToken(context) ?: return
-        val installationId = getInstallationId(context)
+    private fun captureCookies(baseUrl: String): Pair<String?, Boolean> {
+        return try {
+            val cm = CookieManager.getInstance()
+            cm.flush()
+            val cookies = cm.getCookie(baseUrl)
+            val hasAuth = !cookies.isNullOrEmpty() && (cookies.contains("PHPSESSID") || cookies.contains("mentry"))
+            Pair(cookies, hasAuth)
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to capture cookies: ${e.message}")
+            Pair(null, false)
+        }
+    }
 
-        val deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}"
+    /**
+     * Synchronize FCM token with Mentry server with automatic retry logic.
+     * Retries with small intervals (1s, 2s, 4s) if session cookies are not yet ready or request is pending auth.
+     */
+    fun syncTokenWithServer(
+        context: Context,
+        baseUrl: String = DEFAULT_BASE_URL,
+        explicitUserId: String? = null,
+        attempt: Int = 1
+    ) {
+        // Capture cookies on the current (usually main) thread before dispatching network request
+        val (cookies, hasAuthCookie) = captureCookies(baseUrl)
+        val token = getCachedToken(context)
+
+        // If no cached token exists, retrieve it first instead of silently returning
+        if (token.isNullOrEmpty()) {
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful && !task.result.isNullOrEmpty()) {
+                    val freshToken = task.result
+                    saveToken(context, freshToken)
+                    performSyncRequest(context, freshToken, cookies, hasAuthCookie, baseUrl, explicitUserId, attempt)
+                } else {
+                    Log.w(TAG, "FCM token not yet ready on attempt $attempt, scheduling retry")
+                    if (attempt <= 3) {
+                        scheduleRetry(context, baseUrl, explicitUserId, attempt)
+                    }
+                }
+            }
+            return
+        }
+
+        performSyncRequest(context, token, cookies, hasAuthCookie, baseUrl, explicitUserId, attempt)
+    }
+
+    private fun performSyncRequest(
+        context: Context,
+        token: String,
+        cookies: String?,
+        hasAuthCookie: Boolean,
+        baseUrl: String,
+        explicitUserId: String?,
+        attempt: Int
+    ) {
+        val installationId = getInstallationId(context)
+        val deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
         val androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
         val appVersion = "1.0.0"
 
@@ -80,8 +147,6 @@ object FcmTokenManager {
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 conn.setRequestProperty("Accept", "application/json")
 
-                // Forward cookies from WebView session
-                val cookies = CookieManager.getInstance().getCookie(baseUrl)
                 if (!cookies.isNullOrEmpty()) {
                     conn.setRequestProperty("Cookie", cookies)
                 }
@@ -106,21 +171,44 @@ object FcmTokenManager {
                 val responseBody = (if (responseCode in 200..299) conn.inputStream else conn.errorStream)
                     ?.bufferedReader()?.use { it.readText() } ?: ""
 
-                Log.d(TAG, "Token sync HTTP $responseCode: $responseBody")
+                val resJson = try { JSONObject(responseBody) } catch (e: Exception) { JSONObject() }
+                val isSuccess = responseCode == 200 && resJson.optBoolean("success")
+                val boundUserId = resJson.optString("userId", explicitUserId ?: "")
 
-                if (responseCode == 200) {
-                    val resJson = JSONObject(responseBody)
-                    if (resJson.optBoolean("success")) {
-                        val boundUserId = resJson.optString("userId", explicitUserId ?: "")
-                        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                        prefs.edit().putString(KEY_LAST_SYNCED_USER, boundUserId).apply()
-                    }
+                // Log ONLY safe diagnostics (no secret tokens or credentials)
+                Log.d(
+                    TAG,
+                    "Token sync [attempt=$attempt] HTTP $responseCode | success=$isSuccess | hasCookie=$hasAuthCookie | installId=$installationId | user=$boundUserId | tokenHash=${maskToken(token)}"
+                )
+
+                if (isSuccess) {
+                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    prefs.edit().putString(KEY_LAST_SYNCED_USER, boundUserId).apply()
+                } else if ((responseCode == 401 || !hasAuthCookie) && attempt <= 3) {
+                    // Retry when user session cookie is still settling after login
+                    Log.d(TAG, "Session not ready on attempt $attempt, scheduling retry...")
+                    scheduleRetry(context, baseUrl, explicitUserId, attempt)
                 }
+
                 conn.disconnect()
             } catch (e: Exception) {
-                Log.e(TAG, "Error syncing token with server: ${e.message}")
+                Log.w(TAG, "Network error syncing token on attempt $attempt: ${e.message}")
+                if (attempt <= 3) {
+                    scheduleRetry(context, baseUrl, explicitUserId, attempt)
+                }
             }
         }
+    }
+
+    private fun scheduleRetry(context: Context, baseUrl: String, explicitUserId: String?, attempt: Int) {
+        val delayMs = when (attempt) {
+            1 -> 1000L
+            2 -> 2000L
+            else -> 4000L
+        }
+        Handler(Looper.getMainLooper()).postDelayed({
+            syncTokenWithServer(context, baseUrl, explicitUserId, attempt + 1)
+        }, delayMs)
     }
 
     /**
@@ -129,6 +217,7 @@ object FcmTokenManager {
     fun unlinkSession(context: Context, baseUrl: String = DEFAULT_BASE_URL) {
         val token = getCachedToken(context)
         val installationId = getInstallationId(context)
+        val (cookies, _) = captureCookies(baseUrl)
 
         thread {
             try {
@@ -140,7 +229,6 @@ object FcmTokenManager {
                 conn.doOutput = true
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
 
-                val cookies = CookieManager.getInstance().getCookie(baseUrl)
                 if (!cookies.isNullOrEmpty()) {
                     conn.setRequestProperty("Cookie", cookies)
                 }
@@ -155,7 +243,7 @@ object FcmTokenManager {
                     writer.flush()
                 }
 
-                Log.d(TAG, "Token unlinked upon logout. HTTP ${conn.responseCode}")
+                Log.d(TAG, "Token unlinked upon logout. HTTP ${conn.responseCode} (installId: $installationId)")
                 conn.disconnect()
 
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

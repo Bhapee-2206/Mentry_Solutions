@@ -86,13 +86,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resolveTargetUrl(intent: Intent?): String {
-        val extraUrl = intent?.getStringExtra(EXTRA_URL)
-        if (!extraUrl.isNullOrEmpty()) {
-            return toAbsoluteUrl(extraUrl)
+        if (intent == null) return HOME_URL
+
+        val target = intent.getStringExtra(EXTRA_URL)
+            ?: intent.getStringExtra("url")
+            ?: intent.getStringExtra("link")
+
+        if (!target.isNullOrEmpty()) {
+            return toAbsoluteUrl(target)
         }
 
         // Handle standard Android VIEW intent data
-        val dataUri = intent?.data
+        val dataUri = intent.data
         if (dataUri != null && dataUri.toString().isNotEmpty()) {
             return dataUri.toString()
         }
@@ -154,11 +159,18 @@ class MainActivity : AppCompatActivity() {
                 if (url != null && url.contains("logout.php")) {
                     Log.d(TAG, "User logout confirmed via URL in onPageFinished, unlinking FCM token")
                     FcmTokenManager.unlinkSession(this@MainActivity)
+                    return
                 }
 
-                // If user reached a logged-in page (trainer/admin/vendor), eagerly sync token
-                if (url != null && (url.contains("/trainer/") || url.contains("/admin/") || url.contains("/vendor/"))) {
-                    FcmTokenManager.syncTokenWithServer(this@MainActivity)
+                // Eagerly inspect if authenticated user session is active on page
+                view?.evaluateJavascript("window.__MENTRY_USER_ID || (document.body ? document.body.getAttribute('data-user-id') : '')") { result ->
+                    val cleanUserId = result?.trim('"', '\'', ' ', '\n', '\r')
+                    if (!cleanUserId.isNullOrEmpty() && cleanUserId != "null" && cleanUserId != "undefined") {
+                        Log.d(TAG, "Authenticated user ID detected via JS evaluation: $cleanUserId")
+                        FcmTokenManager.syncTokenWithServer(this@MainActivity, explicitUserId = cleanUserId)
+                    } else if (url != null && (url.contains("/trainer/") || url.contains("/admin/") || url.contains("/vendor/"))) {
+                        FcmTokenManager.syncTokenWithServer(this@MainActivity)
+                    }
                 }
             }
 

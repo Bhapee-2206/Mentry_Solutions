@@ -19,6 +19,31 @@ if (!$currentUser || empty($currentUser['id'])) {
     exit();
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET' || (isset($_GET['action']) && $_GET['action'] === 'status')) {
+    $tokens = NativePushTokenRepository::findActiveForUser((string)$currentUser['id']);
+    $activeTokens = [];
+    foreach ($tokens as $t) {
+        $th = $t['tokenHash'] ?? hash('sha256', $t['fcmToken'] ?? '');
+        $activeTokens[] = [
+            'tokenHash' => substr($th, 0, 16),
+            'active' => !empty($t['isActive']),
+            'userId' => (string)($t['userId'] ?? $currentUser['id']),
+            'lastSeenAt' => isset($t['lastSeenAt']) ? (is_object($t['lastSeenAt']) ? $t['lastSeenAt']->toDateTime()->format('c') : (string)$t['lastSeenAt']) : null,
+            'appVersion' => (string)($t['appVersion'] ?? '1.0.0'),
+            'deviceModel' => (string)($t['deviceModel'] ?? 'Android Device'),
+            'installationId' => (string)($t['installationId'] ?? '')
+        ];
+    }
+    echo json_encode([
+        'success' => true,
+        'tokenExists' => !empty($activeTokens),
+        'activeCount' => count($activeTokens),
+        'userId' => (string)$currentUser['id'],
+        'tokens' => $activeTokens
+    ]);
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Method not allowed']);
@@ -37,12 +62,13 @@ if (!NativePushTokenRepository::isValidToken($fcmToken)) {
 
 try {
     $userId = (string)$currentUser['id'];
+    $installationId = trim((string)($data['installationId'] ?? ''));
 
     $meta = [
         'deviceModel' => $data['deviceModel'] ?? ($data['model'] ?? 'Android Device'),
         'androidVersion' => $data['androidVersion'] ?? ($data['osVersion'] ?? 'Android'),
         'appVersion' => $data['appVersion'] ?? '1.0.0',
-        'installationId' => $data['installationId'] ?? ''
+        'installationId' => $installationId
     ];
 
     $result = NativePushTokenRepository::registerToken($userId, $fcmToken, $meta);
@@ -51,8 +77,9 @@ try {
         'success' => true,
         'registered' => true,
         'platform' => 'android',
+        'userId' => $userId,
         'tokenHash' => $result['tokenHash'],
-        'userId' => $userId
+        'installationId' => $installationId
     ]);
 } catch (\Throwable $e) {
     http_response_code(500);
@@ -61,3 +88,4 @@ try {
         'error' => 'Unable to register device token: ' . $e->getMessage()
     ]);
 }
+

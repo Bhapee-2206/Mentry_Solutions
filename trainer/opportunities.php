@@ -347,10 +347,22 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
                 $conflict = ($trainer && !empty($trainerId)) ? checkTrainerOpportunityDateConflict($trainerId, $opp) : ['hasConflict' => false];
                 $hasConflict = !empty($conflict['hasConflict']);
 
+                $shareJobId = (string)($opp['jobId'] ?? $oppId);
+                $publicOppUrl = rtrim(getAppUrl(), '/') . '/opportunity-details.php?id=' . rawurlencode($shareJobId);
+                $cardLocation = trim((string)($opp['city'] ?? '') . ', ' . (string)($opp['state'] ?? ''), ' ,');
+                $cardDates = formatDate($opp['startDate'] ?? null) . (!empty($opp['endDate']) ? ' – ' . formatDate($opp['endDate']) : '');
+                $cardRate = formatINR($opp['dailyRateMin'] ?? 0) . (($opp['dailyRateMax'] ?? 0) > ($opp['dailyRateMin'] ?? 0) ? ' – ' . formatINR($opp['dailyRateMax']) : '') . '/day';
+                $cardShareMessage = "New Mentry Solutions Training Opportunity\n\n" .
+                    ($opp['title'] ?? 'Technical Trainer') . "\n" .
+                    "Location: " . $cardLocation . "\n" .
+                    "Dates: " . $cardDates . "\n" .
+                    "Remuneration: " . $cardRate . "\n\n" .
+                    "View details:\n" . $publicOppUrl;
+
                 // Data for inline modal
                 $oppDataJson = htmlspecialchars(json_encode([
                     'id' => $oppId,
-                    'jobId' => $opp['jobId'] ?? $oppId,
+                    'jobId' => $shareJobId,
                     'title' => $opp['title'] ?? '',
                     'mode' => $opp['mode'] ?? 'OFFLINE',
                     'trainingType' => $opp['trainingType'] ?? 'COLLEGE',
@@ -370,7 +382,9 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
                     'hasConflict' => $hasConflict,
                     'conflictReason' => $conflict['reason'] ?? '',
                     'finishDateFormatted' => $conflict['finishDateFormatted'] ?? '',
-                    'conflictTitle' => $conflict['conflictTitle'] ?? ''
+                    'conflictTitle' => $conflict['conflictTitle'] ?? '',
+                    'shareUrl' => $publicOppUrl,
+                    'shareMessage' => $cardShareMessage
                 ]), ENT_QUOTES, 'UTF-8');
             ?>
                 <div id="opp-card-<?= $oppId ?>" class="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-6 shadow-card hover:shadow-card-hover transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5 min-w-0">
@@ -420,25 +434,32 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
                             <p class="font-black text-lg text-[#FE5E04]"><?= formatINR($opp['dailyRateMin']) ?> – <?= formatINR($opp['dailyRateMax']) ?> / day</p>
                         </div>
 
-                        <?php if ($hasApplied): ?>
-                            <a href="/trainer/applications.php" class="w-full sm:w-auto text-center justify-center bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors">
-                                View Application
-                            </a>
-                        <?php elseif ($hasConflict): ?>
-                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="w-full sm:w-auto text-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer" title="<?= htmlspecialchars($conflict['reason']) ?>">
-                                <span class="material-symbols-outlined text-[16px]">event_busy</span>
-                                <span>Schedule Conflict</span>
+                        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                            <?php if ($hasApplied): ?>
+                                <a href="/trainer/applications.php" class="flex-1 sm:flex-initial text-center justify-center bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors">
+                                    View Application
+                                </a>
+                            <?php elseif ($hasConflict): ?>
+                                <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="flex-1 sm:flex-initial text-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer" title="<?= htmlspecialchars($conflict['reason']) ?>">
+                                    <span class="material-symbols-outlined text-[16px]">event_busy</span>
+                                    <span>Schedule Conflict</span>
+                                </button>
+                            <?php elseif (!$hasResume): ?>
+                                <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="flex-1 sm:flex-initial text-center justify-center bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer" title="Resume required to apply">
+                                    <span class="material-symbols-outlined text-[16px]">upload_file</span>
+                                    <span>Apply (Resume Req.)</span>
+                                </button>
+                            <?php else: ?>
+                                <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="flex-1 sm:flex-initial text-center justify-center bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-5 py-2 rounded-xl transition-all shadow-md shadow-orange-500/20 cursor-pointer">
+                                    View & Apply
+                                </button>
+                            <?php endif; ?>
+
+                            <button type="button" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'] ?? 'Training Opportunity'), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars(json_encode($publicOppUrl), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars(json_encode($cardShareMessage), ENT_QUOTES, 'UTF-8') ?>)" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0" title="Share Opportunity">
+                                <span class="material-symbols-outlined text-[16px] text-[#FE5E04]">share</span>
+                                <span>Share</span>
                             </button>
-                        <?php elseif (!$hasResume): ?>
-                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="w-full sm:w-auto text-center justify-center bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer" title="Resume required to apply">
-                                <span class="material-symbols-outlined text-[16px]">upload_file</span>
-                                <span>Apply (Resume Req.)</span>
-                            </button>
-                        <?php else: ?>
-                            <button type="button" onclick='openOppModal(<?= $oppDataJson ?>)' class="w-full sm:w-auto text-center justify-center bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-5 py-2 rounded-xl transition-all shadow-md shadow-orange-500/20 cursor-pointer">
-                                View & Apply
-                            </button>
-                        <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -455,9 +476,15 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
                 <span id="modalModeBadge" class="bg-orange-50 text-[#FE5E04] font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase"></span>
                 <span id="modalIdBadge" class="text-[11px] font-mono text-slate-400"></span>
             </div>
-            <button type="button" onclick="closeOppModal()" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer">
-                <span class="material-symbols-outlined text-xl">close</span>
-            </button>
+            <div class="flex items-center gap-2">
+                <button type="button" id="modalShareBtn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all cursor-pointer shadow-2xs" title="Share Opportunity">
+                    <span class="material-symbols-outlined text-[16px] text-[#FE5E04]">share</span>
+                    <span>Share</span>
+                </button>
+                <button type="button" onclick="closeOppModal()" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer">
+                    <span class="material-symbols-outlined text-xl">close</span>
+                </button>
+            </div>
         </div>
 
         <!-- Modal Body (Scrollable) -->
@@ -635,6 +662,15 @@ function openOppModal(data) {
         }
     }
 
+    const modalShareBtn = document.getElementById('modalShareBtn');
+    if (modalShareBtn) {
+        modalShareBtn.onclick = function() {
+            if (typeof shareOpportunity === 'function') {
+                shareOpportunity(data.title, data.shareUrl, data.shareMessage);
+            }
+        };
+    }
+
     document.getElementById('trainerOppModal').classList.remove('hidden');
 }
 
@@ -661,8 +697,11 @@ window.addEventListener('DOMContentLoaded', function() {
 <?php endif; ?>
 </script>
 
+<script src="/assets/js/opportunity-share.js?v=20260917" defer></script>
+
 </main>
 </div>
 </body>
 </html>
+
 

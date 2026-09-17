@@ -400,4 +400,29 @@ $navItems = [
     <!-- Live Real-time Sync Engine -->
     <script src="<?= function_exists('getAppBaseUrl') ? getAppBaseUrl() : '' ?>/assets/js/live-sync.js?v=20260913_notif_arch_v3" defer></script>
 
+    <!-- Native Android FCM Token & Session Bridge Sync -->
+    <script>
+    (function() {
+        try {
+            <?php if (!empty($user['id'])): ?>
+            window.__MENTRY_USER_ID = <?= json_encode((string)$user['id']) ?>;
+            function syncMentryAndroidBridge() {
+                if (window.MentryAndroid && typeof window.MentryAndroid.syncUserSession === 'function') {
+                    window.MentryAndroid.syncUserSession(<?= json_encode((string)$user['id']) ?>);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', syncMentryAndroidBridge);
+            } else {
+                syncMentryAndroidBridge();
+            }
+            setTimeout(syncMentryAndroidBridge, 500);
+            setTimeout(syncMentryAndroidBridge, 1500);
+            <?php endif; ?>
+        } catch (e) {
+            console.warn('Native Android bridge sync error:', e);
+        }
+    })();
+    </script>
+
     <main class="flex-1 w-full max-w-full px-3.5 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16 py-6 md:py-10 space-y-6 md:space-y-8 min-w-0">

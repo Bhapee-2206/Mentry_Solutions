@@ -50,17 +50,7 @@ if ($trainerCol) {
             ]);
         }
 
-        $nativeCount = 0;
-        if ($nativeTokenCol) {
-            $nativeCount = $nativeTokenCol->countDocuments([
-                'isActive' => true,
-                'isDead' => ['$ne' => true],
-                '$or' => [
-                    ['userId' => $tUserId],
-                    ['trainerId' => $tId]
-                ]
-            ]);
-        }
+        $nativeCount = count(NativePushTokenRepository::findActiveForUser(!empty($tUserId) ? $tUserId : $tId));
 
         $trainersList[] = [
             'id' => $tId,
@@ -530,7 +520,7 @@ async function dispatchNativeFcmTest() {
                 <div class="text-slate-300">Message ID: <span class="text-sky-300 font-mono text-[11px] break-all">${data.messageId || 'N/A'}</span></div>
                 <div class="text-slate-300">Test ID: <span class="text-amber-300 font-bold font-mono">${data.testId}</span></div>
                 <div class="text-[11px] text-emerald-300/80 mt-2 font-sans bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/20">
-                    ✓ Native Android message delivered via Google Play Services / FCM daemon. Notification will display in Android system tray regardless of whether app is open, minimized, locked, or backgrounded.
+                    ✓ Notification request accepted by Firebase FCM HTTP v1. Google Play Services / FCM will deliver to target physical Android device.
                 </div>
             `;
         } else {

@@ -69,10 +69,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     ) {
         // Build Intent to launch or bring forward MainActivity
         val intent = Intent(this, MainActivity::class.java).apply {
+            action = "OPEN_MENTRY_URL"
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(MainActivity.EXTRA_URL, targetUrl)
+            putExtra("url", targetUrl)
+            putExtra("link", targetUrl)
             putExtra(MainActivity.EXTRA_NOTIF_ID, notificationId)
+            putExtra("notificationId", notificationId)
             putExtra(MainActivity.EXTRA_NOTIF_TYPE, type)
+            putExtra("type", type)
         }
 
         val requestCode = notificationId.hashCode()
