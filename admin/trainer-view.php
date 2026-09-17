@@ -1146,7 +1146,113 @@ function sendAdminTestAlertToTrainer(trainerId, trainerName) {
         alert('Could not dispatch alert: ' + err.message);
     });
 }
+
+function openReliefModal(asgId, trainerName, trainerId, oppId) {
+    const modal = document.getElementById('reliefModal');
+    const asgIdInput = document.getElementById('reliefAssignmentId');
+    const trainerIdInput = document.getElementById('reliefTrainerId');
+    const oppIdInput = document.getElementById('reliefOpportunityId');
+    const trainerNameEl = document.getElementById('reliefTrainerName');
+    
+    if (asgIdInput) asgIdInput.value = asgId || '';
+    if (trainerIdInput) trainerIdInput.value = trainerId || '';
+    if (oppIdInput) oppIdInput.value = oppId || '';
+    if (trainerNameEl) trainerNameEl.textContent = trainerName || 'Trainer';
+    
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function closeReliefModal() {
+    const modal = document.getElementById('reliefModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeReliefModal();
+    }
+});
 </script>
+
+<!-- Modal: Relieve Assigned Faculty -->
+<div id="reliefModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 sm:p-7 space-y-5 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                    <span class="material-symbols-outlined text-xl">person_remove</span>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-900">Relieve Faculty Member</h3>
+                    <p class="text-xs text-slate-500">Release trainer from this opportunity and reopen slot</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeReliefModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                <span class="material-symbols-outlined text-xl">close</span>
+            </button>
+        </div>
+
+        <form action="/actions/relieve-trainer.php" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+            <input type="hidden" name="assignmentId" id="reliefAssignmentId" value="">
+            <input type="hidden" name="trainerId" id="reliefTrainerId" value="">
+            <input type="hidden" name="opportunityId" id="reliefOpportunityId" value="">
+            <input type="hidden" name="redirectUrl" value="/admin/trainer-view.php?id=<?= $trainerId ?>&relieved=1">
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
+                <div class="font-bold flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-amber-700 text-base">warning</span>
+                    Relieving: <span id="reliefTrainerName" class="text-slate-900 font-extrabold underline decoration-amber-400">Trainer</span>
+                </div>
+                <p class="text-[11px] text-amber-800 leading-relaxed">
+                    This will mark the assignment as <strong>RELIEVED</strong>, restore the trainer's availability to <strong>Available Now</strong>, and immediately reopen the opportunity position so you can assign a replacement.
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Reason for Relief *</label>
+                <select name="reliefReason" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-rose-500/20">
+                    <option value="Trainer dropped out last minute (unavailability / personal emergency)">Trainer dropped out last minute (unavailability / personal emergency)</option>
+                    <option value="Health / Medical emergency">Health / Medical emergency</option>
+                    <option value="Scheduling / Calendar conflict">Scheduling / Calendar conflict</option>
+                    <option value="Client / College requested replacement">Client / College requested replacement</option>
+                    <option value="Performance / Syllabus misalignment">Performance / Syllabus misalignment</option>
+                    <option value="Other operational reassignment">Other operational reassignment</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Operational Remarks / Admin Notes</label>
+                <textarea name="reliefNotes" rows="2" placeholder="e.g. Trainer informed via phone at 9 AM due to fever. Reassigning slot..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-rose-500/20"></textarea>
+            </div>
+
+            <div class="space-y-2 pt-1 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer select-none text-slate-700 font-medium">
+                    <input type="checkbox" name="reopenSlot" value="1" checked class="w-4 h-4 text-emerald-600 rounded border-slate-300">
+                    <span>Automatically reopen position slot and show on sourcing feeds</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none text-slate-700 font-medium">
+                    <input type="checkbox" name="notifyTrainer" value="1" checked class="w-4 h-4 text-emerald-600 rounded border-slate-300">
+                    <span>Send automated status update & relief alert to faculty</span>
+                </label>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeReliefModal()" class="text-xs font-bold text-slate-600 hover:text-slate-800 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer">Cancel</button>
+                <button type="submit" class="text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-5 py-2.5 rounded-xl transition-all shadow-md shadow-rose-600/20 flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                    Confirm Relief & Open Slot
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 </main>
 </div>

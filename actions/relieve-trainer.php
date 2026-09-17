@@ -55,8 +55,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $adminId = $adminUser['id'] ?? null;
         $adminName = $adminUser['name'] ?? 'Admin Operations';
 
-        // 1. Mark assignment as RELIEVED with full audit trail (if assignment record exists)
-        if ($asg && $asgCol) {
+        // 1. Mark ALL active assignments for this trainer on this opportunity as RELIEVED
+        if ($asgCol && !empty($oppId) && !empty($trainerId)) {
+            $oppQueryIds = [(string)$oppId];
+            try { $oppQueryIds[] = new MongoDB\BSON\ObjectId((string)$oppId); } catch (\Throwable $e) {}
+            $trQueryIds = [(string)$trainerId];
+            try { $trQueryIds[] = new MongoDB\BSON\ObjectId((string)$trainerId); } catch (\Throwable $e) {}
+
+            $asgCol->updateMany(
+                [
+                    'opportunityId' => ['$in' => $oppQueryIds],
+                    'trainerId' => ['$in' => $trQueryIds],
+                    'status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS', 'CONFIRMED', 'ASSIGNED', 'ACCEPTED']]
+                ],
+                ['$set' => [
+                    'status' => 'RELIEVED',
+                    'reliefReason' => $reliefReason,
+                    'reliefNotes' => $reliefNotes,
+                    'relievedAt' => new MongoDB\BSON\UTCDateTime(),
+                    'relievedByUserId' => $adminId,
+                    'relievedByName' => $adminName,
+                    'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                ]]
+            );
+        }
+        if ($asg && !empty($asg['_id']) && $asgCol) {
             $asgCol->updateOne(
                 ['_id' => $asg['_id']],
                 ['$set' => [
@@ -128,20 +151,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $oppQueryIds = [(string)$oppId];
                     try { $oppQueryIds[] = new MongoDB\BSON\ObjectId($oppId); } catch (\Throwable $e) {}
 
-                    // Count remaining active assignments for this opportunity
+                    // Count remaining active assignments for this opportunity (excluding relieved trainer)
+                    $trQueryIds = [(string)$trainerId];
+                    try { $trQueryIds[] = new MongoDB\BSON\ObjectId((string)$trainerId); } catch (\Throwable $e) {}
+
                     $remQuery = [
                         'opportunityId' => ['$in' => $oppQueryIds],
-                        'status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS', 'CONFIRMED', 'ASSIGNED']]
+                        'trainerId' => ['$nin' => $trQueryIds],
+                        'status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS', 'CONFIRMED', 'ASSIGNED', 'ACCEPTED']]
                     ];
-                    if ($asg && !empty($asg['_id'])) {
-                        $remQuery['_id'] = ['$ne' => $asg['_id']];
-                    }
                     $remainingActive = $asgCol ? $asgCol->find($remQuery)->toArray() : [];
 
                     $activeTrainerIds = [];
                     foreach ($remainingActive as $ra) {
-                        if (!empty($ra['trainerId'])) {
-                            $activeTrainerIds[] = (string)$ra['trainerId'];
+                        $raTid = (string)($ra['trainerId'] ?? '');
+                        if (!empty($raTid) && $raTid !== (string)$trainerId && !in_array($raTid, $activeTrainerIds)) {
+                            $activeTrainerIds[] = $raTid;
                         }
                     }
 
@@ -155,9 +180,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
 
-                    $activeTrainerIds = array_values(array_filter($activeTrainerIds, function($id) use ($trainerId) {
-                        return $id !== (string)$trainerId;
-                    }));
                     $activeCount = count($activeTrainerIds);
 
                     $oppUpdates = [
@@ -172,6 +194,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $oppUpdates['reopenedAt'] = new MongoDB\BSON\UTCDateTime();
                         $oppUpdates['closedAt'] = null;
                         $oppUpdates['autoClosedReason'] = null;
+
+                        // If start date is in the past, roll it forward so opportunity remains open on trainer feeds
+                        $startDateVal = $opp['startDate'] ?? null;
+                        $startTs = 0;
+                        if ($startDateVal instanceof MongoDB\BSON\UTCDateTime) {
+                            $startTs = $startDateVal->toDateTime()->getTimestamp();
+                        } elseif (!empty($startDateVal)) {
+                            $startTs = strtotime((string)$startDateVal);
+                        }
+                        if ($startTs > 0 && $startTs < time()) {
+                            $oppUpdates['startDate'] = date('Y-m-d', strtotime('+1 day'));
+                            $oppUpdates['originalStartDate'] = !empty($opp['originalStartDate']) ? $opp['originalStartDate'] : (is_string($startDateVal) ? $startDateVal : date('Y-m-d', $startTs));
+                        }
                     }
 
                     $oppCol->updateOne(['_id' => $opp['_id']], ['$set' => $oppUpdates]);

@@ -45,18 +45,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $trainersNeeded = max(1, (int)($opp['trainersNeeded'] ?? 1));
 
             // Fetch current active assignments for this opportunity
+            $oppQueryIds = [(string)$opportunityId];
+            try { $oppQueryIds[] = new MongoDB\BSON\ObjectId((string)$opportunityId); } catch (\Throwable $e) {}
+
             $activeAssignments = $asgCol->find([
-                'opportunityId' => (string)$opportunityId,
-                'status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS', 'CONFIRMED', 'ASSIGNED']]
+                'opportunityId' => ['$in' => $oppQueryIds],
+                'status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS', 'CONFIRMED', 'ASSIGNED', 'ACCEPTED']]
             ])->toArray();
-            $activeCount = count($activeAssignments);
+
+            $uniqueActiveTrainers = [];
+            foreach ($activeAssignments as $act) {
+                $tIdStr = (string)($act['trainerId'] ?? '');
+                if (!empty($tIdStr)) {
+                    $uniqueActiveTrainers[$tIdStr] = true;
+                }
+            }
+            if (!empty($opp['assignedTrainerIds']) && is_array($opp['assignedTrainerIds'])) {
+                foreach ($opp['assignedTrainerIds'] as $atid) {
+                    if (!empty($atid)) $uniqueActiveTrainers[(string)$atid] = true;
+                }
+            } elseif (!empty($opp['assignedTrainerId'])) {
+                $uniqueActiveTrainers[(string)$opp['assignedTrainerId']] = true;
+            }
+            $activeCount = count($uniqueActiveTrainers);
 
             // 1. Duplicate check: prevent assigning the same trainer multiple times to the same opportunity
-            foreach ($activeAssignments as $act) {
-                if ((string)($act['trainerId'] ?? '') === (string)$trainerId) {
-                    header("Location: /admin/opportunity-view.php?id=" . urlencode($opportunityId) . "&error=" . urlencode("This trainer is already actively assigned to this opportunity."));
-                    exit();
-                }
+            if (isset($uniqueActiveTrainers[(string)$trainerId])) {
+                header("Location: /admin/opportunity-view.php?id=" . urlencode($opportunityId) . "&error=" . urlencode("This trainer is already actively assigned to this opportunity."));
+                exit();
             }
 
             // 2. Strict Quota Check: cannot assign more trainers than requested

@@ -50,6 +50,9 @@ $assignedFacultyCards = [];
 foreach ($activeAssignments as $act) {
     $tId = (string)($act['trainerId'] ?? '');
     if (!empty($tId)) {
+        if (in_array($tId, $assignedTrainerIds)) {
+            continue; // Deduplicate: ensure 1 faculty card per assigned trainer
+        }
         $assignedTrainerIds[] = $tId;
         $tDoc = null;
         $uDoc = null;
@@ -241,7 +244,7 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                         <h3 class="font-extrabold text-base text-slate-900">Faculty Allocation & Quota</h3>
                         <?php if ($isFullyStaffed): ?>
                             <span class="bg-emerald-100 text-emerald-800 font-black text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
-                                <span class="material-symbols-outlined text-xs">check_circle</span> Fully Staffed (<?= $trainersNeeded ?>/<?= $trainersNeeded ?>)
+                                <span class="material-symbols-outlined text-xs">check_circle</span> Fully Staffed (<?= $assignedCount ?>/<?= $trainersNeeded ?>)
                             </span>
                         <?php elseif ($assignedCount > 0): ?>
                             <span class="bg-blue-100 text-blue-800 font-black text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
@@ -1141,6 +1144,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <input type="hidden" name="assignmentId" id="reliefAssignmentId" value="">
             <input type="hidden" name="trainerId" id="reliefTrainerId" value="">
             <input type="hidden" name="opportunityId" value="<?= $oppId ?>">
+            <input type="hidden" name="redirectUrl" value="/admin/opportunity-view.php?id=<?= $oppId ?>&relieved=1">
 
             <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
                 <div class="font-bold flex items-center gap-1.5">

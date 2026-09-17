@@ -172,7 +172,7 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="flex flex-wrap items-center gap-2">
                         <?php 
                         $oppStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
-                        $isOpportunityClosed = ($oppStatus === 'CLOSED' || $oppStatus === 'MATCHED' || !empty($opp['assignedTrainerId']));
+                        $isOpportunityClosed = !isOpportunityOpenForApplications($opp);
                         ?>
                         <?php if ($isOpportunityClosed): ?>
                             <span class="bg-slate-900 text-white font-bold text-xs px-3 py-1 rounded-full uppercase inline-flex items-center gap-1 shadow-xs">

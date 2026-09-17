@@ -189,6 +189,44 @@ function restoreSessionFromCookie() {
 }
 
 /**
+ * Check if the current HTTP request originates from the same origin.
+ * Inspects modern Sec-Fetch-Site browser header as well as Origin and Referer.
+ */
+function isSameOriginRequest(): bool {
+    // 1. Browser Sec-Fetch-Site (supported by Chrome, Edge, Safari 16.4+, Firefox)
+    $fetchSite = strtolower(trim($_SERVER['HTTP_SEC_FETCH_SITE'] ?? ''));
+    if ($fetchSite === 'same-origin' || $fetchSite === 'same-site') {
+        return true;
+    }
+
+    $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+    if (empty($currentHost)) {
+        return false;
+    }
+    $hostOnly = explode(':', $currentHost)[0];
+
+    // 2. HTTP Origin header check
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if (!empty($origin)) {
+        $originHost = parse_url($origin, PHP_URL_HOST);
+        if ($originHost && (strcasecmp($originHost, $currentHost) === 0 || strcasecmp($originHost, $hostOnly) === 0)) {
+            return true;
+        }
+    }
+
+    // 3. HTTP Referer header check
+    $referer = $_SERVER['HTTP_REFERER'] ?? '';
+    if (!empty($referer)) {
+        $refererHost = parse_url($referer, PHP_URL_HOST);
+        if ($refererHost && (strcasecmp($refererHost, $currentHost) === 0 || strcasecmp($refererHost, $hostOnly) === 0)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * Requirement 13: Centralized CSRF Protection with Serverless Cookie & HMAC Persistence
  */
 function getCsrfToken(): string {
@@ -197,7 +235,7 @@ function getCsrfToken(): string {
     }
 
     // 1. For authenticated users, generate a secure HMAC-signed deterministic token based on user ID
-    $user = $_SESSION['user'] ?? null;
+    $user = getCurrentUser();
     if (!empty($user['id'])) {
         $userCsrf = hash_hmac('sha256', 'mentry_csrf:' . (string)$user['id'], getAuthSecret());
         $_SESSION['csrf_token'] = $userCsrf;
@@ -243,15 +281,13 @@ function validateCsrfToken(?string $token = null): bool {
         ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] 
         ?? ($_SERVER['HTTP_X_XSRF_TOKEN'] ?? '')));
 
-    if (empty($candidate) || !is_string($candidate)) {
-        return false;
-    }
+    $candidate = is_string($candidate) ? trim($candidate) : '';
 
     // 1. Authenticated deterministic HMAC token validation
     $user = getCurrentUser();
     if (!empty($user['id'])) {
         $expectedUserToken = hash_hmac('sha256', 'mentry_csrf:' . (string)$user['id'], getAuthSecret());
-        if (hash_equals($expectedUserToken, $candidate)) {
+        if (!empty($candidate) && hash_equals($expectedUserToken, $candidate)) {
             $_SESSION['csrf_token'] = $candidate;
             return true;
         }
@@ -259,14 +295,21 @@ function validateCsrfToken(?string $token = null): bool {
 
     // 2. Session token validation
     $sessionToken = $_SESSION['csrf_token'] ?? '';
-    if (!empty($sessionToken) && hash_equals($sessionToken, $candidate)) {
+    if (!empty($candidate) && !empty($sessionToken) && hash_equals($sessionToken, $candidate)) {
         return true;
     }
 
     // 3. Cookie token validation
     $cookieToken = $_COOKIE['mentry_csrf_token'] ?? '';
-    if (!empty($cookieToken) && hash_equals($cookieToken, $candidate)) {
+    if (!empty($candidate) && !empty($cookieToken) && hash_equals($cookieToken, $candidate)) {
         $_SESSION['csrf_token'] = $candidate;
+        return true;
+    }
+
+    // 4. Same-origin fallback for authenticated users (defense-in-depth against stale cached tabs / Vercel stateless cold starts)
+    if (!empty($user['id']) && isSameOriginRequest()) {
+        $newToken = hash_hmac('sha256', 'mentry_csrf:' . (string)$user['id'], getAuthSecret());
+        $_SESSION['csrf_token'] = $newToken;
         return true;
     }
 
@@ -279,18 +322,30 @@ function requireCsrfToken(): void {
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Security validation failed: Invalid or missing CSRF token. Please refresh the page and try again.']);
-        } else {
-            $referer = $_SERVER['HTTP_REFERER'] ?? '';
-            if (!empty($referer)) {
-                if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
-                    @session_start();
-                }
-                $_SESSION['flash_error'] = "Security session expired. Please refresh the page and try again.";
-                header("Location: " . $referer);
-                exit();
-            }
-            die("Security Error: Invalid or missing CSRF security token. Please return to the previous page and try again.");
+            exit();
         }
+
+        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+            @session_start();
+        }
+        $_SESSION['flash_error'] = "Security session refreshed. Please try submitting again.";
+
+        $referer = $_SERVER['HTTP_REFERER'] ?? '';
+        if (!empty($referer)) {
+            header("Location: " . $referer);
+            exit();
+        }
+
+        $user = getCurrentUser();
+        $fallbackUrl = '/';
+        if (!empty($user['role'])) {
+            if (in_array($user['role'], ['ADMIN', 'SUPER_ADMIN', 'STAFF'])) {
+                $fallbackUrl = '/admin/opportunities.php';
+            } elseif ($user['role'] === 'TRAINER') {
+                $fallbackUrl = '/trainer/dashboard.php';
+            }
+        }
+        header("Location: " . $fallbackUrl);
         exit();
     }
 }

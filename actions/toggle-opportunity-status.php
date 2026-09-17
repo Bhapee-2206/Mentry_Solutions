@@ -64,12 +64,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // If all positions were previously filled, expand quota by 1 so new candidates can apply
                 $trainersNeeded = max(1, (int)($opp['trainersNeeded'] ?? 1));
-                $assignedCount = 0;
-                if (!empty($opp['assignedTrainerIds']) && is_array($opp['assignedTrainerIds'])) {
-                    $assignedCount = count($opp['assignedTrainerIds']);
-                } elseif (!empty($opp['assignedTrainerId'])) {
-                    $assignedCount = 1;
+                $asgCol = getCollection("Assignment");
+                $oppQueryIds = [(string)$opportunityId];
+                try { $oppQueryIds[] = new MongoDB\BSON\ObjectId((string)$opportunityId); } catch (\Throwable $e) {}
+                $activeAsgs = $asgCol ? $asgCol->find([
+                    'opportunityId' => ['$in' => $oppQueryIds],
+                    'status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS', 'CONFIRMED', 'ASSIGNED', 'ACCEPTED']]
+                ])->toArray() : [];
+                $uniqueActiveTrainers = [];
+                foreach ($activeAsgs as $aa) {
+                    if (!empty($aa['trainerId'])) {
+                        $uniqueActiveTrainers[(string)$aa['trainerId']] = true;
+                    }
                 }
+                if (!empty($opp['assignedTrainerIds']) && is_array($opp['assignedTrainerIds'])) {
+                    foreach ($opp['assignedTrainerIds'] as $atid) {
+                        if (!empty($atid)) $uniqueActiveTrainers[(string)$atid] = true;
+                    }
+                } elseif (!empty($opp['assignedTrainerId'])) {
+                    $uniqueActiveTrainers[(string)$opp['assignedTrainerId']] = true;
+                }
+                $assignedCount = count($uniqueActiveTrainers);
+
                 if ($assignedCount >= $trainersNeeded) {
                     $updateData['trainersNeeded'] = $assignedCount + 1;
                 }
