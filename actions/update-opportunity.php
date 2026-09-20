@@ -34,15 +34,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $diningCovered = !empty($_POST['diningCovered']);
 
     if (!empty($id) && !empty($title)) {
-        if (!empty($startDate) && strtotime($startDate) !== false && strtotime($startDate) < strtotime(date('Y-m-d'))) {
-            if (!in_array($status, ['COMPLETED', 'IN_PROGRESS', 'CANCELLED'])) {
-                header("Location: /admin/opportunity-edit.php?id=" . urlencode($id) . "&error=" . urlencode("Start date cannot be in the past for active/published opportunities."));
+        $today = getTodayISTDate();
+        $startStr = normalizeDateToISTString($startDate);
+        $endStr = normalizeDateToISTString($endDate);
+
+        // Before allowing Publish, Reopen, Republish, or Activate, validate: startDate >= today
+        if (in_array($status, ['PUBLISHED', 'OPEN'])) {
+            if (!$startStr || $startStr < $today) {
+                header("Location: /admin/opportunity-edit.php?id=" . urlencode($id) . "&error=" . urlencode("Start date cannot be in the past. Please select today or a future date."));
                 exit();
             }
         }
-        if (!empty($startDate) && !empty($endDate) && strtotime($endDate) < strtotime($startDate)) {
-            header("Location: /admin/opportunity-edit.php?id=" . urlencode($id) . "&error=" . urlencode("End date cannot be earlier than start date."));
+
+        // Require: endDate >= startDate
+        if (!empty($startStr) && !empty($endStr) && $endStr < $startStr) {
+            header("Location: /admin/opportunity-edit.php?id=" . urlencode($id) . "&error=" . urlencode("End date must be on or after the start date."));
             exit();
+        }
+
+        if (!empty($startStr) && !empty($endStr) && $durationDays <= 0) {
+            $durationDays = calculateWorkingDays($startStr, $endStr);
         }
 
         $oppCol = getCollection("Opportunity");

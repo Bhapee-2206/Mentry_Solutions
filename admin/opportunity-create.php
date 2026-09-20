@@ -31,14 +31,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accommodationCovered = !empty($_POST['accommodationCovered']);
     $diningCovered = !empty($_POST['diningCovered']);
 
+    $today = function_exists('getTodayISTDate') ? getTodayISTDate() : date('Y-m-d');
+    $startStr = function_exists('normalizeDateToISTString') ? normalizeDateToISTString($startDate) : $startDate;
+    $endStr = function_exists('normalizeDateToISTString') ? normalizeDateToISTString($endDate) : $endDate;
+
     if (empty($title) || empty($city) || empty($startDate) || empty($endDate)) {
         $error = "Please fill in all mandatory fields including Start Date and End Date.";
-    } elseif (strtotime($startDate) === false || strtotime($endDate) === false) {
+    } elseif (!$startStr || !$endStr) {
         $error = "Please provide valid start and end dates.";
-    } elseif (strtotime($startDate) < strtotime(date('Y-m-d'))) {
+    } elseif ($startStr < $today) {
         $error = "Start date cannot be in the past. Please select today or a future date.";
-    } elseif (strtotime($endDate) < strtotime($startDate)) {
-        $error = "End date cannot be earlier than start date.";
+    } elseif ($endStr < $startStr) {
+        $error = "End date must be on or after the start date.";
     } else {
         $oppCol = getCollection("Opportunity");
         $jobId = getNextSequentialMentryId('OPPORTUNITY');
@@ -138,18 +142,18 @@ require_once __DIR__ . '/includes/sidebar.php';
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Start Date *</label>
-                <input type="date" id="oppStartDate" name="startDate" required min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($_POST['startDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <input type="date" id="oppStartDate" name="startDate" required min="<?= function_exists('getTodayISTDate') ? getTodayISTDate() : date('Y-m-d') ?>" value="<?= htmlspecialchars($_POST['startDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
             </div>
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">End Date *</label>
-                <input type="date" id="oppEndDate" name="endDate" required min="<?= htmlspecialchars($_POST['startDate'] ?? date('Y-m-d')) ?>" value="<?= htmlspecialchars($_POST['endDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <input type="date" id="oppEndDate" name="endDate" required min="<?= htmlspecialchars($_POST['startDate'] ?? (function_exists('getTodayISTDate') ? getTodayISTDate() : date('Y-m-d'))) ?>" value="<?= htmlspecialchars($_POST['endDate'] ?? '') ?>" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                 <span class="text-[10px] text-slate-400 mt-1 block">Scheduled completion date (accounting for weekends / off days).</span>
             </div>
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Actual Training / Working Days *</label>
-                <input type="number" name="durationDays" value="<?= htmlspecialchars($_POST['durationDays'] ?? '5') ?>" min="1" max="180" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <input type="number" id="oppDurationDays" name="durationDays" value="<?= htmlspecialchars($_POST['durationDays'] ?? '5') ?>" min="1" max="180" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                 <span class="text-[10px] text-slate-400 mt-1 block">Total instructional days excluding weekend breaks.</span>
             </div>
 
@@ -212,15 +216,43 @@ require_once __DIR__ . '/includes/sidebar.php';
 document.addEventListener('DOMContentLoaded', function() {
     const startInput = document.getElementById('oppStartDate');
     const endInput = document.getElementById('oppEndDate');
-    if (startInput && endInput) {
-        startInput.addEventListener('change', function() {
-            if (this.value) {
-                endInput.min = this.value;
-                if (endInput.value && endInput.value < this.value) {
-                    endInput.value = this.value;
+    const durationInput = document.getElementById('oppDurationDays');
+
+    function calculateWeekdays(startDateStr, endDateStr) {
+        if (!startDateStr || !endDateStr) return null;
+        const start = new Date(startDateStr + 'T00:00:00');
+        const end = new Date(endDateStr + 'T00:00:00');
+        if (end < start) return null;
+        let count = 0;
+        const cur = new Date(start);
+        while (cur <= end) {
+            const day = cur.getDay();
+            if (day !== 0 && day !== 6) { // Mon-Fri
+                count++;
+            }
+            cur.setDate(cur.getDate() + 1);
+        }
+        return Math.max(1, count);
+    }
+
+    function syncDatesAndDuration() {
+        if (startInput && startInput.value) {
+            endInput.min = startInput.value;
+            if (endInput.value && endInput.value < startInput.value) {
+                endInput.value = startInput.value;
+            }
+            if (endInput.value) {
+                const weekdays = calculateWeekdays(startInput.value, endInput.value);
+                if (weekdays && durationInput) {
+                    durationInput.value = weekdays;
                 }
             }
-        });
+        }
+    }
+
+    if (startInput && endInput) {
+        startInput.addEventListener('change', syncDatesAndDuration);
+        endInput.addEventListener('change', syncDatesAndDuration);
     }
 });
 </script>

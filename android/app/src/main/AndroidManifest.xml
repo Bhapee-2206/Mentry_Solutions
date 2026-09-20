@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Permissions required for network, PWA rendering, and native push -->
+    <!-- Permissions required for network and WebView rendering -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Android 13+ (API 33+) runtime notification permission -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".MentryApp"
@@ -28,7 +26,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep linking for Mentry Opportunity & Notification URLs -->
+            <!-- Deep linking for Mentry Opportunity & Navigation URLs -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -37,33 +35,7 @@
                     android:scheme="https"
                     android:host="mentry-solutions.vercel.app" />
             </intent-filter>
-
-            <!-- FCM Notification Tap Intent Filter (matches click_action: OPEN_MENTRY_URL) -->
-            <intent-filter>
-                <action android:name="OPEN_MENTRY_URL" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
         </activity>
-
-        <!-- Firebase Cloud Messaging Receiver Service -->
-        <service
-            android:name=".MyFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
-        <!-- Default notification icon and accent color for background FCM display -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_notification" />
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_color"
-            android:resource="@color/mentry_orange" />
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="mentry_alerts" />
 
     </application>
 

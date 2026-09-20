@@ -1,22 +1,16 @@
 package com.mentrysolutions.app
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.webkit.*
 import android.widget.ProgressBar
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 class MainActivity : AppCompatActivity() {
@@ -24,33 +18,12 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val TAG = "MentryMainActivity"
         const val EXTRA_URL = "extra_mentry_url"
-        const val EXTRA_NOTIF_ID = "extra_notif_id"
-        const val EXTRA_NOTIF_TYPE = "extra_notif_type"
         const val HOME_URL = "https://mentry-solutions.vercel.app"
     }
 
     private lateinit var webView: WebView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var progressBar: ProgressBar
-
-    // Android 13+ (API 33) Runtime Notification Permission Launcher
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            Log.d(TAG, "POST_NOTIFICATIONS permission granted by user")
-            FcmTokenManager.retrieveCurrentToken(this) { token ->
-                FcmTokenManager.syncTokenWithServer(this)
-            }
-        } else {
-            Log.w(TAG, "POST_NOTIFICATIONS permission denied by user")
-            Toast.makeText(
-                this,
-                "Notification permission is recommended for receiving instant training alerts.",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,14 +36,8 @@ class MainActivity : AppCompatActivity() {
         setupWebView()
         setupSwipeRefresh()
         setupBackNavigation()
-        requestNotificationPermission()
 
-        // Initialize and sync FCM token
-        FcmTokenManager.retrieveCurrentToken(this) { token ->
-            FcmTokenManager.syncTokenWithServer(this)
-        }
-
-        // Handle target URL if opened via notification click or deep link
+        // Handle target URL if opened via deep link or intent
         val initialUrl = resolveTargetUrl(intent)
         webView.loadUrl(initialUrl)
     }
@@ -141,10 +108,6 @@ class MainActivity : AppCompatActivity() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 progressBar.visibility = View.VISIBLE
-                if (url != null && url.contains("logout.php")) {
-                    Log.d(TAG, "User logout detected via URL in onPageStarted, unlinking FCM token")
-                    FcmTokenManager.unlinkSession(this@MainActivity)
-                }
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -154,31 +117,13 @@ class MainActivity : AppCompatActivity() {
 
                 // Synchronize cookie state
                 CookieManager.getInstance().flush()
-
-                // If user logged out, ensure session is unlinked
-                if (url != null && url.contains("logout.php")) {
-                    Log.d(TAG, "User logout confirmed via URL in onPageFinished, unlinking FCM token")
-                    FcmTokenManager.unlinkSession(this@MainActivity)
-                    return
-                }
-
-                // Eagerly inspect if authenticated user session is active on page
-                view?.evaluateJavascript("window.__MENTRY_USER_ID || (document.body ? document.body.getAttribute('data-user-id') : '')") { result ->
-                    val cleanUserId = result?.trim('"', '\'', ' ', '\n', '\r')
-                    if (!cleanUserId.isNullOrEmpty() && cleanUserId != "null" && cleanUserId != "undefined") {
-                        Log.d(TAG, "Authenticated user ID detected via JS evaluation: $cleanUserId")
-                        FcmTokenManager.syncTokenWithServer(this@MainActivity, explicitUserId = cleanUserId)
-                    } else if (url != null && (url.contains("/trainer/") || url.contains("/admin/") || url.contains("/vendor/"))) {
-                        FcmTokenManager.syncTokenWithServer(this@MainActivity)
-                    }
-                }
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
                 val uri = Uri.parse(url)
 
-                // Handle external tel:, mailto:, whatsapp: links
+                // Handle external tel:, mailto:, whatsapp:, intent: links
                 if (url.startsWith("tel:") || url.startsWith("mailto:") || url.startsWith("whatsapp:") || url.startsWith("intent:")) {
                     try {
                         val intent = Intent(Intent.ACTION_VIEW, uri)
@@ -238,15 +183,6 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun requestNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val permission = Manifest.permission.POST_NOTIFICATIONS
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                notificationPermissionLauncher.launch(permission)
-            }
-        }
-    }
-
     /**
      * JavaScript Interface exposed to Mentry Web App via `window.MentryAndroid`.
      */
@@ -255,25 +191,19 @@ class MainActivity : AppCompatActivity() {
         fun isNativeApp(): Boolean = true
 
         @JavascriptInterface
-        fun getFcmToken(): String {
-            return FcmTokenManager.getCachedToken(this@MainActivity) ?: ""
-        }
+        fun getFcmToken(): String = ""
 
         @JavascriptInterface
-        fun getInstallationId(): String {
-            return FcmTokenManager.getInstallationId(this@MainActivity)
-        }
+        fun getInstallationId(): String = ""
 
         @JavascriptInterface
         fun syncUserSession(userId: String) {
-            Log.d(TAG, "Bridge: syncUserSession called for userId: $userId")
-            FcmTokenManager.syncTokenWithServer(this@MainActivity, explicitUserId = userId)
+            // No-op after push retirement
         }
 
         @JavascriptInterface
         fun onUserLogout() {
-            Log.d(TAG, "Bridge: onUserLogout called - unlinking device token")
-            FcmTokenManager.unlinkSession(this@MainActivity)
+            // No-op after push retirement
         }
     }
 }

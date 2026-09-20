@@ -1038,10 +1038,248 @@ function checkTrainerOpportunityDateConflict($trainerId, $targetOpp) {
  * @param array|object $opp Opportunity document
  * @return bool True if all required slots are filled
  */
+/**
+ * Returns today's date in Asia/Kolkata (IST) in 'Y-m-d' format.
+ */
+function getTodayISTDate(): string {
+    $dt = new DateTime('now', new DateTimeZone('Asia/Kolkata'));
+    return $dt->format('Y-m-d');
+}
+
+/**
+ * Normalizes any date value (MongoDB UTCDateTime, numeric timestamp, string, array)
+ * into a standard 'Y-m-d' string evaluated strictly in Asia/Kolkata (IST).
+ */
+function normalizeDateToISTString($dateVal): ?string {
+    if (empty($dateVal)) return null;
+    $tz = new DateTimeZone('Asia/Kolkata');
+    if ($dateVal instanceof MongoDB\BSON\UTCDateTime) {
+        $dt = $dateVal->toDateTime();
+        $dt->setTimezone($tz);
+        return $dt->format('Y-m-d');
+    }
+    if (is_numeric($dateVal)) {
+        $ts = ($dateVal > 20000000000) ? (int)round($dateVal / 1000) : (int)$dateVal;
+        $dt = new DateTime("@$ts");
+        $dt->setTimezone($tz);
+        return $dt->format('Y-m-d');
+    }
+    if (is_array($dateVal) || is_object($dateVal)) {
+        $arr = (array)$dateVal;
+        if (isset($arr['$date'])) {
+            $raw = is_array($arr['$date']) ? ($arr['$date']['$numberLong'] ?? 0) : $arr['$date'];
+            $ts = is_numeric($raw) && $raw > 20000000000 ? (int)round($raw / 1000) : (int)$raw;
+            if ($ts > 0) {
+                $dt = new DateTime("@$ts");
+                $dt->setTimezone($tz);
+                return $dt->format('Y-m-d');
+            }
+        }
+    }
+    if (is_string($dateVal)) {
+        $trimmed = trim($dateVal);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $trimmed)) {
+            return $trimmed;
+        }
+        if (is_numeric($trimmed)) {
+            $ts = ($trimmed > 20000000000) ? (int)round($trimmed / 1000) : (int)$trimmed;
+            $dt = new DateTime("@$ts");
+            $dt->setTimezone($tz);
+            return $dt->format('Y-m-d');
+        }
+        try {
+            $dt = new DateTime($trimmed, $tz);
+            return $dt->format('Y-m-d');
+        } catch (\Throwable $e) {
+            $ts = strtotime($trimmed);
+            if ($ts !== false) {
+                $dt = new DateTime("@$ts");
+                $dt->setTimezone($tz);
+                return $dt->format('Y-m-d');
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Calculates the actual instructional working days (weekdays: Mon-Fri)
+ * between two dates, excluding weekends.
+ */
+function calculateWorkingDays($startDate, $endDate): int {
+    $startStr = normalizeDateToISTString($startDate);
+    $endStr = normalizeDateToISTString($endDate);
+    if (!$startStr || !$endStr) return 1;
+    if ($endStr < $startStr) return 1;
+
+    $startDt = new DateTime($startStr);
+    $endDt = new DateTime($endStr);
+    $endDt->modify('+1 day'); // inclusive
+
+    $interval = new DateInterval('P1D');
+    $period = new DatePeriod($startDt, $interval, $endDt);
+
+    $workingDays = 0;
+    foreach ($period as $dt) {
+        $dayOfWeek = (int)$dt->format('N'); // 1 (Mon) to 7 (Sun)
+        if ($dayOfWeek < 6) { // Mon-Fri
+            $workingDays++;
+        }
+    }
+
+    return max(1, $workingDays);
+}
+
+/**
+ * Formats duration display for opportunities.
+ */
+function formatOpportunityDuration($opp): string {
+    $days = null;
+    if (!empty($opp['startDate']) && !empty($opp['endDate'])) {
+        $days = calculateWorkingDays($opp['startDate'], $opp['endDate']);
+    } elseif (!empty($opp['durationDays'])) {
+        $days = (int)$opp['durationDays'];
+    } else {
+        $days = 1;
+    }
+    return $days . ' Working Day' . ($days === 1 ? '' : 's');
+}
+
+/**
+ * Authoritative central opportunity operational lifecycle evaluation.
+ * Evaluates dates strictly against current date in Asia/Kolkata (IST).
+ * 
+ * Rules:
+ * - If status is DRAFT -> 'DRAFT'
+ * - If status is CLOSED or CANCELLED -> 'CLOSED'
+ * - If endDate < today (IST) -> 'COMPLETED'
+ * - If startDate <= today && endDate >= today (IST) -> 'IN_PROGRESS'
+ * - If startDate > today (IST) -> 'PUBLISHED'
+ *
+ * @param array|object $opp Opportunity document
+ * @return string Lifecycle status: 'DRAFT', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED', 'CLOSED'
+ */
+function getOpportunityLifecycleStatus($opp): string {
+    if (empty($opp)) return 'CLOSED';
+
+    $rawStatus = strtoupper(trim((string)($opp['status'] ?? 'PUBLISHED')));
+
+    // Administrative draft
+    if ($rawStatus === 'DRAFT') {
+        return 'DRAFT';
+    }
+
+    // Administrative closed or cancelled
+    if ($rawStatus === 'CLOSED' || $rawStatus === 'CANCELLED') {
+        return 'CLOSED';
+    }
+
+    $today = getTodayISTDate();
+    $start = normalizeDateToISTString($opp['startDate'] ?? null);
+    $end = normalizeDateToISTString($opp['endDate'] ?? null);
+
+    // Fallback if endDate is missing but durationDays is specified
+    if (!$end && $start) {
+        $duration = max(1, (int)($opp['durationDays'] ?? 1));
+        $ts = strtotime($start . ' +' . ($duration - 1) . ' days');
+        $end = date('Y-m-d', $ts);
+    }
+
+    // If both dates missing, preserve explicit COMPLETED or default to PUBLISHED
+    if (!$start && !$end) {
+        return ($rawStatus === 'COMPLETED') ? 'COMPLETED' : 'PUBLISHED';
+    }
+    if (!$end) $end = $start;
+    if (!$start) $start = $end;
+
+    // Rule D: Program Finished
+    if ($end < $today) {
+        return 'COMPLETED';
+    }
+
+    // Rules B & C: Program Starting Today or Currently Running
+    if ($start <= $today && $end >= $today) {
+        return 'IN_PROGRESS';
+    }
+
+    // Rule A: Future Program
+    return 'PUBLISHED';
+}
+
+/**
+ * Authoritative central evaluation of Trainer Matching status.
+ * Evaluated independently from the operational lifecycle.
+ *
+ * @param array|object $opp Opportunity document
+ * @return string Matching status: 'ASSIGNED', 'MATCHED', 'NOT_MATCHED'
+ */
+function getOpportunityMatchingStatus($opp): string {
+    if (empty($opp)) return 'NOT_MATCHED';
+
+    $rawStatus = strtoupper(trim((string)($opp['status'] ?? '')));
+
+    // Check if any trainer has been assigned
+    $hasAssigned = !empty($opp['assignedTrainerId']) || (!empty($opp['assignedTrainerIds']) && is_array($opp['assignedTrainerIds']) && count($opp['assignedTrainerIds']) > 0);
+    if ($hasAssigned || $rawStatus === 'ASSIGNED') {
+        return 'ASSIGNED';
+    }
+
+    // Check if matching has occurred
+    if ($rawStatus === 'MATCHED' || !empty($opp['matchedTrainerIds']) || !empty($opp['isMatched'])) {
+        return 'MATCHED';
+    }
+
+    return 'NOT_MATCHED';
+}
+
+/**
+ * Render visual badge for Lifecycle Status.
+ */
+function renderLifecycleBadge($status): string {
+    $status = strtoupper(trim((string)$status));
+    switch ($status) {
+        case 'PUBLISHED':
+            return '<span class="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> PUBLISHED / OPEN</span>';
+        case 'IN_PROGRESS':
+            return '<span class="bg-amber-50 text-amber-800 border border-amber-300 text-xs font-extrabold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 shadow-2xs"><span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> IN PROGRESS</span>';
+        case 'COMPLETED':
+            return '<span class="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"><span class="material-symbols-outlined text-[13px] text-purple-600">task_alt</span> COMPLETED</span>';
+        case 'CLOSED':
+            return '<span class="bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"><span class="material-symbols-outlined text-[13px] text-slate-500">lock</span> CLOSED</span>';
+        case 'DRAFT':
+            return '<span class="bg-gray-100 text-gray-700 border border-gray-300 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"><span class="material-symbols-outlined text-[13px] text-gray-500">edit_note</span> DRAFT</span>';
+        default:
+            return '<span class="bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold px-2.5 py-0.5 rounded-full">' . htmlspecialchars(str_replace('_', ' ', $status)) . '</span>';
+    }
+}
+
+/**
+ * Render visual badge for Trainer Matching Status.
+ */
+function renderMatchingBadge($matchingStatus): string {
+    $matchingStatus = strtoupper(trim((string)$matchingStatus));
+    switch ($matchingStatus) {
+        case 'ASSIGNED':
+            return '<span class="bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"><span class="material-symbols-outlined text-[13px] text-emerald-600">how_to_reg</span> ASSIGNED</span>';
+        case 'MATCHED':
+            return '<span class="bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"><span class="material-symbols-outlined text-[13px] text-indigo-600">person_search</span> MATCHED</span>';
+        case 'NOT_MATCHED':
+        default:
+            return '<span class="bg-slate-50 text-slate-500 border border-slate-200 text-xs font-medium px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"><span class="material-symbols-outlined text-[13px] text-slate-400">group_off</span> NOT MATCHED</span>';
+    }
+}
+
+/**
+ * Checks if an opportunity has filled all required trainer positions.
+ * Accurately tracks multi-trainer positions (trainersNeeded) and verified assigned candidates.
+ *
+ * @param array|object $opp Opportunity document
+ * @return bool True if all required slots are filled
+ */
 function isOpportunityFullyStaffed($opp): bool {
     if (empty($opp)) return false;
-    $status = strtoupper($opp['status'] ?? 'PUBLISHED');
-    if ($status === 'MATCHED' || $status === 'COMPLETED') {
+    $rawStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
+    if ($rawStatus === 'MATCHED' || $rawStatus === 'COMPLETED') {
         return true;
     }
 
@@ -1062,25 +1300,29 @@ function isOpportunityFullyStaffed($opp): bool {
 
 /**
  * Authoritative check if an opportunity is open and accepting trainer applications.
+ *
  * An opportunity is open if:
- * 1. Status is PUBLISHED (or actively reopened)
+ * 1. Operational lifecycle status is strictly 'PUBLISHED' (future program)
  * 2. Not fully staffed (open slots remain)
- * 3. Has not passed final delivery cutoff (endDate is not in the past)
+ * 3. Has not passed final delivery cutoff
  *
  * @param array|object $opp Opportunity document
  * @return bool True if opportunity is open for applications
  */
 function isOpportunityOpenForApplications($opp): bool {
     if (empty($opp)) return false;
-    $status = strtoupper($opp['status'] ?? 'PUBLISHED');
-    if (in_array($status, ['CLOSED', 'COMPLETED', 'CANCELLED', 'DRAFT'])) {
-        return false;
-    }
-    if ($status === 'MATCHED' || isOpportunityFullyStaffed($opp)) {
+    
+    // Strict date-based lifecycle check:
+    // Completed, in-progress, closed, or draft opportunities NEVER accept applications.
+    $lifecycle = getOpportunityLifecycleStatus($opp);
+    if ($lifecycle !== 'PUBLISHED') {
         return false;
     }
 
-    // Check cutoff
+    if (isOpportunityFullyStaffed($opp)) {
+        return false;
+    }
+
     if (isOpportunityPastCutoff($opp)) {
         return false;
     }
@@ -1090,54 +1332,31 @@ function isOpportunityOpenForApplications($opp): bool {
 
 /**
  * Checks if an unassigned opportunity has passed its application closing cutoff.
- * The application window strictly closes at 18:00 (6:00 PM) on the eve (day before)
- * of the scheduled start date, unless explicitly reopened or active with upcoming end date.
+ * The application window strictly closes at 18:00 (6:00 PM) IST on the eve (day before)
+ * of the scheduled start date.
  *
  * @param array|object $opp Opportunity document
- * @return bool True if unassigned and past cutoff
+ * @return bool True if past cutoff
  */
 function isOpportunityPastCutoff($opp) {
     if (empty($opp)) return false;
-    $status = strtoupper($opp['status'] ?? 'PUBLISHED');
-    if ($status !== 'PUBLISHED') return true;
-
-    // If fully staffed, cutoff for new applications is closed
+    if (getOpportunityLifecycleStatus($opp) !== 'PUBLISHED') return true;
     if (isOpportunityFullyStaffed($opp)) return true;
 
-    $now = time();
+    $tz = new DateTimeZone('Asia/Kolkata');
+    $now = new DateTime('now', $tz);
 
-    // Check if explicitly reopened by admin recently (within 7 days)
-    $reopenedAt = $opp['reopenedAt'] ?? null;
-    $reopenedTs = parseDateToTimestamp($reopenedAt);
-    $isRecentlyReopened = ($reopenedTs && ($now - $reopenedTs) < (7 * 86400));
+    $startStr = normalizeDateToISTString($opp['startDate'] ?? null);
+    if (!$startStr) return false;
 
-    // End date check: if program has already completely concluded, it is past cutoff
-    $endTs = parseDateToTimestamp($opp['endDate'] ?? null);
-    if ($endTs && $endTs < $now) {
-        return true;
-    }
-
-    $startTs = null;
-    if (function_exists('getOpportunityStartTimestamp')) {
-        $startTs = getOpportunityStartTimestamp($opp);
-    } else {
-        $startTs = parseDateToTimestamp($opp['startDate'] ?? null);
-    }
-
-    if (!$startTs) return false;
-
-    // If recently reopened by admin or has active future end date, do not block open recruitment
-    if ($isRecentlyReopened || ($endTs && $endTs >= $now)) {
+    // Cutoff: 18:00 (6:00 PM) IST on the day before start date
+    try {
+        $cutoffDt = new DateTime($startStr . ' 18:00:00', $tz);
+        $cutoffDt->modify('-1 day');
+        return ($now >= $cutoffDt);
+    } catch (\Throwable $e) {
         return false;
     }
-
-    $startDateStr = date('Y-m-d', $startTs);
-    $todayDateStr = date('Y-m-d', $now);
-
-    // Evening cutoff: 18:00 (6:00 PM) on the day before start date
-    $closeCutoffTs = strtotime($startDateStr . ' 18:00:00 -1 day');
-
-    return ($now >= $closeCutoffTs) || ($todayDateStr >= $startDateStr);
 }
 
 /**

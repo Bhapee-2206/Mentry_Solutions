@@ -1,85 +1,100 @@
 <?php
-// admin/opportunities.php - Opportunity Manager
+// admin/opportunities.php - Opportunity Manager with Authoritative Lifecycle & Matching Separation
 $pageTitle = "Opportunity Manager";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/notifications.php';
+checkOpportunityScheduleMilestones();
 require_once __DIR__ . '/includes/sidebar.php';
 
 $oppCol = getCollection("Opportunity");
 $appCol = getCollection("Application");
 
-$statusFilter = $_GET['status'] ?? 'ALL';
-$domainFilter = $_GET['domain'] ?? 'ALL';
+$statusFilter = strtoupper(trim($_GET['status'] ?? 'ALL'));
+$matchingFilter = strtoupper(trim($_GET['matching'] ?? 'ALL'));
+$domainFilter = trim($_GET['domain'] ?? 'ALL');
 $search = trim($_GET['search'] ?? '');
 
-$conditions = [];
-if ($statusFilter !== 'ALL') {
-    if ($statusFilter === 'CLOSED') {
-        $conditions[] = ['status' => ['$in' => ['CLOSED', 'MATCHED']]];
-    } else {
-        $conditions[] = ['status' => $statusFilter];
+// Fetch all opportunities to compute accurate lifecycle stats and separate matching filters
+$allRawOpportunities = $oppCol ? $oppCol->find([], ['sort' => ['_id' => -1]])->toArray() : [];
+
+// Compute accurate statistics using centralized Asia/Kolkata lifecycle evaluation
+$totalCount = count($allRawOpportunities);
+$publishedCount = 0;
+$inProgressCount = 0;
+$completedCount = 0;
+$closedCount = 0;
+$draftCount = 0;
+
+$matchedCount = 0;
+$assignedCount = 0;
+$unmatchedCount = 0;
+
+foreach ($allRawOpportunities as $op) {
+    $lc = getOpportunityLifecycleStatus($op);
+    if ($lc === 'PUBLISHED') $publishedCount++;
+    elseif ($lc === 'IN_PROGRESS') $inProgressCount++;
+    elseif ($lc === 'COMPLETED') $completedCount++;
+    elseif ($lc === 'CLOSED') $closedCount++;
+    elseif ($lc === 'DRAFT') $draftCount++;
+
+    $mc = getOpportunityMatchingStatus($op);
+    if ($mc === 'ASSIGNED') $assignedCount++;
+    elseif ($mc === 'MATCHED') $matchedCount++;
+    else $unmatchedCount++;
+}
+
+// Filter opportunities based on active parameters
+$opportunities = [];
+foreach ($allRawOpportunities as $op) {
+    $lc = getOpportunityLifecycleStatus($op);
+    $mc = getOpportunityMatchingStatus($op);
+
+    // Lifecycle Status Filter
+    if ($statusFilter !== 'ALL' && $lc !== $statusFilter) {
+        continue;
     }
-}
-if ($domainFilter !== 'ALL') {
-    $domainRegex = new MongoDB\BSON\Regex($domainFilter, 'i');
-    $conditions[] = [
-        '$or' => [
-            ['domain' => $domainRegex],
-            ['title' => $domainRegex]
-        ]
-    ];
-}
-if (!empty($search)) {
-    $orSearch = [
-        ['title' => new MongoDB\BSON\Regex($search, 'i')],
-        ['city' => new MongoDB\BSON\Regex($search, 'i')],
-        ['jobId' => new MongoDB\BSON\Regex($search, 'i')],
-        ['mentryId' => new MongoDB\BSON\Regex($search, 'i')],
-        ['collegeName' => new MongoDB\BSON\Regex($search, 'i')],
-        ['domain' => new MongoDB\BSON\Regex($search, 'i')]
-    ];
-    if (preg_match('/^[a-f0-9]{24}$/i', $search)) {
-        try {
-            $orSearch[] = ['_id' => new MongoDB\BSON\ObjectId($search)];
-        } catch (\Throwable $e) {}
+
+    // Matching Status Filter
+    if ($matchingFilter !== 'ALL' && $mc !== $matchingFilter) {
+        continue;
     }
-    $conditions[] = ['$or' => $orSearch];
-}
 
-$filter = !empty($conditions) ? (count($conditions) === 1 ? $conditions[0] : ['$and' => $conditions]) : [];
-
-$opportunities = $oppCol ? $oppCol->find($filter, ['sort' => ['_id' => -1]])->toArray() : [];
-
-// If specific ID search produced 0 results due to active status/domain filters, search globally by ID
-if (empty($opportunities) && !empty($search) && $oppCol) {
-    $fallbackOr = [
-        ['jobId' => new MongoDB\BSON\Regex($search, 'i')],
-        ['mentryId' => new MongoDB\BSON\Regex($search, 'i')]
-    ];
-    if (preg_match('/^[a-f0-9]{24}$/i', $search)) {
-        try {
-            $fallbackOr[] = ['_id' => new MongoDB\BSON\ObjectId($search)];
-        } catch (\Throwable $e) {}
+    // Domain Filter
+    if ($domainFilter !== 'ALL') {
+        $dom = $op['domain'] ?? '';
+        $ttl = $op['title'] ?? '';
+        if (stripos($dom, $domainFilter) === false && stripos($ttl, $domainFilter) === false) {
+            continue;
+        }
     }
-    $opportunities = $oppCol->find(['$or' => $fallbackOr], ['sort' => ['_id' => -1]])->toArray();
+
+    // Text Search Filter
+    if (!empty($search)) {
+        $searchHaystack = ($op['title'] ?? '') . ' ' .
+                          ($op['city'] ?? '') . ' ' .
+                          ($op['state'] ?? '') . ' ' .
+                          ($op['jobId'] ?? '') . ' ' .
+                          ($op['mentryId'] ?? '') . ' ' .
+                          ($op['collegeName'] ?? '') . ' ' .
+                          ($op['domain'] ?? '') . ' ' .
+                          ((string)$op['_id']);
+        if (stripos($searchHaystack, $search) === false) {
+            continue;
+        }
+    }
+
+    $opportunities[] = $op;
 }
 
-$totalCount = $oppCol ? $oppCol->countDocuments() : 0;
-$publishedCount = $oppCol ? $oppCol->countDocuments(['status' => 'PUBLISHED']) : 0;
-$matchedCount = $oppCol ? $oppCol->countDocuments(['status' => 'MATCHED']) : 0;
-$closedCount = $oppCol ? $oppCol->countDocuments(['status' => ['$in' => ['CLOSED', 'MATCHED']]]) : 0;
-$inProgressCount = $oppCol ? $oppCol->countDocuments(['status' => 'IN_PROGRESS']) : 0;
-$completedCount = $oppCol ? $oppCol->countDocuments(['status' => 'COMPLETED']) : 0;
-$draftCount = $oppCol ? $oppCol->countDocuments(['status' => 'DRAFT']) : 0;
-
-$hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empty($search));
+$hasActiveFilters = ($statusFilter !== 'ALL' || $matchingFilter !== 'ALL' || $domainFilter !== 'ALL' || !empty($search));
 ?>
 
 <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">College Opportunities</h1>
-            <p class="text-xs md:text-sm text-slate-500 mt-1">Create, edit, match trainers, and manage campus training engagements.</p>
+            <p class="text-xs md:text-sm text-slate-500 mt-1">Manage training engagements with date-driven lifecycle rules and independent trainer matching.</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2 self-start">
@@ -118,19 +133,19 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
         <?php unset($_SESSION['flash_error']); ?>
     <?php endif; ?>
 
-    <!-- Quick Stats Metric Cards -->
+    <!-- Quick Stats Metric Cards (Calculated from Real Lifecycle & Dates) -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <a href="/admin/opportunities.php" class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card hover:border-slate-300 transition-colors block">
-            <p class="text-[11px] font-bold uppercase text-slate-400">Total Openings</p>
+            <p class="text-[11px] font-bold uppercase text-slate-400">Total Opportunities</p>
             <p class="text-2xl font-black text-slate-900 mt-1"><?= $totalCount ?></p>
         </a>
         <a href="/admin/opportunities.php?status=PUBLISHED" class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card hover:border-blue-300 transition-colors block">
-            <p class="text-[11px] font-bold uppercase text-blue-600">Published & Open</p>
+            <p class="text-[11px] font-bold uppercase text-blue-600">Published / Open</p>
             <p class="text-2xl font-black text-blue-600 mt-1"><?= $publishedCount ?></p>
         </a>
-        <a href="/admin/opportunities.php?status=CLOSED" class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card hover:border-slate-400 transition-colors block">
-            <p class="text-[11px] font-bold uppercase text-slate-600">Closed / Assigned</p>
-            <p class="text-2xl font-black text-slate-800 mt-1"><?= $closedCount ?></p>
+        <a href="/admin/opportunities.php?status=IN_PROGRESS" class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card hover:border-amber-400 transition-colors block">
+            <p class="text-[11px] font-bold uppercase text-amber-600">In Progress</p>
+            <p class="text-2xl font-black text-amber-600 mt-1"><?= $inProgressCount ?></p>
         </a>
         <a href="/admin/opportunities.php?status=COMPLETED" class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card hover:border-purple-300 transition-colors block">
             <p class="text-[11px] font-bold uppercase text-purple-600">Completed</p>
@@ -139,30 +154,41 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
     </div>
 
     <!-- Filters & Search Toolbar -->
-    <div class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card flex flex-col md:flex-row items-center justify-between gap-4">
-        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-card flex flex-col lg:flex-row items-center justify-between gap-4">
+        <!-- Lifecycle Tabs -->
+        <div class="flex flex-wrap items-center gap-1.5 w-full lg:w-auto">
             <?php
             $statuses = [
                 'ALL' => 'All (' . $totalCount . ')',
                 'PUBLISHED' => 'Published (' . $publishedCount . ')',
-                'CLOSED' => 'Closed (' . $closedCount . ')',
-                'MATCHED' => 'Matched (' . $matchedCount . ')',
                 'IN_PROGRESS' => 'In Progress (' . $inProgressCount . ')',
                 'COMPLETED' => 'Completed (' . $completedCount . ')',
+                'CLOSED' => 'Closed (' . $closedCount . ')',
                 'DRAFT' => 'Draft (' . $draftCount . ')'
             ];
             foreach ($statuses as $k => $v): ?>
-                <a href="/admin/opportunities.php?status=<?= $k ?>&domain=<?= urlencode($domainFilter) ?>&search=<?= urlencode($search) ?>" class="px-3 py-1 rounded-xl text-xs font-bold transition-all <?= $statusFilter === $k ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' ?>">
+                <a href="/admin/opportunities.php?status=<?= $k ?>&matching=<?= urlencode($matchingFilter) ?>&domain=<?= urlencode($domainFilter) ?>&search=<?= urlencode($search) ?>" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all <?= $statusFilter === $k ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' ?>">
                     <?= $v ?>
                 </a>
             <?php endforeach; ?>
         </div>
 
-        <form method="GET" action="/admin/opportunities.php" class="relative w-full md:w-72">
+        <!-- Matching Filter Dropdown + Search Form -->
+        <form method="GET" action="/admin/opportunities.php" class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
             <input type="hidden" name="status" value="<?= htmlspecialchars($statusFilter) ?>">
             <input type="hidden" name="domain" value="<?= htmlspecialchars($domainFilter) ?>">
-            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
-            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search title, city, job ID..." class="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 text-slate-900">
+
+            <select name="matching" onchange="this.form.submit()" class="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-700">
+                <option value="ALL" <?= $matchingFilter === 'ALL' ? 'selected' : '' ?>>All Matching (<?= $totalCount ?>)</option>
+                <option value="ASSIGNED" <?= $matchingFilter === 'ASSIGNED' ? 'selected' : '' ?>>Assigned (<?= $assignedCount ?>)</option>
+                <option value="MATCHED" <?= $matchingFilter === 'MATCHED' ? 'selected' : '' ?>>Matched (<?= $matchedCount ?>)</option>
+                <option value="NOT_MATCHED" <?= $matchingFilter === 'NOT_MATCHED' ? 'selected' : '' ?>>Unmatched (<?= $unmatchedCount ?>)</option>
+            </select>
+
+            <div class="relative flex-1 sm:w-64">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+                <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search title, city, job ID..." class="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 text-slate-900">
+            </div>
         </form>
     </div>
 
@@ -174,21 +200,26 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
                     <tr class="bg-slate-50 border-b border-slate-200 text-[11px] text-slate-500 uppercase tracking-wider font-bold">
                         <th class="py-4 px-5">Job Details</th>
                         <th class="py-4 px-4">Location & Mode</th>
-                        <th class="py-4 px-4">Start Date</th>
+                        <th class="py-4 px-4">Dates</th>
                         <th class="py-4 px-4">Duration</th>
                         <th class="py-4 px-4">Daily Rate</th>
                         <th class="py-4 px-4">Applicants</th>
                         <th class="py-4 px-4">Status</th>
+                        <th class="py-4 px-4">Matching</th>
                         <th class="py-4 px-5 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     <?php if (empty($opportunities)): ?>
-                        <tr><td colspan="8" class="p-8 text-center text-slate-400">No opportunities found matching your criteria.</td></tr>
+                        <tr><td colspan="9" class="p-8 text-center text-slate-400">No opportunities found matching your criteria.</td></tr>
                     <?php else: ?>
                         <?php foreach ($opportunities as $op): 
                             $opId = (string)$op['_id'];
                             $applicantCount = $appCol ? $appCol->countDocuments(['opportunityId' => $opId]) : 0;
+                            $lifecycleStatus = getOpportunityLifecycleStatus($op);
+                            $matchingStatus = getOpportunityMatchingStatus($op);
+                            $startDateFormatted = !empty($op['startDate']) ? formatDate($op['startDate']) : 'TBD';
+                            $endDateFormatted = !empty($op['endDate']) ? formatDate($op['endDate']) : '';
                         ?>
                             <tr class="hover:bg-slate-50/60 transition-colors">
                                 <td class="py-4 px-5">
@@ -206,16 +237,32 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
                                     <span class="font-semibold text-slate-800 block"><?= htmlspecialchars($op['city']) ?>, <?= htmlspecialchars($op['state']) ?></span>
                                     <span class="text-[10px] text-blue-600 font-bold uppercase"><?= htmlspecialchars($op['mode'] ?? 'OFFLINE') ?></span>
                                 </td>
-                                <td class="py-4 px-4 text-slate-600 font-medium"><?= !empty($op['endDate']) ? formatDate($op['startDate'] ?? null) . ' – ' . formatDate($op['endDate']) : formatDate($op['startDate'] ?? null) ?></td>
-                                <td class="py-4 px-4 text-slate-600 font-medium"><?= htmlspecialchars($op['durationDays'] ?? 5) ?> Working Days</td>
-                                <td class="py-4 px-4 font-bold text-blue-700"><?= formatINR($op['dailyRateMin'] ?? 0) ?> - <?= formatINR($op['dailyRateMax'] ?? 0) ?></td>
+                                <td class="py-4 px-4 text-slate-600 font-medium">
+                                    <div class="leading-tight">
+                                        <span class="font-bold text-slate-800"><?= $startDateFormatted ?></span>
+                                        <?php if (!empty($endDateFormatted) && $endDateFormatted !== $startDateFormatted): ?>
+                                            <span class="text-slate-400 block text-[11px]">to <?= $endDateFormatted ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-4 text-slate-600 font-medium">
+                                    <?= formatOpportunityDuration($op) ?>
+                                </td>
+                                <td class="py-4 px-4 font-bold text-blue-700 whitespace-nowrap">
+                                    <?= formatINR($op['dailyRateMin'] ?? 0) ?> - <?= formatINR($op['dailyRateMax'] ?? 0) ?>
+                                </td>
                                 <td class="py-4 px-4">
                                     <a href="/admin/opportunity-view.php?id=<?= $opId ?>" class="inline-flex items-center gap-1 font-bold text-xs <?= $applicantCount > 0 ? 'text-blue-600 hover:underline' : 'text-slate-400' ?>">
                                         <span class="material-symbols-outlined text-[15px]">person</span>
                                         <?= $applicantCount ?>
                                     </a>
                                 </td>
-                                <td class="py-4 px-4"><?= getStatusBadge($op['status'] ?? 'PUBLISHED') ?></td>
+                                <td class="py-4 px-4 whitespace-nowrap">
+                                    <?= renderLifecycleBadge($lifecycleStatus) ?>
+                                </td>
+                                <td class="py-4 px-4 whitespace-nowrap">
+                                    <?= renderMatchingBadge($matchingStatus) ?>
+                                </td>
                                 <td class="py-4 px-5 text-right">
                                     <div class="flex items-center justify-end gap-2">
                                         <a href="/admin/opportunity-view.php?id=<?= $opId ?>" class="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View & Match">
@@ -224,25 +271,27 @@ $hasActiveFilters = ($statusFilter !== 'ALL' || $domainFilter !== 'ALL' || !empt
                                         <a href="/admin/opportunity-edit.php?id=<?= $opId ?>" class="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors" title="Edit Opportunity">
                                             <span class="material-symbols-outlined text-[18px]">edit</span>
                                         </a>
-                                        <?php 
-                                        $opStatus = strtoupper($op['status'] ?? 'PUBLISHED');
-                                        $opIsClosed = ($opStatus === 'CLOSED' || $opStatus === 'MATCHED' || (function_exists('isOpportunityFullyStaffed') ? isOpportunityFullyStaffed($op) : !empty($op['assignedTrainerId'])));
-                                        ?>
-                                        <form action="/actions/toggle-opportunity-status.php" method="POST" class="inline">
-                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
-                                            <input type="hidden" name="opportunityId" value="<?= $opId ?>">
-                                            <?php if ($opIsClosed): ?>
+
+                                        <?php if ($lifecycleStatus === 'CLOSED' || $lifecycleStatus === 'COMPLETED'): ?>
+                                            <form action="/actions/toggle-opportunity-status.php" method="POST" class="inline">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                                                <input type="hidden" name="opportunityId" value="<?= $opId ?>">
                                                 <input type="hidden" name="action" value="reopen">
-                                                <button type="submit" class="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Reopen Opportunity">
+                                                <button type="submit" class="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Reopen Opportunity (Requires Future Dates)">
                                                     <span class="material-symbols-outlined text-[18px]">lock_open</span>
                                                 </button>
-                                            <?php else: ?>
+                                            </form>
+                                        <?php elseif ($lifecycleStatus === 'PUBLISHED' || $lifecycleStatus === 'IN_PROGRESS'): ?>
+                                            <form action="/actions/toggle-opportunity-status.php" method="POST" class="inline">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                                                <input type="hidden" name="opportunityId" value="<?= $opId ?>">
                                                 <input type="hidden" name="action" value="close">
                                                 <button type="submit" onclick="return confirm('Close opportunity \'<?= htmlspecialchars(addslashes($op['title'])) ?>\'?');" class="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition-colors" title="Close Opportunity">
                                                     <span class="material-symbols-outlined text-[18px]">lock</span>
                                                 </button>
-                                            <?php endif; ?>
-                                        </form>
+                                            </form>
+                                        <?php endif; ?>
+
                                         <form action="/actions/delete-opportunity.php" method="POST" class="inline" onsubmit="return confirm('Delete opportunity \'<?= htmlspecialchars(addslashes($op['title'])) ?>\'?');">
                                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                                             <input type="hidden" name="id" value="<?= $opId ?>">

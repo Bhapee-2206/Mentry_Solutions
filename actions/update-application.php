@@ -263,82 +263,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Dispatch real-time live notification to the trainer about application status change
+            // Dispatch in-app notification, email alert, and prepare work order draft if accepted
             if ($status !== $prevStatus) {
                 try {
-                    $notifCol = getCollection("Notification");
-                    $targetTrainer = $trainerCol ? $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerId)]) : null;
-                    $trainerUserId = (string)($targetTrainer['userId'] ?? '');
-
-                    if ($notifCol && !empty($trainerUserId)) {
-                        $oppObj = ($oppCol && !empty($oppId)) ? $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($oppId)]) : null;
-                        $oppTitle = trim($oppObj['title'] ?? 'Training Opportunity');
-                        $collegeName = trim($oppObj['collegeName'] ?? '');
-                        $collegeSuffix = !empty($collegeName) ? " at {$collegeName}" : "";
-                        $cityStr = !empty($oppObj['city']) ? " in {$oppObj['city']}" : "";
-                        $durStr = !empty($oppObj['durationDays']) ? " ({$oppObj['durationDays']} Days)" : "";
-                        $datesStr = "";
-                        if (!empty($oppObj['startDate'])) {
-                            $datesStr = " scheduled for " . formatDate($oppObj['startDate']) . (!empty($oppObj['endDate']) ? " to " . formatDate($oppObj['endDate']) : "");
-                        }
-                        $rateStr = !empty($app['proposedDailyRate']) ? " at honorarium rate of " . formatINR($app['proposedDailyRate']) . "/day" : "";
-
-                        $notifTitle = '';
-                        $notifMsg = '';
-                        $notifType = 'APPLICATION_' . $status;
-                        $notifLink = '/trainer/applications.php';
-
-                        if ($status === 'ACCEPTED') {
-                            $notifTitle = "🎉 Application Accepted: {$oppTitle}{$collegeSuffix}";
-                            $notifMsg = "Congratulations! Your application for {$oppTitle}{$collegeSuffix}{$cityStr} has been ACCEPTED{$rateStr}{$datesStr}. Your confirmed assignment itinerary is ready to view.";
-                            $notifLink = '/trainer/assignments.php';
-                        } elseif ($status === 'SHORTLISTED') {
-                            $notifTitle = "⭐ Shortlisted: {$oppTitle}{$collegeSuffix}";
-                            $notifMsg = "Great news! You have been SHORTLISTED for {$oppTitle}{$collegeSuffix}{$cityStr}{$durStr}. Operations is finalizing candidate roster.";
-                            $notifLink = '/trainer/applications.php';
-                        } elseif ($status === 'REJECTED') {
-                            $notifTitle = "Application Update: {$oppTitle}";
-                            $notifMsg = "Your application for {$oppTitle}{$collegeSuffix} was not selected this time. New matching opportunities are available on your feed.";
-                            $notifLink = '/trainer/opportunities.php';
-                        } else {
-                            $notifTitle = "Application Status Update: {$oppTitle}";
-                            $notifMsg = "Your application for {$oppTitle}{$collegeSuffix} status is now {$status}.";
-                        }
-
-                        if (!empty($adminNotes)) {
-                            $notifMsg .= " Note from Admin: \"{$adminNotes}\"";
-                        }
-
-                        $insRes = $notifCol->insertOne([
-                            'userId' => $trainerUserId,
-                            'trainerId' => $trainerId,
-                            'opportunityId' => $oppId,
-                            'applicationId' => (string)$app['_id'],
-                            'type' => $notifType,
-                            'title' => $notifTitle,
-                            'message' => $notifMsg,
-                            'link' => $notifLink,
-                            'read' => false,
-                            'createdAt' => new MongoDB\BSON\UTCDateTime()
-                        ]);
-                        $notifId = (string)$insRes->getInsertedId();
-
-                        // Web push notification to trainer's devices
-                        if (function_exists('dispatchWebPushNotification')) {
-                            @dispatchWebPushNotification(
-                                ['userId' => $trainerUserId],
-                                $notifTitle,
-                                $notifMsg,
-                                $notifLink,
-                                [
-                                    'id' => $notifId,
-                                    'type' => $notifType,
-                                    'trainerId' => $trainerId,
-                                    'opportunityId' => $oppId,
-                                    'priority' => 'high'
-                                ]
-                            );
-                        }
+                    if (function_exists('notifyApplicationStatusChanged')) {
+                        notifyApplicationStatusChanged($applicationId, $status, $adminNotes);
                     }
                 } catch (\Throwable $e) {
                     error_log("Failed to create trainer status notification: " . $e->getMessage());

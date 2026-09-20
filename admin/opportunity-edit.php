@@ -136,7 +136,7 @@ $endDateVal = $endTs ? date('Y-m-d', $endTs) : '';
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Actual Training / Working Days *</label>
-                <input type="number" name="durationDays" value="<?= htmlspecialchars($opp['durationDays'] ?? 5) ?>" min="1" max="180" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
+                <input type="number" id="oppDurationDays" name="durationDays" value="<?= htmlspecialchars($opp['durationDays'] ?? 5) ?>" min="1" max="180" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none">
                 <span class="text-[10px] text-slate-400 mt-1 block">Total instructional days excluding weekend breaks.</span>
             </div>
 
@@ -217,15 +217,43 @@ $endDateVal = $endTs ? date('Y-m-d', $endTs) : '';
 document.addEventListener('DOMContentLoaded', function() {
     const startInput = document.getElementById('oppStartDate');
     const endInput = document.getElementById('oppEndDate');
-    if (startInput && endInput) {
-        startInput.addEventListener('change', function() {
-            if (this.value) {
-                endInput.min = this.value;
-                if (endInput.value && endInput.value < this.value) {
-                    endInput.value = this.value;
+    const durationInput = document.getElementById('oppDurationDays');
+
+    function calculateWeekdays(startDateStr, endDateStr) {
+        if (!startDateStr || !endDateStr) return null;
+        const start = new Date(startDateStr + 'T00:00:00');
+        const end = new Date(endDateStr + 'T00:00:00');
+        if (end < start) return null;
+        let count = 0;
+        const cur = new Date(start);
+        while (cur <= end) {
+            const day = cur.getDay();
+            if (day !== 0 && day !== 6) { // Mon-Fri
+                count++;
+            }
+            cur.setDate(cur.getDate() + 1);
+        }
+        return Math.max(1, count);
+    }
+
+    function syncDatesAndDuration() {
+        if (startInput && startInput.value) {
+            endInput.min = startInput.value;
+            if (endInput.value && endInput.value < startInput.value) {
+                endInput.value = startInput.value;
+            }
+            if (endInput.value) {
+                const weekdays = calculateWeekdays(startInput.value, endInput.value);
+                if (weekdays && durationInput) {
+                    durationInput.value = weekdays;
                 }
             }
-        });
+        }
+    }
+
+    if (startInput && endInput) {
+        startInput.addEventListener('change', syncDatesAndDuration);
+        endInput.addEventListener('change', syncDatesAndDuration);
     }
 });
 </script>

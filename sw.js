@@ -1,6 +1,6 @@
-// Mentry native Web Push service worker.
-const MENTRY_SW_VERSION = 'mentry-native-webpush-v1';
-const CACHE_NAME = 'mentry-native-webpush-v1';
+// Mentry Solutions Service Worker (PWA App Shell, Caching & Offline Capabilities)
+const MENTRY_SW_VERSION = 'mentry-pwa-v2';
+const CACHE_NAME = 'mentry-pwa-v2';
 const PRECACHE_ASSETS = [
     './manifest.json',
     './public/push-icon.png',
@@ -31,145 +31,17 @@ self.addEventListener('activate', event => {
     );
 });
 
-/*
- * ========================================================
- * AUTHORITATIVE BACKGROUND PUSH EVENT (MINIMAL & ROBUST)
- * ========================================================
- */
-self.addEventListener('push', event => {
-    let payload = {};
-    try {
-        payload = event.data ? event.data.json() : {};
-    } catch (e) {}
-    const testId = payload.id || ('push_' + Date.now());
-
-    console.log('[Mentry PUSH DIAGNOSTIC] PUSH EVENT RECEIVED', testId);
-
-    event.waitUntil(handlePush(event, payload, testId));
-});
-
-self.addEventListener('pushsubscriptionchange', event => {
-    event.waitUntil((async () => {
-        const subscription = await self.registration.pushManager.getSubscription();
-        if (!subscription) return;
-        const json = subscription.toJSON();
-        await fetch('/actions/push/subscribe.php', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ endpoint: subscription.endpoint, keys: json.keys || {} })
-        });
-    })().catch(() => {}));
-});
-
-async function handlePush(event, data, testId) {
-    if (!data) {
-        try {
-            data = event.data ? event.data.json() : {};
-        } catch (e) {
-            data = {};
-        }
+// Cache-first for precached static assets, network-first for navigation
+self.addEventListener('fetch', event => {
+    const url = new URL(event.request.url);
+    // Pass through non-GET and cross-origin requests directly to network
+    if (event.request.method !== 'GET' || url.origin !== self.location.origin) {
+        return;
     }
-
-    const title = data.title || 'Mentry';
-    const body = data.body || 'You have a new notification.';
-
-    let showSuccess = false;
-    let showException = null;
-
-    try {
-        await self.registration.showNotification(title, {
-            body,
-            icon: '/public/push-icon.png',
-            badge: '/public/push-icon.png',
-            tag: data.id ? 'mentry-' + String(data.id) : undefined,
-            renotify: true,
-            data: {
-                id: data.id || null,
-                notificationId: data.id || null,
-                type: data.type || 'GENERAL',
-                url: data.url || '/trainer/notifications.php',
-                testId: testId
-            }
-        });
-        showSuccess = true;
-    } catch (err) {
-        showSuccess = false;
-        showException = err.message || String(err);
-        console.error('[Mentry PUSH DIAGNOSTIC] showNotification THREW:', err);
+    // Precached assets served from cache with network fallback
+    if (PRECACHE_ASSETS.some(asset => url.pathname.endsWith(asset.replace('./', '')))) {
+        event.respondWith(
+            caches.match(event.request).then(cached => cached || fetch(event.request))
+        );
     }
-
-    // Diagnostic logging strictly AFTER showNotification succeeds or throws
-    const diagData = {
-        testId: testId,
-        receivedAt: new Date().toISOString(),
-        showNotificationSuccess: showSuccess,
-        showNotificationError: showException,
-        swScope: self.registration.scope,
-        scriptURL: self.location.href
-    };
-
-    try {
-        const cache = await caches.open('mentry-push-diagnostics');
-        await cache.put('/last-push-diag.json', new Response(JSON.stringify(diagData), {
-            headers: { 'Content-Type': 'application/json' }
-        }));
-    } catch (e) {}
-
-    try {
-        await fetch('/actions/push/record-receipt.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(diagData)
-        });
-    } catch (e) {}
-
-    try {
-        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-        clients.forEach(client => client.postMessage({
-            type: 'PUSH_RECEIPT',
-            notification: { id: data.id || null, type: data.type || 'GENERAL' },
-            displayed: showSuccess
-        }));
-    } catch (e) {}
-}
-
-/*
- * ========================================================
- * NOTIFICATION CLICK EVENT
- * ========================================================
- */
-self.addEventListener('notificationclick', event => {
-    event.notification.close();
-
-    const notifData = event.notification.data || {};
-    const rawUrl = notifData.url || '/trainer/notifications.php';
-
-    let targetUrl;
-    try {
-        targetUrl = new URL(rawUrl, self.registration.scope);
-        const scopeUrl = new URL(self.registration.scope);
-        if (targetUrl.origin !== scopeUrl.origin || !targetUrl.pathname.startsWith(scopeUrl.pathname)) {
-            targetUrl = new URL('/', self.registration.scope);
-        }
-    } catch {
-        targetUrl = new URL('/', self.registration.scope);
-    }
-
-    event.waitUntil(
-        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-            for (const client of clients) {
-                try {
-                    const clientUrl = new URL(client.url);
-                    if (clientUrl.origin === targetUrl.origin && 'focus' in client) {
-                        client.navigate(targetUrl.href);
-                        return client.focus();
-                    }
-                } catch (e) {}
-            }
-            if (self.clients.openWindow) {
-                return self.clients.openWindow(targetUrl.href);
-            }
-        })
-    );
 });

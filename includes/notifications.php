@@ -78,26 +78,14 @@ function notifyMatchingTrainersForOpportunity($opportunityId) {
                     $notifiedCount++;
                     $notifiedNames[] = $userName;
 
-                    // Send Web Push notification if enabled (concise body, single icon, unique ID)
-                    if (!$trainerPrefs || !empty($trainerPrefs['push_notifications'])) {
-                        $pushTitle = 'New ' . ($opp['domain'] ?? 'Tech') . ' Match: ' . $opp['title'];
-                        $pushBody = "{$score}% match • {$opp['durationDays']}-day assignment in {$opp['city']}";
-                        @dispatchWebPushNotification(
-                            ['userId' => (string)$trainerUserId],
-                            $pushTitle,
-                            $pushBody,
-                            '/opportunity-details.php?id=' . (string)$opportunityId,
-                            [
-                                'id' => $notifId,
-                                'type' => 'OPPORTUNITY_MATCH',
-                                'opportunityId' => (string)$opportunityId,
-                                'matchScore' => $score
-                            ]
-                        );
+                    // Dispatch transactional email to matching trainer
+                    try {
+                        if (function_exists('sendOpportunityMatchNotificationEmail')) {
+                            sendOpportunityMatchNotificationEmail($user, $trainer, $opp, $score);
+                        }
+                    } catch (\Throwable $e) {
+                        error_log("Failed to send match email: " . $e->getMessage());
                     }
-
-                    // Email dispatch disabled by policy (reserved strictly for password reset)
-                    // Real-time in-app live sync and PWA device notifications are used exclusively
                 }
             }
         }
@@ -239,6 +227,8 @@ function checkOpportunityScheduleMilestones($force = false) {
             'status' => ['$nin' => ['CANCELLED', 'COMPLETED']]
         ])->toArray();
 
+        $today = function_exists('getTodayISTDate') ? getTodayISTDate() : date('Y-m-d');
+
         foreach ($activeOpps as $opp) {
             $stats['checked']++;
             $oppId = (string)$opp['_id'];
@@ -246,6 +236,44 @@ function checkOpportunityScheduleMilestones($force = false) {
             $city = $opp['city'] ?? 'Campus';
             $status = strtoupper($opp['status'] ?? 'PUBLISHED');
             $isFullyStaffed = function_exists('isOpportunityFullyStaffed') ? isOpportunityFullyStaffed($opp) : (!empty($opp['assignedTrainerId']) || $status === 'MATCHED');
+
+            // CASE 0: Program Completed (endDate < today in IST)
+            $endStr = function_exists('normalizeDateToISTString') ? normalizeDateToISTString($opp['endDate'] ?? null) : null;
+            if ($endStr && $endStr < $today) {
+                if ($status !== 'COMPLETED') {
+                    $oppCol->updateOne(
+                        ['_id' => $opp['_id']],
+                        ['$set' => [
+                            'status' => 'COMPLETED',
+                            'completedAt' => new MongoDB\BSON\UTCDateTime(),
+                            'updatedAt' => new MongoDB\BSON\UTCDateTime()
+                        ]]
+                    );
+
+                    $existingCompletedNotif = $notifCol->findOne([
+                        'type' => 'PROGRAM_COMPLETED',
+                        '$or' => [
+                            ['opportunityId' => $oppId],
+                            ['metadata.opportunityId' => $oppId]
+                        ]
+                    ]);
+                    if (!$existingCompletedNotif) {
+                        notifyAdmin(
+                            'PROGRAM_COMPLETED',
+                            "Program Completed: {$title}",
+                            "The training program '{$title}' in {$city} scheduled through " . formatDate($opp['endDate'] ?? null) . " has successfully concluded.",
+                            "/admin/opportunity-view.php?id=" . $oppId,
+                            [
+                                'opportunityId' => $oppId,
+                                'jobId' => $opp['jobId'] ?? $oppId,
+                                'title' => $title,
+                                'endDate' => $endStr
+                            ]
+                        );
+                    }
+                }
+                continue;
+            }
 
             $startTs = getOpportunityStartTimestamp($opp);
             if (!$startTs) continue;
@@ -259,18 +287,8 @@ function checkOpportunityScheduleMilestones($force = false) {
             $closeCutoffTs = strtotime($startDateStr . ' 18:00:00 -1 day');
             $isPastCutoff = ($now >= $closeCutoffTs) || ($todayDateStr >= $startDateStr);
 
-            // Check if explicitly reopened by admin recently (within 7 days grace period)
-            $reopenedAt = $opp['reopenedAt'] ?? null;
-            $reopenedTs = function_exists('parseDateToTimestamp') ? parseDateToTimestamp($reopenedAt) : null;
-            $isRecentlyReopened = ($reopenedTs && ($now - $reopenedTs) < (7 * 86400));
-
-            // Check if end date is still in the future
-            $endTs = function_exists('parseDateToTimestamp') ? parseDateToTimestamp($opp['endDate'] ?? null) : null;
-            $hasActiveFutureEndDate = ($endTs && $endTs >= $now);
-
-            // CASE 1: Cutoff has passed AND opportunity has no assigned trainers and no active window
-            // Do not auto-close if recently reopened by admin or if the program is ongoing through end date
-            if ($isPastCutoff && !$isFullyStaffed && !$isRecentlyReopened && !$hasActiveFutureEndDate) {
+            // CASE 1: Cutoff has passed AND opportunity has no assigned trainers
+            if ($isPastCutoff && !$isFullyStaffed) {
                 if ($status === 'PUBLISHED') {
                     $oppCol->updateOne(
                         ['_id' => $opp['_id']],
@@ -399,98 +417,522 @@ function checkOpportunityScheduleMilestones($force = false) {
 }
 
 /**
- * Dispatch Web Push notification to registered PWA devices
- *
- * @param array $filter Target user or role filter for PushSubscription collection
- * @param string $title Notification title
- * @param string $body Notification message
- * @param string $url Destination link when notification is clicked
- * @param array $extraData Extra notification metadata (id, type, etc.)
+ * Safe retired push notification stub.
+ * Push notifications have been decommissioned per architecture migration.
+ * Always returns true without attempting external network calls or web push dispatch.
  */
 function dispatchWebPushNotification(array $filter, string $title, string $body, string $url = '/', array $extraData = []) {
-    try {
-        require_once __DIR__ . '/push/PushService.php';
+    // Push notifications retired in favor of In-App + Transactional Email
+    return true;
+}
 
-        $notifType = strtoupper($extraData['type'] ?? 'GENERAL');
+/**
+ * Creates or updates an administrative Work Order Confirmation DRAFT for an assigned trainer.
+ * Per requirement, this generates a DRAFT and NEVER sends automatically without explicit admin review.
+ *
+ * @param string $opportunityId
+ * @param string $trainerId
+ * @param array|null $adminUser
+ * @param bool $isRevised
+ * @return array Draft details
+ */
+function createWorkOrderDraft($opportunityId, $trainerId, $adminUser = null, $isRevised = false) {
+    $oppCol = getCollection("Opportunity");
+    $trainerCol = getCollection("Trainer");
+    $userCol = getCollection("User");
+    $confCol = getCollection("TrainerConfirmation");
 
-        // Check user preferences if targeted to a specific user
-        if (isset($filter['userId'])) {
-            $uId = (string)$filter['userId'];
-            $uCol = getCollection("User");
-            try {
-                $targetUserDoc = $uCol ? $uCol->findOne(['_id' => new MongoDB\BSON\ObjectId($uId)]) : null;
-            } catch (\Throwable $e) {
-                $targetUserDoc = $uCol ? $uCol->findOne(['userId' => $uId]) : null;
-            }
-
-            $userPrefs = $targetUserDoc['notificationPreferences'] ?? null;
-            if ($userPrefs && is_array($userPrefs)) {
-                // Master switch or push toggle OFF
-                if (isset($userPrefs['all']) && !$userPrefs['all']) return true;
-                if (isset($userPrefs['push_notifications']) && !$userPrefs['push_notifications']) return true;
-
-                // Granular category toggle
-                $categoryKeyMap = [
-                    'NEW_OPPORTUNITY' => 'notify_new_opportunities',
-                    'OPPORTUNITY_MATCH' => 'notify_opportunity_matches',
-                    'OPPORTUNITY_UPDATED' => 'notify_new_opportunities',
-                    'OPPORTUNITY_CANCELLED' => 'notify_new_opportunities',
-                    'TRAINER_SELECTED' => 'notify_trainer_selection',
-                    'TRAINER_NOT_SELECTED' => 'notify_trainer_selection',
-                    'APPLICATION_ACCEPTED' => 'notify_trainer_selection',
-                    'APPLICATION_SHORTLISTED' => 'notify_trainer_selection',
-                    'INTERVIEW_SCHEDULED' => 'notify_interview_updates',
-                    'INTERVIEW_REMINDER' => 'notify_interview_updates',
-                    'INTERVIEW_RESCHEDULED' => 'notify_interview_updates',
-                    'TRAINING_REMINDER' => 'notify_training_reminders',
-                    'TRAINING_STARTED' => 'notify_training_reminders',
-                    'TRAINING_UPDATED' => 'notify_training_reminders',
-                    'TRAINING_CANCELLED' => 'notify_training_reminders',
-                    'TRAINING_COMPLETED' => 'notify_training_reminders',
-                    'PAYMENT_PENDING' => 'notify_payment_updates',
-                    'PAYMENT_PROCESSED' => 'notify_payment_updates',
-                    'PAYMENT_FAILED' => 'notify_payment_updates',
-                    'DOCUMENT_REQUIRED' => 'notify_document_updates',
-                    'DOCUMENT_APPROVED' => 'notify_document_updates',
-                    'DOCUMENT_REJECTED' => 'notify_document_updates',
-                    'COLLEGE_MESSAGE' => 'notify_college_messages',
-                    'SYSTEM_ALERT' => 'notify_system_alerts',
-                    'LIVE_ALERT' => 'notify_system_alerts'
-                ];
-                $catKey = $categoryKeyMap[$notifType] ?? null;
-                if ($catKey && isset($userPrefs[$catKey]) && !$userPrefs[$catKey]) {
-                    return true; // Category disabled by user preference
-                }
-            }
-        }
-
-        $notifId = (string)($extraData['notification_id'] ?? ($extraData['id'] ?? ('notif_' . substr(md5($title . $url . microtime()), 0, 12))));
-        $priority = $extraData['priority'] ?? 'high';
-
-        $payloadData = [
-            'id' => $notifId,
-            'title' => $title,
-            'body' => $body,
-            'url' => $url,
-            'type' => $notifType
-        ];
-
-        if (isset($filter['userId'])) {
-            PushService::sendToUser((string)$filter['userId'], $payloadData, $priority);
-        } else {
-            // Broadcast or filtered query
-            $subCol = getCollection("PushSubscription");
-            if ($subCol) {
-                $subs = $subCol->find(array_merge(['isActive' => true, 'isDead' => ['$ne' => true]], $filter))->toArray();
-                foreach ($subs as $s) {
-                    PushService::sendToSubscription($s, $payloadData, $priority);
-                }
-            }
-        }
-
-        return true;
-    } catch (\Throwable $e) {
-        error_log("dispatchWebPushNotification notice: " . $e->getMessage());
-        return false;
+    if (!$oppCol || !$trainerCol || !$confCol) {
+        return ['success' => false, 'message' => 'Database connection unavailable'];
     }
+
+    try {
+        $opp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$opportunityId)]);
+    } catch (\Throwable $e) {
+        $opp = $oppCol->findOne(['_id' => (string)$opportunityId]);
+    }
+
+    try {
+        $trainer = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$trainerId)]);
+    } catch (\Throwable $e) {
+        $trainer = $trainerCol->findOne(['_id' => (string)$trainerId]);
+    }
+
+    if (!$opp || !$trainer) {
+        return ['success' => false, 'message' => 'Opportunity or Trainer not found'];
+    }
+
+    $user = null;
+    $trainerUserId = $trainer['userId'] ?? null;
+    if ($trainerUserId && $userCol) {
+        try {
+            $user = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$trainerUserId)]);
+        } catch (\Throwable $e) {
+            $user = $userCol->findOne(['_id' => (string)$trainerUserId]);
+        }
+    }
+
+    $trainerEmail = trim($user['email'] ?? ($trainer['email'] ?? ''));
+    if (empty($trainerEmail)) {
+        return ['success' => false, 'message' => 'Trainer registered email not found'];
+    }
+
+    require_once __DIR__ . '/mailer.php';
+    $draftData = generateWorkOrderEmailData($opp, $trainer, $user, $isRevised);
+
+    $oppIdStr = (string)($opp['_id'] ?? $opportunityId);
+    $trainerIdStr = (string)($trainer['_id'] ?? $trainerId);
+
+    // If an existing draft already exists, update it; otherwise insert
+    $existing = $confCol->findOne([
+        'opportunityId' => $oppIdStr,
+        'trainerId' => $trainerIdStr,
+        'status' => 'DRAFT'
+    ]);
+
+    $doc = [
+        'opportunityId' => $oppIdStr,
+        'trainerId' => $trainerIdStr,
+        'trainerEmail' => $trainerEmail,
+        'trainerName' => $trainer['name'] ?? ($user['name'] ?? 'Trainer'),
+        'subject' => $draftData['subject'],
+        'html' => $draftData['html'],
+        'plainText' => $draftData['plainText'],
+        'variables' => $draftData['variables'],
+        'isRevised' => $isRevised,
+        'status' => 'DRAFT',
+        'updatedAt' => new MongoDB\BSON\UTCDateTime()
+    ];
+
+    if ($adminUser) {
+        $doc['updatedBy'] = [
+            'id' => (string)($adminUser['_id'] ?? ($adminUser['id'] ?? '')),
+            'name' => $adminUser['name'] ?? ($adminUser['username'] ?? 'Admin'),
+            'email' => $adminUser['email'] ?? ''
+        ];
+    }
+
+    if ($existing) {
+        $confCol->updateOne(['_id' => $existing['_id']], ['$set' => $doc]);
+        $draftId = (string)$existing['_id'];
+    } else {
+        $doc['createdAt'] = new MongoDB\BSON\UTCDateTime();
+        $ins = $confCol->insertOne($doc);
+        $draftId = (string)$ins->getInsertedId();
+    }
+
+    return [
+        'success' => true,
+        'draftId' => $draftId,
+        'subject' => $draftData['subject'],
+        'to' => $trainerEmail
+    ];
+}
+
+/**
+ * Dispatches in-app notification and email when a trainer is assigned to an opportunity.
+ * Also prepares the Work Order Draft for administrator review.
+ */
+function notifyTrainerAssigned($trainerId, $opportunityId, $asgData = []) {
+    $oppCol = getCollection("Opportunity");
+    $trainerCol = getCollection("Trainer");
+    $userCol = getCollection("User");
+    $notifCol = getCollection("Notification");
+
+    if (!$oppCol || !$trainerCol) return false;
+
+    try {
+        $opp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$opportunityId)]);
+    } catch (\Throwable $e) {
+        $opp = $oppCol->findOne(['_id' => (string)$opportunityId]);
+    }
+
+    try {
+        $trainer = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$trainerId)]);
+    } catch (\Throwable $e) {
+        $trainer = $trainerCol->findOne(['_id' => (string)$trainerId]);
+    }
+
+    if (!$opp || !$trainer) return false;
+
+    $user = null;
+    $trainerUserId = (string)($trainer['userId'] ?? '');
+    if (!empty($trainerUserId) && $userCol) {
+        try {
+            $user = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerUserId)]);
+        } catch (\Throwable $e) {
+            $user = $userCol->findOne(['_id' => $trainerUserId]);
+        }
+    }
+
+    $oppTitle = trim($opp['title'] ?? 'Training Opportunity');
+    $collegeName = trim($opp['collegeName'] ?? '');
+    $collegeSuffix = !empty($collegeName) ? " at {$collegeName}" : "";
+    $cityStr = !empty($opp['city']) ? " in {$opp['city']}" : "";
+    $datesStr = "";
+    if (!empty($opp['startDate'])) {
+        $datesStr = " (" . formatDate($opp['startDate']) . (!empty($opp['endDate']) ? " – " . formatDate($opp['endDate']) : "") . ")";
+    }
+
+    // 1. Create In-App Notification (Permanent History)
+    if ($notifCol && !empty($trainerUserId)) {
+        $notifCol->insertOne([
+            'userId' => $trainerUserId,
+            'trainerId' => (string)$trainerId,
+            'opportunityId' => (string)$opportunityId,
+            'type' => 'TRAINER_ASSIGNED',
+            'title' => "🎯 Assignment Confirmed: {$oppTitle}{$collegeSuffix}",
+            'message' => "You have been officially confirmed and assigned for {$oppTitle}{$collegeSuffix}{$cityStr}{$datesStr}. Your work order draft is being processed by operations.",
+            'link' => '/trainer/assignments.php',
+            'read' => false,
+            'createdAt' => new MongoDB\BSON\UTCDateTime()
+        ]);
+    }
+
+    // 2. Prepare Work Order Email DRAFT (DO NOT SEND AUTOMATICALLY)
+    try {
+        createWorkOrderDraft($opportunityId, $trainerId, $_SESSION['user'] ?? null);
+    } catch (\Throwable $e) {
+        error_log("Failed to create work order draft: " . $e->getMessage());
+    }
+
+    // 3. Dispatch transactional assignment alert email
+    $toEmail = trim($user['email'] ?? ($trainer['email'] ?? ''));
+    $toName = $trainer['name'] ?? ($user['name'] ?? 'Trainer');
+    if (!empty($toEmail)) {
+        require_once __DIR__ . '/mailer.php';
+        $subject = "Assignment Confirmed: {$oppTitle} | Mentry Solutions";
+        $body = "<p>Dear {$toName},</p>"
+              . "<p>You have been officially assigned as faculty trainer for <strong>" . htmlspecialchars($oppTitle) . "</strong>{$collegeSuffix}{$cityStr}{$datesStr}.</p>"
+              . "<p>Our operations team is preparing your official engagement work order and logistics schedule. You can view your assignment details in the <a href=\"https://mentry-solutions.vercel.app/trainer/assignments.php\">Mentry Trainer Portal</a>.</p>"
+              . "<p>Regards,<br><strong>Mentry Solutions Operations</strong></p>";
+
+        try {
+            sendMentryEmail($toEmail, $toName, $subject, $body, 'TRAINER_ASSIGNED', [
+                'opportunityId' => (string)$opportunityId,
+                'trainerId' => (string)$trainerId
+            ]);
+        } catch (\Throwable $e) {
+            error_log("Failed to send assignment alert email: " . $e->getMessage());
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Dispatches in-app notification and email when an application status changes (e.g. ACCEPTED, REJECTED).
+ */
+function notifyApplicationStatusChanged($applicationId, $status, $adminNotes = '') {
+    $appCol = getCollection("Application");
+    $oppCol = getCollection("Opportunity");
+    $trainerCol = getCollection("Trainer");
+    $userCol = getCollection("User");
+    $notifCol = getCollection("Notification");
+
+    if (!$appCol || !$oppCol || !$trainerCol) return false;
+
+    try {
+        $app = $appCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$applicationId)]);
+    } catch (\Throwable $e) {
+        $app = $appCol->findOne(['_id' => (string)$applicationId]);
+    }
+    if (!$app) return false;
+
+    $trainerId = (string)($app['trainerId'] ?? '');
+    $oppId = (string)($app['opportunityId'] ?? '');
+
+    try {
+        $opp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($oppId)]);
+    } catch (\Throwable $e) {
+        $opp = $oppCol->findOne(['_id' => $oppId]);
+    }
+
+    try {
+        $trainer = $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerId)]);
+    } catch (\Throwable $e) {
+        $trainer = $trainerCol->findOne(['_id' => $trainerId]);
+    }
+
+    if (!$opp || !$trainer) return false;
+
+    $user = null;
+    $trainerUserId = (string)($trainer['userId'] ?? '');
+    if (!empty($trainerUserId) && $userCol) {
+        try {
+            $user = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerUserId)]);
+        } catch (\Throwable $e) {
+            $user = $userCol->findOne(['_id' => $trainerUserId]);
+        }
+    }
+
+    $toEmail = trim($user['email'] ?? ($trainer['email'] ?? ''));
+    $toName = $trainer['name'] ?? ($user['name'] ?? 'Trainer');
+    $oppTitle = trim($opp['title'] ?? 'Training Opportunity');
+    $collegeName = trim($opp['collegeName'] ?? '');
+    $collegeSuffix = !empty($collegeName) ? " at {$collegeName}" : "";
+
+    $statusUpper = strtoupper($status);
+    $notifTitle = '';
+    $notifMsg = '';
+    $emailSubject = '';
+    $emailBody = '';
+    $emailType = 'APPLICATION_' . $statusUpper;
+
+    if ($statusUpper === 'ACCEPTED') {
+        $notifTitle = "🎉 Application Accepted: {$oppTitle}{$collegeSuffix}";
+        $notifMsg = "Congratulations! Your application for {$oppTitle}{$collegeSuffix} has been ACCEPTED. Your engagement itinerary is available in your assignments.";
+        $emailSubject = "Application Accepted: {$oppTitle} | Mentry Solutions";
+        $emailBody = "<p>Dear {$toName},</p>"
+                   . "<p>Congratulations! Your application for <strong>" . htmlspecialchars($oppTitle) . "</strong>{$collegeSuffix} has been <strong>ACCEPTED</strong>.</p>"
+                   . (!empty($adminNotes) ? "<p><em>Note from Mentry Operations:</em> " . htmlspecialchars($adminNotes) . "</p>" : "")
+                   . "<p>Please log in to the <a href=\"https://mentry-solutions.vercel.app/trainer/assignments.php\">Mentry Trainer Portal</a> to review your assignment itinerary.</p>"
+                   . "<p>Regards,<br><strong>Mentry Solutions</strong></p>";
+
+        // Prepare Work Order Draft
+        try {
+            createWorkOrderDraft($oppId, $trainerId, $_SESSION['user'] ?? null);
+        } catch (\Throwable $e) {
+            error_log("Failed to create work order draft on application acceptance: " . $e->getMessage());
+        }
+    } elseif ($statusUpper === 'REJECTED') {
+        $notifTitle = "Application Update: {$oppTitle}";
+        $notifMsg = "Your application for {$oppTitle}{$collegeSuffix} was not selected this time. New matching opportunities are available on your feed.";
+        $emailSubject = "Application Update: {$oppTitle} | Mentry Solutions";
+        $emailBody = "<p>Dear {$toName},</p>"
+                   . "<p>Thank you for expressing interest in <strong>" . htmlspecialchars($oppTitle) . "</strong>{$collegeSuffix}.</p>"
+                   . "<p>For this specific batch, another profile was selected. However, your profile is actively matched with upcoming training requirements across our network.</p>"
+                   . (!empty($adminNotes) ? "<p><em>Note from Admin:</em> " . htmlspecialchars($adminNotes) . "</p>" : "")
+                   . "<p>View new open opportunities here: <a href=\"https://mentry-solutions.vercel.app/trainer/opportunities.php\">Browse Opportunities</a>.</p>"
+                   . "<p>Regards,<br><strong>Mentry Solutions</strong></p>";
+    } else {
+        $notifTitle = "Application Status Update: {$oppTitle}";
+        $notifMsg = "Your application for {$oppTitle}{$collegeSuffix} status is now {$status}.";
+    }
+
+    // 1. In-app notification
+    if ($notifCol && !empty($trainerUserId) && !empty($notifTitle)) {
+        $notifCol->insertOne([
+            'userId' => $trainerUserId,
+            'trainerId' => $trainerId,
+            'opportunityId' => $oppId,
+            'applicationId' => (string)$applicationId,
+            'type' => 'APPLICATION_' . $statusUpper,
+            'title' => $notifTitle,
+            'message' => $notifMsg,
+            'link' => ($statusUpper === 'ACCEPTED') ? '/trainer/assignments.php' : '/trainer/applications.php',
+            'read' => false,
+            'createdAt' => new MongoDB\BSON\UTCDateTime()
+        ]);
+    }
+
+    // 2. Email notification
+    if (!empty($toEmail) && !empty($emailSubject)) {
+        require_once __DIR__ . '/mailer.php';
+        try {
+            sendMentryEmail($toEmail, $toName, $emailSubject, $emailBody, $emailType, [
+                'applicationId' => (string)$applicationId,
+                'opportunityId' => $oppId,
+                'trainerId' => $trainerId
+            ]);
+        } catch (\Throwable $e) {
+            error_log("Failed to send application status email: " . $e->getMessage());
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Dispatches in-app and email notifications when a program is postponed or closed.
+ */
+function notifyProgramPostponedOrClosed($opportunityId, $reason = '') {
+    $oppCol = getCollection("Opportunity");
+    $trainerCol = getCollection("Trainer");
+    $userCol = getCollection("User");
+    $notifCol = getCollection("Notification");
+    $asgCol = getCollection("Assignment");
+
+    if (!$oppCol) return false;
+
+    try {
+        $opp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$opportunityId)]);
+    } catch (\Throwable $e) {
+        $opp = $oppCol->findOne(['_id' => (string)$opportunityId]);
+    }
+    if (!$opp) return false;
+
+    $oppTitle = trim($opp['title'] ?? 'Training Program');
+    $collegeName = trim($opp['collegeName'] ?? '');
+    $collegeSuffix = !empty($collegeName) ? " at {$collegeName}" : "";
+
+    // Find all assigned or applied trainers
+    $trainerIds = [];
+    if (!empty($opp['assignedTrainerIds']) && is_array($opp['assignedTrainerIds'])) {
+        foreach ($opp['assignedTrainerIds'] as $tid) $trainerIds[] = (string)$tid;
+    } elseif (!empty($opp['assignedTrainerId'])) {
+        $trainerIds[] = (string)$opp['assignedTrainerId'];
+    }
+
+    $asgs = $asgCol ? $asgCol->find([
+        'opportunityId' => (string)$opportunityId,
+        'status' => ['$in' => ['SCHEDULED', 'IN_PROGRESS', 'CONFIRMED', 'ASSIGNED']]
+    ])->toArray() : [];
+    foreach ($asgs as $a) {
+        if (!empty($a['trainerId'])) $trainerIds[] = (string)$a['trainerId'];
+    }
+    $trainerIds = array_values(array_unique($trainerIds));
+
+    foreach ($trainerIds as $tId) {
+        try {
+            $trainer = $trainerCol ? $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($tId)]) : null;
+        } catch (\Throwable $e) {
+            $trainer = $trainerCol ? $trainerCol->findOne(['_id' => $tId]) : null;
+        }
+        if (!$trainer) continue;
+
+        $trainerUserId = (string)($trainer['userId'] ?? '');
+        $user = null;
+        if (!empty($trainerUserId) && $userCol) {
+            try {
+                $user = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerUserId)]);
+            } catch (\Throwable $e) {
+                $user = $userCol->findOne(['_id' => $trainerUserId]);
+            }
+        }
+
+        $toEmail = trim($user['email'] ?? ($trainer['email'] ?? ''));
+        $toName = $trainer['name'] ?? ($user['name'] ?? 'Trainer');
+
+        // 1. In-app notification
+        if ($notifCol && !empty($trainerUserId)) {
+            $notifCol->insertOne([
+                'userId' => $trainerUserId,
+                'trainerId' => $tId,
+                'opportunityId' => (string)$opportunityId,
+                'type' => 'PROGRAM_POSTPONED',
+                'title' => "Training Program Postponed: {$oppTitle}",
+                'message' => "Your training program {$oppTitle}{$collegeSuffix} has been postponed. Please check the updated schedule or wait for revised dates.",
+                'link' => '/trainer/assignments.php',
+                'read' => false,
+                'createdAt' => new MongoDB\BSON\UTCDateTime()
+            ]);
+        }
+
+        // 2. Email notification
+        if (!empty($toEmail)) {
+            require_once __DIR__ . '/mailer.php';
+            $subject = "Training Program Postponed: {$oppTitle} | Mentry Solutions";
+            $body = "<p>Dear {$toName},</p>"
+                  . "<p>This is to inform you that the training program <strong>" . htmlspecialchars($oppTitle) . "</strong>{$collegeSuffix} has been postponed.</p>"
+                  . (!empty($reason) ? "<p><em>Details:</em> " . htmlspecialchars($reason) . "</p>" : "")
+                  . "<p>Mentry Operations will notify you as soon as the revised schedule is finalized.</p>"
+                  . "<p>Regards,<br><strong>Mentry Solutions Operations</strong></p>";
+
+            try {
+                sendMentryEmail($toEmail, $toName, $subject, $body, 'PROGRAM_POSTPONED', [
+                    'opportunityId' => (string)$opportunityId,
+                    'trainerId' => $tId
+                ]);
+            } catch (\Throwable $e) {
+                error_log("Failed to send postponement email: " . $e->getMessage());
+            }
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Dispatches in-app and email notifications when a program is reopened with new future dates.
+ */
+function notifyProgramReopened($opportunityId) {
+    $oppCol = getCollection("Opportunity");
+    $trainerCol = getCollection("Trainer");
+    $userCol = getCollection("User");
+    $notifCol = getCollection("Notification");
+    $asgCol = getCollection("Assignment");
+
+    if (!$oppCol) return false;
+
+    try {
+        $opp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$opportunityId)]);
+    } catch (\Throwable $e) {
+        $opp = $oppCol->findOne(['_id' => (string)$opportunityId]);
+    }
+    if (!$opp) return false;
+
+    $oppTitle = trim($opp['title'] ?? 'Training Program');
+    $collegeName = trim($opp['collegeName'] ?? '');
+    $collegeSuffix = !empty($collegeName) ? " at {$collegeName}" : "";
+    $datesStr = "";
+    if (!empty($opp['startDate'])) {
+        $datesStr = " (" . formatDate($opp['startDate']) . (!empty($opp['endDate']) ? " – " . formatDate($opp['endDate']) : "") . ")";
+    }
+
+    // Notify any previously assigned trainers
+    $trainerIds = [];
+    if (!empty($opp['assignedTrainerIds']) && is_array($opp['assignedTrainerIds'])) {
+        foreach ($opp['assignedTrainerIds'] as $tid) $trainerIds[] = (string)$tid;
+    } elseif (!empty($opp['assignedTrainerId'])) {
+        $trainerIds[] = (string)$opp['assignedTrainerId'];
+    }
+
+    foreach ($trainerIds as $tId) {
+        try {
+            $trainer = $trainerCol ? $trainerCol->findOne(['_id' => new MongoDB\BSON\ObjectId($tId)]) : null;
+        } catch (\Throwable $e) {
+            $trainer = $trainerCol ? $trainerCol->findOne(['_id' => $tId]) : null;
+        }
+        if (!$trainer) continue;
+
+        $trainerUserId = (string)($trainer['userId'] ?? '');
+        $user = null;
+        if (!empty($trainerUserId) && $userCol) {
+            try {
+                $user = $userCol->findOne(['_id' => new MongoDB\BSON\ObjectId($trainerUserId)]);
+            } catch (\Throwable $e) {
+                $user = $userCol->findOne(['_id' => $trainerUserId]);
+            }
+        }
+
+        $toEmail = trim($user['email'] ?? ($trainer['email'] ?? ''));
+        $toName = $trainer['name'] ?? ($user['name'] ?? 'Trainer');
+
+        // 1. In-app notification
+        if ($notifCol && !empty($trainerUserId)) {
+            $notifCol->insertOne([
+                'userId' => $trainerUserId,
+                'trainerId' => $tId,
+                'opportunityId' => (string)$opportunityId,
+                'type' => 'PROGRAM_REOPENED',
+                'title' => "Training Program Reopened: {$oppTitle}",
+                'message' => "The training program {$oppTitle}{$collegeSuffix} has been reopened with updated schedule{$datesStr}. Please review the new dates.",
+                'link' => '/trainer/assignments.php',
+                'read' => false,
+                'createdAt' => new MongoDB\BSON\UTCDateTime()
+            ]);
+        }
+
+        // 2. Email notification
+        if (!empty($toEmail)) {
+            require_once __DIR__ . '/mailer.php';
+            $subject = "Program Reopened: {$oppTitle} | Mentry Solutions";
+            $body = "<p>Dear {$toName},</p>"
+                  . "<p>The training program <strong>" . htmlspecialchars($oppTitle) . "</strong>{$collegeSuffix} has been reopened with the following schedule: <strong>{$datesStr}</strong>.</p>"
+                  . "<p>Please log in to your <a href=\"https://mentry-solutions.vercel.app/trainer/assignments.php\">Mentry Trainer Portal</a> to review details.</p>"
+                  . "<p>Regards,<br><strong>Mentry Solutions</strong></p>";
+
+            try {
+                sendMentryEmail($toEmail, $toName, $subject, $body, 'PROGRAM_REOPENED', [
+                    'opportunityId' => (string)$opportunityId,
+                    'trainerId' => $tId
+                ]);
+            } catch (\Throwable $e) {
+                error_log("Failed to send reopened email: " . $e->getMessage());
+            }
+        }
+    }
+
+    return true;
 }

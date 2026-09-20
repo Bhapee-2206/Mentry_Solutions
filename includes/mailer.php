@@ -295,15 +295,51 @@ class MentryMailer {
 
 // Global Helper Functions
 function sendMentryEmail($toEmail, $toName, $subject, $htmlBody, $plainText = '', $meta = []) {
-    // Policy: Outbound email service is strictly restricted to password reset verification codes.
-    $emailType = $meta['type'] ?? '';
-    $allowedTypes = ['PASSWORD_RESET', 'ACCOUNT_CONFIRMATION'];
+    $emailType = strtoupper(trim((string)($meta['type'] ?? 'GENERAL')));
+    $allowedTypes = [
+        'PASSWORD_RESET',
+        'ACCOUNT_CONFIRMATION',
+        'OPPORTUNITY_MATCH',
+        'TRAINER_MATCHED',
+        'TRAINER_ASSIGNED',
+        'TRAINER_SELECTED',
+        'APPLICATION_RECEIVED',
+        'APPLICATION_ACCEPTED',
+        'APPLICATION_REJECTED',
+        'SCHEDULE_CHANGED',
+        'PROGRAM_POSTPONED',
+        'PROGRAM_REOPENED',
+        'PROGRAM_COMPLETED',
+        'WORK_ORDER_CONFIRMATION',
+        'ADMIN_NOTIFICATION',
+        'TEST_EMAIL'
+    ];
+
     if (!in_array($emailType, $allowedTypes, true)) {
         return [
             'success' => false,
             'suppressed' => true,
-            'message' => 'Automated mail disabled. Mail service is strictly reserved for password reset.'
+            'message' => 'Email type not authorized for automated delivery.'
         ];
+    }
+
+    // Idempotency check: prevent duplicate sends for identical event key
+    $idempotencyKey = $meta['idempotencyKey'] ?? null;
+    if (!empty($idempotencyKey)) {
+        $logCol = getCollection("EmailLog");
+        if ($logCol) {
+            $existing = $logCol->findOne([
+                'idempotencyKey' => (string)$idempotencyKey,
+                'status' => ['$in' => ['SENT', 'SENT_NATIVE']]
+            ]);
+            if ($existing) {
+                return [
+                    'success' => true,
+                    'deduplicated' => true,
+                    'message' => 'Email already delivered for this business event.'
+                ];
+            }
+        }
     }
 
     $mailer = new MentryMailer();
@@ -312,10 +348,8 @@ function sendMentryEmail($toEmail, $toName, $subject, $htmlBody, $plainText = ''
 
 function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
     $baseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
-    // Rewrite localhost or dead domains to canonical live production URL
     $cleanResetLink = preg_replace('#^https?://[^/]+#i', $baseUrl, $resetLink);
 
-    // Standard format recognized by major providers (Google, Apple, Microsoft) as authentic verification
     $subject = $code . " is your Mentry verification code";
     $plainText = "Hello " . $toName . ",\n\n" .
                  "Your one-time security verification code is: " . $code . "\n\n" .
@@ -348,34 +382,33 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
         </style>
     </head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f8fafc;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc;">
             <tr>
-                <td align="center" style="padding: 12px;">
-                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 540px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+                <td align="center" style="padding: 24px 0;">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
                         <tr>
                             <td style="background-color: #070D18; padding: 28px 24px; text-align: center; border-bottom: 3px solid #FE5E04;">
-                                <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">Mentry Solutions</h1>
-                                <p style="color: #FE5E04; margin: 6px 0 0 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Account Security Verification</p>
+                                <div style="font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">MENTRY SOLUTIONS</div>
+                                <div style="font-size: 11px; color: #94a3b8; margin-top: 4px; font-weight: 600;">Managed Corporate & College Trainer Network</div>
                             </td>
                         </tr>
                         <tr>
-                            <td style="padding: 32px 28px;">
-                                <h2 style="font-size: 17px; margin-top: 0; color: #0f172a; font-weight: 700;">Password Verification Code</h2>
-                                <p style="font-size: 13px; line-height: 1.6; color: #475569; margin: 12px 0 20px 0;">
-                                    Hello ' . htmlspecialchars($toName) . ',<br><br>
-                                    A request was received to reset the password for your Mentry Solutions account. Please enter the one-time code below to verify your identity:
-                                </p>
-                                <div style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 22px 16px; text-align: center; margin: 20px 0;">
-                                    <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: #c2410c; letter-spacing: 1px; margin-bottom: 8px;">Your 6-Digit One-Time Code</div>
-                                    <div style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #FE5E04; font-family: Courier, monospace; line-height: 1;">' . htmlspecialchars($code) . '</div>
-                                    <div style="font-size: 11px; color: #9a3412; font-weight: 600; margin-top: 10px;">Valid for 30 minutes</div>
+                            <td style="padding: 32px 28px; color: #1e293b;">
+                                <h2 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 800; color: #0f172a;">Password Reset Verification</h2>
+                                <p style="margin: 0 0 16px 0; font-size: 13px; line-height: 1.6; color: #475569;">Hello ' . htmlspecialchars($toName) . ',</p>
+                                <p style="margin: 0 0 20px 0; font-size: 13px; line-height: 1.6; color: #475569;">We received a request to reset the password for your Mentry Solutions account. Use the verification code below to complete this request:</p>
+                                
+                                <div style="background-color: #fff7ed; border: 1px solid #fdba74; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
+                                    <div style="font-size: 11px; font-weight: 700; color: #9a3412; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">One-Time Security Code</div>
+                                    <div style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #FE5E04; font-family: monospace;">' . htmlspecialchars($code) . '</div>
+                                    <div style="font-size: 11px; color: #c2410c; margin-top: 8px;">Valid for 30 minutes • Confidential</div>
                                 </div>
-                                <div style="text-align: center; margin: 24px 0 16px 0;">
-                                    <a href="' . htmlspecialchars($cleanResetLink) . '" style="display: inline-block; background-color: #FE5E04; color: #ffffff !important; font-weight: 700; font-size: 13px; padding: 13px 30px; border-radius: 12px; text-decoration: none; box-shadow: 0 2px 4px rgba(254, 94, 4, 0.2);">Confirm Password Reset</a>
+
+                                <div style="text-align: center; margin: 24px 0;">
+                                    <a href="' . htmlspecialchars($cleanResetLink) . '" style="display: inline-block; background-color: #FE5E04; color: #ffffff; font-weight: 700; font-size: 13px; padding: 12px 28px; border-radius: 10px; text-decoration: none;">Set New Password &rarr;</a>
                                 </div>
-                                <p style="font-size: 12px; color: #64748b; line-height: 1.6; margin-top: 24px; padding-top: 18px; border-top: 1px solid #f1f5f9;">
-                                    If you did not initiate this request, your account is safe and no changes have been made. You can disregard this email.
-                                </p>
+
+                                <p style="margin: 20px 0 0 0; font-size: 11px; line-height: 1.6; color: #94a3b8;">If you did not request this password reset, please disregard this email. Your password will remain unchanged.</p>
                             </td>
                         </tr>
                         <tr>
@@ -394,12 +427,304 @@ function sendPasswordResetEmail($toEmail, $toName, $code, $resetLink) {
     return sendMentryEmail($toEmail, $toName, $subject, $html, $plainText, ['code' => $code, 'type' => 'PASSWORD_RESET']);
 }
 
-function sendOpportunityMatchEmail($toEmail, $toName, $opp) {
-    // Suppressed by policy - email service is strictly reserved for password reset.
-    // Real-time live notifications and in-app alerts are used for opportunity matching.
+/**
+ * Dispatches notification email to a matching candidate for a new training opportunity.
+ */
+function sendOpportunityMatchNotificationEmail($user, $trainer, $opp, $score = 0) {
+    if (empty($user['email'])) return false;
+
+    $baseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
+    $oppId = (string)($opp['_id'] ?? '');
+    $oppCode = function_exists('getMentryCode') ? getMentryCode('OPPORTUNITY', $opp) : ($opp['jobId'] ?? $oppId);
+    $oppUrl = $baseUrl . '/opportunity-details.php?id=' . urlencode($oppCode);
+
+    $userName = $user['name'] ?? 'Trainer';
+    $oppTitle = $opp['title'] ?? 'Technical Training Assignment';
+    $location = ($opp['city'] ?? 'India') . ', ' . ($opp['state'] ?? '');
+    $dates = !empty($opp['endDate']) ? formatDate($opp['startDate']) . ' – ' . formatDate($opp['endDate']) : formatDate($opp['startDate']);
+    $rate = formatINR($opp['dailyRateMin'] ?? 0) . ' – ' . formatINR($opp['dailyRateMax'] ?? 0) . ' / day';
+    $duration = function_exists('formatOpportunityDuration') ? formatOpportunityDuration($opp) : ($opp['durationDays'] ?? 5) . ' Days';
+
+    $subject = "Mentry Solutions — New Training Opportunity: " . $oppTitle;
+
+    $plainText = "Hello {$userName},\n\n" .
+                 "A new training opportunity matching your profile is available on Mentry Solutions.\n\n" .
+                 "Program: {$oppTitle}\n" .
+                 "Location: {$location}\n" .
+                 "Dates: {$dates} ({$duration})\n" .
+                 "Remuneration: {$rate}\n\n" .
+                 "View Opportunity & Apply:\n{$oppUrl}\n\n" .
+                 "Regards,\nMentry Solutions\nOfficial Trainer Network\n";
+
+    $html = '
+    <div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; padding: 24px; color: #1e293b;">
+        <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;">
+            <div style="background-color: #070D18; padding: 24px; text-align: center; border-bottom: 3px solid #FE5E04;">
+                <div style="font-size: 20px; font-weight: 800; color: #ffffff;">MENTRY SOLUTIONS</div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Verified Trainer Opportunity Alert</div>
+            </div>
+            <div style="padding: 28px 24px;">
+                <p style="font-size: 14px; margin: 0 0 16px 0;">Hello <strong>' . htmlspecialchars($userName) . '</strong>,</p>
+                <p style="font-size: 13px; color: #475569; margin: 0 0 20px 0; line-height: 1.6;">A new training opportunity matching your verified technical profile has just been published. Please review the program schedule and remuneration below:</p>
+                
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 16px 0;">
+                    <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #0f172a;">' . htmlspecialchars($oppTitle) . '</h3>
+                    <table style="width: 100%; font-size: 12px; line-height: 1.8; color: #334155;">
+                        <tr><td style="width: 110px; font-weight: bold; color: #64748b;">LOCATION:</td><td>' . htmlspecialchars($location) . ' (' . htmlspecialchars($opp['mode'] ?? 'OFFLINE') . ')</td></tr>
+                        <tr><td style="font-weight: bold; color: #64748b;">DATES:</td><td>' . htmlspecialchars($dates) . ' (' . htmlspecialchars($duration) . ')</td></tr>
+                        <tr><td style="font-weight: bold; color: #64748b;">REMUNERATION:</td><td style="font-weight: bold; color: #2563eb;">' . htmlspecialchars($rate) . '</td></tr>
+                    </table>
+                </div>
+
+                <div style="text-align: center; margin: 24px 0;">
+                    <a href="' . htmlspecialchars($oppUrl) . '" style="display: inline-block; background-color: #FE5E04; color: #ffffff; font-weight: 700; font-size: 13px; padding: 12px 28px; border-radius: 10px; text-decoration: none;">View Opportunity & Apply &rarr;</a>
+                </div>
+            </div>
+            <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 11px; color: #64748b;">
+                Mentry Solutions • Managed Trainer Network • <a href="' . htmlspecialchars($baseUrl) . '" style="color: #64748b;">mentry-solutions.vercel.app</a>
+            </div>
+        </div>
+    </div>';
+
+    $userId = (string)($user['_id'] ?? ($user['id'] ?? ''));
+    return sendMentryEmail($user['email'], $userName, $subject, $html, $plainText, [
+        'type' => 'OPPORTUNITY_MATCH',
+        'opportunityId' => $oppId,
+        'userId' => $userId,
+        'idempotencyKey' => 'match_email_' . $userId . '_' . $oppId
+    ]);
+}
+
+/**
+ * Generates resolved template data for Trainer Confirmation / Work Order Email.
+ * Returns subject, html, plainText, and variables map.
+ */
+function generateWorkOrderEmailData($opp, $trainer, $user = null, $assignment = [], $isRevision = false, $customPaymentTerms = null, $customEmergency = null): array {
+    $baseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
+    $oppId = (string)($opp['_id'] ?? '');
+    $oppCode = function_exists('getMentryCode') ? getMentryCode('OPPORTUNITY', $opp) : ($opp['jobId'] ?? $oppId);
+    $oppUrl = $baseUrl . '/opportunity-details.php?id=' . urlencode($oppCode);
+    $portalUrl = $baseUrl . '/trainer/assignments.php';
+
+    $trainerName = trim($user['name'] ?? ($trainer['name'] ?? 'Faculty Trainer'));
+    $trainerEmail = trim($user['email'] ?? ($trainer['email'] ?? ''));
+    $courseTitle = trim($opp['title'] ?? 'Technical Training Assignment');
+    $collegeName = trim($opp['collegeName'] ?? ($opp['institution'] ?? 'Campus Partner Institution'));
+    $location = trim(($opp['city'] ?? 'India') . ', ' . ($opp['state'] ?? ''));
+    $state = trim($opp['state'] ?? 'India');
+    $mode = strtoupper(trim($opp['mode'] ?? 'OFFLINE'));
+    $startDate = formatDate($opp['startDate'] ?? null);
+    $endDate = !empty($opp['endDate']) ? formatDate($opp['endDate']) : $startDate;
+    $workingDays = function_exists('formatOpportunityDuration') ? formatOpportunityDuration($opp) : ($opp['durationDays'] ?? 5) . ' Working Days';
+    $rate = formatINR($assignment['agreedDailyRate'] ?? ($opp['dailyRateMin'] ?? ($opp['dailyRateMax'] ?? 5000))) . ' / day';
+    $companyEmail = 'mentry.training@gmail.com';
+
+    $paymentTerms = $customPaymentTerms ?: "1. Professional fees will be disbursed upon successful completion of the training assignment and submission of final attendance/feedback reports.\n2. Invoices must be submitted through the Mentry Solutions Trainer Portal or via email within 3 business days of program conclusion.\n3. Standard TDS and statutory deductions apply in accordance with Government of India regulations.\n4. In the event of unscheduled discontinuation or unexcused absence before completion, remuneration will be evaluated on a prorated basis subject to administrative review.";
+
+    $emergencyContacts = $customEmergency ?: "Operations Desk: +91 98400 12345\nHR / Faculty Coordinator: +91 98400 67890\nEmail: {$companyEmail}";
+
+    $subjectPrefix = $isRevision ? "Revised Work Order Confirmation: " : "New Work Order Confirmation: ";
+    $subject = $subjectPrefix . $courseTitle . " | Mentry Solutions";
+
+    // Text version
+    $plainText = "Dear {$trainerName},\n\n" .
+                 "Greetings from Mentry Solutions.\n\n" .
+                 "This is to confirm your engagement as a Freelancer Technical Trainer for the upcoming training assignment.\n\n" .
+                 "Please review the work order details below:\n\n" .
+                 "### WORK ORDER DETAILS\n" .
+                 "Course: {$courseTitle}\n" .
+                 "College: {$collegeName}\n" .
+                 "Location: {$location}\n" .
+                 "Mode: {$mode}\n" .
+                 "From Date: {$startDate}\n" .
+                 "To Date: {$endDate}\n" .
+                 "Working Days: {$workingDays}\n" .
+                 "Budget / Day: {$rate}\n\n" .
+                 "### SCOPE OF WORK\n" .
+                 "- Deliver technical training sessions as per the agreed schedule and curriculum\n" .
+                 "- Ensure high-quality content delivery and learner engagement\n" .
+                 "- Maintain professionalism throughout the training assignment\n\n" .
+                 "### GROOMING & DRESS CODE\n" .
+                 "- Trainers are expected to follow a formal and professional dress code during training sessions\n" .
+                 "- Proper grooming and presentable attire are mandatory where applicable based on client expectations\n\n" .
+                 "### PAYMENT TERMS\n" .
+                 "{$paymentTerms}\n\n" .
+                 "### GENERAL TERMS\n" .
+                 "- Punctuality and adherence to the training schedule are mandatory\n" .
+                 "- Confidentiality of client and training materials must be maintained\n" .
+                 "- Any deviation from agreed terms should be informed in advance\n\n" .
+                 "Kindly reply to this email with your acceptance and confirmation of the above terms.\n\n" .
+                 "We look forward to working with you and wish you a successful training assignment.\n\n" .
+                 "### ADDITIONAL DETAILS\n" .
+                 "The end date of the project may be extended based on college holidays, schedule changes, or other approved requirements.\n" .
+                 "Please log in to the Mentry Solutions trainer portal for complete details and to manage your training assignments:\n" .
+                 "{$portalUrl}\n\n" .
+                 "### EMERGENCY CONTACTS\n" .
+                 "{$emergencyContacts}\n\n" .
+                 "Regards,\n" .
+                 "Mentry Solutions\n" .
+                 "Trainer Network & Professional Training Services\n" .
+                 "Email: {$companyEmail}\n" .
+                 "Website: {$baseUrl}/\n";
+
+    // Responsive, mobile-friendly inline CSS HTML
+    $html = '
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>' . htmlspecialchars($subject) . '</title>
+    </head>
+    <body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #1e293b;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+            <tr>
+                <td align="center">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 620px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                        <!-- Header -->
+                        <tr>
+                            <td style="background-color: #070D18; padding: 28px 24px; text-align: center; border-bottom: 3px solid #FE5E04;">
+                                <div style="font-size: 22px; font-weight: 900; color: #ffffff; letter-spacing: 0.5px;">MENTRY SOLUTIONS</div>
+                                <div style="font-size: 11px; font-weight: 700; color: #FE5E04; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">
+                                    ' . ($isRevision ? 'Revised Work Order Confirmation' : 'Work Order Confirmation') . '
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Body Content -->
+                        <tr>
+                            <td style="padding: 32px 28px; line-height: 1.6; font-size: 13px; color: #334155;">
+                                <p style="margin: 0 0 16px 0; font-size: 14px;">Dear <strong>' . htmlspecialchars($trainerName) . '</strong>,</p>
+                                <p style="margin: 0 0 20px 0;">Greetings from <strong>Mentry Solutions</strong>.</p>
+                                <p style="margin: 0 0 24px 0;">This is to confirm your engagement as a <strong>Freelancer Technical Trainer</strong> for the upcoming training assignment. Please review the official work order details below:</p>
+
+                                <!-- Work Order Details Table -->
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 24px; font-size: 12px;">
+                                    <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                        <td colspan="2" style="padding: 12px 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">
+                                            📋 WORK ORDER DETAILS
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px 16px; font-weight: 700; color: #64748b; width: 140px; border-bottom: 1px solid #f1f5f9;">Course:</td>
+                                        <td style="padding: 10px 16px; font-weight: 800; color: #0f172a; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($courseTitle) . '</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px 16px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">College / Partner:</td>
+                                        <td style="padding: 10px 16px; color: #1e293b; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($collegeName) . '</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px 16px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">Location & Mode:</td>
+                                        <td style="padding: 10px 16px; color: #1e293b; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($location) . ' (' . htmlspecialchars($mode) . ')</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px 16px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">Program Schedule:</td>
+                                        <td style="padding: 10px 16px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($startDate) . ' to ' . htmlspecialchars($endDate) . ' (' . htmlspecialchars($workingDays) . ')</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px 16px; font-weight: 700; color: #64748b;">Budget / Honorarium:</td>
+                                        <td style="padding: 10px 16px; font-weight: 800; color: #2563eb; font-size: 14px;">' . htmlspecialchars($rate) . '</td>
+                                    </tr>
+                                </table>
+
+                                <!-- Scope of Work -->
+                                <div style="margin-bottom: 24px;">
+                                    <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Scope of Work</h4>
+                                    <ul style="margin: 0; padding-left: 20px; color: #475569;">
+                                        <li style="margin-bottom: 4px;">Deliver technical training sessions as per the agreed schedule and curriculum.</li>
+                                        <li style="margin-bottom: 4px;">Ensure high-quality content delivery, interactive hands-on coding, and active learner engagement.</li>
+                                        <li>Maintain the highest standards of academic rigor and professional conduct throughout the training assignment.</li>
+                                    </ul>
+                                </div>
+
+                                <!-- Grooming & Dress Code -->
+                                <div style="margin-bottom: 24px;">
+                                    <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Grooming & Dress Code</h4>
+                                    <ul style="margin: 0; padding-left: 20px; color: #475569;">
+                                        <li style="margin-bottom: 4px;">Trainers are expected to follow a formal, neat, and professional dress code during campus training sessions.</li>
+                                        <li>Proper grooming and presentable professional attire are mandatory in alignment with institutional expectations.</li>
+                                    </ul>
+                                </div>
+
+                                <!-- Payment Terms -->
+                                <div style="margin-bottom: 24px;">
+                                    <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Payment Terms</h4>
+                                    <div style="background-color: #f8fafc; border-left: 3px solid #FE5E04; padding: 12px 16px; font-size: 12px; color: #475569; white-space: pre-line;">' . htmlspecialchars($paymentTerms) . '</div>
+                                </div>
+
+                                <!-- General Terms -->
+                                <div style="margin-bottom: 24px;">
+                                    <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">General Terms</h4>
+                                    <ul style="margin: 0; padding-left: 20px; color: #475569;">
+                                        <li style="margin-bottom: 4px;">Punctuality and strict adherence to the institution\'s training timetable are mandatory.</li>
+                                        <li style="margin-bottom: 4px;">Confidentiality of client, institution, and curriculum materials must be maintained at all times.</li>
+                                        <li>Any unforeseen deviation, emergency, or schedule change must be communicated immediately to Mentry Operations.</li>
+                                    </ul>
+                                </div>
+
+                                <p style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px; font-size: 12px; color: #1e40af; margin-bottom: 24px;">
+                                    <strong>Action Required:</strong> Kindly reply to this email with your formal acceptance and confirmation of the above terms.
+                                </p>
+
+                                <!-- Additional Details -->
+                                <div style="margin-bottom: 24px; font-size: 12px; color: #64748b;">
+                                    <h4 style="margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #334155; text-transform: uppercase;">Additional Details</h4>
+                                    <p style="margin: 0 0 8px 0;">The end date of the assignment may be extended based on college holidays, institutional schedule adjustments, or other approved requirements.</p>
+                                    <p style="margin: 0;">Access your full assignment roster, student batch size, and logistics via the <a href="' . htmlspecialchars($portalUrl) . '" style="color: #FE5E04; font-weight: 700; text-decoration: none;">Mentry Trainer Portal</a>.</p>
+                                </div>
+
+                                <!-- Emergency Contacts -->
+                                <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; margin-bottom: 24px; font-size: 12px; color: #64748b;">
+                                    <strong style="color: #334155; display: block; margin-bottom: 6px;">Emergency & Operations Contacts:</strong>
+                                    <div style="white-space: pre-line;">' . htmlspecialchars($emergencyContacts) . '</div>
+                                </div>
+
+                                <div style="margin-top: 32px; font-size: 13px;">
+                                    Regards,<br>
+                                    <strong style="color: #0f172a;">Mentry Solutions</strong><br>
+                                    <span style="font-size: 11px; color: #64748b;">Trainer Network & Professional Training Services</span><br>
+                                    <span style="font-size: 11px; color: #64748b;">Email: ' . htmlspecialchars($companyEmail) . ' • Website: <a href="' . htmlspecialchars($baseUrl) . '" style="color: #64748b;">' . htmlspecialchars(preg_replace('#^https?://#', '', $baseUrl)) . '</a></span>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 18px 24px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.5;">
+                                This is an official engagement document generated by Mentry Solutions.<br>
+                                © ' . date('Y') . ' Mentry Solutions. All rights reserved.
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    ';
+
     return [
-        'success' => false,
-        'suppressed' => true,
-        'message' => 'Opportunity match emails disabled by policy. Mail is reserved strictly for password reset.'
+        'subject' => $subject,
+        'html' => $html,
+        'plainText' => $plainText,
+        'variables' => [
+            '[TRAINER_NAME]' => $trainerName,
+            '[TRAINER_EMAIL]' => $trainerEmail,
+            '[COURSE_TITLE]' => $courseTitle,
+            '[COLLEGE_NAME]' => $collegeName,
+            '[LOCATION]' => $location,
+            '[STATE]' => $state,
+            '[MODE]' => $mode,
+            '[START_DATE]' => $startDate,
+            '[END_DATE]' => $endDate,
+            '[WORKING_DAYS]' => $workingDays,
+            '[TRAINER_RATE]' => $rate,
+            '[OPPORTUNITY_ID]' => $oppCode,
+            '[OPPORTUNITY_URL]' => $oppUrl,
+            '[PORTAL_URL]' => $portalUrl,
+            '[MENTRY_WEBSITE]' => $baseUrl . '/',
+            '[COMPANY_EMAIL]' => $companyEmail,
+            '[EMERGENCY_CONTACTS]' => $emergencyContacts
+        ]
     ];
 }

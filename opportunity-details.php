@@ -184,13 +184,25 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="space-y-2">
                     <div class="flex flex-wrap items-center gap-2">
                         <?php 
-                        $oppStatus = strtoupper($opp['status'] ?? 'PUBLISHED');
+                        $lifecycle = function_exists('getOpportunityLifecycleStatus') ? getOpportunityLifecycleStatus($opp) : 'CLOSED';
+                        $isCompleted = ($lifecycle === 'COMPLETED');
+                        $matching = function_exists('getOpportunityMatchingStatus') ? getOpportunityMatchingStatus($opp) : 'NOT_MATCHED';
                         $isOpportunityClosed = !isOpportunityOpenForApplications($opp);
                         ?>
-                        <?php if ($isOpportunityClosed): ?>
+                        <?php if ($isCompleted): ?>
+                            <span class="bg-purple-100 text-purple-900 border border-purple-300 font-extrabold text-xs px-3 py-1 rounded-full uppercase inline-flex items-center gap-1 shadow-xs">
+                                <span class="material-symbols-outlined text-[15px] text-purple-700">task_alt</span>
+                                Program Completed
+                            </span>
+                        <?php elseif ($isOpportunityClosed): ?>
                             <span class="bg-slate-900 text-white font-bold text-xs px-3 py-1 rounded-full uppercase inline-flex items-center gap-1 shadow-xs">
                                 <span class="material-symbols-outlined text-[14px] text-amber-400">lock</span>
                                 Closed / Trainer Selected
+                            </span>
+                        <?php else: ?>
+                            <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs px-3 py-1 rounded-full uppercase inline-flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                Applications Open
                             </span>
                         <?php endif; ?>
                         <span class="bg-blue-50 text-blue-700 font-bold text-xs px-3 py-1 rounded-full border border-blue-200/60 uppercase">
@@ -236,7 +248,7 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                     <span class="text-xs font-semibold text-slate-400 block">Working Days</span>
-                    <p class="font-extrabold text-base text-slate-900 mt-1"><?= htmlspecialchars($opp['durationDays']) ?> Days</p>
+                    <p class="font-extrabold text-base text-slate-900 mt-1"><?= formatOpportunityDuration($opp) ?></p>
                 </div>
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                     <span class="text-xs font-semibold text-slate-400 block">Audience</span>
@@ -310,14 +322,24 @@ require_once __DIR__ . '/includes/header.php';
                     </p>
                 </div>
 
-                <?php if ($isOpportunityClosed): ?>
+                <?php if ($isCompleted): ?>
+                    <div class="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-2xl px-5 py-3 text-xs text-purple-900 font-semibold w-full sm:w-auto">
+                        <span class="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center text-purple-700 shrink-0">
+                            <span class="material-symbols-outlined text-lg">event_available</span>
+                        </span>
+                        <div>
+                            <span class="font-bold text-purple-950 block">Program Completed</span>
+                            <span class="text-purple-700 font-normal">This training program concluded on <?= formatDate($opp['endDate'] ?? $opp['startDate']) ?>. New applications are closed.</span>
+                        </div>
+                    </div>
+                <?php elseif ($isOpportunityClosed): ?>
                     <div class="flex items-center gap-3 bg-slate-100 border border-slate-200 rounded-2xl px-5 py-3 text-xs text-slate-700 font-semibold w-full sm:w-auto">
                         <span class="w-8 h-8 rounded-xl bg-slate-200 flex items-center justify-center text-slate-600 shrink-0">
                             <span class="material-symbols-outlined text-lg">lock</span>
                         </span>
                         <div>
                             <span class="font-bold text-slate-900 block">Applications Closed</span>
-                            <span class="text-slate-500 font-normal"><?= (!empty($opp['assignedTrainerId']) || $opStatus === 'MATCHED') ? 'A trainer has been selected. New applications are not accepted.' : 'The deadline for this opportunity has passed. Applications are no longer accepted.' ?></span>
+                            <span class="text-slate-500 font-normal"><?= (!empty($opp['assignedTrainerId']) || $matching === 'ASSIGNED' || $matching === 'MATCHED') ? 'A trainer has been selected. New applications are not accepted.' : 'The deadline for this opportunity has passed. Applications are no longer accepted.' ?></span>
                         </div>
                     </div>
                 <?php elseif ($existingApp): ?>
@@ -420,7 +442,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div>
                     <span class="text-[10px] font-bold uppercase text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded">Application Intake</span>
                     <h3 class="text-lg font-extrabold text-slate-900 mt-1">Apply for <?= htmlspecialchars($opp['title']) ?></h3>
-                    <p class="text-xs text-slate-500"><?= htmlspecialchars($opp['city']) ?> • <?= htmlspecialchars($opp['durationDays']) ?> Working Days • <?= !empty($opp['endDate']) ? formatDate($opp['startDate']) . ' – ' . formatDate($opp['endDate']) : 'Starts ' . formatDate($opp['startDate']) ?></p>
+                    <p class="text-xs text-slate-500"><?= htmlspecialchars($opp['city']) ?> • <?= formatOpportunityDuration($opp) ?> • <?= !empty($opp['endDate']) ? formatDate($opp['startDate']) . ' – ' . formatDate($opp['endDate']) : 'Starts ' . formatDate($opp['startDate']) ?></p>
                 </div>
 
                 <!-- Attached Resume Confirmation -->

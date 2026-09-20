@@ -78,7 +78,7 @@ $modeFilter = trim($_GET['mode'] ?? 'ALL');
 $statusFilter = trim($_GET['status'] ?? 'ALL');
 
 $conditions = [
-    ['status' => 'PUBLISHED']
+    ['status' => ['$in' => ['PUBLISHED', 'OPEN']]]
 ];
 
 if ($domainFilter !== 'ALL') {
@@ -116,10 +116,25 @@ $rawOpportunities = $opportunityCol ? $opportunityCol->find(
     ['sort' => ['createdAt' => -1]]
 )->toArray() : [];
 
-// Filter by application status and ensure no closed/assigned opportunities appear
+// Filter by application status and strictly ensure no expired (endDate < today), completed, or closed opportunities appear
 $opportunities = [];
+$today = function_exists('getTodayISTDate') ? getTodayISTDate() : date('Y-m-d');
+
 foreach ($rawOpportunities as $opp) {
     $oppId = (string)$opp['_id'];
+    
+    // Lifecycle check: Completed, closed, or draft opportunities never appear in active feed
+    $lifecycle = function_exists('getOpportunityLifecycleStatus') ? getOpportunityLifecycleStatus($opp) : 'CLOSED';
+    if ($lifecycle === 'COMPLETED' || $lifecycle === 'CLOSED' || $lifecycle === 'DRAFT') {
+        continue;
+    }
+
+    // Direct Date check: Never display programs whose end date has already passed
+    $endStr = function_exists('normalizeDateToISTString') ? normalizeDateToISTString($opp['endDate'] ?? null) : null;
+    if ($endStr && $endStr < $today) {
+        continue;
+    }
+
     if (!isOpportunityOpenForApplications($opp)) continue; // Exclude filled/closed/expired opportunities
 
     $hasApplied = in_array($oppId, $appliedOppIds);
@@ -411,7 +426,7 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
                             <?= htmlspecialchars($opp['title']) ?>
                         </h2>
                         <p class="text-xs text-slate-500 break-words">
-                            <?= htmlspecialchars($opp['city']) ?>, <?= htmlspecialchars($opp['state']) ?> • <?= htmlspecialchars($opp['durationDays']) ?> Working Days • <?= !empty($opp['endDate']) ? formatDate($opp['startDate']) . ' – ' . formatDate($opp['endDate']) : 'Starts ' . formatDate($opp['startDate']) ?>
+                            <?= htmlspecialchars($opp['city']) ?>, <?= htmlspecialchars($opp['state']) ?> • <?= formatOpportunityDuration($opp) ?> • <?= !empty($opp['endDate']) ? formatDate($opp['startDate']) . ' – ' . formatDate($opp['endDate']) : 'Starts ' . formatDate($opp['startDate']) ?>
                         </p>
                         <div class="flex flex-wrap gap-1.5 pt-1">
                             <?php foreach (array_slice($skills, 0, 4) as $s): ?>

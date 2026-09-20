@@ -11,6 +11,7 @@ $trainerCol = getCollection("Trainer");
 $userCol = getCollection("User");
 $asgCol = getCollection("Assignment");
 $docCol = getCollection("Document");
+$confCol = getCollection("TrainerConfirmation");
 
 $opp = null;
 if (!empty($id)) {
@@ -27,6 +28,16 @@ if (!$opp) {
 $pageTitle = $opp['title'] ?? 'Opportunity View';
 $oppId = (string)$opp['_id'];
 require_once __DIR__ . '/includes/sidebar.php';
+
+// Fetch confirmation history map for this opportunity
+$allConfirmations = $confCol ? $confCol->find(['opportunityId' => (string)$oppId], ['sort' => ['updatedAt' => -1, 'createdAt' => -1]])->toArray() : [];
+$confirmationMap = [];
+foreach ($allConfirmations as $c) {
+    $tId = (string)($c['trainerId'] ?? '');
+    if (!empty($tId) && !isset($confirmationMap[$tId])) {
+        $confirmationMap[$tId] = $c;
+    }
+}
 
 // Get applicants
 $applications = $appCol ? $appCol->find(['opportunityId' => $oppId], ['sort' => ['appliedAt' => -1]])->toArray() : [];
@@ -422,10 +433,31 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                             <div class="flex items-center gap-4">
                                 <img src="<?= htmlspecialchars(getUserAvatar($u ?: $t, 120)) ?>" class="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-300 shadow-sm" style="object-position: center 15%;">
                                 <div>
+                                    <?php 
+                                    $confRecord = $confirmationMap[$tId] ?? null;
+                                    $confStatus = $confRecord['status'] ?? 'NOT_SENT';
+                                    ?>
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="bg-emerald-600 text-white text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md">Trainer Slot #<?= $idx + 1 ?></span>
                                         <h4 class="font-black text-base text-slate-900"><?= htmlspecialchars($tName) ?></h4>
                                         <?= getStatusBadge($asg['status'] ?? 'SCHEDULED') ?>
+                                        <?php if ($confStatus === 'SENT'): ?>
+                                            <span class="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-0.5">
+                                                <span class="material-symbols-outlined text-xs">mark_email_read</span> Work Order Sent
+                                            </span>
+                                        <?php elseif ($confStatus === 'DRAFT'): ?>
+                                            <span class="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-0.5">
+                                                <span class="material-symbols-outlined text-xs">drafts</span> Work Order Draft Ready
+                                            </span>
+                                        <?php elseif ($confStatus === 'FAILED'): ?>
+                                            <span class="bg-rose-100 text-rose-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-0.5">
+                                                <span class="material-symbols-outlined text-xs">warning</span> Work Order Failed
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                Work Order Not Dispatched
+                                            </span>
+                                        <?php endif; ?>
                                     </div>
                                     <p class="text-xs text-slate-600 font-medium mt-0.5">
                                         <?= htmlspecialchars($t['professionalTitle'] ?? 'Lead Faculty') ?> • <?= htmlspecialchars($t['currentCity'] ?? 'India') ?>
@@ -439,6 +471,13 @@ $matchedCandidates = MatchingEngine::getRankedCandidatesForOpportunity($opp, 12)
                             </div>
 
                             <div class="flex flex-wrap items-center gap-2">
+                                <a href="/admin/trainer-confirmation.php?opp_id=<?= urlencode($oppId) ?>&trainer_id=<?= urlencode($tId) ?>" 
+                                   class="<?= ($confStatus === 'DRAFT') ? 'bg-[#FE5E04] hover:bg-[#e05202] text-white shadow-xs' : (($confStatus === 'SENT') ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200') ?> text-xs font-bold px-3.5 py-2 rounded-xl transition-colors shadow-2xs flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[15px] <?= ($confStatus === 'DRAFT') ? 'text-white' : 'text-[#FE5E04]' ?>">
+                                        <?= ($confStatus === 'SENT') ? 'history_edu' : 'mark_email_read' ?>
+                                    </span>
+                                    <?= ($confStatus === 'SENT') ? 'Work Order History' : (($confStatus === 'DRAFT') ? 'Review & Send Work Order' : 'Create Work Order') ?>
+                                </a>
                                 <a href="/admin/trainer-view.php?id=<?= $tId ?>" target="_blank" class="bg-white text-slate-700 border border-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl hover:bg-slate-50 transition-colors shadow-2xs flex items-center gap-1">
                                     <span class="material-symbols-outlined text-[15px] text-slate-400">person</span>
                                     Dossier

@@ -182,53 +182,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]]
             );
 
-            // Dispatch real-time live notification & Web Push to the assigned trainer
+            // Dispatch in-app notification, create work order draft, and dispatch transactional email
             try {
-                $notifCol = getCollection("Notification");
-                $trainerUserId = (string)($trainer['userId'] ?? '');
-                if ($notifCol && !empty($trainerUserId)) {
-                    $oppTitle = trim($opp['title'] ?? 'Training Opportunity');
-                    $collegeName = trim($opp['collegeName'] ?? '');
-                    $collegeSuffix = !empty($collegeName) ? " at {$collegeName}" : "";
-                    $oppCity = trim($opp['city'] ?? 'Campus');
-                    $durStr = !empty($opp['durationDays']) ? "{$opp['durationDays']} Days" : "Workshop";
-                    $datesStr = "";
-                    if (!empty($opp['startDate'])) {
-                        $datesStr = " from " . formatDate($opp['startDate']) . (!empty($opp['endDate']) ? " to " . formatDate($opp['endDate']) : "");
-                    }
-                    $feeStr = !empty($totalFee) ? " Total honorarium: " . formatINR($totalFee) . "." : "";
-
-                    $notifTitle = "🎯 Assignment Confirmed: {$oppTitle}{$collegeSuffix}";
-                    $notifMsg = "Congratulations! You have been confirmed as the faculty trainer for {$oppTitle} in {$oppCity}{$datesStr} ({$durStr}).{$feeStr} Tap to view your schedule and logistics.";
-
-                    $insRes = $notifCol->insertOne([
-                        'userId' => $trainerUserId,
-                        'trainerId' => $trainerId,
-                        'opportunityId' => (string)$opportunityId,
-                        'type' => 'TRAINER_SELECTED',
-                        'title' => $notifTitle,
-                        'message' => $notifMsg,
-                        'link' => '/trainer/assignments.php',
-                        'read' => false,
-                        'createdAt' => new MongoDB\BSON\UTCDateTime()
+                if (function_exists('notifyTrainerAssigned')) {
+                    notifyTrainerAssigned($trainerId, $opportunityId, [
+                        'agreedDailyRate' => $agreedDailyRate,
+                        'agreedTotalFee' => $totalFee
                     ]);
-                    $notifId = (string)$insRes->getInsertedId();
-
-                    if (function_exists('dispatchWebPushNotification')) {
-                        @dispatchWebPushNotification(
-                            ['userId' => $trainerUserId],
-                            $notifTitle,
-                            $notifMsg,
-                            '/trainer/assignments.php',
-                            [
-                                'id' => $notifId,
-                                'type' => 'TRAINER_SELECTED',
-                                'trainerId' => $trainerId,
-                                'opportunityId' => (string)$opportunityId,
-                                'priority' => 'high'
-                            ]
-                        );
-                    }
                 }
             } catch (\Throwable $e) {
                 error_log("Failed to dispatch assignment notification: " . $e->getMessage());
