@@ -704,7 +704,7 @@ window.addEventListener('DOMContentLoaded', function() {
 <?php endif; ?>
 </script>
 
-<script src="/assets/js/opportunity-share.js?v=20260920_v2" defer></script>
+<script src="/assets/js/opportunity-share.js?v=20260920_v4" defer></script>
 
 </main>
 </div>

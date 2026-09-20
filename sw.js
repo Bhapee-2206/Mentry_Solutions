@@ -1,6 +1,6 @@
 // Mentry Solutions Service Worker (PWA App Shell, Caching & Offline Capabilities)
-const MENTRY_SW_VERSION = 'mentry-pwa-v2';
-const CACHE_NAME = 'mentry-pwa-v2';
+const MENTRY_SW_VERSION = 'mentry-pwa-v4';
+const CACHE_NAME = 'mentry-pwa-v4';
 const PRECACHE_ASSETS = [
     './manifest.json',
     './public/push-icon.png',
@@ -24,7 +24,10 @@ self.addEventListener('activate', event => {
             self.clients.claim(),
             caches.keys().then(keys => {
                 return Promise.all(
-                    keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+                    keys.filter(k => k !== CACHE_NAME).map(k => {
+                        console.log('[Mentry SW] Deleting stale cache:', k);
+                        return caches.delete(k);
+                    })
                 );
             })
         ])
@@ -32,10 +35,16 @@ self.addEventListener('activate', event => {
 });
 
 // Cache-first for precached static assets, network-first for navigation
+// Never cache opportunity share script or dynamic endpoints
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
     // Pass through non-GET and cross-origin requests directly to network
     if (event.request.method !== 'GET' || url.origin !== self.location.origin) {
+        return;
+    }
+    // Force network fetch for opportunity-share.js to ensure immediate PWA freshness
+    if (url.pathname.includes('opportunity-share.js')) {
+        event.respondWith(fetch(event.request, { cache: 'no-cache' }));
         return;
     }
     // Precached assets served from cache with network fallback

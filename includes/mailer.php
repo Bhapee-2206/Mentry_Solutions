@@ -500,28 +500,54 @@ function sendOpportunityMatchNotificationEmail($user, $trainer, $opp, $score = 0
  * Returns subject, html, plainText, and variables map.
  */
 function generateWorkOrderEmailData($opp, $trainer, $user = null, $assignment = [], $isRevision = false, $customPaymentTerms = null, $customEmergency = null): array {
-    $baseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
-    $oppId = (string)($opp['_id'] ?? '');
-    $oppCode = function_exists('getMentryCode') ? getMentryCode('OPPORTUNITY', $opp) : ($opp['jobId'] ?? $oppId);
-    $oppUrl = $baseUrl . '/opportunity-details.php?id=' . urlencode($oppCode);
-    $portalUrl = $baseUrl . '/trainer/assignments.php';
+    $trainerCombined = (array)$trainer;
+    if ($user) {
+        if (!empty($user['name'])) $trainerCombined['name'] = $user['name'];
+        if (!empty($user['email'])) $trainerCombined['email'] = $user['email'];
+    }
 
-    $trainerName = trim($user['name'] ?? ($trainer['name'] ?? 'Faculty Trainer'));
-    $trainerEmail = trim($user['email'] ?? ($trainer['email'] ?? ''));
-    $courseTitle = trim($opp['title'] ?? 'Technical Training Assignment');
-    $collegeName = trim($opp['collegeName'] ?? ($opp['institution'] ?? 'Campus Partner Institution'));
-    $location = trim(($opp['city'] ?? 'India') . ', ' . ($opp['state'] ?? ''));
-    $state = trim($opp['state'] ?? 'India');
-    $mode = strtoupper(trim($opp['mode'] ?? 'OFFLINE'));
-    $startDate = formatDate($opp['startDate'] ?? null);
-    $endDate = !empty($opp['endDate']) ? formatDate($opp['endDate']) : $startDate;
-    $workingDays = function_exists('formatOpportunityDuration') ? formatOpportunityDuration($opp) : ($opp['durationDays'] ?? 5) . ' Working Days';
-    $rate = formatINR($assignment['agreedDailyRate'] ?? ($opp['dailyRateMin'] ?? ($opp['dailyRateMax'] ?? 5000))) . ' / day';
+    $authData = function_exists('getAuthoritativeWorkOrderData')
+        ? getAuthoritativeWorkOrderData($opp, $trainerCombined, $assignment)
+        : [
+            'trainerName' => trim($user['name'] ?? ($trainer['name'] ?? 'Faculty Trainer')),
+            'trainerEmail' => trim($user['email'] ?? ($trainer['email'] ?? '')),
+            'course' => trim($opp['title'] ?? 'Technical Training Assignment'),
+            'college' => trim($opp['collegeName'] ?? ($opp['institution'] ?? 'Campus Partner Institution')),
+            'location' => trim(($opp['city'] ?? 'India') . ', ' . ($opp['state'] ?? '')),
+            'mode' => strtoupper(trim($opp['mode'] ?? 'OFFLINE')),
+            'modeLabel' => strtoupper(trim($opp['mode'] ?? 'OFFLINE')) === 'ONLINE' ? 'Online (Virtual)' : 'Offline (On Campus)',
+            'startDate' => formatDate($opp['startDate'] ?? null),
+            'endDate' => !empty($opp['endDate']) ? formatDate($opp['endDate']) : formatDate($opp['startDate'] ?? null),
+            'workingDays' => (string)($opp['durationDays'] ?? 5) . ' Working Days',
+            'rate' => formatINR($opp['dailyRateMax'] ?? ($opp['dailyRateMin'] ?? 6000)) . '/day',
+            'oppCode' => (string)($opp['jobId'] ?? 'OPPORTUNITY'),
+            'canonicalOppUrl' => 'https://mentry-solutions.vercel.app/opportunity-details.php?id=' . rawurlencode((string)($opp['jobId'] ?? 'OPPORTUNITY')),
+            'portalUrl' => 'https://mentry-solutions.vercel.app/trainer/assignments.php',
+            'emergencyContacts' => "Operations Desk: +91 98400 12345\nFaculty Support: +91 98400 67890\nEmail: mentry.training@gmail.com"
+        ];
+
+    $baseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
+    $oppCode = $authData['oppCode'];
+    $oppUrl = $authData['canonicalOppUrl'];
+    $portalUrl = $authData['portalUrl'];
+
+    $trainerName = $authData['trainerName'];
+    $trainerEmail = $authData['trainerEmail'];
+    $courseTitle = $authData['course'];
+    $collegeName = !empty($authData['college']) ? $authData['college'] : 'Campus Partner Institution';
+    $location = $authData['location'];
+    $mode = $authData['mode'];
+    $modeLabel = $authData['modeLabel'];
+    $startDate = $authData['startDate'];
+    $endDate = $authData['endDate'];
+    $dates = $authData['dates'] ?? ($startDate . (!empty($endDate) && $endDate !== $startDate ? ' – ' . $endDate : ''));
+    $workingDays = $authData['workingDays'];
+    $rate = $authData['rate'];
     $companyEmail = 'mentry.training@gmail.com';
 
     $paymentTerms = $customPaymentTerms ?: "1. Professional fees will be disbursed upon successful completion of the training assignment and submission of final attendance/feedback reports.\n2. Invoices must be submitted through the Mentry Solutions Trainer Portal or via email within 3 business days of program conclusion.\n3. Standard TDS and statutory deductions apply in accordance with Government of India regulations.\n4. In the event of unscheduled discontinuation or unexcused absence before completion, remuneration will be evaluated on a prorated basis subject to administrative review.";
 
-    $emergencyContacts = $customEmergency ?: "Operations Desk: +91 98400 12345\nHR / Faculty Coordinator: +91 98400 67890\nEmail: {$companyEmail}";
+    $emergencyContacts = $customEmergency ?: ($authData['emergencyContacts'] ?? "Operations Desk: +91 98400 12345\nFaculty Support: +91 98400 67890\nEmail: {$companyEmail}");
 
     $subjectPrefix = $isRevision ? "Revised Work Order Confirmation: " : "New Work Order Confirmation: ";
     $subject = $subjectPrefix . $courseTitle . " | Mentry Solutions";
@@ -533,13 +559,13 @@ function generateWorkOrderEmailData($opp, $trainer, $user = null, $assignment = 
                  "Please review the work order details below:\n\n" .
                  "### WORK ORDER DETAILS\n" .
                  "Course: {$courseTitle}\n" .
-                 "College: {$collegeName}\n" .
+                 "College / Partner: {$collegeName}\n" .
                  "Location: {$location}\n" .
-                 "Mode: {$mode}\n" .
+                 "Mode: {$modeLabel}\n" .
                  "From Date: {$startDate}\n" .
                  "To Date: {$endDate}\n" .
                  "Working Days: {$workingDays}\n" .
-                 "Budget / Day: {$rate}\n\n" .
+                 "Honorarium: {$rate}\n\n" .
                  "### SCOPE OF WORK\n" .
                  "- Deliver technical training sessions as per the agreed schedule and curriculum\n" .
                  "- Ensure high-quality content delivery and learner engagement\n" .
@@ -567,141 +593,141 @@ function generateWorkOrderEmailData($opp, $trainer, $user = null, $assignment = 
                  "Email: {$companyEmail}\n" .
                  "Website: {$baseUrl}/\n";
 
-    // Responsive, mobile-friendly inline CSS HTML
-    $html = '
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>' . htmlspecialchars($subject) . '</title>
-    </head>
-    <body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #1e293b;">
-        <table width="100%" border="0" cellspacing="0" cellpadding="0">
-            <tr>
-                <td align="center">
-                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 620px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-                        <!-- Header -->
-                        <tr>
-                            <td style="background-color: #070D18; padding: 28px 24px; text-align: center; border-bottom: 3px solid #FE5E04;">
-                                <div style="font-size: 22px; font-weight: 900; color: #ffffff; letter-spacing: 0.5px;">MENTRY SOLUTIONS</div>
-                                <div style="font-size: 11px; font-weight: 700; color: #FE5E04; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">
-                                    ' . ($isRevision ? 'Revised Work Order Confirmation' : 'Work Order Confirmation') . '
-                                </div>
-                            </td>
-                        </tr>
+    // Compact, mobile-friendly inline CSS HTML with light-mode protection for Gmail Android
+    $html = '<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <title>' . htmlspecialchars($subject, ENT_QUOTES, 'UTF-8') . '</title>
+</head>
+<body bgcolor="#f8fafc" style="margin: 0; padding: 16px 8px; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f8fafc" style="background-color: #f8fafc;">
+        <tr>
+            <td align="center" style="padding: 0;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="max-width: 580px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    <!-- Header Banner -->
+                    <tr>
+                        <td bgcolor="#0a101d" style="background-color: #0a101d; padding: 20px 20px; text-align: center; border-bottom: 3px solid #FE5E04;">
+                            <div style="font-size: 20px; font-weight: 900; color: #ffffff; letter-spacing: 0.5px;">MENTRY SOLUTIONS</div>
+                            <div style="font-size: 11px; font-weight: 700; color: #FE5E04; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px;">
+                                ' . ($isRevision ? 'Revised Work Order Confirmation' : 'Work Order Confirmation') . '
+                            </div>
+                        </td>
+                    </tr>
 
-                        <!-- Body Content -->
-                        <tr>
-                            <td style="padding: 32px 28px; line-height: 1.6; font-size: 13px; color: #334155;">
-                                <p style="margin: 0 0 16px 0; font-size: 14px;">Dear <strong>' . htmlspecialchars($trainerName) . '</strong>,</p>
-                                <p style="margin: 0 0 20px 0;">Greetings from <strong>Mentry Solutions</strong>.</p>
-                                <p style="margin: 0 0 24px 0;">This is to confirm your engagement as a <strong>Freelancer Technical Trainer</strong> for the upcoming training assignment. Please review the official work order details below:</p>
+                    <!-- Body Content -->
+                    <tr>
+                        <td bgcolor="#ffffff" style="padding: 22px 20px; line-height: 1.5; font-size: 13px; color: #334155;">
+                            <p style="margin: 0 0 12px 0; font-size: 14px;">Dear <strong>' . htmlspecialchars($trainerName, ENT_QUOTES, 'UTF-8') . '</strong>,</p>
+                            <p style="margin: 0 0 14px 0;">Greetings from <strong>Mentry Solutions</strong>.</p>
+                            <p style="margin: 0 0 18px 0;">This is to confirm your engagement as a <strong>Freelancer Technical Trainer</strong> for the upcoming training assignment. Please review the official work order details below:</p>
 
-                                <!-- Work Order Details Table -->
-                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 24px; font-size: 12px;">
-                                    <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                                        <td colspan="2" style="padding: 12px 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">
-                                            📋 WORK ORDER DETAILS
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 10px 16px; font-weight: 700; color: #64748b; width: 140px; border-bottom: 1px solid #f1f5f9;">Course:</td>
-                                        <td style="padding: 10px 16px; font-weight: 800; color: #0f172a; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($courseTitle) . '</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 10px 16px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">College / Partner:</td>
-                                        <td style="padding: 10px 16px; color: #1e293b; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($collegeName) . '</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 10px 16px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">Location & Mode:</td>
-                                        <td style="padding: 10px 16px; color: #1e293b; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($location) . ' (' . htmlspecialchars($mode) . ')</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 10px 16px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">Program Schedule:</td>
-                                        <td style="padding: 10px 16px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($startDate) . ' to ' . htmlspecialchars($endDate) . ' (' . htmlspecialchars($workingDays) . ')</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 10px 16px; font-weight: 700; color: #64748b;">Budget / Honorarium:</td>
-                                        <td style="padding: 10px 16px; font-weight: 800; color: #2563eb; font-size: 14px;">' . htmlspecialchars($rate) . '</td>
-                                    </tr>
-                                </table>
+                            <!-- Work Order Details Table -->
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 20px; font-size: 12px;">
+                                <tr bgcolor="#f8fafc">
+                                    <td colspan="2" style="padding: 10px 14px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">
+                                        WORK ORDER DETAILS
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 14px; font-weight: 700; color: #64748b; width: 130px; border-bottom: 1px solid #f1f5f9;">Course:</td>
+                                    <td style="padding: 8px 14px; font-weight: 800; color: #0f172a; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($courseTitle, ENT_QUOTES, 'UTF-8') . '</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 14px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">College / Partner:</td>
+                                    <td style="padding: 8px 14px; font-weight: 700; color: #1e293b; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($collegeName, ENT_QUOTES, 'UTF-8') . '</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 14px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">Location & Mode:</td>
+                                    <td style="padding: 8px 14px; color: #1e293b; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($location, ENT_QUOTES, 'UTF-8') . ' (' . htmlspecialchars($modeLabel, ENT_QUOTES, 'UTF-8') . ')</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 14px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">Program Dates:</td>
+                                    <td style="padding: 8px 14px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">' . htmlspecialchars($dates, ENT_QUOTES, 'UTF-8') . ' (' . htmlspecialchars($workingDays, ENT_QUOTES, 'UTF-8') . ')</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 14px; font-weight: 700; color: #64748b;">Honorarium / Rate:</td>
+                                    <td style="padding: 8px 14px; font-weight: 800; color: #2563eb; font-size: 13px;">' . htmlspecialchars($rate, ENT_QUOTES, 'UTF-8') . '</td>
+                                </tr>
+                            </table>
 
-                                <!-- Scope of Work -->
-                                <div style="margin-bottom: 24px;">
-                                    <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Scope of Work</h4>
-                                    <ul style="margin: 0; padding-left: 20px; color: #475569;">
-                                        <li style="margin-bottom: 4px;">Deliver technical training sessions as per the agreed schedule and curriculum.</li>
-                                        <li style="margin-bottom: 4px;">Ensure high-quality content delivery, interactive hands-on coding, and active learner engagement.</li>
-                                        <li>Maintain the highest standards of academic rigor and professional conduct throughout the training assignment.</li>
-                                    </ul>
-                                </div>
+                            <!-- Scope of Work -->
+                            <div style="margin-bottom: 18px;">
+                                <div style="margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Scope of Work</div>
+                                <ul style="margin: 0; padding-left: 18px; color: #475569; font-size: 12px; line-height: 1.5;">
+                                    <li style="margin-bottom: 3px;">Deliver technical training sessions as per the agreed schedule and curriculum.</li>
+                                    <li style="margin-bottom: 3px;">Ensure high-quality content delivery, interactive hands-on coding, and active learner engagement.</li>
+                                    <li>Maintain professional conduct throughout the training assignment.</li>
+                                </ul>
+                            </div>
 
-                                <!-- Grooming & Dress Code -->
-                                <div style="margin-bottom: 24px;">
-                                    <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Grooming & Dress Code</h4>
-                                    <ul style="margin: 0; padding-left: 20px; color: #475569;">
-                                        <li style="margin-bottom: 4px;">Trainers are expected to follow a formal, neat, and professional dress code during campus training sessions.</li>
-                                        <li>Proper grooming and presentable professional attire are mandatory in alignment with institutional expectations.</li>
-                                    </ul>
-                                </div>
+                            <!-- Grooming & Dress Code -->
+                            <div style="margin-bottom: 18px;">
+                                <div style="margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Grooming & Dress Code</div>
+                                <ul style="margin: 0; padding-left: 18px; color: #475569; font-size: 12px; line-height: 1.5;">
+                                    <li style="margin-bottom: 3px;">Trainers are expected to follow a formal, neat, and professional dress code during training sessions.</li>
+                                    <li>Proper grooming and presentable attire are mandatory where applicable based on client expectations.</li>
+                                </ul>
+                            </div>
 
-                                <!-- Payment Terms -->
-                                <div style="margin-bottom: 24px;">
-                                    <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Payment Terms</h4>
-                                    <div style="background-color: #f8fafc; border-left: 3px solid #FE5E04; padding: 12px 16px; font-size: 12px; color: #475569; white-space: pre-line;">' . htmlspecialchars($paymentTerms) . '</div>
-                                </div>
+                            <!-- Payment Terms -->
+                            <div style="margin-bottom: 18px;">
+                                <div style="margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Payment Terms</div>
+                                <div style="background-color: #f8fafc; border-left: 3px solid #FE5E04; padding: 10px 14px; font-size: 11px; color: #475569; white-space: pre-line; line-height: 1.5;">' . htmlspecialchars($paymentTerms, ENT_QUOTES, 'UTF-8') . '</div>
+                            </div>
 
-                                <!-- General Terms -->
-                                <div style="margin-bottom: 24px;">
-                                    <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">General Terms</h4>
-                                    <ul style="margin: 0; padding-left: 20px; color: #475569;">
-                                        <li style="margin-bottom: 4px;">Punctuality and strict adherence to the institution\'s training timetable are mandatory.</li>
-                                        <li style="margin-bottom: 4px;">Confidentiality of client, institution, and curriculum materials must be maintained at all times.</li>
-                                        <li>Any unforeseen deviation, emergency, or schedule change must be communicated immediately to Mentry Operations.</li>
-                                    </ul>
-                                </div>
+                            <!-- General Terms -->
+                            <div style="margin-bottom: 18px;">
+                                <div style="margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase;">General Terms</div>
+                                <ul style="margin: 0; padding-left: 18px; color: #475569; font-size: 12px; line-height: 1.5;">
+                                    <li style="margin-bottom: 3px;">Punctuality and strict adherence to the training schedule are mandatory.</li>
+                                    <li style="margin-bottom: 3px;">Confidentiality of client, institution, and curriculum materials must be maintained.</li>
+                                    <li>Any schedule changes or deviations must be informed in advance.</li>
+                                </ul>
+                            </div>
 
-                                <p style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px; font-size: 12px; color: #1e40af; margin-bottom: 24px;">
-                                    <strong>Action Required:</strong> Kindly reply to this email with your formal acceptance and confirmation of the above terms.
-                                </p>
+                            <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #1e40af; margin-bottom: 18px;">
+                                <strong>Action Required:</strong> Kindly reply to this email with your formal acceptance and confirmation of the above terms.
+                            </div>
 
-                                <!-- Additional Details -->
-                                <div style="margin-bottom: 24px; font-size: 12px; color: #64748b;">
-                                    <h4 style="margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #334155; text-transform: uppercase;">Additional Details</h4>
-                                    <p style="margin: 0 0 8px 0;">The end date of the assignment may be extended based on college holidays, institutional schedule adjustments, or other approved requirements.</p>
-                                    <p style="margin: 0;">Access your full assignment roster, student batch size, and logistics via the <a href="' . htmlspecialchars($portalUrl) . '" style="color: #FE5E04; font-weight: 700; text-decoration: none;">Mentry Trainer Portal</a>.</p>
-                                </div>
+                            <!-- Additional Details -->
+                            <div style="margin-bottom: 16px; font-size: 11px; color: #64748b;">
+                                <div style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; color: #334155; text-transform: uppercase;">Additional Details</div>
+                                <p style="margin: 0 0 4px 0;">The end date of the assignment may be extended based on college holidays, schedule changes, or other approved requirements.</p>
+                                <p style="margin: 0;">Manage your training assignments in the <a href="' . htmlspecialchars($portalUrl, ENT_QUOTES, 'UTF-8') . '" style="color: #FE5E04; font-weight: 700; text-decoration: none;">Mentry Trainer Portal</a>.</p>
+                            </div>
 
-                                <!-- Emergency Contacts -->
-                                <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; margin-bottom: 24px; font-size: 12px; color: #64748b;">
-                                    <strong style="color: #334155; display: block; margin-bottom: 6px;">Emergency & Operations Contacts:</strong>
-                                    <div style="white-space: pre-line;">' . htmlspecialchars($emergencyContacts) . '</div>
-                                </div>
+                            <!-- Emergency Contacts -->
+                            <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; margin-bottom: 18px; font-size: 11px; color: #64748b;">
+                                <strong style="color: #334155; display: block; margin-bottom: 4px;">Emergency & Operations Contacts:</strong>
+                                <div style="white-space: pre-line;">' . htmlspecialchars($emergencyContacts, ENT_QUOTES, 'UTF-8') . '</div>
+                            </div>
 
-                                <div style="margin-top: 32px; font-size: 13px;">
-                                    Regards,<br>
-                                    <strong style="color: #0f172a;">Mentry Solutions</strong><br>
-                                    <span style="font-size: 11px; color: #64748b;">Trainer Network & Professional Training Services</span><br>
-                                    <span style="font-size: 11px; color: #64748b;">Email: ' . htmlspecialchars($companyEmail) . ' • Website: <a href="' . htmlspecialchars($baseUrl) . '" style="color: #64748b;">' . htmlspecialchars(preg_replace('#^https?://#', '', $baseUrl)) . '</a></span>
-                                </div>
-                            </td>
-                        </tr>
+                            <div style="margin-top: 20px; font-size: 12px;">
+                                Regards,<br>
+                                <strong style="color: #0f172a;">Mentry Solutions</strong><br>
+                                <span style="font-size: 11px; color: #64748b;">Trainer Network & Professional Training Services</span><br>
+                                <span style="font-size: 11px; color: #64748b;">' . htmlspecialchars($companyEmail, ENT_QUOTES, 'UTF-8') . ' • <a href="' . htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8') . '/" style="color: #64748b; text-decoration: none;">' . htmlspecialchars(preg_replace('#^https?://#', '', $baseUrl), ENT_QUOTES, 'UTF-8') . '/</a></span>
+                            </div>
+                        </td>
+                    </tr>
 
-                        <!-- Footer -->
-                        <tr>
-                            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 18px 24px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.5;">
-                                This is an official engagement document generated by Mentry Solutions.<br>
-                                © ' . date('Y') . ' Mentry Solutions. All rights reserved.
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
-    ';
+                    <!-- Footer -->
+                    <tr>
+                        <td bgcolor="#f8fafc" style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 14px 20px; text-align: center; font-size: 10px; color: #64748b; line-height: 1.4;">
+                            Mentry Solutions • Trainer Network & Professional Training Services<br>
+                            ' . htmlspecialchars($companyEmail, ENT_QUOTES, 'UTF-8') . ' • <a href="' . htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8') . '/" style="color: #64748b;">' . htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8') . '/</a>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>';
 
     return [
         'subject' => $subject,
@@ -713,7 +739,6 @@ function generateWorkOrderEmailData($opp, $trainer, $user = null, $assignment = 
             '[COURSE_TITLE]' => $courseTitle,
             '[COLLEGE_NAME]' => $collegeName,
             '[LOCATION]' => $location,
-            '[STATE]' => $state,
             '[MODE]' => $mode,
             '[START_DATE]' => $startDate,
             '[END_DATE]' => $endDate,

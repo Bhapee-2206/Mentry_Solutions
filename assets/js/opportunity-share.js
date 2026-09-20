@@ -348,9 +348,73 @@
     }
 
     /**
+     * Specialized WhatsApp Sharing Strategy (B6, B7, B10):
+     * 1. Android WebView Native Bridge: window.MentryAndroid.shareOpportunity(imageUrl, caption)
+     * 2. Mobile Browser/PWA with File Share support: Web Share API with approved share image + canonical caption
+     * 3. Mobile Fallback (or unsupported file share): https://wa.me/?text=<ENCODED_MESSAGE>
+     * 4. Desktop WhatsApp: https://web.whatsapp.com/send?text=<ENCODED_MESSAGE>
+     */
+    async function shareOpportunityToWhatsApp(opportunity) {
+        const meta = normalizeOpportunityForShare(opportunity);
+        const finalMessage = buildOpportunityShareMessage(opportunity);
+        const oppId = meta.jobId;
+        recordAnalytics(oppId, 'whatsapp');
+
+        // B10: Check for native Android WebView bridge
+        if (window.MentryAndroid && typeof window.MentryAndroid.shareOpportunity === 'function') {
+            try {
+                const imageUrl = `${CANONICAL_DOMAIN}/actions/share-opportunity-image.php?id=${encodeURIComponent(oppId)}`;
+                window.MentryAndroid.shareOpportunity(imageUrl, finalMessage);
+                return true;
+            } catch (e) {
+                console.warn('[Mentry Share] Android bridge error, falling back:', e);
+            }
+        }
+
+        if (isMobileClient()) {
+            // B7: Preferred Mobile Strategy
+            // 1. Fetch approved opportunity share image
+            // 2. If navigator.canShare({ files: [...] }), use Web Share API with image file + canonical caption
+            let fileShared = false;
+            if (navigator.share && typeof navigator.canShare === 'function') {
+                try {
+                    const imgRes = await fetch(`/actions/share-opportunity-image.php?id=${encodeURIComponent(oppId)}`, { cache: 'no-cache' });
+                    if (imgRes.ok) {
+                        const blob = await imgRes.blob();
+                        const file = new File([blob], `mentry-opportunity-${oppId || 'share'}.png`, { type: 'image/png' });
+                        if (navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                files: [file],
+                                title: meta.title,
+                                text: finalMessage
+                            });
+                            fileShared = true;
+                            return true;
+                        }
+                    }
+                } catch (err) {
+                    if (err && (err.name === 'AbortError' || String(err).includes('AbortError'))) {
+                        return false;
+                    }
+                    console.warn('[Mentry Share] Web Share with file failed, falling back to wa.me:', err);
+                }
+            }
+
+            // 3. Fallback to direct wa.me URL
+            if (!fileShared) {
+                window.location.href = `https://wa.me/?text=${encodeURIComponent(finalMessage)}`;
+            }
+        } else {
+            // B6: Desktop WhatsApp: open WhatsApp Web with canonical final message
+            window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(finalMessage)}`, '_blank', 'noopener,noreferrer');
+        }
+        return true;
+    }
+
+    /**
      * Renders and opens the Authoritative Opportunity Share Dialog.
      * Contains 5 dedicated, functional channels:
-     * - WhatsApp (Direct wa.me URL)
+     * - WhatsApp (Direct wa.me URL or Web Share file attachment on mobile)
      * - Telegram (Direct t.me URL)
      * - LinkedIn (Direct LinkedIn URL)
      * - Copy Link (Canonical opportunity URL only)
@@ -404,13 +468,13 @@
 
                 <!-- Action Buttons: 5 Dedicated Share Options -->
                 <div class="grid grid-cols-1 gap-2 pt-1">
-                    <!-- 1. WhatsApp Button (Direct wa.me URL, never navigator.share) -->
+                    <!-- 1. WhatsApp Button -->
                     <button type="button" data-action="whatsapp" class="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-700/20 transition-all cursor-pointer">
                         <span class="flex items-center gap-2.5">
                             <span class="material-symbols-outlined text-lg">chat</span>
                             <span>Share on WhatsApp</span>
                         </span>
-                        <span class="text-[10px] font-medium opacity-85">Direct • Rich Preview</span>
+                        <span class="text-[10px] font-medium opacity-85">Direct • Rich Card</span>
                     </button>
 
                     <!-- 2. Telegram Button -->
@@ -470,18 +534,12 @@
         dialog.querySelector('[data-share-close]').onclick = () => dialog.remove();
         dialog.onclick = (e) => { if (e.target === dialog) dialog.remove(); };
 
-        // 1. WhatsApp Action (Direct wa.me URL)
+        // 1. WhatsApp Action (B6, B7, B10)
         const waBtn = dialog.querySelector('[data-action="whatsapp"]');
         if (waBtn) {
-            waBtn.onclick = (e) => {
+            waBtn.onclick = async (e) => {
                 e.preventDefault();
-                recordAnalytics(oppId, 'whatsapp');
-                const waUrl = getWhatsAppShareUrl(opportunity);
-                if (isMobileClient()) {
-                    window.location.href = waUrl;
-                } else {
-                    window.open(waUrl, '_blank', 'noopener,noreferrer');
-                }
+                await shareOpportunityToWhatsApp(opportunity);
             };
         }
 
@@ -587,11 +645,13 @@
     };
 
     // Export authoritative functions to global window object
+    window.MENTRY_SHARE_VERSION = '20260920_v4';
     window.normalizeOpportunityForShare = normalizeOpportunityForShare;
     window.buildOpportunityShareMessage = buildOpportunityShareMessage;
     window.buildTelegramShareText = buildTelegramShareText;
     window.getCanonicalOpportunityUrl = getCanonicalOpportunityUrl;
     window.getWhatsAppShareUrl = getWhatsAppShareUrl;
+    window.shareOpportunityToWhatsApp = shareOpportunityToWhatsApp;
     window.getTelegramShareUrl = getTelegramShareUrl;
     window.getLinkedInShareUrl = getLinkedInShareUrl;
     window.shareOpportunityNative = shareOpportunityNative;

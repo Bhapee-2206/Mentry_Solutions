@@ -1524,6 +1524,104 @@ function findOpportunityById(string $id): ?array {
 }
 
 /**
+ * Authoritative Work Order & Confirmation Data Model
+ * Guarantees 100% consistency across Admin Summary, Email Content, Modal, and Placeholders.
+ * Never allows Admin Summary Rate != Email Rate or Summary Dates != Email Dates.
+ */
+function getAuthoritativeWorkOrderData($opp, $trainer = null, $assignment = null): array {
+    $opp = (array)$opp;
+    $trainer = (array)$trainer;
+    $assignment = (array)$assignment;
+
+    $baseUrl = function_exists('getAppUrl') ? getAppUrl() : 'https://mentry-solutions.vercel.app';
+    $oppId = (string)($opp['_id'] ?? '');
+    $oppCode = function_exists('getMentryCode') ? getMentryCode('OPPORTUNITY', $opp) : ($opp['jobId'] ?? $oppId);
+    $canonicalOppUrl = function_exists('getCanonicalOpportunityShareUrl') ? getCanonicalOpportunityShareUrl($opp) : ($baseUrl . '/opportunity-details.php?id=' . rawurlencode($oppCode));
+    $portalUrl = $baseUrl . '/trainer/assignments.php';
+
+    $trainerName = trim($trainer['name'] ?? ($trainer['fullName'] ?? 'Faculty Trainer'));
+    $trainerEmail = trim($trainer['email'] ?? '');
+    $trainerCode = function_exists('getMentryCode') ? getMentryCode('TRAINER', $trainer) : ($trainer['trainerId'] ?? ($trainer['_id'] ?? ''));
+
+    $courseTitle = trim($opp['title'] ?? 'Technical Training Assignment');
+
+    // College / Partner: check collegeName, institution, clientName, organizationName
+    $college = trim($opp['collegeName'] ?? '');
+    if (empty($college)) $college = trim($opp['institution'] ?? '');
+    if (empty($college)) $college = trim($opp['clientName'] ?? '');
+    if (empty($college)) $college = trim($opp['organizationName'] ?? '');
+
+    // Location
+    $city = trim($opp['city'] ?? '');
+    $state = trim($opp['state'] ?? 'India');
+    $location = trim($city . (!empty($city) && !empty($state) ? ', ' : '') . $state);
+    if (empty($location)) $location = 'Pan-India';
+
+    $mode = strtoupper(trim($opp['mode'] ?? 'OFFLINE'));
+    $modeLabel = $mode === 'ONLINE' ? 'Online (Virtual)' : ($mode === 'HYBRID' ? 'Hybrid' : 'Offline (On Campus)');
+
+    $startDate = formatDate($opp['startDate'] ?? null);
+    $endDate = !empty($opp['endDate']) ? formatDate($opp['endDate']) : $startDate;
+    $dateRangeStr = $startDate . (!empty($endDate) && $endDate !== $startDate ? ' – ' . $endDate : '');
+
+    $durationText = function_exists('formatOpportunityDuration') ? formatOpportunityDuration($opp) : (($opp['durationDays'] ?? 5) . ' Working Days');
+
+    // Authoritative Trainer Rate / Honorarium Calculation
+    $minRate = (float)($opp['dailyRateMin'] ?? 0);
+    $maxRate = (float)($opp['dailyRateMax'] ?? 0);
+    $agreedRate = (float)($assignment['agreedDailyRate'] ?? 0);
+
+    if ($minRate > 0 && $maxRate > 0 && $minRate !== $maxRate) {
+        $rateStr = formatINR($minRate) . ' – ' . formatINR($maxRate) . '/day';
+    } elseif ($agreedRate > 0) {
+        $rateStr = formatINR($agreedRate) . '/day';
+    } elseif ($minRate > 0) {
+        $rateStr = formatINR($minRate) . '/day';
+    } elseif ($maxRate > 0) {
+        $rateStr = formatINR($maxRate) . '/day';
+    } else {
+        $rateStr = '₹5,000 – ₹7,500/day';
+    }
+
+    $emergencyContacts = "Operations Desk: +91 98400 12345\nFaculty Support: +91 98400 67890\nEmail: mentry.training@gmail.com";
+
+    // Required fields validation list (A3)
+    $missingFields = [];
+    if (empty($trainerName)) $missingFields[] = 'Trainer Name';
+    if (empty($trainerEmail)) $missingFields[] = 'Trainer Email';
+    if (empty($courseTitle)) $missingFields[] = 'Course Title';
+    if (empty($college)) $missingFields[] = 'College / Partner';
+    if (empty($location)) $missingFields[] = 'Location';
+    if (empty($startDate)) $missingFields[] = 'Start Date';
+    if (empty($endDate)) $missingFields[] = 'End Date';
+    if (empty($rateStr)) $missingFields[] = 'Daily Rate';
+
+    return [
+        'trainerName' => $trainerName,
+        'trainerEmail' => $trainerEmail,
+        'trainerCode' => $trainerCode,
+        'course' => $courseTitle,
+        'college' => $college,
+        'hasCollege' => !empty($college),
+        'location' => $location,
+        'mode' => $mode,
+        'modeLabel' => $modeLabel,
+        'startDate' => $startDate,
+        'endDate' => $endDate,
+        'dates' => $dateRangeStr,
+        'workingDays' => $durationText,
+        'rate' => $rateStr,
+        'oppCode' => $oppCode,
+        'oppId' => $oppId,
+        'canonicalOppUrl' => $canonicalOppUrl,
+        'portalUrl' => $portalUrl,
+        'emergencyContacts' => $emergencyContacts,
+        'missingFields' => $missingFields,
+        'isValid' => empty($missingFields)
+    ];
+}
+
+/**
  * Automatically evaluates assignment dates and synchronizes assignment & trainer statuses:
  * - If past end date (time() > endDate) => status becomes COMPLETED
  * - If current (startDate <= time() <= endDate) => status becomes IN_PROGRESS

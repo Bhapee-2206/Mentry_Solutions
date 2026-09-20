@@ -368,7 +368,7 @@ require_once __DIR__ . '/includes/header.php';
                             Track in Portal →
                         </a>
                     </div>
-                <?php elseif ($hasConflict): ?>
+                <?php elseif (!empty($hasConflict) && !empty($conflict)): ?>
                     <div class="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-2xl px-5 py-3 text-xs text-rose-800 font-semibold w-full sm:w-auto">
                         <span class="w-8 h-8 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
                             <span class="material-symbols-outlined text-lg">event_busy</span>
