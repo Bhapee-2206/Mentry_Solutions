@@ -1,11 +1,11 @@
-// assets/js/opportunity-share.js - Authoritative Opportunity Share Experience
-// Mentry Solutions — Website + PWA + Android WebView
+// assets/js/opportunity-share.js - Canonical Mentry Opportunity Sharing System
+// Website + Mobile Website + PWA + Android WebView
 // Strict Rules:
 // 1. Opportunity URL appears exactly ONCE.
 // 2. Main Mentry website URL appears exactly ONCE.
-// 3. No duplication under any circumstances.
+// 3. No URL duplication under any circumstances.
 // 4. Always uses canonical domain: https://mentry-solutions.vercel.app
-// 5. WhatsApp opens direct WhatsApp share URL (never routes to navigator.share).
+// 5. WhatsApp opens direct WhatsApp share URL: https://wa.me/?text=... (never routes to navigator.share).
 // 6. Generic "More sharing options" uses navigator.share with text only (omitting url) to prevent duplication.
 
 (function() {
@@ -66,43 +66,10 @@
     }
 
     /**
-     * Centralized function: returns the canonical opportunity URL.
-     * Always uses: https://mentry-solutions.vercel.app/opportunity-details.php?id=<PUBLIC_JOB_ID>
-     * Never localhost, preview URLs, or private MongoDB hex IDs when public jobId is known.
+     * Shared Opportunity Data Normalization Layer.
+     * Handles all variations of field names across cards, modals, and detail pages.
      */
-    function getCanonicalOpportunityUrl(opportunity) {
-        let rawId = '';
-
-        if (typeof opportunity === 'object' && opportunity !== null) {
-            rawId = opportunity.jobId || opportunity.mentryId || '';
-            if (!rawId && (opportunity.shareUrl || opportunity.url)) {
-                rawId = extractOppId(opportunity.shareUrl || opportunity.url);
-            }
-            if (!rawId) {
-                const cand = String(opportunity.id || opportunity.opportunityId || '').trim();
-                // Prefer public-style ID over raw 24-char hex mongo ID if available
-                if (cand) rawId = cand;
-            }
-        } else if (typeof opportunity === 'string') {
-            const parsed = extractOppId(opportunity);
-            if (parsed) {
-                rawId = parsed;
-            } else if (!opportunity.includes('/') && !opportunity.includes('?')) {
-                rawId = opportunity.trim();
-            }
-        }
-
-        const cleanId = String(rawId || '').trim();
-        if (cleanId) {
-            return `${CANONICAL_DOMAIN}/opportunity-details.php?id=${encodeURIComponent(cleanId)}`;
-        }
-        return `${CANONICAL_DOMAIN}/opportunities.php`;
-    }
-
-    /**
-     * Extracts clean public-safe metadata from an opportunity object or legacy parameters.
-     */
-    function extractOpportunityMeta(opportunity, fallbackTitle, fallbackUrl, fallbackText) {
+    function normalizeOpportunityForShare(opportunity, fallbackTitle, fallbackUrl, fallbackText) {
         let title = '';
         let location = '';
         let dates = '';
@@ -110,38 +77,51 @@
         let jobId = '';
 
         if (typeof opportunity === 'object' && opportunity !== null) {
-            title = (opportunity.title || fallbackTitle || 'Technical Training Opportunity').trim();
-            jobId = opportunity.jobId || opportunity.mentryId || extractOppId(opportunity.shareUrl || opportunity.url) || opportunity.id || '';
+            title = (opportunity.title || opportunity.jobTitle || opportunity.course || opportunity.courseTitle || fallbackTitle || 'Technical Training Opportunity').trim();
+            
+            jobId = opportunity.jobId || opportunity.mentryId || extractOppId(opportunity.shareUrl || opportunity.url) || opportunity.id || opportunity.opportunityId || '';
 
+            // Normalize location
             if (opportunity.location) {
                 location = String(opportunity.location).trim();
-            } else {
+            } else if (opportunity.city || opportunity.state) {
                 const locParts = [opportunity.city, opportunity.state].map(s => String(s || '').trim()).filter(Boolean);
                 location = locParts.join(', ');
+            } else if (opportunity.campus) {
+                location = String(opportunity.campus).trim();
             }
 
+            // Normalize dates
             if (opportunity.dates) {
                 dates = String(opportunity.dates).trim();
-            } else if (opportunity.startDate) {
-                const s = String(opportunity.startDate).trim();
-                const e = String(opportunity.endDate || '').trim();
+            } else if (opportunity.startDate || opportunity.fromDate) {
+                const s = String(opportunity.startDate || opportunity.fromDate).trim();
+                const e = String(opportunity.endDate || opportunity.toDate || '').trim();
                 dates = s + (e && e !== s ? ' – ' + e : '');
+            } else if (opportunity.durationDays) {
+                dates = String(opportunity.durationDays) + ' Working Days';
             }
 
+            // Normalize rate
             if (opportunity.rate) {
                 rate = String(opportunity.rate).trim();
+            } else if (opportunity.remuneration) {
+                rate = String(opportunity.remuneration).trim();
             } else if (opportunity.dailyRateMin || opportunity.dailyRateMax) {
                 const min = Number(opportunity.dailyRateMin || 0);
                 const max = Number(opportunity.dailyRateMax || 0);
                 if (min > 0 && max > 0 && min !== max) {
-                    rate = `${formatINR(min)} – ${formatINR(max)} / day`;
+                    rate = `${formatINR(min)} – ${formatINR(max)}/day`;
                 } else if (min > 0) {
-                    rate = `${formatINR(min)} / day`;
+                    rate = `${formatINR(min)}/day`;
                 } else if (max > 0) {
-                    rate = `${formatINR(max)} / day`;
+                    rate = `${formatINR(max)}/day`;
                 }
+            } else if (opportunity.dailyRate) {
+                rate = `${formatINR(opportunity.dailyRate)}/day`;
             }
 
+            // Fallback parsing from existing share message text if any metadata was missing
             const fallbackContent = opportunity.shareMessage || opportunity.text || fallbackText || '';
             if (fallbackContent && (!location || !dates || !rate)) {
                 const lines = fallbackContent.split('\n').map(l => l.trim()).filter(Boolean);
@@ -156,8 +136,15 @@
                 }
             }
         } else if (typeof opportunity === 'string') {
-            jobId = extractOppId(opportunity) || opportunity;
-            title = (fallbackTitle || 'Technical Training Opportunity').trim();
+            const rawStr = String(opportunity).trim();
+            if (rawStr.startsWith('http://') || rawStr.startsWith('https://') || rawStr.startsWith('MEN-')) {
+                jobId = extractOppId(rawStr) || rawStr;
+                title = (fallbackTitle || 'Technical Training Opportunity').trim();
+            } else {
+                title = rawStr;
+                jobId = extractOppId(fallbackUrl) || '';
+            }
+
             const fallbackContent = fallbackText || '';
             if (fallbackContent) {
                 const lines = fallbackContent.split('\n').map(l => l.trim()).filter(Boolean);
@@ -180,20 +167,51 @@
             location: location,
             dates: dates,
             rate: rate,
-            jobId: jobId,
-            canonicalUrl: getCanonicalOpportunityUrl(opportunity)
+            jobId: jobId
         };
     }
 
     /**
-     * Centralized function: builds the single authoritative share message.
-     * Contains:
-     * - Canonical Opportunity URL: exactly ONCE
-     * - Main Mentry Website URL: exactly ONCE
-     * - Professional layout with clean emoji hierarchy
+     * Returns the single authoritative canonical public URL for an opportunity.
+     * Always uses: https://mentry-solutions.vercel.app/opportunity-details.php?id=<PUBLIC_JOB_ID>
+     */
+    function getCanonicalOpportunityUrl(opportunity) {
+        let rawId = '';
+
+        if (typeof opportunity === 'object' && opportunity !== null) {
+            rawId = opportunity.jobId || opportunity.mentryId || '';
+            if (!rawId && (opportunity.shareUrl || opportunity.url)) {
+                rawId = extractOppId(opportunity.shareUrl || opportunity.url);
+            }
+            if (!rawId) {
+                const cand = String(opportunity.id || opportunity.opportunityId || '').trim();
+                if (cand) rawId = cand;
+            }
+        } else if (typeof opportunity === 'string') {
+            const parsed = extractOppId(opportunity);
+            if (parsed) {
+                rawId = parsed;
+            } else if (!opportunity.includes('/') && !opportunity.includes('?')) {
+                rawId = opportunity.trim();
+            }
+        }
+
+        const cleanId = String(rawId || '').trim();
+        if (cleanId) {
+            return `${CANONICAL_DOMAIN}/opportunity-details.php?id=${encodeURIComponent(cleanId)}`;
+        }
+        return `${CANONICAL_DOMAIN}/opportunities.php`;
+    }
+
+    /**
+     * Canonical share message generator.
+     * Exactly 1 Opportunity URL.
+     * Exactly 1 Mentry Website URL.
+     * Total URLs = 2.
+     * Identical across Desktop, Mobile, PWA, and Android WebView.
      */
     function buildOpportunityShareMessage(opportunity) {
-        const meta = extractOpportunityMeta(opportunity);
+        const meta = normalizeOpportunityForShare(opportunity);
         const canonicalUrl = getCanonicalOpportunityUrl(opportunity);
 
         const lines = [
@@ -230,7 +248,7 @@
      * Guarantees 0 opportunity URLs in text + 1 website URL in text.
      */
     function buildTelegramShareText(opportunity) {
-        const meta = extractOpportunityMeta(opportunity);
+        const meta = normalizeOpportunityForShare(opportunity);
 
         const lines = [
             '📢 NEW MENTRY SOLUTIONS TRAINING OPPORTUNITY',
@@ -261,16 +279,12 @@
 
     /**
      * Generates direct WhatsApp share URL.
-     * Mobile / WebView: https://wa.me/?text=...
-     * Desktop: https://web.whatsapp.com/send?text=...
+     * Uses universal https://wa.me/?text=... for consistent native app & web launching.
      */
     function getWhatsAppShareUrl(opportunity) {
         const message = buildOpportunityShareMessage(opportunity);
         const encoded = encodeURIComponent(message);
-        if (isMobileClient()) {
-            return `https://wa.me/?text=${encoded}`;
-        }
-        return `https://web.whatsapp.com/send?text=${encoded}`;
+        return `https://wa.me/?text=${encoded}`;
     }
 
     /**
@@ -296,7 +310,7 @@
      * mobile operating systems from appending a duplicate URL.
      */
     async function shareOpportunityNative(opportunity) {
-        const meta = extractOpportunityMeta(opportunity);
+        const meta = normalizeOpportunityForShare(opportunity);
         const finalMessage = buildOpportunityShareMessage(opportunity);
 
         if (navigator.share) {
@@ -327,7 +341,7 @@
      */
     async function copyOpportunityLink(opportunity) {
         const canonicalUrl = getCanonicalOpportunityUrl(opportunity);
-        const meta = extractOpportunityMeta(opportunity);
+        const meta = normalizeOpportunityForShare(opportunity);
         await navigator.clipboard.writeText(canonicalUrl);
         recordAnalytics(meta.jobId, 'copy_link');
         return canonicalUrl;
@@ -343,7 +357,7 @@
      * - More sharing options (Generic navigator.share)
      */
     function showShareModal(opportunity) {
-        const meta = extractOpportunityMeta(opportunity);
+        const meta = normalizeOpportunityForShare(opportunity);
         const canonicalUrl = getCanonicalOpportunityUrl(opportunity);
         const finalMessage = buildOpportunityShareMessage(opportunity);
         const oppId = meta.jobId;
@@ -390,7 +404,7 @@
 
                 <!-- Action Buttons: 5 Dedicated Share Options -->
                 <div class="grid grid-cols-1 gap-2 pt-1">
-                    <!-- 1. WhatsApp Button (Direct WhatsApp URL, never navigator.share) -->
+                    <!-- 1. WhatsApp Button (Direct wa.me URL, never navigator.share) -->
                     <button type="button" data-action="whatsapp" class="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-700/20 transition-all cursor-pointer">
                         <span class="flex items-center gap-2.5">
                             <span class="material-symbols-outlined text-lg">chat</span>
@@ -456,7 +470,7 @@
         dialog.querySelector('[data-share-close]').onclick = () => dialog.remove();
         dialog.onclick = (e) => { if (e.target === dialog) dialog.remove(); };
 
-        // 1. WhatsApp Action
+        // 1. WhatsApp Action (Direct wa.me URL)
         const waBtn = dialog.querySelector('[data-action="whatsapp"]');
         if (waBtn) {
             waBtn.onclick = (e) => {
@@ -573,6 +587,7 @@
     };
 
     // Export authoritative functions to global window object
+    window.normalizeOpportunityForShare = normalizeOpportunityForShare;
     window.buildOpportunityShareMessage = buildOpportunityShareMessage;
     window.buildTelegramShareText = buildTelegramShareText;
     window.getCanonicalOpportunityUrl = getCanonicalOpportunityUrl;

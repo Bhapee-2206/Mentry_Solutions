@@ -37,9 +37,24 @@ if ($minRate > 0 && $maxRate > 0 && $minRate !== $maxRate) {
     $shareRateStr = formatINR($maxRate) . ' / day';
 }
 
-$metaDescription = "Training opportunity in " . $metaLocation . (!empty($shareDateStr) ? " on " . $shareDateStr : "") . (!empty($shareRateStr) ? " — " . $shareRateStr : "") . ".";
-
 $shareMessage = formatOpportunityShareMessage($opp);
+$shareOppDataJson = htmlspecialchars(json_encode([
+    'id' => (string)($opp['_id'] ?? $id),
+    'jobId' => $publicOpportunityId,
+    'title' => $opp['title'] ?? '',
+    'location' => $metaLocation,
+    'city' => $opp['city'] ?? '',
+    'state' => $opp['state'] ?? 'India',
+    'dates' => $shareDateStr,
+    'startDate' => formatDate($opp['startDate'] ?? null),
+    'endDate' => !empty($opp['endDate']) ? formatDate($opp['endDate']) : '',
+    'rate' => $shareRateStr,
+    'dailyRateMin' => (float)($opp['dailyRateMin'] ?? 0),
+    'dailyRateMax' => (float)($opp['dailyRateMax'] ?? 0),
+    'shareUrl' => $publicOpportunityUrl,
+    'url' => $publicOpportunityUrl,
+    'shareMessage' => $shareMessage
+]), ENT_QUOTES, 'UTF-8');
 $canonicalUrl = $publicOpportunityUrl;
 $ogType = 'article';
 $ogImage = getCanonicalOpportunityImageUrl($opp);
@@ -218,7 +233,7 @@ require_once __DIR__ . '/includes/header.php';
                     <h1 class="text-2xl md:text-3xl font-extrabold text-slate-950 leading-tight">
                         <?= htmlspecialchars($opp['title']) ?>
                     </h1>
-                    <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode($publicOpportunityUrl)) ?>, <?= htmlspecialchars(json_encode($shareMessage)) ?>)">
+                    <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" onclick="shareOpportunity(<?= $shareOppDataJson ?>)">
                         <span class="material-symbols-outlined text-base">share</span> Share Opportunity
                     </button>
                     <p class="text-sm text-slate-500 font-medium flex items-center gap-1.5">
@@ -368,7 +383,7 @@ require_once __DIR__ . '/includes/header.php';
                         <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                     </button>
                 <?php endif; ?>
-                <button type="button" class="inline-flex items-center gap-1.5 border border-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-slate-50" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'])) ?>, <?= htmlspecialchars(json_encode($publicOpportunityUrl)) ?>, <?= htmlspecialchars(json_encode($shareMessage)) ?>)">
+                <button type="button" class="inline-flex items-center gap-1.5 border border-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-slate-50" onclick="shareOpportunity(<?= $shareOppDataJson ?>)">
                     <span class="material-symbols-outlined text-[17px]">share</span> Share
                 </button>
             </div>

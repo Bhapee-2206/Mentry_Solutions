@@ -3,7 +3,7 @@
 ?>
 </main>
 
-<script src="/assets/js/opportunity-share.js" defer></script>
+<script src="/assets/js/opportunity-share.js?v=20260920_v2" defer></script>
 
 <!-- Native Android FCM Bridge Integration -->
 <script>

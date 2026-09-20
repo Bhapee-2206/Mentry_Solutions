@@ -1,0 +1,146 @@
+[
+    {
+        "_id": "53f113f1727b1f100240d9b0",
+        "channel": "native_share",
+        "createdAt": "1789648658357",
+        "timestamp": "1789648657118",
+        "updatedAt": "1789648658357",
+        "isoTimestamp": "2026-09-17T18:07:37+05:30",
+        "opportunityId": "MEN-OPP-1016"
+    },
+    {
+        "_id": "b479e41e2ad4f2adc66bc5e3",
+        "channel": "native_share",
+        "createdAt": "1789913451159",
+        "timestamp": "1789913451159",
+        "updatedAt": "1789913451159",
+        "isoTimestamp": "2026-09-20T19:40:51+05:30",
+        "opportunityId": "MEN-OPP-1027"
+    },
+    {
+        "_id": "4a85e280c57c5944fa8aa2b5",
+        "channel": "native_share",
+        "createdAt": "1789913524109",
+        "timestamp": "1789913524109",
+        "updatedAt": "1789913524109",
+        "isoTimestamp": "2026-09-20T19:42:04+05:30",
+        "opportunityId": "MEN-OPP-1004"
+    },
+    {
+        "_id": "7bb5d2997b096b29f92a0bd5",
+        "channel": "native_share",
+        "createdAt": "1789913544441",
+        "timestamp": "1789913544441",
+        "updatedAt": "1789913544441",
+        "isoTimestamp": "2026-09-20T19:42:24+05:30",
+        "opportunityId": "MEN-OPP-1004"
+    },
+    {
+        "_id": "83960642ed949ef49de00dc5",
+        "channel": "native_share",
+        "createdAt": "1789916338902",
+        "timestamp": "1789916338902",
+        "updatedAt": "1789916338902",
+        "isoTimestamp": "2026-09-20T20:28:58+05:30",
+        "opportunityId": "MEN-OPP-1027"
+    },
+    {
+        "_id": "675c08dac6a6d6507bedd3b9",
+        "channel": "native_share",
+        "createdAt": "1789916362029",
+        "timestamp": "1789916362029",
+        "updatedAt": "1789916362029",
+        "isoTimestamp": "2026-09-20T20:29:22+05:30",
+        "opportunityId": "MEN-OPP-1016"
+    },
+    {
+        "_id": "f1129259150d19057040c666",
+        "channel": "copy_link",
+        "createdAt": "1789917380405",
+        "timestamp": "1789917380405",
+        "updatedAt": "1789917380405",
+        "isoTimestamp": "2026-09-20T20:46:20+05:30",
+        "opportunityId": "MEN-OPP-1004"
+    },
+    {
+        "_id": "78ccca2dc2cbaf6f301d3bc0",
+        "channel": "copy_link",
+        "createdAt": "1789917410998",
+        "timestamp": "1789917410998",
+        "updatedAt": "1789917410998",
+        "isoTimestamp": "2026-09-20T20:46:50+05:30",
+        "opportunityId": "MEN-OPP-1004"
+    },
+    {
+        "_id": "0a701c666ab9ddfa9ffdbcbc",
+        "channel": "copy_link",
+        "createdAt": "1789917488392",
+        "timestamp": "1789917488392",
+        "updatedAt": "1789917488392",
+        "isoTimestamp": "2026-09-20T20:48:08+05:30",
+        "opportunityId": "MEN-OPP-1004"
+    },
+    {
+        "_id": "ba6b99906b82365df939c221",
+        "channel": "native_share",
+        "createdAt": "1789917529948",
+        "timestamp": "1789917529948",
+        "updatedAt": "1789917529948",
+        "isoTimestamp": "2026-09-20T20:48:49+05:30",
+        "opportunityId": "MEN-OPP-1027"
+    },
+    {
+        "_id": "654283cce024e490239077c8",
+        "channel": "whatsapp",
+        "createdAt": "1789917576610",
+        "timestamp": "1789917576610",
+        "updatedAt": "1789917576610",
+        "isoTimestamp": "2026-09-20T20:49:36+05:30",
+        "opportunityId": "MEN-OPP-1027"
+    },
+    {
+        "_id": "cfae7fcb372d6c2aacdb03a4",
+        "channel": "native_share",
+        "createdAt": "1789920355575",
+        "timestamp": "1789920355575",
+        "updatedAt": "1789920355575",
+        "isoTimestamp": "2026-09-20T21:35:55+05:30",
+        "opportunityId": "MEN-OPP-1027"
+    },
+    {
+        "_id": "0ba216660b3e92c44878844d",
+        "channel": "whatsapp",
+        "createdAt": "1789922155535",
+        "timestamp": "1789922155535",
+        "updatedAt": "1789922155535",
+        "isoTimestamp": "2026-09-20T22:05:55+05:30",
+        "opportunityId": "MEN-OPP-1027"
+    },
+    {
+        "_id": "d4e022f621d2a3d40a0db81a",
+        "channel": "native_share",
+        "createdAt": "1789922190678",
+        "timestamp": "1789922190678",
+        "updatedAt": "1789922190678",
+        "isoTimestamp": "2026-09-20T22:06:30+05:30",
+        "opportunityId": "MEN-OPP-1027"
+    },
+    {
+        "opportunityId": "MEN-OPP-1004",
+        "channel": "whatsapp",
+        "timestamp": "1789923678939",
+        "isoTimestamp": "2026-09-20T22:31:18+05:30",
+        "_id": "6ab0115e01dc0578ff090030",
+        "createdAt": "1789923678951",
+        "updatedAt": "1789923678951"
+    },
+    {
+        "opportunityId": "MEN-OPP-1004",
+        "channel": "copy_link",
+        "timestamp": "1789923686208",
+        "isoTimestamp": "2026-09-20T22:31:26+05:30",
+        "_id": "6ab0116601dc0578ff090031",
+        "createdAt": "1789923686209",
+        "updatedAt": "1789923686209"
+    }
+]

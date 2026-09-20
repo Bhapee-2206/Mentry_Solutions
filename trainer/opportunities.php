@@ -462,7 +462,7 @@ $hasActiveFilters = (!empty($search) || $domainFilter !== 'ALL' || $modeFilter !
                                 </button>
                             <?php endif; ?>
 
-                            <button type="button" onclick="shareOpportunity(<?= htmlspecialchars(json_encode($opp['title'] ?? 'Training Opportunity'), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars(json_encode($publicOppUrl), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars(json_encode($cardShareMessage), ENT_QUOTES, 'UTF-8') ?>)" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0" title="Share Opportunity">
+                            <button type="button" onclick="shareOpportunity(<?= $oppDataJson ?>)" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0" title="Share Opportunity">
                                 <span class="material-symbols-outlined text-[16px] text-[#FE5E04]">share</span>
                                 <span>Share</span>
                             </button>
@@ -673,7 +673,7 @@ function openOppModal(data) {
     if (modalShareBtn) {
         modalShareBtn.onclick = function() {
             if (typeof shareOpportunity === 'function') {
-                shareOpportunity(data.title, data.shareUrl, data.shareMessage);
+                shareOpportunity(data);
             }
         };
     }
@@ -704,7 +704,7 @@ window.addEventListener('DOMContentLoaded', function() {
 <?php endif; ?>
 </script>
 
-<script src="/assets/js/opportunity-share.js?v=20260917" defer></script>
+<script src="/assets/js/opportunity-share.js?v=20260920_v2" defer></script>
 
 </main>
 </div>
