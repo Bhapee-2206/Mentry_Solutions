@@ -1,16 +1,28 @@
 // assets/js/opportunity-share.js - Authoritative Opportunity Share Experience
-// Provides clean, professional WhatsApp, Telegram, LinkedIn, and Native Share previews.
-// Strict rule: The opportunity URL appears ONLY ONCE. No duplication.
+// Mentry Solutions — Website + PWA + Android WebView
+// Strict Rules:
+// 1. Opportunity URL appears exactly ONCE.
+// 2. Main Mentry website URL appears exactly ONCE.
+// 3. No duplication under any circumstances.
+// 4. Always uses canonical domain: https://mentry-solutions.vercel.app
+// 5. WhatsApp opens direct WhatsApp share URL (never routes to navigator.share).
+// 6. Generic "More sharing options" uses navigator.share with text only (omitting url) to prevent duplication.
 
 (function() {
     'use strict';
 
     const CANONICAL_DOMAIN = 'https://mentry-solutions.vercel.app';
+    const CANONICAL_WEBSITE_URL = 'https://mentry-solutions.vercel.app/';
+    const COMPANY_DESCRIPTION = 'Mentry Solutions connects skilled trainers with training opportunities across colleges and organizations. Join our trainer network and discover upcoming programs.';
 
     function escapeHtml(value) {
         return String(value || '').replace(/[&<>'"]/g, character => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
         }[character]));
+    }
+
+    function isMobileClient() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
     }
 
     function recordAnalytics(oppId, channel) {
@@ -35,113 +47,306 @@
         if (!rawUrl) return '';
         try {
             const parsed = new URL(rawUrl, CANONICAL_DOMAIN);
-            return parsed.searchParams.get('id') || '';
-        } catch (e) {
-            const match = String(rawUrl).match(/[?&]id=([^&#]+)/);
-            return match ? decodeURIComponent(match[1]) : '';
+            const id = parsed.searchParams.get('id');
+            if (id) return id;
+        } catch (e) {}
+        const match = String(rawUrl).match(/[?&]id=([^&#]+)/);
+        if (match) return decodeURIComponent(match[1]);
+        const clean = String(rawUrl).trim();
+        if (clean.startsWith('MEN-OPP-') || clean.startsWith('MEN-')) {
+            return clean;
         }
+        return '';
     }
 
-    function getCanonicalUrl(rawUrl, explicitId) {
-        const id = explicitId || extractOppId(rawUrl);
-        if (id) {
-            return `${CANONICAL_DOMAIN}/opportunity-details.php?id=${encodeURIComponent(id)}`;
+    function formatINR(val) {
+        const num = Number(val);
+        if (isNaN(num) || num <= 0) return '';
+        return '₹' + num.toLocaleString('en-IN');
+    }
+
+    /**
+     * Centralized function: returns the canonical opportunity URL.
+     * Always uses: https://mentry-solutions.vercel.app/opportunity-details.php?id=<PUBLIC_JOB_ID>
+     * Never localhost, preview URLs, or private MongoDB hex IDs when public jobId is known.
+     */
+    function getCanonicalOpportunityUrl(opportunity) {
+        let rawId = '';
+
+        if (typeof opportunity === 'object' && opportunity !== null) {
+            rawId = opportunity.jobId || opportunity.mentryId || '';
+            if (!rawId && (opportunity.shareUrl || opportunity.url)) {
+                rawId = extractOppId(opportunity.shareUrl || opportunity.url);
+            }
+            if (!rawId) {
+                const cand = String(opportunity.id || opportunity.opportunityId || '').trim();
+                // Prefer public-style ID over raw 24-char hex mongo ID if available
+                if (cand) rawId = cand;
+            }
+        } else if (typeof opportunity === 'string') {
+            const parsed = extractOppId(opportunity);
+            if (parsed) {
+                rawId = parsed;
+            } else if (!opportunity.includes('/') && !opportunity.includes('?')) {
+                rawId = opportunity.trim();
+            }
+        }
+
+        const cleanId = String(rawId || '').trim();
+        if (cleanId) {
+            return `${CANONICAL_DOMAIN}/opportunity-details.php?id=${encodeURIComponent(cleanId)}`;
         }
         return `${CANONICAL_DOMAIN}/opportunities.php`;
     }
 
     /**
-     * Builds structured clean message parts:
-     * - fullMessage: for WhatsApp direct link (contains the URL once at the bottom)
-     * - bodyWithoutUrl: for native navigator.share and Telegram text (where URL is passed separately)
+     * Extracts clean public-safe metadata from an opportunity object or legacy parameters.
      */
-    function formatMessageParts(title, textOrObj, canonicalUrl) {
-        let cleanTitle = (title || 'Technical Training Opportunity').trim();
+    function extractOpportunityMeta(opportunity, fallbackTitle, fallbackUrl, fallbackText) {
+        let title = '';
         let location = '';
         let dates = '';
         let rate = '';
+        let jobId = '';
 
-        if (typeof textOrObj === 'object' && textOrObj !== null) {
-            cleanTitle = (textOrObj.title || cleanTitle).trim();
-            location = (textOrObj.location || '').trim();
-            dates = (textOrObj.dates || '').trim();
-            rate = (textOrObj.rate || '').trim();
-        } else if (typeof textOrObj === 'string' && textOrObj.trim().length > 0) {
-            const lines = textOrObj.split('\n').map(l => l.trim()).filter(Boolean);
-            for (const line of lines) {
-                if (line.startsWith('📍')) {
-                    location = line.replace(/^📍\s*/, '').trim();
-                } else if (line.startsWith('Location:')) {
-                    location = line.replace(/^Location:\s*/i, '').trim();
-                } else if (line.startsWith('📅')) {
-                    dates = line.replace(/^📅\s*/, '').trim();
-                } else if (line.startsWith('Dates:')) {
-                    dates = line.replace(/^Dates:\s*/i, '').trim();
-                } else if (line.startsWith('💰')) {
-                    rate = line.replace(/^💰\s*/, '').trim();
-                } else if (line.startsWith('Remuneration:')) {
-                    rate = line.replace(/^Remuneration:\s*/i, '').trim();
-                } else if (!line.startsWith('📢') && !line.startsWith('New Mentry') && !line.startsWith('View full') && !line.startsWith('http')) {
-                    if (!cleanTitle || cleanTitle === 'Technical Training Opportunity' || cleanTitle === 'Training Opportunity') {
-                        cleanTitle = line;
+        if (typeof opportunity === 'object' && opportunity !== null) {
+            title = (opportunity.title || fallbackTitle || 'Technical Training Opportunity').trim();
+            jobId = opportunity.jobId || opportunity.mentryId || extractOppId(opportunity.shareUrl || opportunity.url) || opportunity.id || '';
+
+            if (opportunity.location) {
+                location = String(opportunity.location).trim();
+            } else {
+                const locParts = [opportunity.city, opportunity.state].map(s => String(s || '').trim()).filter(Boolean);
+                location = locParts.join(', ');
+            }
+
+            if (opportunity.dates) {
+                dates = String(opportunity.dates).trim();
+            } else if (opportunity.startDate) {
+                const s = String(opportunity.startDate).trim();
+                const e = String(opportunity.endDate || '').trim();
+                dates = s + (e && e !== s ? ' – ' + e : '');
+            }
+
+            if (opportunity.rate) {
+                rate = String(opportunity.rate).trim();
+            } else if (opportunity.dailyRateMin || opportunity.dailyRateMax) {
+                const min = Number(opportunity.dailyRateMin || 0);
+                const max = Number(opportunity.dailyRateMax || 0);
+                if (min > 0 && max > 0 && min !== max) {
+                    rate = `${formatINR(min)} – ${formatINR(max)} / day`;
+                } else if (min > 0) {
+                    rate = `${formatINR(min)} / day`;
+                } else if (max > 0) {
+                    rate = `${formatINR(max)} / day`;
+                }
+            }
+
+            const fallbackContent = opportunity.shareMessage || opportunity.text || fallbackText || '';
+            if (fallbackContent && (!location || !dates || !rate)) {
+                const lines = fallbackContent.split('\n').map(l => l.trim()).filter(Boolean);
+                for (const line of lines) {
+                    if (!location && (line.startsWith('📍') || line.startsWith('Location:'))) {
+                        location = line.replace(/^(📍|Location:)\s*/i, '').trim();
+                    } else if (!dates && (line.startsWith('📅') || line.startsWith('Dates:'))) {
+                        dates = line.replace(/^(📅|Dates:)\s*/i, '').trim();
+                    } else if (!rate && (line.startsWith('💰') || line.startsWith('Remuneration:'))) {
+                        rate = line.replace(/^(💰|Remuneration:)\s*/i, '').trim();
+                    }
+                }
+            }
+        } else if (typeof opportunity === 'string') {
+            jobId = extractOppId(opportunity) || opportunity;
+            title = (fallbackTitle || 'Technical Training Opportunity').trim();
+            const fallbackContent = fallbackText || '';
+            if (fallbackContent) {
+                const lines = fallbackContent.split('\n').map(l => l.trim()).filter(Boolean);
+                for (const line of lines) {
+                    if (!location && (line.startsWith('📍') || line.startsWith('Location:'))) {
+                        location = line.replace(/^(📍|Location:)\s*/i, '').trim();
+                    } else if (!dates && (line.startsWith('📅') || line.startsWith('Dates:'))) {
+                        dates = line.replace(/^(📅|Dates:)\s*/i, '').trim();
+                    } else if (!rate && (line.startsWith('💰') || line.startsWith('Remuneration:'))) {
+                        rate = line.replace(/^(💰|Remuneration:)\s*/i, '').trim();
                     }
                 }
             }
         }
 
-        const bodyLines = [
-            '📢 New Mentry Solutions Training Opportunity',
-            '',
-            cleanTitle
-        ];
-        if (location) bodyLines.push(`📍 ${location}`);
-        if (dates) bodyLines.push(`📅 ${dates}`);
-        if (rate) bodyLines.push(`💰 ${rate}`);
-
-        bodyLines.push('');
-        bodyLines.push('View full details and apply here 👇');
-
-        const bodyWithoutUrl = bodyLines.join('\n');
-        const fullMessage = `${bodyWithoutUrl}\n${canonicalUrl}`;
+        if (!location) location = 'Pan-India';
 
         return {
-            title: cleanTitle,
+            title: title || 'Technical Training Opportunity',
             location: location,
             dates: dates,
             rate: rate,
-            bodyWithoutUrl: bodyWithoutUrl,
-            fullMessage: fullMessage
+            jobId: jobId,
+            canonicalUrl: getCanonicalOpportunityUrl(opportunity)
         };
     }
 
-    function showShareModal(msgParts, canonicalUrl, oppId) {
-        const encodedFullMessage = encodeURIComponent(msgParts.fullMessage);
-        const encodedUrl = encodeURIComponent(canonicalUrl);
-        const encodedBodyWithoutUrl = encodeURIComponent(msgParts.bodyWithoutUrl);
+    /**
+     * Centralized function: builds the single authoritative share message.
+     * Contains:
+     * - Canonical Opportunity URL: exactly ONCE
+     * - Main Mentry Website URL: exactly ONCE
+     * - Professional layout with clean emoji hierarchy
+     */
+    function buildOpportunityShareMessage(opportunity) {
+        const meta = extractOpportunityMeta(opportunity);
+        const canonicalUrl = getCanonicalOpportunityUrl(opportunity);
 
-        const links = [
-            {
-                name: 'WhatsApp',
-                icon: 'chat',
-                bg: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-700/20',
-                href: `https://wa.me/?text=${encodedFullMessage}`,
-                channel: 'whatsapp'
-            },
-            {
-                name: 'Telegram',
-                icon: 'send',
-                bg: 'bg-sky-500 hover:bg-sky-600 text-white shadow-sky-600/20',
-                href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedBodyWithoutUrl}`,
-                channel: 'telegram'
-            },
-            {
-                name: 'LinkedIn',
-                icon: 'work',
-                bg: 'bg-[#0077b5] hover:bg-[#005885] text-white shadow-blue-800/20',
-                href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-                channel: 'linkedin'
-            }
+        const lines = [
+            '📢 NEW MENTRY SOLUTIONS TRAINING OPPORTUNITY',
+            '',
+            meta.title,
+            ''
         ];
+
+        const metaLines = [];
+        if (meta.location) metaLines.push(`📍 ${meta.location}`);
+        if (meta.dates) metaLines.push(`📅 ${meta.dates}`);
+        if (meta.rate) metaLines.push(`💰 ${meta.rate}`);
+
+        if (metaLines.length > 0) {
+            lines.push(...metaLines);
+            lines.push('');
+        }
+
+        lines.push('🔗 View Opportunity & Apply');
+        lines.push(canonicalUrl);
+        lines.push('');
+        lines.push('🌐 Explore Mentry Solutions');
+        lines.push(COMPANY_DESCRIPTION);
+        lines.push('');
+        lines.push(CANONICAL_WEBSITE_URL);
+
+        return lines.join('\n');
+    }
+
+    /**
+     * Builds message text for Telegram sharing where the opportunity URL
+     * is passed separately via the dedicated Telegram "url" query parameter.
+     * Guarantees 0 opportunity URLs in text + 1 website URL in text.
+     */
+    function buildTelegramShareText(opportunity) {
+        const meta = extractOpportunityMeta(opportunity);
+
+        const lines = [
+            '📢 NEW MENTRY SOLUTIONS TRAINING OPPORTUNITY',
+            '',
+            meta.title,
+            ''
+        ];
+
+        const metaLines = [];
+        if (meta.location) metaLines.push(`📍 ${meta.location}`);
+        if (meta.dates) metaLines.push(`📅 ${meta.dates}`);
+        if (meta.rate) metaLines.push(`💰 ${meta.rate}`);
+
+        if (metaLines.length > 0) {
+            lines.push(...metaLines);
+            lines.push('');
+        }
+
+        lines.push('🔗 View Opportunity & Apply');
+        lines.push('');
+        lines.push('🌐 Explore Mentry Solutions');
+        lines.push(COMPANY_DESCRIPTION);
+        lines.push('');
+        lines.push(CANONICAL_WEBSITE_URL);
+
+        return lines.join('\n');
+    }
+
+    /**
+     * Generates direct WhatsApp share URL.
+     * Mobile / WebView: https://wa.me/?text=...
+     * Desktop: https://web.whatsapp.com/send?text=...
+     */
+    function getWhatsAppShareUrl(opportunity) {
+        const message = buildOpportunityShareMessage(opportunity);
+        const encoded = encodeURIComponent(message);
+        if (isMobileClient()) {
+            return `https://wa.me/?text=${encoded}`;
+        }
+        return `https://web.whatsapp.com/send?text=${encoded}`;
+    }
+
+    /**
+     * Generates Telegram share URL with url parameter and clean text parameter.
+     */
+    function getTelegramShareUrl(opportunity) {
+        const canonicalUrl = getCanonicalOpportunityUrl(opportunity);
+        const textWithoutOppUrl = buildTelegramShareText(opportunity);
+        return `https://t.me/share/url?url=${encodeURIComponent(canonicalUrl)}&text=${encodeURIComponent(textWithoutOppUrl)}`;
+    }
+
+    /**
+     * Generates LinkedIn share URL using canonical opportunity URL.
+     */
+    function getLinkedInShareUrl(opportunity) {
+        const canonicalUrl = getCanonicalOpportunityUrl(opportunity);
+        return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(canonicalUrl)}`;
+    }
+
+    /**
+     * Generic Native Share implementation.
+     * Passes final formatted message in `text` and OMITS `url` to prevent
+     * mobile operating systems from appending a duplicate URL.
+     */
+    async function shareOpportunityNative(opportunity) {
+        const meta = extractOpportunityMeta(opportunity);
+        const finalMessage = buildOpportunityShareMessage(opportunity);
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: meta.title,
+                    text: finalMessage
+                });
+                recordAnalytics(meta.jobId, 'native_share');
+                return true;
+            } catch (err) {
+                if (err && err.name === 'AbortError') return false;
+            }
+        }
+
+        // Fallback if navigator.share fails or is unavailable
+        try {
+            await navigator.clipboard.writeText(finalMessage);
+            recordAnalytics(meta.jobId, 'copy_message');
+            return 'copied';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * Copies ONLY the canonical opportunity URL.
+     */
+    async function copyOpportunityLink(opportunity) {
+        const canonicalUrl = getCanonicalOpportunityUrl(opportunity);
+        const meta = extractOpportunityMeta(opportunity);
+        await navigator.clipboard.writeText(canonicalUrl);
+        recordAnalytics(meta.jobId, 'copy_link');
+        return canonicalUrl;
+    }
+
+    /**
+     * Renders and opens the Authoritative Opportunity Share Dialog.
+     * Contains 5 dedicated, functional channels:
+     * - WhatsApp (Direct wa.me URL)
+     * - Telegram (Direct t.me URL)
+     * - LinkedIn (Direct LinkedIn URL)
+     * - Copy Link (Canonical opportunity URL only)
+     * - More sharing options (Generic navigator.share)
+     */
+    function showShareModal(opportunity) {
+        const meta = extractOpportunityMeta(opportunity);
+        const canonicalUrl = getCanonicalOpportunityUrl(opportunity);
+        const finalMessage = buildOpportunityShareMessage(opportunity);
+        const oppId = meta.jobId;
 
         const existing = document.getElementById('opportunityShareDialog');
         if (existing) existing.remove();
@@ -151,9 +356,10 @@
         dialog.className = 'fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-4 animate-in fade-in duration-200';
         dialog.innerHTML = `
             <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 text-slate-900">
+                <!-- Modal Header -->
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold">
+                        <div class="w-10 h-10 rounded-2xl bg-orange-50 text-[#FE5E04] flex items-center justify-center font-bold shadow-xs">
                             <span class="material-symbols-outlined text-xl">share</span>
                         </div>
                         <div>
@@ -166,101 +372,214 @@
                     </button>
                 </div>
 
-                <!-- Rich Preview Card Mockup -->
-                <div class="rounded-2xl border border-slate-200/80 bg-slate-50 p-3.5 space-y-2 text-left shadow-2xs">
+                <!-- Rich Opportunity Preview Card Mockup -->
+                <div class="rounded-2xl border border-slate-200/90 bg-slate-50 p-4 space-y-2 text-left shadow-2xs">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="text-[10px] font-black uppercase tracking-wider text-teal-800 bg-emerald-100/70 border border-emerald-300/60 px-2 py-0.5 rounded-full">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-teal-800 bg-emerald-100/80 border border-emerald-300/60 px-2.5 py-0.5 rounded-full">
                             TRAINING OPPORTUNITY
                         </span>
-                        <span class="text-[10px] font-mono text-slate-400">mentry-solutions.vercel.app</span>
+                        <span class="text-[11px] font-mono font-bold text-slate-400">mentry-solutions.vercel.app</span>
                     </div>
-                    <p class="text-xs font-black text-slate-900 line-clamp-2 leading-snug">${escapeHtml(msgParts.title)}</p>
-                    <div class="text-[11px] text-slate-600 space-y-0.5 pt-0.5">
-                        ${msgParts.location ? `<div class="flex items-center gap-1.5"><span class="text-xs">📍</span><span>${escapeHtml(msgParts.location)}</span></div>` : ''}
-                        ${msgParts.dates ? `<div class="flex items-center gap-1.5"><span class="text-xs">📅</span><span>${escapeHtml(msgParts.dates)}</span></div>` : ''}
-                        ${msgParts.rate ? `<div class="flex items-center gap-1.5 font-bold text-emerald-700"><span class="text-xs">💰</span><span>${escapeHtml(msgParts.rate)}</span></div>` : ''}
+                    <p class="text-xs sm:text-sm font-black text-slate-900 line-clamp-2 leading-snug">${escapeHtml(meta.title)}</p>
+                    <div class="text-xs text-slate-600 space-y-1 pt-0.5">
+                        <div class="flex items-center gap-2"><span class="text-xs">📍</span><span class="font-medium">${escapeHtml(meta.location)}</span></div>
+                        ${meta.dates ? `<div class="flex items-center gap-2"><span class="text-xs">📅</span><span class="font-medium">${escapeHtml(meta.dates)}</span></div>` : ''}
+                        ${meta.rate ? `<div class="flex items-center gap-2 font-bold text-emerald-700"><span class="text-xs">💰</span><span>${escapeHtml(meta.rate)}</span></div>` : ''}
                     </div>
                 </div>
 
+                <!-- Action Buttons: 5 Dedicated Share Options -->
                 <div class="grid grid-cols-1 gap-2 pt-1">
-                    ${links.map(l => `
-                        <a href="${l.href}" target="_blank" rel="noopener noreferrer" data-channel="${l.channel}" class="flex items-center justify-between px-4 py-2.5 rounded-2xl ${l.bg} font-bold text-xs shadow-sm transition-all cursor-pointer">
-                            <span class="flex items-center gap-2.5">
-                                <span class="material-symbols-outlined text-base">${l.icon}</span>
-                                <span>Share via ${l.name}</span>
-                            </span>
-                            <span class="material-symbols-outlined text-sm opacity-75">open_in_new</span>
-                        </a>
-                    `).join('')}
-                    <button type="button" data-share-copy class="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 px-4 rounded-2xl transition-all shadow-xs cursor-pointer">
-                        <span class="material-symbols-outlined text-base">content_copy</span>
-                        <span id="shareCopyBtnText">Copy Canonical Public Link</span>
+                    <!-- 1. WhatsApp Button (Direct WhatsApp URL, never navigator.share) -->
+                    <button type="button" data-action="whatsapp" class="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-700/20 transition-all cursor-pointer">
+                        <span class="flex items-center gap-2.5">
+                            <span class="material-symbols-outlined text-lg">chat</span>
+                            <span>Share on WhatsApp</span>
+                        </span>
+                        <span class="text-[10px] font-medium opacity-85">Direct • Rich Preview</span>
+                    </button>
+
+                    <!-- 2. Telegram Button -->
+                    <button type="button" data-action="telegram" class="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs shadow-sm shadow-sky-600/20 transition-all cursor-pointer">
+                        <span class="flex items-center gap-2.5">
+                            <span class="material-symbols-outlined text-lg">send</span>
+                            <span>Share on Telegram</span>
+                        </span>
+                        <span class="material-symbols-outlined text-sm opacity-75">open_in_new</span>
+                    </button>
+
+                    <!-- 3. LinkedIn Button -->
+                    <button type="button" data-action="linkedin" class="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-[#0077b5] hover:bg-[#005885] text-white font-bold text-xs shadow-sm shadow-blue-800/20 transition-all cursor-pointer">
+                        <span class="flex items-center gap-2.5">
+                            <span class="material-symbols-outlined text-lg">work</span>
+                            <span>Share on LinkedIn</span>
+                        </span>
+                        <span class="material-symbols-outlined text-sm opacity-75">open_in_new</span>
+                    </button>
+
+                    <!-- 4. Copy Opportunity Link Button (Copies Opportunity URL ONLY) -->
+                    <button type="button" data-action="copy-link" class="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-xs cursor-pointer">
+                        <span class="flex items-center gap-2.5">
+                            <span class="material-symbols-outlined text-lg">content_copy</span>
+                            <span id="shareCopyBtnText">Copy Opportunity Link</span>
+                        </span>
+                        <span class="text-[10px] text-slate-400 font-mono">Public URL</span>
+                    </button>
+
+                    <!-- 5. More Sharing Options Button (Generic Native Share with no duplicate URL) -->
+                    <button type="button" data-action="more-options" class="flex items-center justify-between px-4 py-2.5 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all cursor-pointer">
+                        <span class="flex items-center gap-2.5">
+                            <span class="material-symbols-outlined text-lg text-slate-500">share</span>
+                            <span id="moreShareBtnText">More sharing options</span>
+                        </span>
+                        <span class="material-symbols-outlined text-sm text-slate-400">apps</span>
                     </button>
                 </div>
-                <p data-share-status class="hidden text-center text-xs font-bold text-emerald-600"></p>
+
+                <p data-share-status class="hidden text-center text-xs font-bold text-emerald-600 transition-all"></p>
             </div>
         `;
 
         document.body.appendChild(dialog);
 
+        const statusEl = dialog.querySelector('[data-share-status]');
+        function showFeedback(text) {
+            if (!statusEl) return;
+            statusEl.textContent = text;
+            statusEl.classList.remove('hidden');
+            setTimeout(() => {
+                statusEl.classList.add('hidden');
+            }, 3500);
+        }
+
+        // Close handlers
         dialog.querySelector('[data-share-close]').onclick = () => dialog.remove();
         dialog.onclick = (e) => { if (e.target === dialog) dialog.remove(); };
 
-        dialog.querySelectorAll('[data-channel]').forEach(btn => {
-            btn.onclick = () => {
-                recordAnalytics(oppId, btn.getAttribute('data-channel'));
+        // 1. WhatsApp Action
+        const waBtn = dialog.querySelector('[data-action="whatsapp"]');
+        if (waBtn) {
+            waBtn.onclick = (e) => {
+                e.preventDefault();
+                recordAnalytics(oppId, 'whatsapp');
+                const waUrl = getWhatsAppShareUrl(opportunity);
+                if (isMobileClient()) {
+                    window.location.href = waUrl;
+                } else {
+                    window.open(waUrl, '_blank', 'noopener,noreferrer');
+                }
             };
-        });
+        }
 
-        const copyBtn = dialog.querySelector('[data-share-copy]');
+        // 2. Telegram Action
+        const tgBtn = dialog.querySelector('[data-action="telegram"]');
+        if (tgBtn) {
+            tgBtn.onclick = (e) => {
+                e.preventDefault();
+                recordAnalytics(oppId, 'telegram');
+                const tgUrl = getTelegramShareUrl(opportunity);
+                if (isMobileClient()) {
+                    window.location.href = tgUrl;
+                } else {
+                    window.open(tgUrl, '_blank', 'noopener,noreferrer');
+                }
+            };
+        }
+
+        // 3. LinkedIn Action
+        const liBtn = dialog.querySelector('[data-action="linkedin"]');
+        if (liBtn) {
+            liBtn.onclick = (e) => {
+                e.preventDefault();
+                recordAnalytics(oppId, 'linkedin');
+                const liUrl = getLinkedInShareUrl(opportunity);
+                window.open(liUrl, '_blank', 'noopener,noreferrer');
+            };
+        }
+
+        // 4. Copy Opportunity Link (Canonical opportunity URL ONLY)
+        const copyBtn = dialog.querySelector('[data-action="copy-link"]');
         const copyText = dialog.querySelector('#shareCopyBtnText');
-        const status = dialog.querySelector('[data-share-status]');
+        if (copyBtn) {
+            copyBtn.onclick = async (e) => {
+                e.preventDefault();
+                try {
+                    await copyOpportunityLink(opportunity);
+                    if (copyText) copyText.textContent = 'Link Copied!';
+                    showFeedback('✓ Public opportunity link copied to clipboard');
+                    setTimeout(() => {
+                        if (copyText) copyText.textContent = 'Copy Opportunity Link';
+                    }, 2500);
+                } catch (err) {
+                    showFeedback(canonicalUrl);
+                }
+            };
+        }
 
-        copyBtn.onclick = async () => {
-            try {
-                await navigator.clipboard.writeText(canonicalUrl);
-                recordAnalytics(oppId, 'copy_link');
-                if (copyText) copyText.textContent = 'Link Copied!';
-                if (status) {
-                    status.textContent = '✓ Public link copied to clipboard';
-                    status.classList.remove('hidden');
+        // 5. More Sharing Options (Native share or full message copy)
+        const moreBtn = dialog.querySelector('[data-action="more-options"]');
+        const moreText = dialog.querySelector('#moreShareBtnText');
+        if (moreBtn) {
+            moreBtn.onclick = async (e) => {
+                e.preventDefault();
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: meta.title,
+                            text: finalMessage
+                        });
+                        recordAnalytics(oppId, 'native_share');
+                    } catch (err) {
+                        if (err && err.name === 'AbortError') return;
+                    }
+                } else {
+                    try {
+                        await navigator.clipboard.writeText(finalMessage);
+                        recordAnalytics(oppId, 'copy_message');
+                        if (moreText) moreText.textContent = 'Message Copied!';
+                        showFeedback('✓ Complete share message copied to clipboard');
+                        setTimeout(() => {
+                            if (moreText) moreText.textContent = 'More sharing options';
+                        }, 2500);
+                    } catch (err) {
+                        showFeedback('✓ Share message ready');
+                    }
                 }
-                setTimeout(() => {
-                    if (copyText) copyText.textContent = 'Copy Canonical Public Link';
-                }, 2500);
-            } catch (err) {
-                if (status) {
-                    status.textContent = canonicalUrl;
-                    status.classList.remove('hidden');
-                }
-            }
-        };
+            };
+        }
     }
 
     /**
      * Primary Global Sharing Function.
-     * Invoked from opportunity cards and detail modal.
+     * Invoked from opportunity cards, detail pages, and modal views.
+     * Supports both:
+     * - shareOpportunity(opportunityObject)
+     * - shareOpportunity(title, url, text)
      */
-    window.shareOpportunity = async function(title, url, text) {
-        const oppId = extractOppId(url);
-        const canonicalUrl = getCanonicalUrl(url, oppId);
-        const msgParts = formatMessageParts(title, text, canonicalUrl);
-
-        // Native share handler: pass clean body text WITHOUT duplicating the URL
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: msgParts.title,
-                    text: msgParts.bodyWithoutUrl,
-                    url: canonicalUrl
-                });
-                recordAnalytics(oppId, 'native_share');
-                return;
-            } catch (error) {
-                if (error && error.name === 'AbortError') return;
-            }
+    window.shareOpportunity = function(opportunityOrTitle, url, text) {
+        let oppObj;
+        if (typeof opportunityOrTitle === 'object' && opportunityOrTitle !== null) {
+            oppObj = opportunityOrTitle;
+        } else {
+            oppObj = {
+                title: opportunityOrTitle,
+                url: url,
+                shareUrl: url,
+                shareMessage: text,
+                text: text
+            };
         }
-
-        showShareModal(msgParts, canonicalUrl, oppId);
+        showShareModal(oppObj);
     };
+
+    // Export authoritative functions to global window object
+    window.buildOpportunityShareMessage = buildOpportunityShareMessage;
+    window.buildTelegramShareText = buildTelegramShareText;
+    window.getCanonicalOpportunityUrl = getCanonicalOpportunityUrl;
+    window.getWhatsAppShareUrl = getWhatsAppShareUrl;
+    window.getTelegramShareUrl = getTelegramShareUrl;
+    window.getLinkedInShareUrl = getLinkedInShareUrl;
+    window.shareOpportunityNative = shareOpportunityNative;
+    window.copyOpportunityLink = copyOpportunityLink;
+
 })();

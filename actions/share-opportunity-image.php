@@ -89,6 +89,17 @@ if (empty($skillsList)) {
 $topSkills = array_slice($skillsList, 0, 4);
 
 // 3. Create 1200x630 High-Resolution Canvas
+if (!function_exists('imagecreatetruecolor')) {
+    $fallbackImage = __DIR__ . '/../public/mentry.png';
+    if (file_exists($fallbackImage)) {
+        header('Content-Type: image/png');
+        header('Content-Length: ' . filesize($fallbackImage));
+        header('Cache-Control: public, max-age=86400');
+        readfile($fallbackImage);
+        exit();
+    }
+}
+
 $width = 1200;
 $height = 630;
 $im = imagecreatetruecolor($width, $height);

@@ -1199,7 +1199,10 @@ function getCanonicalOpportunityImageUrl($oppOrId): string {
 
 /**
  * Clean, authoritative WhatsApp / social message generator.
- * Never duplicates URL. Uses structured emoji bullets.
+ * Strict rules:
+ * - Opportunity URL appears exactly ONCE.
+ * - Main Mentry website URL appears exactly ONCE.
+ * - Clean emoji hierarchy and professional branding.
  */
 function formatOpportunityShareMessage($opp): string {
     $arr = (array)$opp;
@@ -1207,37 +1210,60 @@ function formatOpportunityShareMessage($opp): string {
     $city = trim((string)($arr['city'] ?? ''));
     $state = trim((string)($arr['state'] ?? 'India'));
     $location = trim($city . (!empty($city) && !empty($state) ? ', ' : '') . $state);
+    if (empty($location)) {
+        $location = 'Pan-India';
+    }
 
     $startDate = !empty($arr['startDate']) ? formatDate($arr['startDate']) : '';
     $endDate = !empty($arr['endDate']) ? formatDate($arr['endDate']) : '';
     $dates = $startDate . (!empty($endDate) && $endDate !== $startDate ? ' – ' . $endDate : '');
+    if (empty($dates) && !empty($arr['durationDays'])) {
+        $dates = (int)$arr['durationDays'] . ' Working Days';
+    }
 
     $minRate = (float)($arr['dailyRateMin'] ?? 0);
     $maxRate = (float)($arr['dailyRateMax'] ?? 0);
     $rate = '';
     if ($minRate > 0 && $maxRate > 0 && $minRate !== $maxRate) {
-        $rate = formatINR($minRate) . ' – ' . formatINR($maxRate) . '/day';
+        $rate = formatINR($minRate) . ' – ' . formatINR($maxRate) . ' / day';
     } elseif ($minRate > 0) {
-        $rate = formatINR($minRate) . '/day';
+        $rate = formatINR($minRate) . ' / day';
     } elseif ($maxRate > 0) {
-        $rate = formatINR($maxRate) . '/day';
+        $rate = formatINR($maxRate) . ' / day';
     }
 
     $url = getCanonicalOpportunityShareUrl($arr);
 
-    $lines = ["📢 New Mentry Solutions Training Opportunity", "", $title];
+    $lines = [
+        "📢 NEW MENTRY SOLUTIONS TRAINING OPPORTUNITY",
+        "",
+        $title,
+        ""
+    ];
+
+    $metaLines = [];
     if (!empty($location)) {
-        $lines[] = "📍 " . $location;
+        $metaLines[] = "📍 " . $location;
     }
     if (!empty($dates)) {
-        $lines[] = "📅 " . $dates;
+        $metaLines[] = "📅 " . $dates;
     }
     if (!empty($rate)) {
-        $lines[] = "💰 " . $rate;
+        $metaLines[] = "💰 " . $rate;
     }
-    $lines[] = "";
-    $lines[] = "View full details and apply here 👇";
+
+    if (!empty($metaLines)) {
+        $lines = array_merge($lines, $metaLines);
+        $lines[] = "";
+    }
+
+    $lines[] = "🔗 View Opportunity & Apply";
     $lines[] = $url;
+    $lines[] = "";
+    $lines[] = "🌐 Explore Mentry Solutions";
+    $lines[] = "Mentry Solutions connects skilled trainers with training opportunities across colleges and organizations. Join our trainer network and discover upcoming programs.";
+    $lines[] = "";
+    $lines[] = "https://mentry-solutions.vercel.app/";
 
     return implode("\n", $lines);
 }

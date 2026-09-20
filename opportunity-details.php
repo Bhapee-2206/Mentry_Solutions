@@ -26,7 +26,16 @@ $metaLocation = trim((string)($opp['city'] ?? '') . ', ' . (string)($opp['state'
 if (empty($metaLocation)) $metaLocation = 'Pan-India';
 
 $shareDateStr = formatDate($opp['startDate']) . (!empty($opp['endDate']) && $opp['endDate'] !== $opp['startDate'] ? ' – ' . formatDate($opp['endDate']) : '');
-$shareRateStr = formatINR($opp['dailyRateMin'] ?? 0) . (($opp['dailyRateMax'] ?? 0) > ($opp['dailyRateMin'] ?? 0) ? '–' . formatINR($opp['dailyRateMax']) : '') . '/day';
+$minRate = (float)($opp['dailyRateMin'] ?? 0);
+$maxRate = (float)($opp['dailyRateMax'] ?? 0);
+$shareRateStr = '';
+if ($minRate > 0 && $maxRate > 0 && $minRate !== $maxRate) {
+    $shareRateStr = formatINR($minRate) . ' – ' . formatINR($maxRate) . ' / day';
+} elseif ($minRate > 0) {
+    $shareRateStr = formatINR($minRate) . ' / day';
+} elseif ($maxRate > 0) {
+    $shareRateStr = formatINR($maxRate) . ' / day';
+}
 
 $metaDescription = "Training opportunity in " . $metaLocation . (!empty($shareDateStr) ? " on " . $shareDateStr : "") . (!empty($shareRateStr) ? " — " . $shareRateStr : "") . ".";
 
