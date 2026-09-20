@@ -55,6 +55,7 @@ $shareOppDataJson = htmlspecialchars(json_encode([
     'url' => $publicOpportunityUrl,
     'shareMessage' => $shareMessage
 ]), ENT_QUOTES, 'UTF-8');
+$metaDescription = "Training opportunity in " . $metaLocation . (!empty($shareDateStr) ? " on " . $shareDateStr : "") . (!empty($shareRateStr) ? " — " . $shareRateStr : "") . ".";
 $canonicalUrl = $publicOpportunityUrl;
 $ogType = 'article';
 $ogImage = getCanonicalOpportunityImageUrl($opp);
