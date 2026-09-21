@@ -101,7 +101,7 @@ if (!empty($user['name']) && empty($trainerCombined['name'])) {
     $trainerCombined['name'] = $user['name'];
 }
 
-// Quick action: inline update college / partner name (A3)
+// Quick action: inline update college / partner name
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update_college'])) {
     requireCsrfToken();
     $newCollege = trim($_POST['quick_college_name'] ?? '');
@@ -150,11 +150,11 @@ if (!$isAssigned) {
     $missingFields[] = 'Trainer Assignment (Trainer not assigned to opportunity)';
 }
 
-// Placeholder Replacement Mapping
+// Authoritative Placeholder Replacement Mapping
 $placeholderMap = [
     '{{trainer_name}}' => $trainerName,
     '{{course_title}}' => $oppTitle,
-    '{{college_name}}' => $collegeName ?: '[College / Partner]',
+    '{{college_name}}' => $collegeName ?: '[College / Partner not provided]',
     '{{location}}' => $location,
     '{{mode}}' => $modeLabel,
     '{{start_date}}' => $startDate,
@@ -163,8 +163,24 @@ $placeholderMap = [
     '{{trainer_rate}}' => $rateText,
     '{{opportunity_url}}' => $canonicalOppUrl,
     '{{portal_url}}' => $portalUrl,
+    '{{mentry_website}}' => $baseUrl . '/',
     '{{website_url}}' => $baseUrl . '/',
     '{{emergency_contacts}}' => $emergencyContacts
+];
+
+// Resolved Field Values Dictionary for Insert Field Toolbar
+$resolvedFieldsMap = [
+    'trainer_name' => $trainerName,
+    'course_title' => $oppTitle,
+    'college_name' => $collegeName ?: '[College / Partner not provided]',
+    'location' => $location,
+    'mode' => $modeLabel,
+    'dates' => $dates,
+    'working_days' => $durationText,
+    'trainer_rate' => $rateText,
+    'portal_url' => $portalUrl,
+    'website_url' => $baseUrl . '/',
+    'emergency_contacts' => $emergencyContacts
 ];
 
 // Helper: Sanitize Email HTML
@@ -182,7 +198,7 @@ function sanitizeEmailHtmlContent($html) {
 // Helper: Extract editable card from full html
 function extractEditableCardHtml($html) {
     if (empty($html)) return '';
-    if (preg_match('/<table[^>]*max-width:\s*620px[^>]*>(.*?)<\/table>\s*<\/td>\s*<\/tr>\s*<\/table>/is', $html, $matches)) {
+    if (preg_match('/<table[^>]*max-width:\s*(?:580|620)px[^>]*>(.*?)<\/table>\s*<\/td>\s*<\/tr>\s*<\/table>/is', $html, $matches)) {
         return '<table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b;">' . $matches[1] . '</table>';
     }
     if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $matches)) {
@@ -201,13 +217,15 @@ function wrapEmailCardForDelivery($cardHtml, $subject = 'Work Order Confirmation
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
     <title>' . htmlspecialchars($subject, ENT_QUOTES, 'UTF-8') . '</title>
 </head>
-<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #1e293b;">
-    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+<body bgcolor="#f8fafc" style="margin: 0; padding: 16px 8px; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f8fafc" style="background-color: #f8fafc;">
         <tr>
-            <td align="center">
-                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 620px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <td align="center" style="padding: 0;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="max-width: 580px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
                     <tr>
                         <td>
                             ' . $cardHtml . '
@@ -253,7 +271,7 @@ foreach ($history as $h) {
     }
 }
 
-// Detect if opportunity data changed since draft was saved (A2)
+// Detect if opportunity data changed since draft was saved
 $opportunityDetailsChanged = false;
 if ($activeDraft && !empty($activeDraft['snapshot'])) {
     $snap = $activeDraft['snapshot'];
@@ -268,19 +286,72 @@ if ($activeDraft && !empty($activeDraft['snapshot'])) {
     }
 }
 
-// Handle "Create Revised Confirmation" or initialize fresh draft
-$isRevisedAction = ($requestedAction === 'new_revised');
-if (!$activeDraft || $isRevisedAction) {
-    $isRevised = $isRevisedAction || (!empty($lastSent));
+// Handle "Refresh From Opportunity" action
+if ($requestedAction === 'refresh_from_opp') {
+    $isRevised = !empty($lastSent);
     $generated = generateWorkOrderEmailData($opp, $trainerCombined, $user, $assignDoc, $isRevised);
+    
+    // Resolve all supported placeholders immediately
+    $resolvedHtml = str_replace(array_keys($placeholderMap), array_values($placeholderMap), $generated['html']);
+    $resolvedSubject = str_replace(array_keys($placeholderMap), array_values($placeholderMap), $generated['subject']);
+    $resolvedPlain = str_replace(array_keys($placeholderMap), array_values($placeholderMap), $generated['plainText']);
+
     $activeDraft = [
         'opportunityId' => (string)$oppId,
         'trainerId' => (string)$trainerId,
         'trainerEmail' => $trainerEmail,
         'trainerName' => $trainerName,
-        'subject' => $generated['subject'],
-        'html' => $generated['html'],
-        'plainText' => $generated['plainText'],
+        'subject' => $resolvedSubject,
+        'html' => $resolvedHtml,
+        'plainText' => $resolvedPlain,
+        'isRevised' => $isRevised,
+        'status' => 'DRAFT',
+        'snapshot' => [
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'rate' => $rateText,
+            'college' => $collegeName,
+            'location' => $location
+        ],
+        'updatedAt' => new MongoDB\BSON\UTCDateTime()
+    ];
+
+    if ($confCol) {
+        $confCol->updateOne(
+            ['opportunityId' => (string)$oppId, 'trainerId' => (string)$trainerId, 'status' => 'DRAFT'],
+            ['$set' => $activeDraft],
+            ['upsert' => true]
+        );
+    }
+    $_SESSION['flash_success'] = "Draft refreshed with current opportunity data.";
+    header("Location: /admin/trainer-confirmation.php?opp_id=" . urlencode($oppId) . "&trainer_id=" . urlencode($trainerId));
+    exit();
+}
+
+// Handle "Create Revised Confirmation" or initialize fresh draft
+$isRevisedAction = ($requestedAction === 'new_revised');
+if (!$activeDraft || $isRevisedAction) {
+    $isRevised = $isRevisedAction || (!empty($lastSent));
+    $generated = generateWorkOrderEmailData($opp, $trainerCombined, $user, $assignDoc, $isRevised);
+    
+    // Automatic Placeholder Resolution: Resolve all placeholders immediately
+    $initHtml = str_replace(array_keys($placeholderMap), array_values($placeholderMap), $generated['html']);
+    $initSubject = str_replace(array_keys($placeholderMap), array_values($placeholderMap), $generated['subject']);
+    $initPlain = str_replace(array_keys($placeholderMap), array_values($placeholderMap), $generated['plainText']);
+
+    // Catch any remaining legacy placeholders
+    $initHtml = preg_replace_callback('/\{\{([a-zA-Z0-9_]+)\}\}/', function($m) {
+        return '[' . ucwords(str_replace('_', ' ', $m[1])) . ' not provided]';
+    }, $initHtml);
+
+    $activeDraft = [
+        'opportunityId' => (string)$oppId,
+        'trainerId' => (string)$trainerId,
+        'trainerEmail' => $trainerEmail,
+        'trainerName' => $trainerName,
+        'subject' => $initSubject,
+        'html' => $initHtml,
+        'plainText' => $initPlain,
         'isRevised' => $isRevised,
         'status' => 'DRAFT',
         'snapshot' => [
@@ -291,9 +362,16 @@ if (!$activeDraft || $isRevisedAction) {
             'location' => $location
         ]
     ];
+} else {
+    // If loading an existing draft, resolve any legacy placeholders safely without overwriting manual edits
+    foreach ($placeholderMap as $phKey => $phVal) {
+        $activeDraft['subject'] = str_replace($phKey, $phVal, $activeDraft['subject'] ?? '');
+        $activeDraft['html'] = str_replace($phKey, $phVal, $activeDraft['html'] ?? '');
+        $activeDraft['plainText'] = str_replace($phKey, $phVal, $activeDraft['plainText'] ?? '');
+    }
 }
 
-// Prepare editable card content for the visual rich-text editor
+// Prepare editable card content for the visual rich-text editor (RESOLVED HTML - NO RAW PLACEHOLDERS)
 $editableCardHtml = extractEditableCardHtml($activeDraft['html'] ?? '');
 
 // Handle Form Submissions (Save Draft or Send Confirmation)
@@ -384,7 +462,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['action_update_colleg
         exit();
 
     } elseif ($subAction === 'send_email') {
-        // A14: Send Pipeline
+        // Send Pipeline
 
         // 1. Re-read fresh opportunity & trainer from DB
         $freshOpp = $oppCol->findOne(['_id' => $opp['_id']]);
@@ -397,7 +475,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['action_update_colleg
             exit();
         }
 
-        // 2. Re-read authoritative data and validate required fields (A3)
+        // 2. Re-read authoritative data and validate required fields
         $freshAuth = getAuthoritativeWorkOrderData($freshOpp, $freshTrainer, $freshAssign);
 
         if (!$freshAuth['hasCollege']) {
@@ -413,17 +491,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['action_update_colleg
             exit();
         }
 
-        // 3. Resolve placeholders automatically with current authoritative data
+        // 3. Resolve any lingering placeholders with authoritative values
         $resolvedSubject = str_replace(array_keys($placeholderMap), array_values($placeholderMap), $subject);
         $resolvedHtml = str_replace(array_keys($placeholderMap), array_values($placeholderMap), $finalFullHtml);
         $resolvedPlain = str_replace(array_keys($placeholderMap), array_values($placeholderMap), $plainContent);
-
-        // 4. Strict Placeholder Validation (A6) — Block if any unresolved {{...}} remain
-        if (preg_match('/\{\{[a-zA-Z0-9_]+\}\}/', $resolvedSubject) || preg_match('/\{\{[a-zA-Z0-9_]+\}\}/', $resolvedHtml)) {
-            $_SESSION['flash_error'] = "Some email fields are not resolved. Please review the email before sending.";
-            header("Location: /admin/trainer-confirmation.php?opp_id=" . urlencode($oppId) . "&trainer_id=" . urlencode($trainerId));
-            exit();
-        }
 
         // Add admin copy if requested
         if ($optSendCopy && !empty($adminInfo['email'])) {
@@ -444,7 +515,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['action_update_colleg
             $sendResult = $mailer->send($toEmail, $trainerName, $resolvedSubject, $resolvedHtml, $resolvedPlain, $meta);
 
             if ($sendResult['success']) {
-                // Save to audit history (A15)
+                // Save to audit history
                 if ($optSaveHistory && $confCol) {
                     $sentDoc = [
                         'opportunityId' => (string)$oppId,
@@ -473,7 +544,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['action_update_colleg
                     ]);
                 }
 
-                // Create In-App Notification (A14)
+                // Create In-App Notification
                 if ($optCreateNotif && $notifCol && !empty($trainerUserId)) {
                     $notifCol->insertOne([
                         'userId' => $trainerUserId,
@@ -499,7 +570,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['action_update_colleg
             $safeErr = $e->getMessage();
             error_log("Failed to send work order confirmation email: " . $safeErr);
 
-            // Record failure in confirmation history without altering assignment (A14)
+            // Record failure in confirmation history without altering assignment
             if ($confCol) {
                 $confCol->insertOne([
                     'opportunityId' => (string)$oppId,
@@ -553,7 +624,7 @@ require_once __DIR__ . '/includes/sidebar.php';
         </a>
     </div>
 
-    <!-- A1: 4-STEP WORKFLOW STEPPER -->
+    <!-- 4-STEP WORKFLOW STEPPER -->
     <div class="bg-white rounded-2xl border border-slate-200/90 p-3 sm:p-4 shadow-xs">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
             <div class="flex items-center gap-2.5 p-2 rounded-xl bg-orange-50 border border-[#FE5E04]/30 text-slate-900 font-bold">
@@ -613,38 +684,42 @@ require_once __DIR__ . '/includes/sidebar.php';
         <?php unset($_SESSION['flash_error']); ?>
     <?php endif; ?>
 
-    <!-- A3: MISSING REQUIRED FIELDS WARNING BANNER -->
-    <?php if (!$hasCollege || !empty($missingFields)): ?>
-        <div class="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 text-xs space-y-2 shadow-xs">
-            <div class="flex items-start gap-2.5 font-bold text-amber-900">
-                <span class="material-symbols-outlined text-amber-600 text-lg shrink-0 mt-0.5">warning</span>
-                <div>
-                    <span class="font-extrabold uppercase tracking-wider text-[11px] block">Required Work-Order Validation Notice</span>
-                    <?php if (!$hasCollege): ?>
-                        <p class="mt-0.5 text-amber-800">College / Partner information is missing. Add or correct it before sending the confirmation.</p>
-                    <?php else: ?>
-                        <p class="mt-0.5 text-amber-800">Missing required work-order fields: <strong><?= htmlspecialchars(implode(', ', $missingFields)) ?></strong>. Correct these before sending.</p>
-                    <?php endif; ?>
-                </div>
+    <!-- NON-BLOCKING INLINE WARNING IF DATA IS MISSING -->
+    <?php if (!$hasCollege): ?>
+        <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div class="flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-amber-600 text-lg">warning</span>
+                <span><strong>College / Partner information is missing.</strong> Set it below or edit the opportunity before sending.</span>
             </div>
-
-            <!-- Quick Inline College Name Update -->
-            <?php if (!$hasCollege): ?>
-                <form method="POST" class="flex flex-wrap items-center gap-2 pt-2 border-t border-amber-200">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
-                    <input type="hidden" name="action_update_college" value="1">
-                    <label class="text-[11px] font-bold text-amber-900">Set College / Partner Name:</label>
-                    <input type="text" name="quick_college_name" placeholder="e.g. ABC Engineering College" required
-                           class="px-3 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FE5E04] w-64">
-                    <button type="submit" class="px-3 py-1.5 bg-[#FE5E04] hover:bg-[#e05202] text-white font-bold text-xs rounded-lg transition shadow-2xs cursor-pointer">
-                        Save College Name
-                    </button>
-                </form>
-            <?php endif; ?>
+            <div class="flex items-center gap-2">
+                <a href="/admin/opportunity-view.php?id=<?= urlencode($oppId) ?>" class="px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 rounded-lg font-bold text-xs transition">
+                    Edit Opportunity
+                </a>
+                <button type="button" onclick="focusQuickCollegeInput()" class="px-3 py-1.5 bg-[#FE5E04] hover:bg-[#e05202] text-white rounded-lg font-bold text-xs transition cursor-pointer">
+                    Add College
+                </button>
+            </div>
         </div>
     <?php endif; ?>
 
-    <!-- SECTION 1 — ASSIGNMENT SUMMARY CARD (A1 & A2) -->
+    <!-- STALE DATA INLINE ALERT WITH "REFRESH FROM OPPORTUNITY" -->
+    <?php if ($opportunityDetailsChanged): ?>
+        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">update</span>
+                <div class="text-xs text-blue-950 leading-relaxed">
+                    <strong class="font-extrabold block mb-0.5">Opportunity Details Changed</strong>
+                    Opportunity details have changed since this draft was created. Please review the updated information.
+                </div>
+            </div>
+            <a href="/admin/trainer-confirmation.php?opp_id=<?= urlencode($oppId) ?>&trainer_id=<?= urlencode($trainerId) ?>&action=refresh_from_opp" 
+               class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition shadow-xs whitespace-nowrap text-center">
+                Refresh From Opportunity
+            </a>
+        </div>
+    <?php endif; ?>
+
+    <!-- SECTION 1 — ASSIGNMENT SUMMARY CARD -->
     <div class="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-card space-y-6">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
@@ -652,7 +727,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <h2 class="text-lg font-black text-slate-900">Assignment & Work Order Summary</h2>
             </div>
 
-            <!-- CONFIRMATION STATUS BADGE (A13) -->
+            <!-- CONFIRMATION STATUS BADGE -->
             <div>
                 <?php if ($lastSent): ?>
                     <div class="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-2xl text-right">
@@ -723,7 +798,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <?php if ($hasCollege): ?>
                             <strong class="text-slate-800 truncate block mt-0.5" title="<?= htmlspecialchars($collegeName) ?>"><?= htmlspecialchars($collegeName) ?></strong>
                         <?php else: ?>
-                            <span class="text-rose-600 font-black block mt-0.5">[Not provided]</span>
+                            <span class="text-amber-600 font-bold block mt-0.5">[Not provided]</span>
                         <?php endif; ?>
                     </div>
                     <div class="bg-white p-2.5 rounded-xl border border-slate-200/70">
@@ -747,19 +822,22 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <a href="<?= htmlspecialchars($portalUrl) ?>" target="_blank" class="text-blue-600 hover:underline block mt-0.5 font-bold truncate">Trainer Portal ↗</a>
                     </div>
                 </div>
+
+                <!-- Quick Inline College Update Form -->
+                <?php if (!$hasCollege): ?>
+                    <form method="POST" id="quickCollegeForm" class="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-slate-200/70">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                        <input type="hidden" name="action_update_college" value="1">
+                        <label class="text-[11px] font-bold text-slate-600">Quick Set College / Partner:</label>
+                        <input type="text" id="quickCollegeInput" name="quick_college_name" placeholder="e.g. ABC Engineering College" required
+                               class="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FE5E04] w-64">
+                        <button type="submit" class="px-3 py-1.5 bg-[#FE5E04] hover:bg-[#e05202] text-white font-bold text-xs rounded-lg transition shadow-2xs cursor-pointer">
+                            Save College
+                        </button>
+                    </form>
+                <?php endif; ?>
             </div>
         </div>
-
-        <!-- STALE DATA ALERT (A2) -->
-        <?php if ($opportunityDetailsChanged): ?>
-            <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3 shadow-2xs">
-                <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">update</span>
-                <div class="text-xs text-blue-950 leading-relaxed">
-                    <strong class="font-extrabold block mb-0.5">Opportunity Details Have Changed</strong>
-                    Opportunity details have changed since this draft was initialized. Please review the updated information before sending.
-                </div>
-            </div>
-        <?php endif; ?>
     </div>
 
     <!-- MAIN TWO-PANEL WORKSPACE (COMPOSER LEFT | LIVE PREVIEW RIGHT) -->
@@ -770,13 +848,13 @@ require_once __DIR__ . '/includes/sidebar.php';
         <input type="hidden" name="email_html" id="emailHtmlInput" value="<?= htmlspecialchars($editableCardHtml, ENT_QUOTES, 'UTF-8') ?>">
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <!-- LEFT COLUMN: COMPOSER (A4, A5, A6) -->
+            <!-- LEFT COLUMN: COMPOSER -->
             <div class="lg:col-span-7 space-y-6">
                 <div class="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-card space-y-5">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                         <div>
                             <h3 class="text-lg font-black text-slate-900">Email Composer</h3>
-                            <p class="text-xs text-slate-500">Edit the official confirmation email visually or section-by-section.</p>
+                            <p class="text-xs text-slate-500">Edit the official confirmation email visually or section-by-section. All fields are auto-resolved.</p>
                         </div>
                         <?php if (!empty($activeDraft['isRevised'])): ?>
                             <span class="bg-purple-100 text-purple-800 font-extrabold text-[10px] px-3 py-1 rounded-full uppercase tracking-wider">
@@ -812,7 +890,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                         </div>
                     </div>
 
-                    <!-- A5: STRUCTURED SECTIONS VS VISUAL EDITOR TABS -->
+                    <!-- STRUCTURED SECTIONS VS VISUAL EDITOR TABS -->
                     <div class="flex items-center justify-between border-b border-slate-200 pb-2">
                         <div class="flex items-center gap-2">
                             <button type="button" onclick="setComposerMode('visual')" id="tabVisualMode" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#FE5E04] text-white shadow-xs">
@@ -823,34 +901,28 @@ require_once __DIR__ . '/includes/sidebar.php';
                             </button>
                         </div>
 
-                        <!-- A6: QUICK PERSONALIZATION DROPDOWN -->
+                        <!-- QUICK INSERT RESOLVED FIELD DROPDOWN -->
                         <div class="flex items-center gap-2">
-                            <select id="fieldInsertSelect" onchange="insertPlaceholder(this.value); this.selectedIndex=0;" class="px-2.5 py-1.5 bg-white border border-[#FE5E04]/40 rounded-xl text-xs font-bold text-[#FE5E04] focus:outline-none shadow-2xs">
+                            <select id="fieldInsertSelect" onchange="insertResolvedField(this.value); this.selectedIndex=0;" class="px-2.5 py-1.5 bg-white border border-[#FE5E04]/40 rounded-xl text-xs font-bold text-[#FE5E04] focus:outline-none shadow-2xs">
                                 <option value="" disabled selected>+ Insert Field</option>
-                                <option value="{{trainer_name}}">Trainer Name</option>
-                                <option value="{{course_title}}">Course</option>
-                                <option value="{{college_name}}">College / Partner</option>
-                                <option value="{{location}}">Location</option>
-                                <option value="{{mode}}">Mode</option>
-                                <option value="{{start_date}}">Start Date</option>
-                                <option value="{{end_date}}">End Date</option>
-                                <option value="{{working_days}}">Working Days</option>
-                                <option value="{{trainer_rate}}">Daily Rate</option>
-                                <option value="{{opportunity_url}}">Opportunity Link</option>
-                                <option value="{{portal_url}}">Trainer Portal Link</option>
-                                <option value="{{website_url}}">Mentry Website</option>
-                                <option value="{{emergency_contacts}}">Emergency Contacts</option>
+                                <option value="trainer_name">Trainer Name (<?= htmlspecialchars($trainerName) ?>)</option>
+                                <option value="course_title">Course (<?= htmlspecialchars($oppTitle) ?>)</option>
+                                <option value="college_name">College (<?= htmlspecialchars($collegeName ?: '[Not provided]') ?>)</option>
+                                <option value="location">Location (<?= htmlspecialchars($location) ?>)</option>
+                                <option value="mode">Mode (<?= htmlspecialchars($modeLabel) ?>)</option>
+                                <option value="dates">Dates (<?= htmlspecialchars($dates) ?>)</option>
+                                <option value="working_days">Working Days (<?= htmlspecialchars($durationText) ?>)</option>
+                                <option value="trainer_rate">Daily Rate (<?= htmlspecialchars($rateText) ?>)</option>
+                                <option value="portal_url">Trainer Portal Link</option>
+                                <option value="website_url">Mentry Website</option>
+                                <option value="emergency_contacts">Emergency Contacts</option>
                             </select>
-
-                            <button type="button" onclick="resolveAllPlaceholdersClient()" class="text-blue-600 hover:underline text-xs font-bold flex items-center gap-1" title="Resolve all {{...}} tags with actual opportunity data">
-                                <span class="material-symbols-outlined text-sm">auto_fix_high</span> Resolve
-                            </button>
                         </div>
                     </div>
 
-                    <!-- VISUAL EDITOR CONTAINER (A4) -->
+                    <!-- VISUAL EDITOR CONTAINER -->
                     <div id="visualEditorContainer" class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/60 shadow-xs">
-                        <!-- Toolbar -->
+                        <!-- Formatting Toolbar -->
                         <div class="p-2 bg-slate-100 border-b border-slate-200 flex flex-wrap items-center gap-1.5 text-xs text-slate-700">
                             <button type="button" onclick="formatDoc('bold')" class="p-1.5 rounded-lg hover:bg-white hover:shadow-xs transition text-slate-700" title="Bold (Ctrl+B)">
                                 <span class="material-symbols-outlined text-[18px]">format_bold</span>
@@ -896,7 +968,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                             </button>
                         </div>
 
-                        <!-- EMAIL BODY CANVAS (NORMAL VISUAL EDITOR - NO RAW HTML EXPOSED) -->
+                        <!-- VISUAL EMAIL BODY (RESOLVED HUMAN CONTENT - NO RAW HTML/PLACEHOLDERS) -->
                         <div class="p-4 bg-slate-50 min-h-[520px]">
                             <div id="visualEmailEditor" contenteditable="true" spellcheck="true"
                                  class="w-full bg-white border border-slate-200 rounded-2xl p-6 shadow-sm min-h-[500px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FE5E04]/50 leading-relaxed text-sm">
@@ -905,7 +977,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                         </div>
                     </div>
 
-                    <!-- A5: STRUCTURED SECTIONS PANEL (HIDDEN BY DEFAULT, ACCESSIBLE VIA TAB) -->
+                    <!-- STRUCTURED SECTIONS PANEL -->
                     <div id="structuredSectionsContainer" class="hidden space-y-4">
                         <!-- Section 1: Greeting / Introduction -->
                         <div class="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-2">
@@ -922,7 +994,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                             </div>
                             <div class="grid grid-cols-2 gap-2 text-xs bg-white p-3 rounded-xl border border-slate-200 font-medium text-slate-700">
                                 <div>Course: <strong class="text-slate-900"><?= htmlspecialchars($oppTitle) ?></strong></div>
-                                <div>College: <strong class="text-slate-900"><?= htmlspecialchars($collegeName ?: '[Missing]') ?></strong></div>
+                                <div>College: <strong class="text-slate-900"><?= htmlspecialchars($collegeName ?: '[College / Partner not provided]') ?></strong></div>
                                 <div>Location: <strong class="text-slate-900"><?= htmlspecialchars($location) ?></strong></div>
                                 <div>Mode: <strong class="text-slate-900"><?= htmlspecialchars($modeLabel) ?></strong></div>
                                 <div>Dates: <strong class="text-blue-700"><?= htmlspecialchars($dates) ?></strong></div>
@@ -975,7 +1047,7 @@ Trainer Network & Professional Training Services</textarea>
                         </div>
 
                         <div class="pt-2">
-                            <button type="button" onclick="applyStructuredSectionsToVisual()" class="px-4 py-2 bg-[#FE5E04] text-white font-bold text-xs rounded-xl shadow-xs hover:bg-[#e05202]">
+                            <button type="button" onclick="applyStructuredSectionsToVisual()" class="px-4 py-2 bg-[#FE5E04] text-white font-bold text-xs rounded-xl shadow-xs hover:bg-[#e05202] cursor-pointer">
                                 Apply Sections to Email & Preview
                             </button>
                         </div>
@@ -983,7 +1055,7 @@ Trainer Network & Professional Training Services</textarea>
                 </div>
             </div>
 
-            <!-- RIGHT COLUMN: LIVE PREVIEW & OPTIONS (A7) -->
+            <!-- RIGHT COLUMN: LIVE PREVIEW & OPTIONS -->
             <div class="lg:col-span-5 space-y-6">
                 <!-- EMAIL OPTIONS PANEL -->
                 <div class="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-card space-y-3">
@@ -1007,7 +1079,7 @@ Trainer Network & Professional Training Services</textarea>
                     </div>
                 </div>
 
-                <!-- LIVE EMAIL PREVIEW PANEL (A7) -->
+                <!-- LIVE EMAIL PREVIEW PANEL -->
                 <div class="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-card space-y-4">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                         <div>
@@ -1018,8 +1090,8 @@ Trainer Network & Professional Training Services</textarea>
                             <p class="text-[10px] text-slate-400">Rendered preview as seen in Gmail / Outlook</p>
                         </div>
                         <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                            <button type="button" onclick="setPreviewDevice('desktop')" id="btnPrevDesktop" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white text-slate-800 shadow-2xs">Desktop</button>
-                            <button type="button" onclick="setPreviewDevice('mobile')" id="btnPrevMobile" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-slate-800">Mobile</button>
+                            <button type="button" onclick="setPreviewDevice('desktop')" id="btnPrevDesktop" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white text-slate-800 shadow-2xs cursor-pointer">Desktop</button>
+                            <button type="button" onclick="setPreviewDevice('mobile')" id="btnPrevMobile" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-slate-800 cursor-pointer">Mobile</button>
                         </div>
                     </div>
 
@@ -1032,7 +1104,7 @@ Trainer Network & Professional Training Services</textarea>
             </div>
         </div>
 
-        <!-- A12: BOTTOM ACTION BAR -->
+        <!-- BOTTOM ACTION BAR -->
         <div class="sticky bottom-4 z-40 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 p-4 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <!-- Left: Save Draft -->
             <div>
@@ -1063,7 +1135,7 @@ Trainer Network & Professional Training Services</textarea>
         </div>
     </form>
 
-    <!-- A15: SENT EMAIL HISTORY TABLE -->
+    <!-- SENT EMAIL HISTORY TABLE -->
     <div class="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-card space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
             <div>
@@ -1074,7 +1146,7 @@ Trainer Network & Professional Training Services</textarea>
                 <p class="text-xs text-slate-500">Historical record of all confirmations and revisions dispatched to this trainer.</p>
             </div>
 
-            <!-- A16: REVISED CONFIRMATION BUTTON -->
+            <!-- REVISED CONFIRMATION BUTTON -->
             <?php if (!empty($history)): ?>
                 <a href="/admin/trainer-confirmation.php?opp_id=<?= urlencode($oppId) ?>&trainer_id=<?= urlencode($trainerId) ?>&action=new_revised" 
                    class="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-xl text-xs font-bold transition shadow-xs">
@@ -1153,7 +1225,33 @@ Trainer Network & Professional Training Services</textarea>
     </div>
 </div>
 
-<!-- FINAL CONFIRMATION DIALOG MODAL (A12) -->
+<!-- INLINE ATTENTION / VALIDATION MODAL (NO BROWSER ALERTS) -->
+<div id="attentionModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-amber-200 animate-fadeIn space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div class="flex items-center gap-2.5 text-amber-600">
+                <span class="material-symbols-outlined text-2xl">warning</span>
+                <h3 class="font-extrabold text-base text-slate-900">Email Needs Attention</h3>
+            </div>
+            <button type="button" onclick="closeAttentionModal()" class="text-slate-400 hover:text-slate-700 cursor-pointer">
+                <span class="material-symbols-outlined text-lg">close</span>
+            </button>
+        </div>
+
+        <p class="text-xs text-slate-600">The following information is missing or needs attention before sending:</p>
+
+        <ul id="attentionList" class="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-950 space-y-2 font-medium">
+        </ul>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+            <button type="button" onclick="closeAttentionModal()" class="px-4 py-2 bg-[#FE5E04] hover:bg-[#e05202] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer">
+                Review Details
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- FINAL CONFIRMATION DIALOG MODAL -->
 <div id="finalConfirmModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 animate-fadeIn space-y-5">
         <div class="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -1205,7 +1303,7 @@ Trainer Network & Professional Training Services</textarea>
     </div>
 </div>
 
-<!-- VIEW HISTORICAL EMAIL MODAL (A15) -->
+<!-- VIEW HISTORICAL EMAIL MODAL -->
 <div id="historicalViewModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
         <div class="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between">
@@ -1235,9 +1333,9 @@ Trainer Network & Professional Training Services</textarea>
 
 <script>
 // Authoritative JSON Data
-const placeholderValues = <?= json_encode($placeholderMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+const resolvedFields = <?= json_encode($resolvedFieldsMap, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 const historyRecords = <?= json_encode($history, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
-const isMissingRequiredFields = <?= (!empty($missingFields) || !$hasCollege) ? 'true' : 'false' ?>;
+const isMissingCollege = <?= !$hasCollege ? 'true' : 'false' ?>;
 const missingFieldNames = <?= json_encode($missingFields, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 
 // Visual Editor & Live Preview Synchronization
@@ -1255,13 +1353,15 @@ function getFullEmailHtml(cardContent) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
     <title>${subject}</title>
 </head>
-<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #1e293b;">
-    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+<body bgcolor="#f8fafc" style="margin: 0; padding: 16px 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f8fafc" style="background-color: #f8fafc;">
         <tr>
-            <td align="center">
-                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 620px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <td align="center" style="padding: 0;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="max-width: 580px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
                     <tr>
                         <td>
                             ${cardContent}
@@ -1294,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateLivePreview();
 });
 
-// A4: Rich Text Formatting Commands
+// Rich Text Formatting Commands
 function formatDoc(command, value = null) {
     visualEditor.focus();
     document.execCommand(command, false, value);
@@ -1308,29 +1408,26 @@ function insertLinkPrompt() {
     }
 }
 
-// A6: Quick Personalization Insert
-function insertPlaceholder(placeholder) {
-    if (!placeholder) return;
+// Quick Personalization Insert: INSERTS RESOLVED VALUES DIRECTLY (NO {{...}})
+function insertResolvedField(fieldKey) {
+    if (!fieldKey) return;
+    const value = resolvedFields[fieldKey] || '';
+    if (!value) return;
     visualEditor.focus();
-    document.execCommand('insertText', false, placeholder);
+    document.execCommand('insertText', false, value);
     updateLivePreview();
 }
 
-function resolveAllPlaceholdersClient() {
-    let html = visualEditor.innerHTML;
-    let subject = document.getElementById('subjectInput').value;
-
-    for (const [key, val] of Object.entries(placeholderValues)) {
-        html = html.replaceAll(key, val);
-        subject = subject.replaceAll(key, val);
+// Focus quick college input helper
+function focusQuickCollegeInput() {
+    const input = document.getElementById('quickCollegeInput');
+    if (input) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        input.focus();
     }
-
-    document.getElementById('subjectInput').value = subject;
-    visualEditor.innerHTML = html;
-    updateLivePreview();
 }
 
-// A5: Mode Switcher (Visual vs Structured)
+// Mode Switcher (Visual vs Structured)
 function setComposerMode(mode) {
     const visCont = document.getElementById('visualEditorContainer');
     const structCont = document.getElementById('structuredSectionsContainer');
@@ -1364,7 +1461,7 @@ function applyStructuredSectionsToVisual() {
     const additional = document.getElementById('secAdditional').value.trim();
     const closing = document.getElementById('secClosing').value.trim().replace(/\n/g, '<br>');
 
-    // Reconstruct clean card HTML
+    // Reconstruct clean card HTML using RESOLVED values directly
     const cardHtml = `
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b;">
         <tr>
@@ -1375,11 +1472,11 @@ function applyStructuredSectionsToVisual() {
                 <!-- WORK ORDER DETAILS TABLE -->
                 <div style="font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase; margin-bottom: 6px;">WORK ORDER DETAILS</div>
                 <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 18px; font-size: 12px;">
-                    <tr><td style="padding: 7px 12px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9; width: 35%;">Course:</td><td style="padding: 7px 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${placeholderValues['{{course_title}}']}</td></tr>
-                    <tr><td style="padding: 7px 12px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">College / Partner:</td><td style="padding: 7px 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${placeholderValues['{{college_name}}']}</td></tr>
-                    <tr><td style="padding: 7px 12px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">Location & Mode:</td><td style="padding: 7px 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${placeholderValues['{{location}}']} (${placeholderValues['{{mode}}']})</td></tr>
-                    <tr><td style="padding: 7px 12px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">Program Dates:</td><td style="padding: 7px 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${placeholderValues['{{start_date}}']} – ${placeholderValues['{{end_date}}']} (${placeholderValues['{{working_days}}']})</td></tr>
-                    <tr><td style="padding: 7px 12px; font-weight: 700; color: #64748b;">Honorarium / Rate:</td><td style="padding: 7px 12px; font-weight: 800; color: #2563eb;">${placeholderValues['{{trainer_rate}}']}</td></tr>
+                    <tr><td style="padding: 7px 12px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9; width: 35%;">Course:</td><td style="padding: 7px 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${resolvedFields.course_title}</td></tr>
+                    <tr><td style="padding: 7px 12px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">College / Partner:</td><td style="padding: 7px 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${resolvedFields.college_name}</td></tr>
+                    <tr><td style="padding: 7px 12px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">Location & Mode:</td><td style="padding: 7px 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${resolvedFields.location} (${resolvedFields.mode})</td></tr>
+                    <tr><td style="padding: 7px 12px; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9;">Program Dates:</td><td style="padding: 7px 12px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9;">${resolvedFields.dates} (${resolvedFields.working_days})</td></tr>
+                    <tr><td style="padding: 7px 12px; font-weight: 700; color: #64748b;">Honorarium / Rate:</td><td style="padding: 7px 12px; font-weight: 800; color: #2563eb;">${resolvedFields.trainer_rate}</td></tr>
                 </table>
 
                 <!-- Scope of Work -->
@@ -1422,7 +1519,7 @@ function applyStructuredSectionsToVisual() {
     updateLivePreview();
 }
 
-// A7: Preview Device Toggle
+// Preview Device Toggle
 function setPreviewDevice(mode) {
     const container = document.getElementById('previewFrameContainer');
     const btnD = document.getElementById('btnPrevDesktop');
@@ -1447,7 +1544,7 @@ function focusPreview() {
     liveIframe.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-// Form Submission & Confirmation Modal (A12)
+// Form Submission & Validation (ZERO BROWSER ALERTS)
 function submitForm(subAction) {
     const content = visualEditor ? visualEditor.innerHTML : '';
     emailHtmlInput.value = content;
@@ -1455,35 +1552,68 @@ function submitForm(subAction) {
     document.getElementById('workOrderForm').submit();
 }
 
+function showAttentionModal(issues) {
+    const list = document.getElementById('attentionList');
+    list.innerHTML = '';
+    issues.forEach(issue => {
+        const li = document.createElement('li');
+        li.className = 'flex items-start gap-2';
+        li.innerHTML = '<span class="text-amber-600 font-bold">•</span><span>' + issue + '</span>';
+        list.appendChild(li);
+    });
+    document.getElementById('attentionModal').classList.remove('hidden');
+}
+
+function closeAttentionModal() {
+    document.getElementById('attentionModal').classList.add('hidden');
+}
+
 function openConfirmationModal() {
-    // 1. Check A3 Required Data Validation
-    if (isMissingRequiredFields) {
-        alert("Cannot send confirmation: Required opportunity data is missing:\n- " + missingFieldNames.join("\n- ") + "\n\nPlease correct this information before sending.");
-        return;
+    const issues = [];
+
+    if (isMissingCollege) {
+        issues.push("College / Partner information is missing. Add or correct it before sending.");
     }
 
-    const content = visualEditor ? visualEditor.innerHTML : '';
-    const subject = document.getElementById('subjectInput').value;
+    if (missingFieldNames && missingFieldNames.length > 0) {
+        missingFieldNames.forEach(f => {
+            if (!f.includes('College') && !issues.includes(f + " is missing.")) {
+                issues.push(f + " is missing.");
+            }
+        });
+    }
+
     const toEmail = document.getElementById('toEmailInput').value.trim();
-
     if (!toEmail) {
-        alert("Please enter a valid recipient trainer email address.");
-        return;
+        issues.push("Recipient trainer email address is required.");
     }
 
-    // 2. Client-side placeholder pre-validation check (A6)
-    const placeholderRegex = /\{\{[a-zA-Z0-9_]+\}\}/;
-    if (placeholderRegex.test(subject) || placeholderRegex.test(content)) {
-        const resolveConfirm = confirm(
-            "Unresolved placeholders detected (e.g. {{trainer_name}}).\n\n" +
-            "Click OK to automatically resolve all fields with current opportunity data."
-        );
-        if (resolveConfirm) {
-            resolveAllPlaceholdersClient();
-        } else {
-            alert("Some email fields are not resolved. Please review the email before sending.");
-            return;
-        }
+    const subject = document.getElementById('subjectInput').value.trim();
+    if (!subject) {
+        issues.push("Email subject cannot be empty.");
+    }
+
+    // Check if any legacy {{...}} placeholders exist
+    const content = visualEditor ? visualEditor.innerHTML : '';
+    const placeholderRegex = /\{\{([a-zA-Z0-9_]+)\}\}/g;
+    const lingering = [];
+    let match;
+    while ((match = placeholderRegex.exec(content)) !== null) {
+        const humanName = match[1].replace(/_/g, ' ');
+        if (!lingering.includes(humanName)) lingering.push(humanName);
+    }
+    while ((match = placeholderRegex.exec(subject)) !== null) {
+        const humanName = match[1].replace(/_/g, ' ');
+        if (!lingering.includes(humanName)) lingering.push(humanName);
+    }
+    if (lingering.length > 0) {
+        issues.push("The following template fields are missing or not provided: " + lingering.join(', '));
+    }
+
+    // If issues exist, display inline Attention Modal (NO browser alert)
+    if (issues.length > 0) {
+        showAttentionModal(issues);
+        return;
     }
 
     document.getElementById('confirmEmailDisplay').textContent = toEmail;
@@ -1499,7 +1629,7 @@ function executeSend() {
     submitForm('send_email');
 }
 
-// Historical Email Modal (A15)
+// Historical Email Modal
 let activeHistRecord = null;
 
 function viewHistoricalEmailModal(index) {
