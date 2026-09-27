@@ -28,6 +28,7 @@ if ($defaultType !== 'COLLEGE' && $defaultType !== 'EDTECH_CLIENT' && $defaultTy
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrfToken();
     $organizationName = trim($_POST['organizationName'] ?? '');
     $organizationType = trim($_POST['organizationType'] ?? $defaultType);
     $contactPerson = trim($_POST['contactPerson'] ?? '');
@@ -201,6 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <form method="POST" action="/vendor-register.php" autocomplete="off" novalidate class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-8 space-y-6 min-w-0">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div class="sm:col-span-2">
                         <div class="flex items-center justify-between mb-1">

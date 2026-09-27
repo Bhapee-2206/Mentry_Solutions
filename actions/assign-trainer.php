@@ -84,8 +84,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $duration = (int)($opp['durationDays'] ?? 5);
             $totalFee = $duration * $agreedDailyRate;
             $startDate = $opp['startDate'] ?? new MongoDB\BSON\UTCDateTime();
+            $asgId = 'asg_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $opportunityId . '_' . $trainerId);
 
-            $asgCol->insertOne([
+            $asgIns = $asgCol->insertOne([
+                '_id' => $asgId,
                 'opportunityId' => $opportunityId,
                 'trainerId' => $trainerId,
                 'status' => 'SCHEDULED',
@@ -100,6 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'createdAt' => new MongoDB\BSON\UTCDateTime(),
                 'updatedAt' => new MongoDB\BSON\UTCDateTime()
             ]);
+
+            if ($asgIns->getInsertedCount() === 0) {
+                header("Location: /admin/opportunity-view.php?id=" . urlencode($opportunityId) . "&error=" . urlencode("This assignment has already been confirmed and processed."));
+                exit();
+            }
 
             // 3. Compile all assigned trainer IDs
             $newActiveCount = $activeCount + 1;

@@ -46,18 +46,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($lockCheck['isLocked']) {
                 $error = $lockCheck['message'];
             } else {
-                // Auto-seed demo vendor account or use fallback if database is offline/pending (bcrypt hash used, no plaintext)
-                if ((!$user || !isset($user['password'])) && $email === 'vendor@mentry.test' && password_verify($password, '$2y$10$5r2PqvH0GX2SF5e00FGyZeod4y4oPlzLSXljZjh25YVQQGgrc.REW')) {
-                    $user = [
-                        '_id' => '65e000000000000000000010',
-                        'name' => 'Nexus EdTech Staffing Solutions',
-                        'email' => 'vendor@mentry.test',
-                        'role' => 'VENDOR',
-                        'organizationName' => 'Nexus EdTech Staffing Solutions',
-                        'organizationType' => 'STAFFING_VENDOR',
-                        'city' => 'Bengaluru',
-                        'state' => 'Karnataka'
-                    ];
+                // Auto-seed demo vendor account or use fallback if database is offline/pending (Development only)
+                if (isDevelopment()) {
+                    if ((!$user || !isset($user['password'])) && $email === 'vendor@mentry.test' && password_verify($password, '$2y$10$5r2PqvH0GX2SF5e00FGyZeod4y4oPlzLSXljZjh25YVQQGgrc.REW')) {
+                        $user = [
+                            '_id' => '65e000000000000000000010',
+                            'name' => 'Nexus EdTech Staffing Solutions',
+                            'email' => 'vendor@mentry.test',
+                            'role' => 'VENDOR',
+                            'organizationName' => 'Nexus EdTech Staffing Solutions',
+                            'organizationType' => 'STAFFING_VENDOR',
+                            'city' => 'Bengaluru',
+                            'state' => 'Karnataka'
+                        ];
+                    }
                 }
 
                 if (!$user || (isset($user['password']) && !verifyPassword($password, $user['password']))) {
@@ -71,9 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     loginUserSession($user);
 
-                    $redirect = $_GET['redirect'] ?? '/vendor/dashboard.php';
-                    header("Location: " . $redirect);
-                    exit();
+                    $safeRedirectUrl = getSafeRedirectUrl($_GET['redirect'] ?? '', '/vendor/dashboard.php');
+                    safeRedirect($safeRedirectUrl);
                 }
             }
         }

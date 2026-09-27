@@ -25,6 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
+requireCsrfToken();
+
 // Read JSON input or POST form
 $rawInput = file_get_contents('php://input');
 $data = json_decode($rawInput, true) ?: $_POST;
@@ -42,6 +44,7 @@ if (!empty($opportunityId)) {
 }
 
 if (empty($query)) {
+    http_response_code(422);
     echo json_encode([
         'success' => false,
         'message' => 'Please enter a training requirement or question.'

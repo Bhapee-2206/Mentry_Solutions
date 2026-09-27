@@ -52,8 +52,7 @@ $recentTrainers = $trainerCol ? $trainerCol->find([], ['limit' => 5, 'sort' => [
             <h3 class="text-[11px] font-bold uppercase tracking-wider">Total Trainers</h3>
         </div>
         <div class="flex items-baseline gap-2">
-            <span class="text-2xl md:text-3xl font-black text-slate-900"><?= $totalTrainers ?></span>
-            <span class="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">+12%</span>
+            <span class="text-2xl md:text-3xl font-black text-slate-900"><?= (int)$totalTrainers ?></span>
         </div>
     </div>
 

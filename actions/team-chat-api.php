@@ -82,7 +82,7 @@ function saveChatMessages($file, $messages) {
 
 $action = $_GET['action'] ?? ($_POST['action'] ?? 'get_messages');
 
-// 1. GET MESSAGES
+// 1. GET MESSAGES (Read-Only)
 if ($action === 'get_messages') {
     $messages = getChatMessages($chatFile);
     echo json_encode([
@@ -97,6 +97,14 @@ if ($action === 'get_messages') {
     exit();
 }
 
+// All subsequent mutating actions MUST be POST and validated with CSRF
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'error' => 'Method Not Allowed']);
+    exit();
+}
+requireCsrfToken();
+
 // 2. SEND MESSAGE / UPLOAD FILE
 if ($action === 'send_message') {
     $text = trim($_POST['text'] ?? '');
@@ -104,10 +112,19 @@ if ($action === 'send_message') {
 
     // Handle file attachment if present
     if (!empty($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+        $fileSize = $_FILES['file']['size'];
+        // Strict 5MB chat file limit
+        if ($fileSize > 5 * 1024 * 1024) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Chat attachment exceeds the 5MB size limit.']);
+            exit();
+        }
+
         $rawExt = strtolower(pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION));
-        $disallowedExts = ['php', 'phtml', 'php3', 'php4', 'php5', 'phar', 'exe', 'sh', 'bat', 'cmd', 'vbs', 'msi'];
-        if (in_array($rawExt, $disallowedExts, true)) {
-            echo json_encode(['success' => false, 'message' => 'Executable files and scripts cannot be sent in chat.']);
+        $allowedExts = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'png', 'jpg', 'jpeg', 'webp', 'xlsx', 'xls', 'csv'];
+        if (!in_array($rawExt, $allowedExts, true)) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'File type not allowed. Allowed formats: PDF, DOC/DOCX, TXT, RTF, images, spreadsheets.']);
             exit();
         }
 
@@ -135,6 +152,7 @@ if ($action === 'send_message') {
     }
 
     if (empty($text) && empty($attachment)) {
+        http_response_code(422);
         echo json_encode(['success' => false, 'message' => 'Message or file required.']);
         exit();
     }
@@ -223,6 +241,7 @@ if ($action === 'ask_ai_on_message') {
     }
 
     if (!$targetMsg || empty($targetMsg['text'])) {
+        http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Selected message content is empty.']);
         exit();
     }
@@ -268,6 +287,7 @@ if ($action === 'ask_ai_on_message') {
         ]);
         exit();
     } else {
+        http_response_code(500);
         echo json_encode(['success' => false, 'message' => 'Could not process message with Zervy.']);
         exit();
     }
@@ -279,6 +299,7 @@ if ($action === 'edit_message') {
     $newText = trim($_POST['text'] ?? '');
 
     if (empty($msgId) || empty($newText)) {
+        http_response_code(422);
         echo json_encode(['success' => false, 'message' => 'Message ID and text are required.']);
         exit();
     }
@@ -296,6 +317,7 @@ if ($action === 'edit_message') {
                 $found = true;
                 break;
             } else {
+                http_response_code(403);
                 echo json_encode(['success' => false, 'message' => 'Unauthorized to edit this message.']);
                 exit();
             }
@@ -306,6 +328,7 @@ if ($action === 'edit_message') {
         saveChatMessages($chatFile, $messages);
         echo json_encode(['success' => true, 'allMessages' => $messages]);
     } else {
+        http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Message not found.']);
     }
     exit();
@@ -316,6 +339,7 @@ if ($action === 'delete_message') {
     $msgId = $_POST['messageId'] ?? '';
 
     if (empty($msgId)) {
+        http_response_code(422);
         echo json_encode(['success' => false, 'message' => 'Message ID required.']);
         exit();
     }
@@ -330,6 +354,7 @@ if ($action === 'delete_message') {
                 $found = true;
                 continue; // Skip = Delete
             } else {
+                http_response_code(403);
                 echo json_encode(['success' => false, 'message' => 'Unauthorized to delete this message.']);
                 exit();
             }
@@ -341,13 +366,19 @@ if ($action === 'delete_message') {
         saveChatMessages($chatFile, $updated);
         echo json_encode(['success' => true, 'allMessages' => $updated]);
     } else {
+        http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Message not found.']);
     }
     exit();
 }
 
-// 6. CLEAR CHAT
+// 6. CLEAR CHAT (Admin only)
 if ($action === 'clear_chat') {
+    if (!isAdmin()) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Only administrators are authorized to clear team chat.']);
+        exit();
+    }
     $clearedMessages = [];
     saveChatMessages($chatFile, $clearedMessages);
     echo json_encode(['success' => true, 'allMessages' => []]);

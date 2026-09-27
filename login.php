@@ -50,23 +50,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userCol = getCollection("User");
             $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
 
-            // Built-in demo trainer credentials fallback using secure bcrypt hashes
-            $demoTrainerAccounts = [
-                'trainer@mentry.test' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Rajesh Verma (Senior DevOps Architect)', 'trainerId' => '65e000000000000000000021'],
-                'rajesh.verma@example.com' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Rajesh Verma', 'trainerId' => '65e000000000000000000021'],
-                'priya.sharma@example.com' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Dr. Priya Sharma', 'trainerId' => '65e000000000000000000022'],
-            ];
+            // Built-in demo trainer credentials fallback using secure bcrypt hashes (Development only)
+            if (isDevelopment()) {
+                $demoTrainerAccounts = [
+                    'trainer@mentry.test' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Rajesh Verma (Senior DevOps Architect)', 'trainerId' => '65e000000000000000000021'],
+                    'rajesh.verma@example.com' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Rajesh Verma', 'trainerId' => '65e000000000000000000021'],
+                    'priya.sharma@example.com' => ['hash' => '$2y$10$oezlKOB1Dyl3B/qsx0i3AuoYwjGn9YsvzA5AjobxOhow/xfCcBPLa', 'name' => 'Dr. Priya Sharma', 'trainerId' => '65e000000000000000000022'],
+                ];
 
-            if ((!$user || !isset($user['password'])) && isset($demoTrainerAccounts[$email])) {
-                $demo = $demoTrainerAccounts[$email];
-                if (password_verify($password, $demo['hash'])) {
-                    $user = [
-                        '_id' => '65e000000000000000000020',
-                        'email' => $email,
-                        'name' => $demo['name'],
-                        'role' => 'TRAINER',
-                        'avatar' => 'https://avatar.vercel.sh/' . urlencode($demo['name']) . '.png'
-                    ];
+                if ((!$user || !isset($user['password'])) && isset($demoTrainerAccounts[$email])) {
+                    $demo = $demoTrainerAccounts[$email];
+                    if (password_verify($password, $demo['hash'])) {
+                        $user = [
+                            '_id' => '65e000000000000000000020',
+                            'email' => $email,
+                            'name' => $demo['name'],
+                            'role' => 'TRAINER',
+                            'avatar' => 'https://avatar.vercel.sh/' . urlencode($demo['name']) . '.png'
+                        ];
+                    }
                 }
             }
 
@@ -103,12 +105,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     loginUserSession($user, $trainer);
 
                     $redirect = $_GET['redirect'] ?? '/trainer/dashboard.php';
-                    // Sanitize redirect
-                    if (strpos($redirect, '/admin') === 0) {
+                    if (str_starts_with($redirect, '/admin')) {
                         $redirect = '/trainer/dashboard.php';
                     }
-                    header("Location: " . $redirect);
-                    exit();
+                    $safeUrl = getSafeRedirectUrl($redirect, '/trainer/dashboard.php');
+                    safeRedirect($safeUrl);
                 }
             }
         }
@@ -192,8 +193,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?= $error ?>
             </div>
         <?php endif; ?>
-
-        <form method="POST" action="/login.php<?= isset($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '' ?>" autocomplete="off" class="space-y-4">
+        <?php
+            $safeRedirectParam = isset($_GET['redirect']) ? getSafeRedirectUrl($_GET['redirect'], '') : '';
+            $actionQuery = ($safeRedirectParam !== '' && $safeRedirectParam !== '/') ? '?redirect=' . urlencode($safeRedirectParam) : '';
+        ?>
+        <form method="POST" action="/login.php<?= $actionQuery ?>" autocomplete="off" class="space-y-4">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Registered Trainer Email</label>

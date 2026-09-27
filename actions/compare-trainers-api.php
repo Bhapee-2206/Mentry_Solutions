@@ -23,6 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
+requireCsrfToken();
+
 $rawInput = file_get_contents('php://input');
 $data = json_decode($rawInput, true) ?: $_POST;
 
@@ -30,6 +32,7 @@ $trainerIds = $data['trainerIds'] ?? [];
 $requirementText = trim($data['requirementText'] ?? 'General technical training alignment');
 
 if (empty($trainerIds) || !is_array($trainerIds)) {
+    http_response_code(422);
     echo json_encode([
         'success' => false,
         'message' => 'Please select at least 2 trainers to compare.'

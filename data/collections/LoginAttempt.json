@@ -1,1 +1,11 @@
-[]
+[
+    {
+        "type": "IP_LOCK",
+        "ip": "127.0.0.1",
+        "attempts": 6,
+        "lockedUntil": null,
+        "updatedAt": "1790527369928",
+        "_id": "6ab947774b43dd3ea60e33f1",
+        "createdAt": "1790527351178"
+    }
+]

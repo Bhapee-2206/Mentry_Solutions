@@ -1,8 +1,9 @@
 <?php
 // actions/update-trainer-availability.php
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
-requireTrainer();
+requireTrainerOnly();
 requireCsrfToken();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -33,6 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$redirect = $_SERVER['HTTP_REFERER'] ?? '/trainer/dashboard.php';
-header("Location: " . $redirect . (strpos($redirect, '?') !== false ? '&' : '?') . 'avail_updated=1');
-exit();
+$referer = $_SERVER['HTTP_REFERER'] ?? '/trainer/dashboard.php';
+$redirect = getSafeRedirectUrl($referer, '/trainer/dashboard.php');
+safeRedirect($redirect . (strpos($redirect, '?') !== false ? '&' : '?') . 'avail_updated=1');

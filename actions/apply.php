@@ -2,7 +2,8 @@
 // actions/apply.php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
-requireTrainer();
+require_once __DIR__ . '/../includes/helpers.php';
+requireTrainerOnly();
 requireCsrfToken();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -106,9 +107,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $appCol = getCollection("Application");
         if ($appCol) {
-            $existing = $appCol->findOne(['trainerId' => $trainerId, 'opportunityId' => $opportunityId]);
+            $appId = 'app_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $trainerId . '_' . $opportunityId);
+            $existing = $appCol->findOne(['$or' => [['_id' => $appId], ['trainerId' => $trainerId, 'opportunityId' => $opportunityId]]]);
             if (!$existing) {
-                $appCol->insertOne([
+                $insRes = $appCol->insertOne([
+                    '_id' => $appId,
                     'trainerId' => $trainerId,
                     'opportunityId' => $opportunityId,
                     'proposedDailyRate' => $proposedDailyRate,
@@ -121,35 +124,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'updatedAt' => new MongoDB\BSON\UTCDateTime()
                 ]);
 
-                // Dispatch real-time Admin Notification
-                require_once __DIR__ . '/../includes/helpers.php';
-                require_once __DIR__ . '/../includes/notifications.php';
+                if ($insRes->getInsertedCount() > 0) {
+                    // Dispatch real-time Admin Notification ONLY on actual successful insert
+                    require_once __DIR__ . '/../includes/helpers.php';
+                    require_once __DIR__ . '/../includes/notifications.php';
 
-                $oppCol = getCollection("Opportunity");
-                $opp = null;
-                try {
-                    $opp = $oppCol ? $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($opportunityId)]) : null;
-                } catch (\Throwable $e) {
-                    $opp = $oppCol ? $oppCol->findOne(['_id' => $opportunityId]) : null;
+                    $oppCol = getCollection("Opportunity");
+                    $opp = null;
+                    try {
+                        $opp = $oppCol ? $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($opportunityId)]) : null;
+                    } catch (\Throwable $e) {
+                        $opp = $oppCol ? $oppCol->findOne(['_id' => $opportunityId]) : null;
+                    }
+
+                    $oppTitle = $opp['title'] ?? 'Training Opportunity';
+                    $oppDomain = $opp['domain'] ?? 'General';
+                    $trainerName = $user['name'] ?? ($trainer['name'] ?? 'Trainer');
+                    $trainerCode = $user['trainerCode'] ?? ($trainer['trainerCode'] ?? 'Trainer');
+
+                    notifyAdmin(
+                        'NEW_APPLICATION',
+                        "New Application: {$trainerName}",
+                        "{$trainerName} ({$trainerCode}) applied for '{$oppTitle}' ({$oppDomain}) with proposed rate of " . formatINR($proposedDailyRate) . "/day.",
+                        "/admin/opportunity-view.php?id=" . $opportunityId,
+                        [
+                            'trainerId' => $trainerId,
+                            'trainerCode' => $trainerCode,
+                            'opportunityId' => $opportunityId,
+                            'proposedDailyRate' => $proposedDailyRate
+                        ]
+                    );
+                } else {
+                    $_SESSION['apply_notice'] = "Your application was already received and is currently under review.";
                 }
-
-                $oppTitle = $opp['title'] ?? 'Training Opportunity';
-                $oppDomain = $opp['domain'] ?? 'General';
-                $trainerName = $user['name'] ?? ($trainer['name'] ?? 'Trainer');
-                $trainerCode = $user['trainerCode'] ?? ($trainer['trainerCode'] ?? 'Trainer');
-
-                notifyAdmin(
-                    'NEW_APPLICATION',
-                    "New Application: {$trainerName}",
-                    "{$trainerName} ({$trainerCode}) applied for '{$oppTitle}' ({$oppDomain}) with proposed rate of " . formatINR($proposedDailyRate) . "/day.",
-                    "/admin/opportunity-view.php?id=" . $opportunityId,
-                    [
-                        'trainerId' => $trainerId,
-                        'trainerCode' => $trainerCode,
-                        'opportunityId' => $opportunityId,
-                        'proposedDailyRate' => $proposedDailyRate
-                    ]
-                );
+            } else {
+                $_SESSION['apply_notice'] = "You have already applied for this opportunity.";
             }
         }
     }

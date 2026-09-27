@@ -46,8 +46,8 @@ $profileDownloadsCount = 0;
 $docDownloadsCount = 0;
 
 if ($logCol) {
-    $allSuccessfulLogs = $logCol->find(['success' => true])->toArray();
-    $totalDownloads = count($allSuccessfulLogs);
+    $totalDownloads = $logCol->countDocuments(['success' => true]);
+    $allSuccessfulLogs = $logCol->find(['success' => true], ['limit' => 500, 'sort' => ['createdAt' => -1]])->toArray();
 
     $uniqueUsers = [];
     $uniqueDocs = [];

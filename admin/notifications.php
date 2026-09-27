@@ -17,33 +17,42 @@ $adminBaseFilter = [
     ]
 ];
 
-// Handle Mark All As Read
-if (isset($_GET['action']) && $_GET['action'] === 'mark_all_read') {
+// Handle Mark All As Read via POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'mark_all_read') {
+    requireCsrfToken();
     if ($notifCol) {
         $notifCol->updateMany(
             ['$and' => [$adminBaseFilter, ['read' => false]]],
             ['$set' => ['read' => true, 'readAt' => new MongoDB\BSON\UTCDateTime()]]
         );
     }
-    header("Location: /admin/notifications.php");
-    exit();
+    safeRedirect('/admin/notifications.php');
 }
 
 // Handle Single Notification Click & Redirect
 if (!empty($_GET['read_id'])) {
+    $readIdStr = trim((string)$_GET['read_id']);
     try {
-        $nid = new MongoDB\BSON\ObjectId($_GET['read_id']);
         if ($notifCol) {
+            $idVariants = [$readIdStr];
+            if (preg_match('/^[a-f\d]{24}$/i', $readIdStr)) {
+                try {
+                    $idVariants[] = new MongoDB\BSON\ObjectId($readIdStr);
+                } catch (\Throwable $e) {}
+            }
             $notifCol->updateOne(
-                ['_id' => $nid],
+                ['_id' => ['$in' => $idVariants]],
                 ['$set' => ['read' => true, 'readAt' => new MongoDB\BSON\UTCDateTime()]]
             );
         }
-    } catch (\Throwable $e) {}
+    } catch (\Throwable $e) {
+        if (function_exists('logAppError')) {
+            logAppError('admin_mark_notification_read', $e, ['read_id' => $readIdStr]);
+        }
+    }
 
-    $goto = $_GET['goto'] ?? '/admin/notifications.php';
-    header("Location: " . $goto);
-    exit();
+    $goto = getSafeRedirectUrl($_GET['goto'] ?? '', '/admin/notifications.php');
+    safeRedirect($goto);
 }
 
 require_once __DIR__ . '/includes/sidebar.php';
@@ -181,10 +190,14 @@ function getNotificationConfig($type) {
         </div>
 
         <?php if ($totalUnreadCount > 0): ?>
-            <a href="/admin/notifications.php?action=mark_all_read" class="inline-flex items-center gap-1.5 text-xs font-bold text-[#FE5E04] hover:text-[#E04E00] bg-orange-50 hover:bg-orange-100/80 border border-orange-200 px-4 py-2 rounded-xl transition-all shadow-2xs self-start sm:self-auto">
-                <span class="material-symbols-outlined text-base">done_all</span>
-                Mark All as Read
-            </a>
+            <form method="POST" action="/admin/notifications.php" class="inline-block self-start sm:self-auto m-0">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                <input type="hidden" name="action" value="mark_all_read">
+                <button type="submit" class="inline-flex items-center gap-1.5 text-xs font-bold text-[#FE5E04] hover:text-[#E04E00] bg-orange-50 hover:bg-orange-100/80 border border-orange-200 px-4 py-2 rounded-xl transition-all shadow-2xs cursor-pointer">
+                    <span class="material-symbols-outlined text-base">done_all</span>
+                    <span>Mark All as Read</span>
+                </button>
+            </form>
         <?php endif; ?>
     </div>
 

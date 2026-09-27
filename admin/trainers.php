@@ -427,10 +427,9 @@ if (!empty($recentActivities)) {
             <div class="min-w-0 flex-1">
                 <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Trainers</p>
                 <div class="flex items-baseline gap-2 mt-0.5">
-                    <span class="text-2xl font-black text-slate-900"><?= $totalTrainers > 0 ? $totalTrainers : 124 ?></span>
-                    <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-md">↑ 12%</span>
+                    <span class="text-2xl font-black text-slate-900"><?= (int)$totalTrainers ?></span>
                 </div>
-                <p class="text-[10px] text-slate-400 mt-0.5">vs last month</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Registered trainers</p>
             </div>
         </div>
 
@@ -442,8 +441,7 @@ if (!empty($recentActivities)) {
             <div class="min-w-0 flex-1">
                 <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Available Now</p>
                 <div class="flex items-baseline gap-2 mt-0.5">
-                    <span class="text-2xl font-black text-slate-900"><?= $availableNowCount > 0 ? $availableNowCount : 48 ?></span>
-                    <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-md">↑ 8%</span>
+                    <span class="text-2xl font-black text-slate-900"><?= (int)$availableNowCount ?></span>
                 </div>
                 <p class="text-[10px] text-slate-400 mt-0.5">Ready for assignment</p>
             </div>
@@ -457,8 +455,7 @@ if (!empty($recentActivities)) {
             <div class="min-w-0 flex-1">
                 <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Workshops in Progress</p>
                 <div class="flex items-baseline gap-2 mt-0.5">
-                    <span class="text-2xl font-black text-slate-900"><?= $activeWorkshopsCount ?></span>
-                    <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-md">↑ 33%</span>
+                    <span class="text-2xl font-black text-slate-900"><?= (int)$activeWorkshopsCount ?></span>
                 </div>
                 <p class="text-[10px] text-slate-400 mt-0.5">Active this week</p>
             </div>
@@ -472,8 +469,7 @@ if (!empty($recentActivities)) {
             <div class="min-w-0 flex-1">
                 <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Average Daily Rate</p>
                 <div class="flex items-baseline gap-2 mt-0.5">
-                    <span class="text-2xl font-black text-slate-900"><?= formatINR($avgRate) ?></span>
-                    <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-md">↑ 5%</span>
+                    <span class="text-2xl font-black text-slate-900"><?= $avgRate > 0 ? formatINR($avgRate) : '₹0' ?></span>
                 </div>
                 <p class="text-[10px] text-slate-400 mt-0.5">Across all trainers</p>
             </div>

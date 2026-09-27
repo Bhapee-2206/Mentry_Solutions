@@ -169,7 +169,14 @@ class ResumeSkillParser {
      * decompressor using gzinflate() so DOCX parsing works on any environment.
      */
     public static function extractTextFromDOCX($filePath) {
+        $fileSize = @filesize($filePath);
+        if ($fileSize === false || $fileSize === 0 || $fileSize > 10 * 1024 * 1024) {
+            return '';
+        }
+
         $xmlParts = [];
+        $maxTotalUncompressed = 15 * 1024 * 1024; // 15MB max total uncompressed
+        $maxEntryUncompressed = 5 * 1024 * 1024;  // 5MB max single entry
 
         // Target XML entries inside DOCX
         $targetEntries = [
@@ -182,15 +189,49 @@ class ResumeSkillParser {
             'word/footer3.xml'
         ];
 
-        // 1. Try PHP ZipArchive if available
+        // 1. Try PHP ZipArchive if available with strict ZIP bomb safeguards
         if (class_exists('ZipArchive')) {
             $zip = new ZipArchive();
-            if ($zip->open($filePath) === true) {
+            $openFlags = defined('ZipArchive::RDONLY') ? ZipArchive::RDONLY : 0;
+            if ($zip->open($filePath, $openFlags) === true) {
+                // ZIP bomb check 1: Excessive entry count
+                if ($zip->numFiles > 150) {
+                    $zip->close();
+                    return '';
+                }
+
+                // ZIP bomb check 2: Validate total and individual uncompressed sizes and compression ratios
+                $totalUncompressed = 0;
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $stat = $zip->statIndex($i);
+                    if ($stat) {
+                        $eSize = $stat['size'] ?? 0;
+                        $cSize = $stat['comp_size'] ?? 0;
+                        if ($eSize > $maxEntryUncompressed) {
+                            $zip->close();
+                            return ''; // Oversized single entry rejected
+                        }
+                        if ($cSize > 0 && ($eSize / $cSize) > 80 && $eSize > 500000) {
+                            $zip->close();
+                            return ''; // High compression ratio ZIP bomb rejected
+                        }
+                        $totalUncompressed += $eSize;
+                        if ($totalUncompressed > $maxTotalUncompressed) {
+                            $zip->close();
+                            return ''; // Total uncompressed limit exceeded
+                        }
+                    }
+                }
+
                 foreach ($targetEntries as $entry) {
                     $xmlIndex = $zip->locateName($entry);
                     if ($xmlIndex !== false) {
-                        $content = $zip->getFromIndex($xmlIndex);
+                        $content = $zip->getFromIndex($xmlIndex, $maxEntryUncompressed);
                         if (!empty($content)) {
+                            // XML Expansion / XXE Attack Defense
+                            if (stripos($content, '<!DOCTYPE') !== false || stripos($content, '<!ENTITY') !== false || stripos($content, 'SYSTEM') !== false) {
+                                continue;
+                            }
                             $xmlParts[] = $content;
                         }
                     }
@@ -204,7 +245,9 @@ class ResumeSkillParser {
             foreach ($targetEntries as $entry) {
                 $content = self::readEntryFromZip($filePath, $entry);
                 if (!empty($content)) {
-                    $xmlParts[] = $content;
+                    if (stripos($content, '<!DOCTYPE') === false && stripos($content, '<!ENTITY') === false) {
+                        $xmlParts[] = $content;
+                    }
                 }
             }
         }
@@ -276,9 +319,9 @@ class ResumeSkillParser {
                         if ($method === 0) {
                             return $compData;
                         } elseif ($method === 8) {
-                            $uncompressed = @gzinflate($compData);
+                            $uncompressed = @gzinflate($compData, 5242880);
                             if ($uncompressed === false) {
-                                $uncompressed = @gzuncompress($compData);
+                                $uncompressed = @gzuncompress($compData, 5242880);
                             }
                             return $uncompressed ?: null;
                         }
@@ -311,15 +354,15 @@ class ResumeSkillParser {
                     if ($method === 0) {
                         return $compData;
                     } elseif ($method === 8) {
-                        $uncompressed = @gzinflate($compData);
+                        $uncompressed = @gzinflate($compData, 5242880);
                         if ($uncompressed === false) {
-                            $uncompressed = @gzuncompress($compData);
+                            $uncompressed = @gzuncompress($compData, 5242880);
                         }
                         if ($uncompressed !== false) return $uncompressed;
                     }
                 } else {
-                    $chunk = substr($data, $dataStart);
-                    $uncompressed = @gzinflate($chunk);
+                    $chunk = substr($data, $dataStart, min(5242880, $fileLen - $dataStart));
+                    $uncompressed = @gzinflate($chunk, 5242880);
                     if ($uncompressed !== false) return $uncompressed;
                 }
             }

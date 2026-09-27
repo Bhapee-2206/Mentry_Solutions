@@ -264,6 +264,7 @@ let currentUserId = '<?= $currentUser['id'] ?? '' ?>';
 let currentUserName = '<?= addslashes($currentUser['name'] ?? 'User') ?>';
 let isUserAdmin = <?= $isAdminUser ? 'true' : 'false' ?>;
 let selectedFile = null;
+const CSRF_TOKEN = '<?= htmlspecialchars(getCsrfToken()) ?>';
 
 // Modern Inbuilt UI Toast Notifications (No Chrome browser alerts)
 function showToast(message, type = 'info') {
@@ -489,6 +490,7 @@ async function handleSendMessage(e) {
     btn.disabled = true;
 
     const formData = new FormData();
+    formData.append('csrf_token', CSRF_TOKEN);
     formData.append('action', 'send_message');
     formData.append('text', text);
     if (selectedFile) {
@@ -536,6 +538,7 @@ async function submitEditMessage(e) {
     if (!msgId || !newText) return;
 
     const formData = new FormData();
+    formData.append('csrf_token', CSRF_TOKEN);
     formData.append('action', 'edit_message');
     formData.append('messageId', msgId);
     formData.append('text', newText);
@@ -577,6 +580,7 @@ async function executeDeleteMessage() {
     btn.disabled = true;
 
     const formData = new FormData();
+    formData.append('csrf_token', CSRF_TOKEN);
     formData.append('action', 'delete_message');
     formData.append('messageId', msgId);
 
@@ -616,6 +620,7 @@ async function executeClearChat() {
     btn.innerText = 'Clearing...';
 
     const formData = new FormData();
+    formData.append('csrf_token', CSRF_TOKEN);
     formData.append('action', 'clear_chat');
 
     try {
@@ -642,6 +647,7 @@ async function executeClearChat() {
 
 async function askAiOnMessage(messageId) {
     const formData = new FormData();
+    formData.append('csrf_token', CSRF_TOKEN);
     formData.append('action', 'ask_ai_on_message');
     formData.append('messageId', messageId);
 

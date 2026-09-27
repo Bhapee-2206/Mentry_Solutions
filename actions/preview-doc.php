@@ -20,93 +20,18 @@ $title = trim($_GET['title'] ?? 'Document Preview');
 $isRaw = !empty($_GET['raw']) && $_GET['raw'] !== '0';
 $docId = trim($_GET['id'] ?? ($_GET['doc_id'] ?? ''));
 
-// Security (Requirement 8 & 9): Support lookup by Document ID or verified file URL with authorization
-$docDoc = null;
-$docCol = getCollection("Document");
-$trainerCol = getCollection("Trainer");
+// Security (Section 21): Centralized Document Authorization Resolver
+$targetIdentifier = !empty($docId) ? $docId : $url;
+$docDoc = resolveAuthorizedDocument($targetIdentifier, $currentUser);
 
-if (!empty($docId)) {
-    if ($docCol) {
-        try {
-            $docDoc = $docCol->findOne(['_id' => new MongoDB\BSON\ObjectId($docId)]);
-        } catch (\Throwable $e) {}
-        if (!$docDoc) {
-            $docDoc = $docCol->findOne(['_id' => $docId]);
-        }
-    }
-} elseif (!empty($url)) {
-    // If URL is provided without ID, verify that it belongs to an authorized Document or Trainer resume in DB
-    $cleanBase = basename(parse_url($url, PHP_URL_PATH) ?? '');
-    if ($docCol) {
-        $docDoc = $docCol->findOne([
-            '$or' => [
-                ['fileUrl' => $url],
-                ['fileUrl' => '/' . ltrim(parse_url($url, PHP_URL_PATH) ?? '', '/')],
-                ['fileUrl' => ['$regex' => preg_quote($cleanBase, '/') . '$']]
-            ]
-        ]);
-    }
-    if (!$docDoc && $trainerCol) {
-        $tRecord = $trainerCol->findOne([
-            '$or' => [
-                ['resumeUrl' => $url],
-                ['resumeUrl' => '/' . ltrim(parse_url($url, PHP_URL_PATH) ?? '', '/')],
-                ['resumeUrl' => ['$regex' => preg_quote($cleanBase, '/') . '$']]
-            ]
-        ]);
-        if ($tRecord) {
-            $docDoc = [
-                'trainerId' => (string)$tRecord['_id'],
-                'userId' => (string)($tRecord['userId'] ?? ''),
-                'fileUrl' => $tRecord['resumeUrl'],
-                'originalName' => ($tRecord['name'] ?? 'Trainer') . '_Resume.pdf',
-                'title' => 'Resume'
-            ];
-        }
-    }
+if (!$docDoc) {
+    http_response_code(403);
+    die("Access Denied: You do not have permission to preview this document, or the document does not exist.");
 }
 
-if ($docDoc) {
-    // Ownership & Permission Verification
-    if (!isAdminOrStaff()) {
-        $myTrainerId = (string)($_SESSION['user']['trainerId'] ?? '');
-        $myUserId = (string)($_SESSION['user']['id'] ?? '');
-        $userRole = $_SESSION['user']['role'] ?? '';
-        $docTrainerId = (string)($docDoc['trainerId'] ?? '');
-        $docUserId = (string)($docDoc['userId'] ?? '');
-
-        $isOwner = (!empty($docTrainerId) && $docTrainerId === $myTrainerId) || (!empty($docUserId) && $docUserId === $myUserId);
-        $isAuthorizedPartner = false;
-
-        // Partner access: College / Vendor can view documents for trainers applying to their requirements/opportunities
-        if (!$isOwner && ($userRole === 'COLLEGE' || $userRole === 'VENDOR')) {
-            $appCol = getCollection("Application");
-            $oppCol = getCollection("Opportunity");
-            if ($appCol && $oppCol) {
-                $trainerApps = $appCol->find(['trainerId' => $docTrainerId])->toArray();
-                foreach ($trainerApps as $app) {
-                    $opp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId((string)$app['opportunityId'])]);
-                    if ($opp && ((string)($opp['vendorId'] ?? '') === $myUserId || (string)($opp['collegeId'] ?? '') === $myUserId)) {
-                        $isAuthorizedPartner = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (!$isOwner && !$isAuthorizedPartner) {
-            http_response_code(403);
-            die("Access Denied: You do not have permission to preview this document.");
-        }
-    }
-    $url = $docDoc['fileUrl'] ?? '';
-    if (empty($title) || $title === 'Document Preview') {
-        $title = $docDoc['originalName'] ?? ($docDoc['title'] ?? 'Document Preview');
-    }
-} elseif (!isAdminOrStaff()) {
-    // Non-admin cannot request uncataloged arbitrary URLs
-    http_response_code(403);
-    die("Access Denied: Uncataloged or unauthorized document.");
+$url = $docDoc['fileUrl'] ?? '';
+if (empty($title) || $title === 'Document Preview') {
+    $title = $docDoc['originalName'] ?? ($docDoc['title'] ?? 'Document Preview');
 }
 
 if (empty($url)) {

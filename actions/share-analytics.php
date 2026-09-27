@@ -8,10 +8,17 @@ if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+    exit();
+}
+
+if (!isSameOriginRequest()) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Cross-origin request rejected']);
     exit();
 }
 
@@ -58,6 +65,6 @@ try {
 
     echo json_encode(['success' => true, 'tracked' => true]);
 } catch (\Throwable $e) {
-    // Analytics must never break or surface fatal errors
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    logAppError('share_analytics', $e, ['oppId' => $oppId, 'channel' => $channel]);
+    echo json_encode(['success' => false, 'error' => 'Unable to record share analytics at this time.']);
 }

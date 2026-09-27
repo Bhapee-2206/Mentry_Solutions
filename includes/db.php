@@ -1,9 +1,15 @@
 <?php
-// includes/db.php - Supabase Cloud Database Connector & Document Engine
+// includes/db.php - Direct Supabase Cloud Database Connector & Document Engine
+// Architecture: Direct Database-Side Filtering, Atomic Concurrency & Fail-Closed Protection
 
 if (file_exists(__DIR__ . '/mongo_polyfill.php')) {
     require_once __DIR__ . '/mongo_polyfill.php';
 }
+
+/**
+ * Dedicated Database Exception for Fail-Closed Outage Handling
+ */
+class DatabaseException extends \RuntimeException {}
 
 /**
  * SafeCursor implements IteratorAggregate and Countable for smooth iteration across all query results.
@@ -55,101 +61,31 @@ class SafeCursor implements IteratorAggregate, Countable {
 }
 
 /**
- * Supabase-backed Document Store with high-performance memory cache,
- * serverless /tmp overlay, and real-time Supabase Cloud synchronization.
+ * Direct Supabase Document Store.
+ * All queries, counts, insertions, updates, and deletions execute database-side
+ * against Supabase PostgreSQL (public.mentry_documents).
+ * Operates in Fail-Closed mode in production with zero reliance on JSON collections.
  */
 class PersistentDocumentStore {
     private string $name;
-    private string $filePath;
-    private string $tmpPath;
 
     public function __construct(string $name) {
         $this->name = $name;
-        $dataDir = __DIR__ . '/../data/collections';
-        if (!is_dir($dataDir)) {
-            @mkdir($dataDir, 0777, true);
-        }
-        $this->filePath = $dataDir . '/' . $name . '.json';
-        $tmpDir = rtrim(sys_get_temp_dir(), '/\\') . '/mentry_collections';
-        if (!is_dir($tmpDir)) {
-            @mkdir($tmpDir, 0777, true);
-        }
-        $this->tmpPath = $tmpDir . '/' . $name . '.json';
     }
 
     private static array $memoryCache = [];
-    private static array $fileMtimes = [];
-    private static array $supabaseFetched = [];
-    private static bool $globalSyncDone = false;
-    private static int $lastGlobalSync = 0;
 
-    public static function syncAllFromSupabase(): void {
-        $now = time();
-        if (self::$globalSyncDone || ($now - self::$lastGlobalSync < 45)) {
-            return;
-        }
-        self::$globalSyncDone = true;
-        self::$lastGlobalSync = $now;
-
-        $sb = self::getSupabaseCredentials();
-        if (empty($sb['url']) || empty($sb['key'])) {
-            return;
-        }
-
-        $endpoint = $sb['url'] . '/rest/v1/mentry_documents?select=collection,id,data&order=updated_at.asc';
-        $ch = curl_init($endpoint);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'apikey: ' . $sb['key'],
-            'Authorization: Bearer ' . $sb['key'],
-            'Content-Type: application/json'
-        ]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-        curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
-        curl_setopt($ch, CURLOPT_ENCODING, '');
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-        if (file_exists(__DIR__ . '/cacert.pem')) {
-            curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
-        }
-        $res = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode >= 200 && $httpCode < 300 && $res) {
-            $rows = json_decode($res, true);
-            if (is_array($rows) && !empty($rows)) {
-                $tmpDir = rtrim(sys_get_temp_dir(), '/\\') . '/mentry_collections';
-                if (!is_dir($tmpDir)) @mkdir($tmpDir, 0777, true);
-
-                $byCol = [];
-                foreach ($rows as $r) {
-                    $cName = $r['collection'] ?? '';
-                    if (!empty($cName) && isset($r['data']) && is_array($r['data'])) {
-                        $byCol[$cName][] = $r['data'];
-                    }
-                }
-
-                foreach ($byCol as $cName => $cDocs) {
-                    $cTmpPath = $tmpDir . '/' . $cName . '.json';
-                    // Supabase Postgres is the Single Source of Truth
-                    $indexed = [];
-                    foreach ($cDocs as $cd) {
-                        $cId = (string)($cd['_id'] ?? ($cd['id'] ?? ''));
-                        if (!empty($cId)) $indexed[$cId] = $cd;
-                        else $indexed[] = $cd;
-                    }
-                    $merged = array_values($indexed);
-                    self::$memoryCache[$cName] = $merged;
-                    self::$supabaseFetched[$cName] = true;
-                    @file_put_contents($cTmpPath, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-                }
-            }
+    public static function invalidateCache(?string $name = null): void {
+        if ($name === null) {
+            self::$memoryCache = [];
+        } else {
+            unset(self::$memoryCache[$name]);
         }
     }
 
+    /**
+     * Reads Supabase credentials from environment or .env file securely.
+     */
     public static function getSupabaseCredentials(): array {
         static $cached = null;
         if ($cached !== null) return $cached;
@@ -178,392 +114,340 @@ class PersistentDocumentStore {
         }
 
         if (empty($url) || empty($key)) {
-            error_log("CRITICAL: Supabase credentials (SUPABASE_URL / SUPABASE_KEY) are not configured.");
+            if (function_exists('logAppError')) {
+                logAppError('supabase_credentials_missing', new \RuntimeException("Supabase credentials not configured in environment or .env"));
+            } else {
+                error_log("CRITICAL: Supabase credentials (SUPABASE_URL / SUPABASE_KEY) are not configured.");
+            }
         }
 
         $cached = ['url' => rtrim($url ?? '', '/'), 'key' => $key ?? ''];
         return $cached;
     }
 
-    private function fetchFromSupabase(): array {
+    /**
+     * Central PostgREST HTTP executor with connection reuse and error logging.
+     */
+    public static function executePostgrest(string $method, string $path, array $queryParams = [], $body = null, array $extraHeaders = []): array {
         $sb = self::getSupabaseCredentials();
         if (empty($sb['url']) || empty($sb['key'])) {
-            return [];
+            return ['code' => 0, 'headers' => '', 'body' => '', 'data' => null, 'count' => null, 'error' => 'Missing Supabase credentials'];
         }
 
-        $endpoint = $sb['url'] . '/rest/v1/mentry_documents?collection=eq.' . urlencode($this->name) . '&select=id,data&order=updated_at.asc';
-        $ch = curl_init($endpoint);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        $url = $sb['url'] . '/rest/v1/' . ltrim($path, '/');
+        if (!empty($queryParams)) {
+            $queryString = http_build_query($queryParams);
+            // PostgREST requires unescaped parens, commas, asterisks, and colons in filters
+            $queryString = str_replace(['%28', '%29', '%2C', '%2A', '%3A'], ['(', ')', ',', '*', ':'], $queryString);
+            $url .= (strpos($url, '?') === false ? '?' : '&') . $queryString;
+        }
+
+        $ch = curl_init($url);
+        $headers = [
             'apikey: ' . $sb['key'],
             'Authorization: Bearer ' . $sb['key'],
             'Content-Type: application/json'
-        ]);
+        ];
+        foreach ($extraHeaders as $h) {
+            $headers[] = $h;
+        }
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HEADER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 25);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
         curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
-        curl_setopt($ch, CURLOPT_ENCODING, '');
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         if (file_exists(__DIR__ . '/cacert.pem')) {
             curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
         }
-        $res = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($method === 'POST') {
+            curl_setopt($ch, CURLOPT_POST, true);
+            if ($body !== null) {
+                curl_setopt($ch, CURLOPT_POSTFIELDS, is_string($body) ? $body : json_encode($body));
+            }
+        } elseif ($method === 'PATCH' || $method === 'DELETE' || $method === 'PUT') {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            if ($body !== null) {
+                curl_setopt($ch, CURLOPT_POSTFIELDS, is_string($body) ? $body : json_encode($body));
+            }
+        }
+
+        $raw = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $err = curl_error($ch);
         curl_close($ch);
 
-        if ($httpCode >= 200 && $httpCode < 300 && $res) {
-            $rows = json_decode($res, true);
-            if (is_array($rows)) {
-                $results = [];
-                foreach ($rows as $row) {
-                    if (isset($row['data']) && is_array($row['data'])) {
-                        $results[] = $row['data'];
-                    }
+        if ($raw === false) {
+            if (function_exists('logAppError')) {
+                logAppError('postgrest_curl_failure', new \RuntimeException($err ?: "cURL request failed"), ['method' => $method, 'url' => $url]);
+            }
+            return ['code' => 0, 'headers' => '', 'body' => '', 'data' => null, 'count' => null, 'error' => $err];
+        }
+
+        $headerStr = substr($raw, 0, $headerSize);
+        $bodyStr = substr($raw, $headerSize);
+        $data = json_decode($bodyStr, true);
+
+        // Extract total count from Content-Range header (e.g. Content-Range: 0-9/142 or */142)
+        $count = null;
+        if (preg_match('/content-range:\s*([^\r\n]+)/i', $headerStr, $m)) {
+            $cr = trim($m[1]);
+            if (strpos($cr, '/') !== false) {
+                $parts = explode('/', $cr);
+                $total = trim($parts[1]);
+                if (is_numeric($total)) {
+                    $count = (int)$total;
                 }
-                return $results;
             }
         }
-        return [];
+
+        return [
+            'code' => $code,
+            'headers' => $headerStr,
+            'body' => $bodyStr,
+            'data' => $data,
+            'count' => $count,
+            'error' => null
+        ];
     }
 
-    private function readDocuments(): array {
-        if (isset(self::$memoryCache[$this->name])) {
-            return self::$memoryCache[$this->name];
-        }
+    /**
+     * Executes batch PATCH requests concurrently using curl_multi.
+     * Dramatically accelerates bulk batch operations while preserving OCC guarantees.
+     */
+    public static function executeMultiPatch(array $requests): array {
+        if (empty($requests)) return [];
+        $sb = self::getSupabaseCredentials();
+        if (empty($sb['url']) || empty($sb['key'])) return [];
 
-        $docs = [];
-        $hasTmp = false;
-        $tmpFresh = false;
+        $baseUrl = $sb['url'] . '/rest/v1/';
+        $headers = [
+            'apikey: ' . $sb['key'],
+            'Authorization: Bearer ' . $sb['key'],
+            'Content-Type: application/json',
+            'Prefer: return=representation'
+        ];
 
-        // 1. Check /tmp overlay with high-speed TTL
-        if (file_exists($this->tmpPath)) {
-            $tmpMtime = @filemtime($this->tmpPath);
-            $tmpSize = @filesize($this->tmpPath);
-            // Cache TTL: 60s for general collections, 15s for transactional PasswordReset
-            $ttl = ($this->name === 'PasswordReset') ? 15 : 60;
-            if ($tmpMtime && (time() - $tmpMtime < $ttl) && $tmpSize > 2) {
-                $tmpRaw = @file_get_contents($this->tmpPath);
-                if ($tmpRaw) {
-                    $tmpDecoded = @json_decode($tmpRaw, true);
-                    if (is_array($tmpDecoded)) {
-                        $docs = $tmpDecoded;
-                        $hasTmp = true;
-                        $tmpFresh = true;
-                    }
+        $results = [];
+        $chunks = array_chunk($requests, 25, true);
+
+        foreach ($chunks as $chunk) {
+            $mh = curl_multi_init();
+            $handles = [];
+
+            foreach ($chunk as $idx => $req) {
+                $ch = curl_init($baseUrl . ltrim($req['path'], '/'));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($req['payload']));
+                curl_setopt($ch, CURLOPT_TIMEOUT, 25);
+                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+                curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+                if (file_exists(__DIR__ . '/cacert.pem')) {
+                    curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
                 }
-            } elseif ($tmpSize > 2) {
-                $tmpRaw = @file_get_contents($this->tmpPath);
-                if ($tmpRaw) {
-                    $tmpDecoded = @json_decode($tmpRaw, true);
-                    if (is_array($tmpDecoded)) {
-                        $docs = $tmpDecoded;
-                        $hasTmp = true;
-                    }
+                curl_multi_add_handle($mh, $ch);
+                $handles[$idx] = $ch;
+            }
+
+            $active = null;
+            do {
+                $status = curl_multi_exec($mh, $active);
+                if ($active) {
+                    curl_multi_select($mh, 0.05);
                 }
-            }
-        }
+            } while ($active && $status == CURLM_OK);
 
-        // 2. Read base local file if /tmp not found
-        if (!$hasTmp && file_exists($this->filePath)) {
-            $raw = @file_get_contents($this->filePath);
-            if ($raw) {
-                $decoded = @json_decode($raw, true);
-                if (is_array($decoded)) {
-                    $docs = $decoded;
-                }
-            }
-        }
+            foreach ($handles as $idx => $ch) {
+                $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $body = curl_multi_getcontent($ch);
+                curl_multi_remove_handle($mh, $ch);
+                curl_close($ch);
 
-        // 3. High-speed batch sync from Supabase if cache is not fresh
-        if (!$tmpFresh && empty(self::$supabaseFetched[$this->name])) {
-            self::syncAllFromSupabase();
-            if (isset(self::$memoryCache[$this->name]) && !empty(self::$memoryCache[$this->name])) {
-                return self::$memoryCache[$this->name];
-            }
-
-            self::$supabaseFetched[$this->name] = true;
-            $cloudDocs = $this->fetchFromSupabase();
-            if (!empty($cloudDocs)) {
-                $indexed = [];
-                foreach ($cloudDocs as $cd) {
-                    $cId = (string)($cd['_id'] ?? ($cd['id'] ?? ''));
-                    if (!empty($cId)) {
-                        $indexed[$cId] = $cd;
-                    } else {
-                        $indexed[] = $cd;
-                    }
-                }
-                $docs = array_values($indexed);
-                @file_put_contents($this->tmpPath, json_encode($docs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-            } elseif (file_exists($this->tmpPath)) {
-                // Keep tmp fresh so subsequent calls in warm container don't repeatedly block on empty/failed responses
-                @touch($this->tmpPath);
-            } elseif (!empty($docs)) {
-                @file_put_contents($this->tmpPath, json_encode($docs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-            }
-        }
-
-        self::$memoryCache[$this->name] = $docs;
-        return $docs;
-    }
-
-    private function writeDocuments(array $docs, ?array $specificDoc = null): bool {
-        self::$memoryCache[$this->name] = $docs;
-        $raw = json_encode($docs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        // 1. Try local repository file
-        $savedLocal = @file_put_contents($this->filePath, $raw, LOCK_EX) !== false;
-        if ($savedLocal) {
-            self::$fileMtimes[$this->name] = @filemtime($this->filePath);
-        }
-
-        // 2. Always persist to /tmp so serverless instances retain state immediately
-        $savedTmp = @file_put_contents($this->tmpPath, $raw, LOCK_EX) !== false;
-
-        // 3. Immediately sync to Supabase Cloud
-        if ($specificDoc !== null) {
-            $this->syncSingleDocToSupabase($specificDoc);
-        } else {
-            $this->syncToSupabaseBatch($docs);
-        }
-
-        return $savedLocal || $savedTmp;
-    }
-
-    public function syncSingleDocToSupabase(array $doc): void {
-        $supabase = self::getSupabaseCredentials();
-        if (empty($supabase['url']) || empty($supabase['key']) || empty($doc)) {
-            return;
-        }
-        $docId = (string)($doc['_id'] ?? ($doc['id'] ?? ''));
-        if (empty($docId)) return;
-
-        try {
-            $payload = [
-                'collection' => $this->name,
-                'id' => $docId,
-                'data' => $doc,
-                'updated_at' => date('c')
-            ];
-
-            $ch = curl_init($supabase['url'] . '/rest/v1/mentry_documents?on_conflict=collection,id');
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'apikey: ' . $supabase['key'],
-                'Authorization: Bearer ' . $supabase['key'],
-                'Content-Type: application/json',
-                'Prefer: resolution=merge-duplicates,return=minimal'
-            ]);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-            curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-            if (file_exists(__DIR__ . '/cacert.pem')) {
-                curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
-            }
-            @curl_exec($ch);
-            @curl_close($ch);
-        } catch (\Throwable $e) {
-            // Non-blocking fail-safe
-        }
-    }
-
-    private function syncToSupabaseBatch(array $docs): void {
-        $supabase = self::getSupabaseCredentials();
-        if (empty($supabase['url']) || empty($supabase['key']) || empty($docs)) {
-            return;
-        }
-
-        try {
-            $payload = [];
-            foreach ($docs as $doc) {
-                $docId = (string)($doc['_id'] ?? ($doc['id'] ?? ''));
-                if (empty($docId)) continue;
-                $payload[] = [
-                    'collection' => $this->name,
-                    'id' => $docId,
-                    'data' => $doc,
-                    'updated_at' => date('c')
+                $data = json_decode($body, true);
+                $results[$idx] = [
+                    'code' => $code,
+                    'data' => is_array($data) ? $data : []
                 ];
             }
-            if (empty($payload)) return;
 
-            $ch = curl_init($supabase['url'] . '/rest/v1/mentry_documents?on_conflict=collection,id');
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'apikey: ' . $supabase['key'],
-                'Authorization: Bearer ' . $supabase['key'],
-                'Content-Type: application/json',
-                'Prefer: resolution=merge-duplicates,return=minimal'
-            ]);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-            curl_setopt($ch, CURLOPT_TCP_NODELAY, 1);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-            if (file_exists(__DIR__ . '/cacert.pem')) {
-                curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
-            }
-            @curl_exec($ch);
-            @curl_close($ch);
-        } catch (\Throwable $e) {
-            // Non-blocking fail-safe
-        }
-    }
-
-    private function deleteFromSupabase(string $docId): void {
-        $supabase = self::getSupabaseCredentials();
-        if (empty($supabase['url']) || empty($supabase['key']) || empty($docId)) return;
-        try {
-            $ch = curl_init($supabase['url'] . '/rest/v1/mentry_documents?collection=eq.' . urlencode($this->name) . '&id=eq.' . urlencode($docId));
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'apikey: ' . $supabase['key'],
-                'Authorization: Bearer ' . $supabase['key']
-            ]);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-            if (file_exists(__DIR__ . '/cacert.pem')) {
-                curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/cacert.pem');
-            }
-            @curl_exec($ch);
-            @curl_close($ch);
-        } catch (\Throwable $e) {}
-    }
-
-    private function matchesDoc(array $doc, array $filter): bool {
-        if (empty($filter)) {
-            return true;
+            curl_multi_close($mh);
         }
 
-        foreach ($filter as $key => $expected) {
-            if ($key === '$or' && is_array($expected)) {
-                $anyMatch = false;
-                foreach ($expected as $orCondition) {
-                    if ($this->matchesDoc($doc, $orCondition)) {
-                        $anyMatch = true;
-                        break;
-                    }
-                }
-                if (!$anyMatch) return false;
-                continue;
-            }
+        return $results;
+    }
 
-            if ($key === '$and' && is_array($expected)) {
-                foreach ($expected as $andCondition) {
-                    if (!$this->matchesDoc($doc, $andCondition)) {
-                        return false;
-                    }
-                }
-                continue;
-            }
-
-            $val = null;
-            if (strpos($key, '.') !== false) {
-                $parts = explode('.', $key);
-                $curr = $doc;
-                $found = true;
-                foreach ($parts as $p) {
-                    if (is_array($curr) && array_key_exists($p, $curr)) {
-                        $curr = $curr[$p];
-                    } else {
-                        $found = false;
-                        break;
-                    }
-                }
-                if ($found) {
-                    $val = $curr;
-                }
-            } else {
-                $val = $doc[$key] ?? null;
-            }
-
-            // Handle _id equality (support ObjectId, string, object)
+    /**
+     * Translates MongoDB query filters to PostgREST query parameters.
+     */
+    public static function buildFilterParams(string $collection, array $filter): array {
+        $params = ['collection' => 'eq.' . $collection];
+        
+        foreach ($filter as $key => $val) {
             if ($key === '_id' || $key === 'id') {
-                $docIdStr = is_array($val) ? ($val['$oid'] ?? '') : (string)$val;
-                $expIdStr = is_object($expected) ? (string)$expected : (is_array($expected) ? ($expected['$oid'] ?? '') : (string)$expected);
-                if (is_array($expected) && isset($expected['$in'])) {
-                    $inList = array_map(function($item) { return (string)$item; }, (array)$expected['$in']);
-                    if (!in_array($docIdStr, $inList, true)) return false;
-                    continue;
-                }
-                if ($docIdStr !== $expIdStr && (string)($doc['_id'] ?? '') !== $expIdStr && (string)($doc['id'] ?? '') !== $expIdStr) {
-                    return false;
-                }
-                continue;
-            }
-
-            // Operator conditions
-            if (is_array($expected)) {
-                if (isset($expected['$exists'])) {
-                    $exists = array_key_exists($key, $doc);
-                    if ($exists !== (bool)$expected['$exists']) return false;
-                    continue;
-                }
-                if (isset($expected['$in']) && is_array($expected['$in'])) {
-                    if (!in_array($val, $expected['$in'])) return false;
-                    continue;
-                }
-                if (isset($expected['$nin']) && is_array($expected['$nin'])) {
-                    if (in_array($val, $expected['$nin'])) return false;
-                    continue;
-                }
-                if (isset($expected['$ne'])) {
-                    if ($val == $expected['$ne']) return false;
-                    continue;
-                }
-                if (isset($expected['$gt'])) {
-                    if ($val <= $expected['$gt']) return false;
-                    continue;
-                }
-                if (isset($expected['$gte'])) {
-                    if ($val < $expected['$gte']) return false;
-                    continue;
-                }
-                if (isset($expected['$lt'])) {
-                    if ($val >= $expected['$lt']) return false;
-                    continue;
-                }
-                if (isset($expected['$lte'])) {
-                    if ($val > $expected['$lte']) return false;
-                    continue;
-                }
-            }
-
-            // Regex match
-            if (is_object($expected) && (get_class($expected) === 'MongoDB\BSON\Regex' || method_exists($expected, 'getPattern'))) {
-                $pattern = $expected->getPattern();
-                $flags = $expected->getFlags();
-                $regex = '/' . $pattern . '/' . (strpos($flags, 'i') !== false ? 'i' : '');
-                $strVal = is_array($val) ? json_encode($val) : (string)$val;
-                if (!@preg_match($regex, $strVal)) {
-                    return false;
+                if (is_array($val)) {
+                    if (isset($val['$in']) && is_array($val['$in'])) {
+                        $ids = array_map(function($v) {
+                            return is_object($v) ? (string)$v : (is_array($v) ? ($v['$oid'] ?? '') : (string)$v);
+                        }, $val['$in']);
+                        $params['id'] = 'in.(' . implode(',', $ids) . ')';
+                    } elseif (isset($val['$gt'])) {
+                        $params['id'] = 'gt.' . (string)$val['$gt'];
+                    } elseif (isset($val['$gte'])) {
+                        $params['id'] = 'gte.' . (string)$val['$gte'];
+                    } elseif (isset($val['$lt'])) {
+                        $params['id'] = 'lt.' . (string)$val['$lt'];
+                    } elseif (isset($val['$lte'])) {
+                        $params['id'] = 'lte.' . (string)$val['$lte'];
+                    } elseif (isset($val['$ne'])) {
+                        $params['id'] = 'neq.' . (string)$val['$ne'];
+                    }
+                } else {
+                    $idStr = is_object($val) ? (string)$val : (is_array($val) ? ($val['$oid'] ?? '') : (string)$val);
+                    $params['id'] = 'eq.' . $idStr;
                 }
                 continue;
             }
 
-            // Direct equality
-            if (is_string($expected) && is_string($val)) {
-                if ($expected !== $val) return false;
-            } elseif ($expected != $val) {
-                return false;
+            if ($key === '$or' && is_array($val)) {
+                $orParts = [];
+                foreach ($val as $cond) {
+                    if (is_array($cond)) {
+                        foreach ($cond as $ck => $cv) {
+                            $part = self::buildConditionString($ck, $cv);
+                            if ($part !== null) {
+                                $orParts[] = $part;
+                            }
+                        }
+                    }
+                }
+                if (!empty($orParts)) {
+                    $params['or'] = '(' . implode(',', $orParts) . ')';
+                }
+                continue;
+            }
+
+            if ($key === '$and' && is_array($val)) {
+                $andParts = [];
+                foreach ($val as $cond) {
+                    if (is_array($cond)) {
+                        foreach ($cond as $ck => $cv) {
+                            if ($ck === '$or' && is_array($cv)) {
+                                $subOr = [];
+                                foreach ($cv as $orCond) {
+                                    foreach ($orCond as $ock => $ocv) {
+                                        $p = self::buildConditionString($ock, $ocv);
+                                        if ($p) $subOr[] = $p;
+                                    }
+                                }
+                                if (!empty($subOr)) {
+                                    $andParts[] = 'or(' . implode(',', $subOr) . ')';
+                                }
+                            } else {
+                                $p = self::buildConditionString($ck, $cv);
+                                if ($p) $andParts[] = $p;
+                            }
+                        }
+                    }
+                }
+                if (!empty($andParts)) {
+                    $params['and'] = '(' . implode(',', $andParts) . ')';
+                }
+                continue;
+            }
+
+            // Normal JSONB field condition
+            $targetCol = (strpos($key, 'data->') === 0) ? $key : ('data->>' . $key);
+            if (is_null($val)) {
+                $params[$targetCol] = 'is.null';
+            } elseif (is_bool($val)) {
+                $params[$targetCol] = $val ? 'eq.true' : 'eq.false';
+            } elseif (is_scalar($val)) {
+                $params[$targetCol] = 'eq.' . (string)$val;
+            } elseif (is_object($val) && method_exists($val, 'getPattern')) {
+                $params[$targetCol] = 'ilike.*' . $val->getPattern() . '*';
+            } elseif (is_array($val)) {
+                if (isset($val['$in']) && is_array($val['$in'])) {
+                    $strVals = array_map(function($v) {
+                        return is_object($v) ? (string)$v : (string)$v;
+                    }, $val['$in']);
+                    $params[$targetCol] = 'in.(' . implode(',', $strVals) . ')';
+                } elseif (isset($val['$nin']) && is_array($val['$nin'])) {
+                    $strVals = array_map('strval', $val['$nin']);
+                    $params[$targetCol] = 'not.in.(' . implode(',', $strVals) . ')';
+                } elseif (isset($val['$ne'])) {
+                    $params[$targetCol] = 'neq.' . (string)$val['$ne'];
+                } elseif (isset($val['$gt'])) {
+                    $params[$targetCol] = 'gt.' . (string)$val['$gt'];
+                } elseif (isset($val['$gte'])) {
+                    $params[$targetCol] = 'gte.' . (string)$val['$gte'];
+                } elseif (isset($val['$lt'])) {
+                    $params[$targetCol] = 'lt.' . (string)$val['$lt'];
+                } elseif (isset($val['$lte'])) {
+                    $params[$targetCol] = 'lte.' . (string)$val['$lte'];
+                } elseif (isset($val['$exists'])) {
+                    $params[$targetCol] = $val['$exists'] ? 'not.is.null' : 'is.null';
+                }
             }
         }
 
-        return true;
+        return $params;
+    }
+
+    private static function buildConditionString(string $key, $val): ?string {
+        if ($key === '_id' || $key === 'id') {
+            if (is_array($val)) {
+                if (isset($val['$in']) && is_array($val['$in'])) {
+                    $items = implode(',', array_map(function($v) {
+                        return is_object($v) ? (string)$v : (string)$v;
+                    }, $val['$in']));
+                    return "id.in.({$items})";
+                }
+                if (isset($val['$gt'])) return "id.gt.{$val['$gt']}";
+                if (isset($val['$gte'])) return "id.gte.{$val['$gte']}";
+                if (isset($val['$lt'])) return "id.lt.{$val['$lt']}";
+                if (isset($val['$lte'])) return "id.lte.{$val['$lte']}";
+                if (isset($val['$ne'])) return "id.neq.{$val['$ne']}";
+                return null;
+            }
+            $valStr = is_object($val) ? (string)$val : (string)$val;
+            return "id.eq.{$valStr}";
+        }
+
+        $prefix = (strpos($key, 'data->') === 0) ? $key : ('data->>' . $key);
+
+        if (is_null($val)) {
+            return "{$prefix}.is.null";
+        }
+        if (is_bool($val)) {
+            return $val ? "{$prefix}.eq.true" : "{$prefix}.eq.false";
+        }
+        if (is_scalar($val)) {
+            return "{$prefix}.eq.{$val}";
+        }
+        if (is_array($val)) {
+            if (isset($val['$exists'])) {
+                return $val['$exists'] ? "{$prefix}.not.is.null" : "{$prefix}.is.null";
+            }
+            if (isset($val['$in']) && is_array($val['$in'])) {
+                $items = implode(',', array_map('strval', $val['$in']));
+                return "{$prefix}.in.({$items})";
+            }
+            if (isset($val['$ne'])) {
+                return "{$prefix}.neq.{$val['$ne']}";
+            }
+        }
+        return null;
     }
 
     private function wrapBsonTypes(array $doc): array {
@@ -604,65 +488,104 @@ class PersistentDocumentStore {
         return $doc;
     }
 
+    /**
+     * Executes database-side filtered query via PostgREST.
+     * Only transfers matched rows from Supabase PostgreSQL.
+     * In Production: Fails closed. Never falls back to reading local JSON files.
+     */
     public function find(array $filter = [], array $options = []): SafeCursor {
-        $docs = $this->readDocuments();
-        $matched = [];
+        $params = self::buildFilterParams($this->name, $filter);
+        $params['select'] = 'id,data';
 
-        foreach ($docs as $doc) {
-            if ($this->matchesDoc($doc, $filter)) {
-                $matched[] = $this->wrapBsonTypes($doc);
-            }
-        }
-
-        // Sorting
+        // Database-side sorting
         if (!empty($options['sort']) && is_array($options['sort'])) {
+            $orderParts = [];
             foreach ($options['sort'] as $sortKey => $sortDir) {
-                usort($matched, function($a, $b) use ($sortKey, $sortDir) {
-                    $va = (string)($a[$sortKey] ?? '');
-                    $vb = (string)($b[$sortKey] ?? '');
-                    $cmp = strcmp($va, $vb);
-                    return $sortDir < 0 ? -$cmp : $cmp;
-                });
-                break;
+                $dir = ($sortDir < 0) ? 'desc' : 'asc';
+                if ($sortKey === '_id' || $sortKey === 'id') {
+                    $orderParts[] = "id.{$dir}";
+                } else {
+                    $orderParts[] = "data->>{$sortKey}.{$dir}";
+                }
+            }
+            if (!empty($orderParts)) {
+                $params['order'] = implode(',', $orderParts);
             }
         }
 
-        // Limit
+        // Database-side limit and skip
         if (!empty($options['limit']) && is_numeric($options['limit'])) {
-            $matched = array_slice($matched, 0, (int)$options['limit']);
+            $params['limit'] = (int)$options['limit'];
+        }
+        if (!empty($options['skip']) && is_numeric($options['skip'])) {
+            $params['offset'] = (int)$options['skip'];
         }
 
-        return new SafeCursor($matched, $matched);
+        $res = self::executePostgrest('GET', 'mentry_documents', $params);
+        if ($res['code'] >= 200 && $res['code'] < 300 && is_array($res['data'])) {
+            $docs = [];
+            foreach ($res['data'] as $row) {
+                if (isset($row['data']) && is_array($row['data'])) {
+                    $d = $row['data'];
+                    if (empty($d['_id']) && !empty($row['id'])) {
+                        $d['_id'] = $row['id'];
+                    }
+                    $docs[] = $this->wrapBsonTypes($d);
+                }
+            }
+            return new SafeCursor($docs, $docs);
+        }
+
+        // FAIL CLOSED: Database error occurred
+        $errMsg = "Database query failed for collection '{$this->name}' [HTTP {$res['code']}]: " . ($res['error'] ?: substr((string)$res['body'], 0, 100));
+        if (function_exists('logAppError')) {
+            logAppError('db_find_failure', new DatabaseException($errMsg), ['collection' => $this->name, 'code' => $res['code']]);
+        }
+
+        // In Production: Never expose stale data from JSON files. Throw exception to fail closed.
+        if (!function_exists('isDevelopment') || !isDevelopment()) {
+            throw new DatabaseException("Database service temporarily unavailable. Please retry shortly.");
+        }
+
+        // Development-only warning fallback (strictly blocked in production)
+        error_log("DEV NOTICE: Database query failed, development environment active.");
+        return new SafeCursor([], []);
     }
 
+    /**
+     * Retrieves exactly 1 document with LIMIT 1 applied database-side.
+     */
     public function findOne(array $filter = [], array $options = []): ?array {
-        $cursor = $this->find($filter, array_merge($options, ['limit' => 1]));
+        $options['limit'] = 1;
+        $cursor = $this->find($filter, $options);
         $arr = $cursor->toArray();
-        if (empty($arr) && ($this->name === 'PasswordReset' || $this->name === 'User')) {
-            // Force fetch latest cloud records from Supabase on transactional collections
-            $cloudDocs = $this->fetchFromSupabase();
-            if (!empty($cloudDocs)) {
-                $indexed = [];
-                foreach ($this->readDocuments() as $d) {
-                    $id = (string)($d['_id'] ?? ($d['id'] ?? ''));
-                    if (!empty($id)) $indexed[$id] = $d;
-                }
-                foreach ($cloudDocs as $cd) {
-                    $cId = (string)($cd['_id'] ?? ($cd['id'] ?? ''));
-                    if (!empty($cId)) $indexed[$cId] = $cd;
-                }
-                $merged = array_values($indexed);
-                self::$memoryCache[$this->name] = $merged;
-                @file_put_contents($this->tmpPath, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-                $cursor = $this->find($filter, array_merge($options, ['limit' => 1]));
-                $arr = $cursor->toArray();
-            }
-        }
         return !empty($arr) ? $arr[0] : null;
     }
 
+    /**
+     * Executes database-side count query with 0 rows transferred over the network.
+     * In Production: Fails closed. Never calculates counts from stale JSON files or reports false 0.
+     */
     public function countDocuments(array $filter = []): int {
-        return count($this->find($filter)->toArray());
+        $params = self::buildFilterParams($this->name, $filter);
+        $params['limit'] = 0;
+        $res = self::executePostgrest('GET', 'mentry_documents', $params, null, ['Prefer: count=exact']);
+        
+        if ($res['code'] >= 200 && $res['code'] < 300 && $res['count'] !== null) {
+            return (int)$res['count'];
+        }
+
+        $errMsg = "Database count query failed for collection '{$this->name}' [HTTP {$res['code']}]: " . ($res['error'] ?: substr((string)$res['body'], 0, 100));
+        if (function_exists('logAppError')) {
+            logAppError('db_count_failure', new DatabaseException($errMsg), ['collection' => $this->name, 'code' => $res['code']]);
+        }
+
+        // Fail closed: Do NOT return a fake 0 or count local files
+        if (!function_exists('isDevelopment') || !isDevelopment()) {
+            throw new DatabaseException("Database count unavailable. Service temporarily unreachable.");
+        }
+
+        return 0;
     }
 
     public function count(array $filter = []): int {
@@ -670,12 +593,32 @@ class PersistentDocumentStore {
     }
 
     public function estimatedDocumentCount(): int {
-        return count($this->readDocuments());
+        $params = ['collection' => 'eq.' . $this->name, 'limit' => 0];
+        $res = self::executePostgrest('GET', 'mentry_documents', $params, null, ['Prefer: count=exact']);
+        
+        if ($res['code'] >= 200 && $res['code'] < 300 && $res['count'] !== null) {
+            return (int)$res['count'];
+        }
+
+        $errMsg = "Database estimated count failed for collection '{$this->name}' [HTTP {$res['code']}]: " . ($res['error'] ?: substr((string)$res['body'], 0, 100));
+        if (function_exists('logAppError')) {
+            logAppError('db_estimated_count_failure', new DatabaseException($errMsg), ['collection' => $this->name, 'code' => $res['code']]);
+        }
+
+        if (!function_exists('isDevelopment') || !isDevelopment()) {
+            throw new DatabaseException("Database statistics temporarily unavailable.");
+        }
+
+        return 0;
     }
 
+    /**
+     * Strict insertOne semantics.
+     * Inserts a single document. Does NOT merge or overwrite an existing document.
+     * Returns 201 on success (insertedCount = 1).
+     * Returns 409 Conflict if record already exists (insertedCount = 0, no overwrite).
+     */
     public function insertOne(array $doc) {
-        $docs = $this->readDocuments();
-        
         if (empty($doc['_id'])) {
             $idObj = new MongoDB\BSON\ObjectId();
             $doc['_id'] = (string)$idObj;
@@ -698,96 +641,295 @@ class PersistentDocumentStore {
         if (empty($doc['updatedAt'])) {
             $doc['updatedAt'] = (string)new MongoDB\BSON\UTCDateTime();
         }
+        if (!isset($doc['_version'])) {
+            $doc['_version'] = 1;
+        }
 
         $cleaned = $this->unwrapBsonTypes($doc);
-        $docs[] = $cleaned;
-        $this->writeDocuments($docs, $cleaned);
+        $docId = (string)$cleaned['_id'];
 
-        return new class($idObj) {
+        $payload = [
+            'collection' => $this->name,
+            'id' => $docId,
+            'data' => $cleaned,
+            'updated_at' => date('c')
+        ];
+
+        // Strict INSERT: NO on_conflict, NO merge-duplicates
+        $res = self::executePostgrest('POST', 'mentry_documents', [], $payload, [
+            'Prefer: return=representation'
+        ]);
+
+        $inserted = ($res['code'] === 201 || ($res['code'] >= 200 && $res['code'] < 300));
+        $isDuplicate = ($res['code'] === 409);
+
+        if (!$inserted && !$isDuplicate) {
+            $errMsg = "Database insert failed for collection '{$this->name}' ID '{$docId}' [HTTP {$res['code']}]: " . ($res['error'] ?: substr((string)$res['body'], 0, 100));
+            if (function_exists('logAppError')) {
+                logAppError('supabase_insert_failed', new DatabaseException($errMsg), [
+                    'collection' => $this->name,
+                    'id' => $docId,
+                    'code' => $res['code']
+                ]);
+            }
+            if ($res['code'] === 0 || $res['code'] >= 500) {
+                throw new DatabaseException("Database unavailable while saving record.");
+            }
+        }
+
+        return new class($idObj, $inserted, $isDuplicate) {
             private $id;
-            public function __construct($id) { $this->id = $id; }
-            public function getInsertedId() { return $this->id; }
-            public function getInsertedCount() { return 1; }
+            private bool $inserted;
+            private bool $duplicate;
+            public function __construct($id, bool $inserted, bool $duplicate) {
+                $this->id = $id;
+                $this->inserted = $inserted;
+                $this->duplicate = $duplicate;
+            }
+            public function getInsertedId() { return $this->inserted ? $this->id : null; }
+            public function getInsertedCount() { return $this->inserted ? 1 : 0; }
+            public function isAcknowledged() { return $this->inserted; }
+            public function isDuplicate() { return $this->duplicate; }
         };
     }
 
+    /**
+     * Updates a single document with Optimistic Concurrency Control (OCC) and lost-update defense.
+     * If document is concurrently modified by another process, retries with fresh state.
+     * Prevents silent lost updates across distributed/serverless instances.
+     */
     public function updateOne(array $filter, array $update, array $options = []) {
-        $docs = $this->readDocuments();
-        $modified = 0;
-        $matched = 0;
-        $updatedDoc = null;
+        $maxAttempts = $options['maxAttempts'] ?? 50;
 
-        foreach ($docs as $i => $doc) {
-            if ($this->matchesDoc($doc, $filter)) {
-                $matched++;
-                if (isset($update['$set']) && is_array($update['$set'])) {
-                    foreach ($update['$set'] as $k => $v) {
-                        $docs[$i][$k] = ($v instanceof MongoDB\BSON\ObjectId || $v instanceof MongoDB\BSON\UTCDateTime || is_object($v)) ? (string)$v : $v;
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            $existing = $this->findOne($filter);
+            if (!$existing) {
+                if (!empty($options['upsert'])) {
+                    $newDoc = $filter;
+                    if (isset($update['$set'])) {
+                        $newDoc = array_merge($newDoc, $update['$set']);
                     }
-                    $docs[$i]['updatedAt'] = (string)new MongoDB\BSON\UTCDateTime();
-                    $modified++;
-                }
-                if (isset($update['$inc']) && is_array($update['$inc'])) {
-                    foreach ($update['$inc'] as $k => $v) {
-                        $docs[$i][$k] = ($docs[$i][$k] ?? 0) + $v;
+                    if (isset($update['$inc'])) {
+                        foreach ($update['$inc'] as $k => $v) {
+                            $newDoc[$k] = $v;
+                        }
                     }
-                    $modified++;
+                    $insRes = $this->insertOne($newDoc);
+                    return new class($insRes->getInsertedCount(), 1) {
+                        private $m; private $mat;
+                        public function __construct($m, $mat) { $this->m = $m; $this->mat = $mat; }
+                        public function getModifiedCount() { return $this->m; }
+                        public function getMatchedCount() { return $this->mat; }
+                        public function getUpsertedId() { return null; }
+                    };
                 }
-                if (isset($update['$unset']) && is_array($update['$unset'])) {
-                    foreach ($update['$unset'] as $k => $v) {
-                        unset($docs[$i][$k]);
-                    }
-                    $modified++;
-                }
-                $updatedDoc = $docs[$i];
-                break;
+                return new class(0, 0) {
+                    public function getModifiedCount() { return 0; }
+                    public function getMatchedCount() { return 0; }
+                    public function getUpsertedId() { return null; }
+                };
             }
+
+            $unwrapped = $this->unwrapBsonTypes($existing);
+            $docId = (string)($unwrapped['_id'] ?? ($unwrapped['id'] ?? ''));
+            if (empty($docId)) {
+                return new class(0, 1) {
+                    public function getModifiedCount() { return 0; }
+                    public function getMatchedCount() { return 1; }
+                    public function getUpsertedId() { return null; }
+                };
+            }
+
+            $currVersion = (int)($unwrapped['_version'] ?? 0);
+            $nextVersion = $currVersion + 1;
+
+            if (isset($update['$set']) && is_array($update['$set'])) {
+                foreach ($update['$set'] as $k => $v) {
+                    $unwrapped[$k] = (is_object($v) && method_exists($v, '__toString')) ? (string)$v : $v;
+                }
+            }
+            if (isset($update['$inc']) && is_array($update['$inc'])) {
+                foreach ($update['$inc'] as $k => $v) {
+                    $unwrapped[$k] = ($unwrapped[$k] ?? 0) + $v;
+                }
+            }
+            if (isset($update['$unset']) && is_array($update['$unset'])) {
+                foreach ($update['$unset'] as $k => $v) {
+                    unset($unwrapped[$k]);
+                }
+            }
+            $unwrapped['_version'] = $nextVersion;
+            $unwrapped['updatedAt'] = (string)new MongoDB\BSON\UTCDateTime();
+
+            // Optimistic condition: only update if document version matches what we read
+            $occParam = ($currVersion > 0)
+                ? ('data->>_version=eq.' . $currVersion)
+                : 'or=(data->>_version.is.null,data->>_version.eq.0)';
+
+            // For $inc operations: also condition on exact previous field value for strict serializability
+            if (isset($update['$inc']) && is_array($update['$inc'])) {
+                foreach ($update['$inc'] as $incField => $incVal) {
+                    $currFieldVal = $existing[$incField] ?? 0;
+                    $occParam .= '&data->>' . $incField . '=eq.' . $currFieldVal;
+                }
+            }
+
+            $patchUrl = 'mentry_documents?collection=eq.' . urlencode($this->name) . '&id=eq.' . urlencode($docId) . '&' . $occParam;
+            $payload = [
+                'data' => $unwrapped,
+                'updated_at' => date('c')
+            ];
+
+            $res = self::executePostgrest('PATCH', $patchUrl, [], $payload, [
+                'Prefer: return=representation'
+            ]);
+
+            if ($res['code'] >= 200 && $res['code'] < 300) {
+                $rows = is_array($res['data']) ? $res['data'] : [];
+                if (count($rows) === 1) {
+                    // Update committed atomically without collision
+                    return new class(1, 1) {
+                        public function getModifiedCount() { return 1; }
+                        public function getMatchedCount() { return 1; }
+                        public function getUpsertedId() { return null; }
+                    };
+                }
+            }
+
+            // Conflict detected: Another instance modified this record concurrently.
+            // Back off with full jitter and retry.
+            usleep(random_int(10000, 40000) + (min($attempt, 10) * 5000));
         }
 
-        if ($matched === 0 && !empty($options['upsert'])) {
-            $newDoc = $filter;
-            if (isset($update['$set'])) {
-                $newDoc = array_merge($newDoc, $update['$set']);
-            }
-            $this->insertOne($newDoc);
-            $modified = 1;
-            $matched = 1;
-        } elseif ($modified > 0) {
-            $this->writeDocuments($docs, $updatedDoc);
+        // Exhausted retries without acquiring clean version
+        if (function_exists('logAppError')) {
+            logAppError('update_occ_conflict_limit', new DatabaseException("Failed to commit updateOne on '{$this->name}' ID '{$docId}' after {$maxAttempts} OCC attempts"), ['collection' => $this->name, 'id' => $docId]);
         }
 
-        return new class($modified, $matched) {
-            private $m; private $mat;
-            public function __construct($m, $mat) { $this->m = $m; $this->mat = $mat; }
-            public function getModifiedCount() { return $this->m; }
-            public function getMatchedCount() { return $this->mat; }
+        return new class(0, 1) {
+            public function getModifiedCount() { return 0; }
+            public function getMatchedCount() { return 1; }
             public function getUpsertedId() { return null; }
         };
     }
 
+    /**
+     * Updates all matching documents using bounded keyset-paginated batches.
+     * Keeps memory bounded (max 100 rows per batch) while updating 100% of matching records.
+     * Uses stable id-ordered keyset pagination (WHERE id > lastId ORDER BY id ASC LIMIT 100)
+     * so that filter-changing and filter-preserving updates never skip records.
+     */
     public function updateMany(array $filter, array $update, array $options = []) {
-        $docs = $this->readDocuments();
-        $modified = 0;
-        $matched = 0;
+        $batchSize = $options['batchSize'] ?? 100;
+        $totalMatched = 0;
+        $totalModified = 0;
+        $lastId = null;
 
-        foreach ($docs as $i => $doc) {
-            if ($this->matchesDoc($doc, $filter)) {
-                $matched++;
+        while (true) {
+            $batchFilter = $filter;
+            if ($lastId !== null) {
+                if (isset($batchFilter['_id'])) {
+                    if (is_array($batchFilter['_id'])) {
+                        $batchFilter['_id']['$gt'] = $lastId;
+                    } else {
+                        break;
+                    }
+                } elseif (isset($batchFilter['id'])) {
+                    if (is_array($batchFilter['id'])) {
+                        $batchFilter['id']['$gt'] = $lastId;
+                    } else {
+                        break;
+                    }
+                } else {
+                    $batchFilter['_id'] = ['$gt' => $lastId];
+                }
+            }
+
+            $batchOptions = array_merge($options, [
+                'sort' => ['_id' => 1],
+                'limit' => $batchSize
+            ]);
+
+            $cursor = $this->find($batchFilter, $batchOptions);
+            $docs = $cursor->toArray();
+
+            if (empty($docs)) {
+                break;
+            }
+
+            $totalMatched += count($docs);
+            $patchRequests = [];
+            $docMap = [];
+
+            foreach ($docs as $idx => $d) {
+                $unwrapped = $this->unwrapBsonTypes($d);
+                $docId = (string)($unwrapped['_id'] ?? ($unwrapped['id'] ?? ''));
+                if (empty($docId)) continue;
+
+                $currVersion = (int)($unwrapped['_version'] ?? 0);
+                $nextVersion = $currVersion + 1;
+
                 if (isset($update['$set']) && is_array($update['$set'])) {
                     foreach ($update['$set'] as $k => $v) {
-                        $docs[$i][$k] = ($v instanceof MongoDB\BSON\ObjectId || $v instanceof MongoDB\BSON\UTCDateTime || is_object($v)) ? (string)$v : $v;
+                        $unwrapped[$k] = (is_object($v) && method_exists($v, '__toString')) ? (string)$v : $v;
                     }
-                    $docs[$i]['updatedAt'] = (string)new MongoDB\BSON\UTCDateTime();
-                    $modified++;
                 }
+                if (isset($update['$inc']) && is_array($update['$inc'])) {
+                    foreach ($update['$inc'] as $k => $v) {
+                        $unwrapped[$k] = ($unwrapped[$k] ?? 0) + $v;
+                    }
+                }
+                if (isset($update['$unset']) && is_array($update['$unset'])) {
+                    foreach ($update['$unset'] as $k => $v) {
+                        unset($unwrapped[$k]);
+                    }
+                }
+                $unwrapped['_version'] = $nextVersion;
+                $unwrapped['updatedAt'] = (string)new MongoDB\BSON\UTCDateTime();
+
+                $occParam = ($currVersion > 0)
+                    ? ('data->>_version=eq.' . $currVersion)
+                    : 'or=(data->>_version.is.null,data->>_version.eq.0)';
+
+                if (isset($update['$inc']) && is_array($update['$inc'])) {
+                    foreach ($update['$inc'] as $incField => $incVal) {
+                        $currFieldVal = $d[$incField] ?? 0;
+                        $occParam .= '&data->>' . $incField . '=eq.' . $currFieldVal;
+                    }
+                }
+
+                $patchUrl = 'mentry_documents?collection=eq.' . urlencode($this->name) . '&id=eq.' . urlencode($docId) . '&' . $occParam;
+                $patchRequests[$idx] = [
+                    'path' => $patchUrl,
+                    'payload' => [
+                        'data' => $unwrapped,
+                        'updated_at' => date('c')
+                    ]
+                ];
+                $docMap[$idx] = $docId;
+                $lastId = $docId;
+            }
+
+            // Dispatch batch patches in parallel
+            $patchResults = self::executeMultiPatch($patchRequests);
+
+            foreach ($patchResults as $idx => $res) {
+                $docId = $docMap[$idx];
+                if ($res['code'] >= 200 && $res['code'] < 300 && count($res['data']) === 1) {
+                    $totalModified++;
+                } else {
+                    // Conflict fallback: retry via updateOne
+                    $r = $this->updateOne(['_id' => $docId], $update, $options);
+                    $totalModified += $r->getModifiedCount();
+                }
+            }
+
+            if (count($docs) < $batchSize) {
+                break;
             }
         }
 
-        if ($modified > 0) {
-            $this->writeDocuments($docs);
-        }
-
-        return new class($modified, $matched) {
+        return new class($totalModified, $totalMatched) {
             private $m; private $mat;
             public function __construct($m, $mat) { $this->m = $m; $this->mat = $mat; }
             public function getModifiedCount() { return $this->m; }
@@ -795,26 +937,32 @@ class PersistentDocumentStore {
         };
     }
 
+    /**
+     * Deletes a single document directly from Supabase PostgreSQL.
+     */
     public function deleteOne(array $filter) {
-        $docs = $this->readDocuments();
-        $deleted = 0;
-
-        foreach ($docs as $i => $doc) {
-            if ($this->matchesDoc($doc, $filter)) {
-                $docId = (string)($doc['_id'] ?? ($doc['id'] ?? ''));
-                array_splice($docs, $i, 1);
-                $deleted = 1;
-                if (!empty($docId)) {
-                    $this->deleteFromSupabase($docId);
-                }
-                break;
-            }
+        $existing = $this->findOne($filter);
+        if (!$existing) {
+            return new class(0) {
+                private $d;
+                public function __construct($d) { $this->d = $d; }
+                public function getDeletedCount() { return $this->d; }
+            };
         }
 
-        if ($deleted > 0) {
-            $this->writeDocuments($docs);
+        $docId = (string)($existing['_id'] ?? ($existing['id'] ?? ''));
+        if (empty($docId)) {
+            return new class(0) {
+                public function getDeletedCount() { return 0; }
+            };
         }
 
+        $res = self::executePostgrest('DELETE', 'mentry_documents', [
+            'collection' => 'eq.' . $this->name,
+            'id' => 'eq.' . $docId
+        ]);
+
+        $deleted = ($res['code'] >= 200 && $res['code'] < 300) ? 1 : 0;
         return new class($deleted) {
             private $d;
             public function __construct($d) { $this->d = $d; }
@@ -822,28 +970,17 @@ class PersistentDocumentStore {
         };
     }
 
+    /**
+     * Direct database-side bulk DELETE. Zero documents loaded into PHP memory.
+     */
     public function deleteMany(array $filter) {
-        $docs = $this->readDocuments();
-        $remaining = [];
-        $deleted = 0;
+        $params = self::buildFilterParams($this->name, $filter);
+        $res = self::executePostgrest('DELETE', 'mentry_documents', $params, null, [
+            'Prefer: return=representation'
+        ]);
 
-        foreach ($docs as $doc) {
-            if ($this->matchesDoc($doc, $filter)) {
-                $docId = (string)($doc['_id'] ?? ($doc['id'] ?? ''));
-                $deleted++;
-                if (!empty($docId)) {
-                    $this->deleteFromSupabase($docId);
-                }
-            } else {
-                $remaining[] = $doc;
-            }
-        }
-
-        if ($deleted > 0) {
-            $this->writeDocuments($remaining);
-        }
-
-        return new class($deleted) {
+        $deletedCount = (is_array($res['data'])) ? count($res['data']) : (($res['code'] >= 200 && $res['code'] < 300) ? 1 : 0);
+        return new class($deletedCount) {
             private $d;
             public function __construct($d) { $this->d = $d; }
             public function getDeletedCount() { return $this->d; }
@@ -851,16 +988,26 @@ class PersistentDocumentStore {
     }
 
     public function aggregate(array $pipeline): SafeCursor {
-        $docs = $this->readDocuments();
-        $result = $docs;
+        $firstMatch = [];
+        if (!empty($pipeline) && isset($pipeline[0]['$match']) && is_array($pipeline[0]['$match'])) {
+            $firstMatch = $pipeline[0]['$match'];
+            array_shift($pipeline);
+        }
+
+        $result = $this->find($firstMatch)->toArray();
 
         foreach ($pipeline as $stage) {
             if (isset($stage['$match'])) {
                 $filtered = [];
                 foreach ($result as $doc) {
-                    if ($this->matchesDoc($doc, $stage['$match'])) {
-                        $filtered[] = $doc;
+                    $matched = true;
+                    foreach ($stage['$match'] as $k => $v) {
+                        if (($doc[$k] ?? null) != $v) {
+                            $matched = false;
+                            break;
+                        }
                     }
+                    if ($matched) $filtered[] = $doc;
                 }
                 $result = $filtered;
             } elseif (isset($stage['$group'])) {
@@ -919,10 +1066,10 @@ class PersistentDocumentStore {
     }
 
     public function distinct(string $field, array $filter = []): array {
-        $docs = $this->readDocuments();
+        $docs = $this->find($filter)->toArray();
         $values = [];
         foreach ($docs as $doc) {
-            if ($this->matchesDoc($doc, $filter) && isset($doc[$field])) {
+            if (isset($doc[$field])) {
                 $val = $doc[$field];
                 $strVal = is_array($val) ? json_encode($val) : (string)$val;
                 $values[$strVal] = $val;
@@ -977,6 +1124,10 @@ class Database {
 
     public function getCollection(string $collectionName): SafeCollectionProxy {
         return new SafeCollectionProxy(null, $collectionName);
+    }
+
+    public function __get(string $name): SafeCollectionProxy {
+        return $this->selectCollection($name);
     }
 }
 

@@ -37,7 +37,7 @@ $navItems = [
     ['label' => 'College Intake', 'href' => '/admin/requirements.php', 'icon' => 'school'],
     ['label' => 'Team & Staff', 'href' => '/admin/staff.php', 'icon' => 'badge'],
     ['label' => 'Notification Logs', 'href' => '/admin/notifications.php', 'icon' => 'campaign'],
-    ['label' => 'Web Push Debugger', 'href' => '/admin/push-debugger.php', 'icon' => 'send_to_mobile'],
+    ['label' => 'Notification Diagnostics', 'href' => '/admin/push-debugger.php', 'icon' => 'health_and_safety'],
     ['label' => 'Downloads', 'href' => '/admin/downloads.php', 'icon' => 'download'],
     ['label' => 'Settings & Audit', 'href' => '/admin/settings.php', 'icon' => 'settings'],
 ];

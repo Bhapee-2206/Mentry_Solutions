@@ -31,8 +31,8 @@ if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVE
 }
 header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
 
-// Security: Block direct HTTP access to data, config, .env, includes, scripts, and scratch directories
-if (preg_match('#^(?:data|config|includes|scratch|scripts|\.env|\.git|composer\.(?:json|lock)|package(?:-lock)?\.json)(?:/|$)#i', $cleanUri)) {
+// Security: Block direct HTTP access to data, config, .env, includes, scripts, tests, and scratch directories
+if (preg_match('#^(?:data|config|includes|scratch|scripts|tests|\.env|\.git|composer\.(?:json|lock)|package(?:-lock)?\.json)(?:/|$)#i', $cleanUri)) {
     http_response_code(403);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['success' => false, 'error' => 'Forbidden']);

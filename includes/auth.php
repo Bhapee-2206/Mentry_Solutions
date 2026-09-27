@@ -66,6 +66,8 @@ function setPersistentSessionCookie(array $userData, $rememberDays = 30) {
         'avatar' => $userData['avatar'] ?? '',
         'trainerCode' => $userData['trainerCode'] ?? '',
         'mentryId' => $userData['mentryId'] ?? '',
+        'tokenVersion' => (int)($userData['tokenVersion'] ?? 1),
+        'passwordChangedAt' => $userData['passwordChangedAt'] ?? null,
         'issued_at' => time()
     ];
     $json = json_encode($payload);
@@ -151,19 +153,37 @@ function restoreSessionFromCookie() {
         }
     }
 
-    if ($dbUser) {
-        if (!empty($dbUser['isSuspended']) || ($dbUser['status'] ?? '') === 'SUSPENDED') {
+    // Security: Re-verify account existence, status, password freshness, and role from database
+    if (!$dbUser) {
+        clearPersistentSessionCookie();
+        return null;
+    }
+
+    if (!empty($dbUser['isSuspended']) || ($dbUser['status'] ?? '') === 'SUSPENDED') {
+        clearPersistentSessionCookie();
+        return null;
+    }
+
+    // Invalidate if password was changed after token issuance
+    if (!empty($dbUser['passwordChangedAt'])) {
+        $pwChangedTs = is_numeric($dbUser['passwordChangedAt']) ? (int)$dbUser['passwordChangedAt'] : strtotime($dbUser['passwordChangedAt']);
+        if (!empty($data['issued_at']) && $data['issued_at'] < $pwChangedTs) {
             clearPersistentSessionCookie();
             return null;
         }
-        $effectiveRole = $dbUser['role'] ?? ($data['role'] ?? 'TRAINER');
-        $effectiveName = $dbUser['name'] ?? ($data['name'] ?? 'User');
-        $effectiveEmail = $dbUser['email'] ?? ($data['email'] ?? '');
-    } else {
-        $effectiveRole = $data['role'] ?? 'TRAINER';
-        $effectiveName = $data['name'] ?? 'User';
-        $effectiveEmail = $data['email'] ?? '';
     }
+
+    // Invalidate if session tokenVersion was bumped (explicit revocation)
+    if (isset($dbUser['tokenVersion']) && isset($data['tokenVersion'])) {
+        if ((int)$data['tokenVersion'] < (int)$dbUser['tokenVersion']) {
+            clearPersistentSessionCookie();
+            return null;
+        }
+    }
+
+    $effectiveRole = $dbUser['role'] ?? ($data['role'] ?? 'TRAINER');
+    $effectiveName = $dbUser['name'] ?? ($data['name'] ?? 'User');
+    $effectiveEmail = $dbUser['email'] ?? ($data['email'] ?? '');
 
     $restoredAvatar = $data['avatar'] ?? '';
     if (empty($restoredAvatar) || strpos($restoredAvatar, 'ui-avatars.com') !== false || strpos($restoredAvatar, 'avatar.vercel.sh') !== false) {
@@ -280,6 +300,16 @@ function validateCsrfToken(?string $token = null): bool {
         ?? ($_POST['csrf_token'] 
         ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] 
         ?? ($_SERVER['HTTP_X_XSRF_TOKEN'] ?? '')));
+
+    if (empty($candidate)) {
+        $rawBody = @file_get_contents('php://input');
+        if (!empty($rawBody)) {
+            $parsedJson = @json_decode($rawBody, true);
+            if (is_array($parsedJson) && !empty($parsedJson['csrf_token'])) {
+                $candidate = trim((string)$parsedJson['csrf_token']);
+            }
+        }
+    }
 
     $candidate = is_string($candidate) ? trim($candidate) : '';
 
@@ -598,26 +628,104 @@ function requireAdminOrStaff() {
     }
 }
 
+function isTrainerOnly(): bool {
+    $user = getCurrentUser();
+    return !empty($user) && ($user['role'] === 'TRAINER');
+}
+
+function isSuperAdmin(): bool {
+    $user = getCurrentUser();
+    return !empty($user) && ($user['role'] === 'SUPER_ADMIN');
+}
+
+function requireTrainerOnly(): void {
+    sendAntiCacheHeaders();
+    checkMaintenanceGate();
+    $user = getCurrentUser();
+    if (!$user || empty($user['id'])) {
+        header("Location: /login.php?error=suspended");
+        exit();
+    }
+    
+    if ($user['role'] !== 'TRAINER') {
+        header("Location: /login.php?error=trainer_required");
+        exit();
+    }
+}
+
+function requireStaff(): void {
+    sendAntiCacheHeaders();
+    if (!isLoggedIn()) {
+        header("Location: /admin-login.php?redirect=" . urlencode($_SERVER['REQUEST_URI']));
+        exit();
+    }
+    
+    if (!isStaff()) {
+        header("Location: /admin-login.php?error=unauthorized");
+        exit();
+    }
+}
+
+function requireSuperAdmin(): void {
+    sendAntiCacheHeaders();
+    if (!isLoggedIn()) {
+        header("Location: /admin-login.php?redirect=" . urlencode($_SERVER['REQUEST_URI']));
+        exit();
+    }
+    
+    if (!isSuperAdmin()) {
+        header("Location: /admin-login.php?error=superadmin_required");
+        exit();
+    }
+}
+
 /**
- * Check if the given account/email is temporarily locked out due to excessive failed password attempts.
- * Max attempts: 5. Lockout duration: 15 minutes (900 seconds).
+ * Check if the given account/email and client IP are temporarily locked out.
+ * Combines IP-level rate limiting and account-level throttling to prevent intentional denial-of-service against third-party accounts.
  *
  * @param string $email User email address
  * @return array ['isLocked' => bool, 'minutesLeft' => int, 'secondsLeft' => int, 'attempts' => int, 'message' => string]
  */
 function checkLoginRateLimit($email) {
     $email = strtolower(trim($email));
-    if (empty($email)) {
-        return ['isLocked' => false, 'attempts' => 0, 'minutesLeft' => 0, 'secondsLeft' => 0, 'message' => ''];
-    }
+    $clientIp = cleanString($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1', 45);
+    $now = time();
 
     $lockCol = getCollection("LoginAttempt");
     if (!$lockCol) {
         return ['isLocked' => false, 'attempts' => 0, 'minutesLeft' => 0, 'secondsLeft' => 0, 'message' => ''];
     }
 
-    $now = time();
-    $record = $lockCol->findOne(['email' => $email]);
+    // 1. Check IP-wide throttling (prevents brute-force bot swarms from a single IP)
+    $ipRecord = $lockCol->findOne(['type' => 'IP_LOCK', 'ip' => $clientIp]);
+    if ($ipRecord && isset($ipRecord['lockedUntil'])) {
+        $lu = $ipRecord['lockedUntil'];
+        $lockedUntil = ($lu instanceof MongoDB\BSON\UTCDateTime) ? (int)round($lu->toDateTime()->getTimestamp()) : (int)$lu;
+        if ($now < $lockedUntil) {
+            $secondsLeft = $lockedUntil - $now;
+            $minutesLeft = max(1, (int)ceil($secondsLeft / 60));
+            return [
+                'isLocked' => true,
+                'attempts' => (int)($ipRecord['attempts'] ?? 15),
+                'minutesLeft' => $minutesLeft,
+                'secondsLeft' => $secondsLeft,
+                'message' => "Too many failed login attempts from this network. Access temporarily throttled for {$minutesLeft} minute" . ($minutesLeft > 1 ? 's' : '') . "."
+            ];
+        }
+    }
+
+    if (empty($email)) {
+        return ['isLocked' => false, 'attempts' => 0, 'minutesLeft' => 0, 'secondsLeft' => 0, 'message' => ''];
+    }
+
+    // 2. Check combo (email + IP) lock
+    $comboKey = md5($email . '|' . $clientIp);
+    $record = $lockCol->findOne(['comboKey' => $comboKey]);
+    if (!$record) {
+        // Fallback to legacy email-only record
+        $record = $lockCol->findOne(['email' => $email]);
+    }
+
     if (!$record) {
         return ['isLocked' => false, 'attempts' => 0, 'minutesLeft' => 0, 'secondsLeft' => 0, 'message' => ''];
     }
@@ -642,14 +750,14 @@ function checkLoginRateLimit($email) {
             'attempts' => (int)($record['attempts'] ?? 5),
             'minutesLeft' => $minutesLeft,
             'secondsLeft' => $secondsLeft,
-            'message' => "Account temporarily locked due to excessive failed attempts. Please try again in {$minutesLeft} minute" . ($minutesLeft > 1 ? 's' : '') . " or reset your password."
+            'message' => "Too many failed attempts from your device. Please try again in {$minutesLeft} minute" . ($minutesLeft > 1 ? 's' : '') . " or reset your password."
         ];
     }
 
     // If lockout has expired, reset attempt count
     if ($lockedUntil && $now >= $lockedUntil) {
         $lockCol->updateOne(
-            ['email' => $email],
+            ['_id' => $record['_id']],
             ['$set' => [
                 'attempts' => 0,
                 'lockedUntil' => null,
@@ -669,14 +777,16 @@ function checkLoginRateLimit($email) {
 }
 
 /**
- * Record a failed password attempt for an account/email.
- * Increments attempt count and locks for 15 minutes if 5 attempts reached.
+ * Record a failed password attempt for an account/email and client IP.
  *
  * @param string $email User email address
  * @return array ['isLocked' => bool, 'attempts' => int, 'remaining' => int, 'message' => string]
  */
 function recordFailedLoginAttempt($email) {
     $email = strtolower(trim($email));
+    $clientIp = cleanString($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1', 45);
+    $now = time();
+
     if (empty($email)) {
         return ['isLocked' => false, 'attempts' => 1, 'remaining' => 4, 'message' => 'Invalid password.'];
     }
@@ -684,9 +794,9 @@ function recordFailedLoginAttempt($email) {
     $lockCol = getCollection("LoginAttempt");
     $maxAttempts = 5;
     $lockoutDuration = 900; // 15 minutes
-    $now = time();
 
-    $record = $lockCol ? $lockCol->findOne(['email' => $email]) : null;
+    $comboKey = md5($email . '|' . $clientIp);
+    $record = $lockCol ? $lockCol->findOne(['comboKey' => $comboKey]) : null;
     $currentAttempts = $record ? (int)($record['attempts'] ?? 0) : 0;
     $newAttempts = $currentAttempts + 1;
 
@@ -695,9 +805,11 @@ function recordFailedLoginAttempt($email) {
 
     if ($lockCol) {
         $lockCol->updateOne(
-            ['email' => $email],
+            ['comboKey' => $comboKey],
             ['$set' => [
+                'comboKey' => $comboKey,
                 'email' => $email,
+                'ip' => $clientIp,
                 'attempts' => $newAttempts,
                 'lastAttemptAt' => new MongoDB\BSON\UTCDateTime($now * 1000),
                 'lockedUntil' => $lockedUntil,
@@ -705,19 +817,27 @@ function recordFailedLoginAttempt($email) {
             ]],
             ['upsert' => true]
         );
+
+        // Also track IP-wide failures (max 20 per IP)
+        $ipRecord = $lockCol->findOne(['type' => 'IP_LOCK', 'ip' => $clientIp]);
+        $ipAttempts = ($ipRecord ? (int)($ipRecord['attempts'] ?? 0) : 0) + 1;
+        $ipLockedUntil = ($ipAttempts >= 20) ? new MongoDB\BSON\UTCDateTime(($now + $lockoutDuration) * 1000) : null;
+        $lockCol->updateOne(
+            ['type' => 'IP_LOCK', 'ip' => $clientIp],
+            ['$set' => [
+                'type' => 'IP_LOCK',
+                'ip' => $clientIp,
+                'attempts' => $ipAttempts,
+                'lockedUntil' => $ipLockedUntil,
+                'updatedAt' => new MongoDB\BSON\UTCDateTime()
+            ]],
+            ['upsert' => true]
+        );
     }
 
-    // Also reflect on User document if exists
-    $userCol = getCollection("User");
-    if ($userCol) {
-        $userCol->updateOne(
-            ['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')],
-            ['$set' => [
-                'failedLoginAttempts' => $newAttempts,
-                'lockedUntil' => $lockedUntil,
-                'updatedAt' => new MongoDB\BSON\UTCDateTime()
-            ]]
-        );
+    // Apply exponential backoff delay (1-2s) on repeated failures to defeat automated online password guessing
+    if ($newAttempts >= 3) {
+        usleep(min(2000000, $newAttempts * 400000));
     }
 
     if ($isLocked) {
@@ -725,7 +845,7 @@ function recordFailedLoginAttempt($email) {
             'isLocked' => true,
             'attempts' => $newAttempts,
             'remaining' => 0,
-            'message' => "Too many failed attempts (5/5). For your security, this account has been locked for 15 minutes. You can reset your password or try again later."
+            'message' => "Too many failed attempts (5/5). For your security, access from this device has been locked for 15 minutes. You can reset your password or try again later."
         ];
     } else {
         $remaining = $maxAttempts - $newAttempts;
@@ -748,9 +868,17 @@ function resetLoginAttempts($email) {
     $email = strtolower(trim($email));
     if (empty($email)) return;
 
+    $clientIp = cleanString($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1', 45);
+    $comboKey = md5($email . '|' . $clientIp);
+
     $lockCol = getCollection("LoginAttempt");
     if ($lockCol) {
-        $lockCol->deleteOne(['email' => $email]);
+        $lockCol->deleteMany([
+            '$or' => [
+                ['email' => $email],
+                ['comboKey' => $comboKey]
+            ]
+        ]);
     }
 
     $userCol = getCollection("User");

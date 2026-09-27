@@ -39,27 +39,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $user = $userCol ? $userCol->findOne(['email' => new MongoDB\BSON\Regex('^' . preg_quote($email) . '$', 'i')]) : null;
 
-                // Built-in demo credentials fallback using secure bcrypt hashes (no plaintext passwords in code)
-                $demoAdminAccounts = [
-                    'admin@mentry.test' => ['hash' => '$2y$10$uuj71c/RpLiWaZiOx.XnF.7RgogZOg2fPHjb8.gFdtqNIwVq3j8E6', 'name' => 'Operations Director (Admin 1)', 'role' => 'ADMIN', 'id' => '65e000000000000000000001'],
-                    'admin2@mentry.test' => ['hash' => '$2y$10$KVX1kXyHKDY2ShUb.Wi5n.Bxip8ARejEvuQd0fguzFXRdKJoz3//i', 'name' => 'Lead Administrator (Admin 2)', 'role' => 'ADMIN', 'id' => '65e000000000000000000002'],
-                    'staff1@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Operations Coordinator (Staff 1)', 'role' => 'STAFF', 'id' => '65e000000000000000000003'],
-                    'staff2@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Talent Sourcing Specialist (Staff 2)', 'role' => 'STAFF', 'id' => '65e000000000000000000004'],
-                ];
-
                 $authenticated = false;
                 if ($user && isset($user['password']) && verifyPassword($password, $user['password'])) {
                     $authenticated = true;
-                } elseif (isset($demoAdminAccounts[$email]) && password_verify($password, $demoAdminAccounts[$email]['hash'])) {
-                    $demo = $demoAdminAccounts[$email];
-                    $user = [
-                        '_id' => $user['_id'] ?? $demo['id'],
-                        'email' => $email,
-                        'name' => $user['name'] ?? $demo['name'],
-                        'role' => $user['role'] ?? $demo['role'],
-                        'avatar' => $user['avatar'] ?? ('https://avatar.vercel.sh/' . urlencode($demo['name']) . '.png')
+                } elseif (isDevelopment()) {
+                    // Built-in demo credentials fallback using secure bcrypt hashes (Development only)
+                    $demoAdminAccounts = [
+                        'admin@mentry.test' => ['hash' => '$2y$10$uuj71c/RpLiWaZiOx.XnF.7RgogZOg2fPHjb8.gFdtqNIwVq3j8E6', 'name' => 'Operations Director (Admin 1)', 'role' => 'ADMIN', 'id' => '65e000000000000000000001'],
+                        'admin2@mentry.test' => ['hash' => '$2y$10$KVX1kXyHKDY2ShUb.Wi5n.Bxip8ARejEvuQd0fguzFXRdKJoz3//i', 'name' => 'Lead Administrator (Admin 2)', 'role' => 'ADMIN', 'id' => '65e000000000000000000002'],
+                        'staff1@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Operations Coordinator (Staff 1)', 'role' => 'STAFF', 'id' => '65e000000000000000000003'],
+                        'staff2@mentry.test' => ['hash' => '$2y$10$pGkpA2NGm8HRKk15paBzVekCy3appjFCTiXS/ZeYJ7x6acgGlYQAG', 'name' => 'Talent Sourcing Specialist (Staff 2)', 'role' => 'STAFF', 'id' => '65e000000000000000000004'],
                     ];
-                    $authenticated = true;
+
+                    if (isset($demoAdminAccounts[$email]) && password_verify($password, $demoAdminAccounts[$email]['hash'])) {
+                        $demo = $demoAdminAccounts[$email];
+                        $user = [
+                            '_id' => $user['_id'] ?? $demo['id'],
+                            'email' => $email,
+                            'name' => $user['name'] ?? $demo['name'],
+                            'role' => $user['role'] ?? $demo['role'],
+                            'avatar' => $user['avatar'] ?? ('https://avatar.vercel.sh/' . urlencode($demo['name']) . '.png')
+                        ];
+                        $authenticated = true;
+                    }
                 }
 
                 if (!$authenticated || !$user) {
@@ -73,9 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     loginUserSession($user);
 
-                    $redirect = $_GET['redirect'] ?? '/admin/index.php';
-                    header("Location: " . $redirect);
-                    exit();
+                    $safeRedirectUrl = getSafeRedirectUrl($_GET['redirect'] ?? '', '/admin/index.php');
+                    safeRedirect($safeRedirectUrl);
                 }
             }
         }

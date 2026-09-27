@@ -80,48 +80,19 @@
     // 3. Central Notification Manager (Single Source of Truth)
     const NotificationManager = {
         queue: [],
+        pendingQueue: [],
+        displayedSet: new Set(),
         currentToast: null,
         currentNotifData: null,
         autoDismissTimer: null,
-        storageKey: 'mentry_processed_notifications_v1',
-        processedMap: new Map(),
 
         init() {
-            // Load persistent deduplication map from localStorage
-            try {
-                const stored = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
-                const now = Date.now();
-                const sevenDaysAgo = now - 7 * 86400 * 1000;
-                if (Array.isArray(stored)) {
-                    stored.forEach(item => {
-                        if (item && item.id && item.ts && item.ts > sevenDaysAgo) {
-                            this.processedMap.set(String(item.id), item.ts);
-                        }
-                    });
-                }
-            } catch(e) {}
-            this.persist();
-
             // Keyboard Escape dismiss listener
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && this.currentToast) {
                     this.dismissCurrent('escape');
                 }
             });
-        },
-
-        persist() {
-            try {
-                const items = [];
-                this.processedMap.forEach((ts, id) => {
-                    items.push({ id, ts });
-                });
-                if (items.length > 200) {
-                    items.sort((a, b) => b.ts - a.ts);
-                    items.length = 200;
-                }
-                localStorage.setItem(this.storageKey, JSON.stringify(items));
-            } catch(e) {}
         },
 
         getCanonicalId(notif) {
@@ -140,28 +111,26 @@
             return 'h_' + Math.abs(hash);
         },
 
-        isProcessed(id) {
-            if (!id) return false;
-            return this.processedMap.has(String(id));
-        },
-
-        markProcessed(id) {
-            if (!id) return;
-            this.processedMap.set(String(id), Date.now());
-            this.persist();
-        },
-
         isUserActive() {
             return !document.hidden && (typeof document.hasFocus === 'function' ? document.hasFocus() : true);
         },
 
+        flushPending() {
+            while (this.pendingQueue.length > 0) {
+                const notif = this.pendingQueue.shift();
+                if (!this.displayedSet.has(notif.id)) {
+                    this.displayedSet.add(notif.id);
+                    this.enqueue(notif);
+                }
+            }
+        },
+
         handleIncomingNotification(notif, source = 'poll') {
+            if (notif.read) return false;
             const id = this.getCanonicalId(notif);
-            if (this.isProcessed(id)) {
-                // Drop duplicate event immediately
+            if (!id || this.displayedSet.has(id)) {
                 return false;
             }
-            this.markProcessed(id);
 
             // Normalized notification object
             const cleanNotif = {
@@ -175,8 +144,11 @@
             };
 
             if (this.isUserActive()) {
-                // User is actively looking at Mentry: show in-app popup card
+                this.displayedSet.add(id);
                 this.enqueue(cleanNotif);
+            } else {
+                // Keep in pending queue so it will display when tab becomes active
+                this.pendingQueue.push(cleanNotif);
             }
             return true;
         },
@@ -664,9 +636,9 @@
             .replace(/"/g, '&quot;');
     }
 
-    // Schedule: 6s when window is active, 15s when backgrounded
+    // Adaptive Schedule: 25s when window is active, 60s when backgrounded
     function scheduleNextPoll() {
-        const delay = document.hidden ? 15000 : 6000;
+        const delay = document.hidden ? 60000 : 25000;
         clearTimeout(pollTimer);
         pollTimer = setTimeout(async () => {
             await pollLiveSync();
@@ -678,12 +650,17 @@
     setTimeout(pollLiveSync, 1200);
     scheduleNextPoll();
 
-    // Re-check immediately when tab is brought back to focus
+    // Re-check immediately and display queued notifications when tab is brought back to focus
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
+            NotificationManager.flushPending();
             pollLiveSync();
             scheduleNextPoll();
         }
+    });
+
+    window.addEventListener('focus', () => {
+        NotificationManager.flushPending();
     });
 
     // 9. Public API exports

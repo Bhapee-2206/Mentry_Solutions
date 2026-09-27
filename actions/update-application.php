@@ -85,13 +85,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 if ($asgCol) {
+                    $asgId = 'asg_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $oppId . '_' . $trainerId);
                     $existingAsg = $asgCol->findOne([
-                        'opportunityId' => $oppId,
-                        'trainerId' => $trainerId
+                        '$or' => [
+                            ['_id' => $asgId],
+                            ['opportunityId' => $oppId, 'trainerId' => $trainerId]
+                        ]
                     ]);
 
                     if (!$existingAsg) {
                         $asgCol->insertOne([
+                            '_id' => $asgId,
                             'opportunityId' => $oppId,
                             'trainerId' => $trainerId,
                             'applicationId' => (string)$app['_id'],

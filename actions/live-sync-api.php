@@ -44,25 +44,29 @@ if ($currentUser) {
             $userId = (string)($currentUser['id'] ?? '');
             $isAdmin = in_array($userRole, ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
 
-            // Query live unread count
+            // Query live unread count and stream unread notifications authoritatively
             if ($isAdmin) {
-                $response['unreadCount'] = $notifCol->countDocuments([
-                    '$or' => [
-                        ['isAdminAlert' => true, 'read' => false],
-                        ['recipientRole' => 'ADMIN', 'read' => false],
-                        ['userId' => $userId, 'read' => false]
+                $adminUnreadFilter = [
+                    '$and' => [
+                        [
+                            '$or' => [
+                                ['isAdminAlert' => true],
+                                ['recipientRole' => 'ADMIN'],
+                                ['userId' => $userId]
+                            ]
+                        ],
+                        [
+                            '$or' => [['read' => false], ['read' => ['$exists' => false]]]
+                        ]
                     ]
-                ]);
+                ];
+                $response['unreadCount'] = $notifCol->countDocuments($adminUnreadFilter);
 
-                // Stream newly created notifications for admin
-                $newNotifsCursor = $notifCol->find([
-                    '$or' => [
-                        ['isAdminAlert' => true],
-                        ['recipientRole' => 'ADMIN'],
-                        ['userId' => $userId]
-                    ],
-                    'createdAt' => ['$gt' => $sinceBson]
-                ], ['sort' => ['createdAt' => -1], 'limit' => 5]);
+                // Stream active unread notifications
+                $newNotifsCursor = $notifCol->find(
+                    $adminUnreadFilter,
+                    ['sort' => ['createdAt' => -1], 'limit' => 10]
+                );
             } else {
                 $userQueries = [$userId];
                 try {
@@ -85,20 +89,20 @@ if ($currentUser) {
                     $userFilterOr[] = ['trainerId' => $trainerId];
                 }
 
-                $response['unreadCount'] = $notifCol->countDocuments([
+                $userUnreadFilter = [
                     '$and' => [
                         ['$or' => $userFilterOr],
                         ['$or' => [['read' => false], ['read' => ['$exists' => false]]]]
                     ]
-                ]);
+                ];
 
-                // Stream newly created notifications strictly since lastSync baseline
-                $newNotifsCursor = $notifCol->find([
-                    '$and' => [
-                        ['$or' => $userFilterOr],
-                        ['createdAt' => ['$gt' => $sinceBson]]
-                    ]
-                ], ['sort' => ['createdAt' => -1], 'limit' => 5]);
+                $response['unreadCount'] = $notifCol->countDocuments($userUnreadFilter);
+
+                // Stream active unread notifications
+                $newNotifsCursor = $notifCol->find(
+                    $userUnreadFilter,
+                    ['sort' => ['createdAt' => -1], 'limit' => 10]
+                );
             }
 
             foreach ($newNotifsCursor as $n) {

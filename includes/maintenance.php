@@ -70,13 +70,6 @@ function isMaintenanceActive() {
         return false;
     }
 
-    // Secret URL bypass: ?bypass=mentry2026
-    if (isset($_GET['bypass']) && $_GET['bypass'] === 'mentry2026') {
-        $_SESSION['maintenance_bypass'] = true;
-    }
-    if (!empty($_SESSION['maintenance_bypass'])) {
-        return false;
-    }
 
     // Direct role check in session
     $role = $_SESSION['user']['role'] ?? ($_SESSION['admin_user']['role'] ?? ($_SESSION['role'] ?? ''));

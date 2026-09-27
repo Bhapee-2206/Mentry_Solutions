@@ -16,36 +16,44 @@ if (!empty($user['id'])) {
     } catch (\Throwable $e) {}
 }
 
-// Handle Mark All As Read
-if (isset($_GET['action']) && $_GET['action'] === 'mark_all_read') {
+// Handle Mark All As Read via POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'mark_all_read') {
+    requireCsrfToken();
     if ($notifCol && !empty($userQuery)) {
         $notifCol->updateMany(
             ['userId' => ['$in' => $userQuery], '$or' => [['read' => false], ['read' => ['$exists' => false]]]],
             ['$set' => ['read' => true, 'readAt' => new MongoDB\BSON\UTCDateTime()]]
         );
     }
-    header("Location: /trainer/notifications.php");
-    exit();
+    safeRedirect('/trainer/notifications.php');
 }
 
 // Handle Single Notification Click & Redirect
 if (!empty($_GET['read_id'])) {
+    $readIdStr = trim((string)$_GET['read_id']);
     try {
-        $nid = new MongoDB\BSON\ObjectId($_GET['read_id']);
         if ($notifCol && !empty($userQuery)) {
+            $idVariants = [$readIdStr];
+            if (preg_match('/^[a-f\d]{24}$/i', $readIdStr)) {
+                try {
+                    $idVariants[] = new MongoDB\BSON\ObjectId($readIdStr);
+                } catch (\Throwable $e) {
+                    // String fallback retained
+                }
+            }
             $notifCol->updateOne(
-                ['_id' => $nid, 'userId' => ['$in' => $userQuery]],
+                ['_id' => ['$in' => $idVariants], 'userId' => ['$in' => $userQuery]],
                 ['$set' => ['read' => true, 'readAt' => new MongoDB\BSON\UTCDateTime()]]
             );
         }
-    } catch (\Throwable $e) {}
-
-    $goto = $_GET['goto'] ?? '/trainer/notifications.php';
-    if (empty($goto) || !str_starts_with($goto, '/') || str_starts_with($goto, '//')) {
-        $goto = '/trainer/notifications.php';
+    } catch (\Throwable $e) {
+        if (function_exists('logAppError')) {
+            logAppError('trainer_mark_notification_read', $e, ['read_id' => $readIdStr]);
+        }
     }
-    header("Location: " . $goto);
-    exit();
+
+    $goto = getSafeRedirectUrl($_GET['goto'] ?? '', '/trainer/notifications.php');
+    safeRedirect($goto);
 }
 
 require_once __DIR__ . '/includes/sidebar.php';
@@ -72,10 +80,14 @@ if ($notifCol && !empty($userQuery)) {
             <p class="text-xs text-slate-500 mt-0.5">Stay informed about new college requirements, direct invitations, and assignment updates.</p>
         </div>
         <?php if ($unreadCount > 0): ?>
-            <a href="/trainer/notifications.php?action=mark_all_read" class="inline-flex items-center gap-1.5 text-xs font-bold text-[#FE5E04] hover:text-[#E04E00] bg-orange-50 hover:bg-orange-100/80 border border-orange-200 px-4 py-2 rounded-xl transition-all shadow-2xs self-start sm:self-auto">
-                <span class="material-symbols-outlined text-sm">done_all</span>
-                <span>Mark all as read (<?= $unreadCount ?>)</span>
-            </a>
+            <form method="POST" action="/trainer/notifications.php" class="inline-block self-start sm:self-auto m-0">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                <input type="hidden" name="action" value="mark_all_read">
+                <button type="submit" class="inline-flex items-center gap-1.5 text-xs font-bold text-[#FE5E04] hover:text-[#E04E00] bg-orange-50 hover:bg-orange-100/80 border border-orange-200 px-4 py-2 rounded-xl transition-all shadow-2xs cursor-pointer">
+                    <span class="material-symbols-outlined text-sm">done_all</span>
+                    <span>Mark all as read (<?= $unreadCount ?>)</span>
+                </button>
+            </form>
         <?php endif; ?>
     </div>
 

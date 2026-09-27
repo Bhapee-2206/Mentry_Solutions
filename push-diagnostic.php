@@ -4,6 +4,9 @@
 // and verifies Push JS loading and registration state without third-party script dependencies.
 
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__ . '/includes/auth.php';
+requireAdminOrStaff();
 require_once __DIR__ . '/includes/push/PushConfig.php';
 
 $serverVapidRawBytesHash = 'N/A';

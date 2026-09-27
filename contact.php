@@ -1,39 +1,95 @@
 <?php
 // contact.php
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__ . '/includes/auth.php';
 
 $sent = false;
 $error = null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = trim($_POST['name'] ?? '');
-    $email = strtolower(trim($_POST['email'] ?? ''));
-    $subject = trim($_POST['subject'] ?? '');
-    $message = trim($_POST['message'] ?? '');
+    requireCsrfToken();
 
-    if (!empty($name) && !empty($email) && !empty($message)) {
-        $inquiryCol = getCollection("ContactInquiry");
-        if ($inquiryCol) {
-            $inquiryCol->insertOne([
-                'name' => $name,
-                'email' => $email,
-                'subject' => $subject ?: 'General Inquiry',
-                'message' => $message,
-                'status' => 'NEW',
-                'createdAt' => new MongoDB\BSON\UTCDateTime()
-            ]);
-
-            // Dispatch real-time Admin Notification
-            require_once __DIR__ . '/includes/notifications.php';
-            notifyAdmin(
-                'INQUIRY',
-                "New Contact Inquiry: {$name}",
-                "{$name} ({$email}) sent message: " . (strlen($message) > 100 ? substr($message, 0, 100) . '...' : $message),
-                "/admin/notifications.php"
-            );
-        }
+    // 1. Honeypot check (bots fill in hidden field)
+    if (!empty($_POST['website'])) {
+        // Pretend to succeed to trap bots
         $sent = true;
     } else {
-        $error = "Please fill in your name, email, and message.";
+        $name = trim($_POST['name'] ?? '');
+        $email = strtolower(trim($_POST['email'] ?? ''));
+        $subject = trim($_POST['subject'] ?? '');
+        $message = trim($_POST['message'] ?? '');
+
+        // 2. Input validation
+        $nameErr = validateNameInput($name, 'Your Name');
+        $emailErr = validateEmailInput($email);
+
+        if ($nameErr) {
+            $error = $nameErr;
+        } elseif ($emailErr) {
+            $error = $emailErr;
+        } elseif (empty($message) || strlen($message) < 10) {
+            $error = "Please provide a detailed message (minimum 10 characters).";
+        } elseif (strlen($message) > 4000) {
+            $error = "Message is too long (maximum 4000 characters).";
+        } else {
+            // 3. IP and Email Rate Limiting (max 5 per 15 min per IP/email)
+            $clientIp = getClientIp();
+            $rateKey = 'contact_rate_' . md5($clientIp . '|' . $email);
+            if (session_status() === PHP_SESSION_NONE) {
+                @session_start();
+            }
+            $history = $_SESSION[$rateKey] ?? [];
+            $now = time();
+            $history = array_filter($history, function($ts) use ($now) { return ($now - $ts) < 900; });
+            if (count($history) >= 5) {
+                $error = "You have submitted multiple inquiries recently. Please wait a few minutes before submitting another message.";
+            } else {
+                $history[] = $now;
+                $_SESSION[$rateKey] = $history;
+
+                // 4. Duplicate submission check (prevent double submit within 15 min)
+                $inquiryCol = getCollection("ContactInquiry");
+                $isDuplicate = false;
+                if ($inquiryCol) {
+                    $recentDuplicate = $inquiryCol->findOne([
+                        'email' => $email,
+                        'message' => $message,
+                        'createdAt' => ['$gte' => new MongoDB\BSON\UTCDateTime((time() - 900) * 1000)]
+                    ]);
+                    if ($recentDuplicate) {
+                        $isDuplicate = true;
+                    }
+                }
+
+                if (!$isDuplicate && $inquiryCol) {
+                    $inquiryCol->insertOne([
+                        'name' => cleanString($name, 100),
+                        'email' => $email,
+                        'subject' => cleanString($subject ?: 'General Inquiry', 150),
+                        'message' => cleanString($message, 4000),
+                        'status' => 'NEW',
+                        'clientIp' => $clientIp,
+                        'createdAt' => new MongoDB\BSON\UTCDateTime()
+                    ]);
+
+                    // Dispatch real-time Admin Notification
+                    try {
+                        require_once __DIR__ . '/includes/notifications.php';
+                        notifyAdmin(
+                            'INQUIRY',
+                            "New Contact Inquiry: " . cleanString($name, 50),
+                            cleanString($name, 50) . " ({$email}) sent message: " . (strlen($message) > 100 ? substr($message, 0, 100) . '...' : $message),
+                            "/admin/notifications.php"
+                        );
+                    } catch (\Throwable $ne) {
+                        logAppError('contact_notify_admin', $ne, ['email' => $email]);
+                    }
+                }
+
+                $sent = true;
+            }
+        }
     }
 }
 
@@ -85,7 +141,18 @@ require_once __DIR__ . '/includes/header.php';
                         <p class="text-xs text-emerald-800">Our coordinator will respond via email within 2-4 hours.</p>
                     </div>
                 <?php else: ?>
+                    <?php if ($error): ?>
+                        <div class="mb-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                            <span class="material-symbols-outlined text-rose-600 text-sm">error</span>
+                            <span><?= htmlspecialchars($error) ?></span>
+                        </div>
+                    <?php endif; ?>
                     <form method="POST" action="/contact.php" class="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-card space-y-4">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
+                        <!-- Honeypot anti-spam field -->
+                        <div style="position: absolute; left: -9999px; top: -9999px;" aria-hidden="true">
+                            <input type="text" name="website" tabindex="-1" autocomplete="off">
+                        </div>
                         <div class="grid sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Your Name *</label>

@@ -108,13 +108,13 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="grid grid-cols-3 gap-6 pt-6 border-t border-slate-200/80">
                         <div>
                             <span class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight block">
-                                <?= $totalOpportunities > 0 ? ($totalOpportunities + 25) : "45+" ?>
+                                <?= (int)$totalOpportunities ?>
                             </span>
                             <span class="text-xs font-semibold text-slate-500">Active College Openings</span>
                         </div>
                         <div>
                             <span class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight block">
-                                <?= $totalTrainers > 0 ? ($totalTrainers * 25) : "500+" ?>
+                                <?= (int)$totalTrainers ?>
                             </span>
                             <span class="text-xs font-semibold text-slate-500">Vetted Industry Trainers</span>
                         </div>

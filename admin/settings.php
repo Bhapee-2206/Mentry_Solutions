@@ -3,6 +3,7 @@
 $pageTitle = "Settings & Audit";
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/maintenance.php';
 require_once __DIR__ . '/includes/sidebar.php';
 
@@ -18,6 +19,7 @@ $notifFlash = null;
 $configCol = getCollection("SystemConfig");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_admin_notifs') {
+    requireCsrfToken();
     $masterEnabled = isset($_POST['master_enabled']);
     $adminNotifPrefs = [
         'key' => 'notification_settings',
@@ -165,6 +167,7 @@ $adminPrefs = array_merge([
         </div>
 
         <form method="POST" action="/admin/settings.php" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(getCsrfToken()) ?>">
             <input type="hidden" name="action" value="save_admin_notifs">
 
             <!-- Master Switch -->

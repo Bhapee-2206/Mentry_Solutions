@@ -32,7 +32,7 @@
   ],
   "routes": [
     {
-      "src": "^/(data|config|includes|scratch|scripts|uploads/documents|public/uploads/documents|\\.env|composer\\.(json|lock)|package(-lock)?\\.json)(/.*)?$",
+      "src": "^/(data|config|includes|scratch|scripts|tests|uploads/documents|public/uploads/documents|\\.env|composer\\.(json|lock)|package(-lock)?\\.json)(/.*)?$",
       "status": 403,
       "dest": "/404.php"
     },

@@ -274,7 +274,10 @@ async function runAiTrainerSearch() {
     try {
         const response = await fetch('/actions/ai-match-query.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '<?= htmlspecialchars(getCsrfToken()) ?>'
+            },
             body: JSON.stringify({ query: query })
         });
 
@@ -509,7 +512,10 @@ async function runTrainerComparison() {
     try {
         const response = await fetch('/actions/compare-trainers-api.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '<?= htmlspecialchars(getCsrfToken()) ?>'
+            },
             body: JSON.stringify({ trainerIds: ids, requirementText: query })
         });
 

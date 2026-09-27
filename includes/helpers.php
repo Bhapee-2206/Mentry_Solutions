@@ -337,79 +337,439 @@ function getNextSequentialMentryId($type) {
     $prefix = $prefixMap[$type] ?? ('MEN-' . $type . '-');
     $counterKey = $counterKeyMap[$type] ?? $type;
 
-    $counterCol = getCollection("Counters");
-    $current = $counterCol ? $counterCol->findOne(['_id' => $counterKey]) : null;
+    $lockDir = sys_get_temp_dir() . '/mentry_locks';
+    if (!is_dir($lockDir)) {
+        @mkdir($lockDir, 0777, true);
+    }
+    $lockFile = $lockDir . '/seq_' . preg_replace('/[^A-Z0-9_]/i', '', $counterKey) . '.lock';
+    $lockHandle = @fopen($lockFile, 'c+');
+    if ($lockHandle) {
+        @flock($lockHandle, LOCK_EX);
+    }
 
-    if (!$current || !isset($current['seq'])) {
-        // Initialize sequence from highest existing numerical ID in the database
-        $maxSeq = 1000;
-        if ($counterKey === 'TRAINER') {
-            $trainerCol = getCollection("Trainer");
-            if ($trainerCol) {
-                $trainers = $trainerCol->find()->toArray();
-                foreach ($trainers as $t) {
-                    $c = $t['trainerCode'] ?? ($t['mentryId'] ?? '');
-                    if (preg_match('/MEN-TRN-(\d+)/i', $c, $m)) {
-                        $maxSeq = max($maxSeq, (int)$m[1]);
-                    }
-                }
-            }
-        } elseif ($counterKey === 'OPPORTUNITY') {
-            $oppCol = getCollection("Opportunity");
-            if ($oppCol) {
-                $opps = $oppCol->find()->toArray();
-                foreach ($opps as $o) {
-                    $c = $o['jobId'] ?? ($o['mentryId'] ?? '');
-                    if (preg_match('/MEN-(?:OPP|[A-Z]{3})-(\d+)/i', $c, $m)) {
-                        $maxSeq = max($maxSeq, (int)$m[1]);
-                    }
-                }
-            }
-        } elseif ($counterKey === 'REQUIREMENT') {
-            $reqCol = getCollection("CollegeRequirement");
-            if ($reqCol) {
-                $reqs = $reqCol->find()->toArray();
-                foreach ($reqs as $r) {
-                    $c = $r['requestCode'] ?? ($r['mentryId'] ?? '');
-                    if (preg_match('/MEN-REQ-(\d+)/i', $c, $m)) {
-                        $maxSeq = max($maxSeq, (int)$m[1]);
-                    }
-                }
-            }
-        } elseif ($counterKey === 'VENDOR' || $counterKey === 'COLLEGE') {
-            $userCol = getCollection("User");
-            if ($userCol) {
-                $users = $userCol->find()->toArray();
-                foreach ($users as $u) {
-                    $c = $u['vendorCode'] ?? ($u['mentryId'] ?? '');
-                    if (preg_match('/MEN-(?:VND|CLG)-(\d+)/i', $c, $m)) {
-                        $maxSeq = max($maxSeq, (int)$m[1]);
-                    }
+    try {
+        if (class_exists('PersistentDocumentStore')) {
+            PersistentDocumentStore::invalidateCache('Counters');
+        }
+
+        $sb = PersistentDocumentStore::getSupabaseCredentials();
+
+        // 1. Try atomic PostgreSQL RPC next_counter if installed
+        if (!empty($sb['url']) && !empty($sb['key'])) {
+            $rpcUrl = $sb['url'] . '/rest/v1/rpc/next_counter';
+            $rpcPayload = json_encode(['p_counter_name' => $counterKey, 'p_initial_val' => 1000]);
+            $ch = curl_init($rpcUrl);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $rpcPayload);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'apikey: ' . $sb['key'],
+                'Authorization: Bearer ' . $sb['key'],
+                'Content-Type: application/json'
+            ]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            $res = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($code >= 200 && $code < 300) {
+                $val = json_decode($res, true);
+                if (is_numeric($val) && (int)$val > 0) {
+                    return $prefix . (int)$val;
                 }
             }
         }
 
-        $nextSeq = $maxSeq + 1;
+        // 2. Database-backed Optimistic Concurrency Control (CAS) loop
+        if (!empty($sb['url']) && !empty($sb['key'])) {
+            $maxAttempts = 30;
+            for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+                // Fetch latest counter doc directly from Supabase
+                $getUrl = $sb['url'] . '/rest/v1/mentry_documents?collection=eq.Counters&id=eq.' . urlencode($counterKey) . '&select=id,data';
+                $ch = curl_init($getUrl);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'apikey: ' . $sb['key'],
+                    'Authorization: Bearer ' . $sb['key'],
+                    'Content-Type: application/json'
+                ]);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+                $getRes = curl_exec($ch);
+                $getCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                $rows = json_decode($getRes, true);
+                $currSeq = null;
+                if ($getCode >= 200 && is_array($rows) && !empty($rows) && isset($rows[0]['data']['seq'])) {
+                    $currSeq = (int)$rows[0]['data']['seq'];
+                }
+
+                if ($currSeq === null) {
+                    // Initialize counter with highest existing ID
+                    $maxSeq = 1000;
+                    if ($counterKey === 'TRAINER') {
+                        $tRes = PersistentDocumentStore::executePostgrest('GET', 'mentry_documents', [
+                            'collection' => 'eq.Trainer',
+                            'order' => 'data->>trainerCode.desc',
+                            'limit' => 10,
+                            'select' => 'data'
+                        ]);
+                        if (is_array($tRes['data'])) {
+                            foreach ($tRes['data'] as $r) {
+                                $c = $r['data']['trainerCode'] ?? ($r['data']['mentryId'] ?? '');
+                                if (preg_match('/MEN-TRN-(\d+)/i', $c, $m)) {
+                                    $maxSeq = max($maxSeq, (int)$m[1]);
+                                }
+                            }
+                        }
+                    } elseif ($counterKey === 'OPPORTUNITY') {
+                        $oRes = PersistentDocumentStore::executePostgrest('GET', 'mentry_documents', [
+                            'collection' => 'eq.Opportunity',
+                            'order' => 'data->>jobId.desc',
+                            'limit' => 10,
+                            'select' => 'data'
+                        ]);
+                        if (is_array($oRes['data'])) {
+                            foreach ($oRes['data'] as $r) {
+                                $c = $r['data']['jobId'] ?? ($r['data']['mentryId'] ?? '');
+                                if (preg_match('/MEN-(?:OPP|[A-Z]{3})-(\d+)/i', $c, $m)) {
+                                    $maxSeq = max($maxSeq, (int)$m[1]);
+                                }
+                            }
+                        }
+                    }
+
+                    $initPayload = [
+                        'collection' => 'Counters',
+                        'id' => $counterKey,
+                        'data' => ['_id' => $counterKey, 'seq' => $maxSeq + 1],
+                        'updated_at' => date('c')
+                    ];
+                    $ch = curl_init($sb['url'] . '/rest/v1/mentry_documents?on_conflict=collection,id');
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($initPayload));
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                        'apikey: ' . $sb['key'],
+                        'Authorization: Bearer ' . $sb['key'],
+                        'Content-Type: application/json',
+                        'Prefer: resolution=ignore-duplicates,return=representation'
+                    ]);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+                    $initRes = curl_exec($ch);
+                    $initCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+
+                    $created = json_decode($initRes, true);
+                    if ($initCode >= 200 && is_array($created) && !empty($created)) {
+                        return $prefix . (int)$created[0]['data']['seq'];
+                    }
+                    usleep(random_int(10000, 30000));
+                    continue;
+                }
+
+                // Perform conditional atomic CAS update
+                $nextSeq = $currSeq + 1;
+                $patchUrl = $sb['url'] . '/rest/v1/mentry_documents?collection=eq.Counters&id=eq.' . urlencode($counterKey) . '&data->>seq=eq.' . $currSeq;
+                $patchPayload = [
+                    'data' => ['_id' => $counterKey, 'seq' => $nextSeq],
+                    'updated_at' => date('c')
+                ];
+
+                $ch = curl_init($patchUrl);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($patchPayload));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'apikey: ' . $sb['key'],
+                    'Authorization: Bearer ' . $sb['key'],
+                    'Content-Type: application/json',
+                    'Prefer: return=representation'
+                ]);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+                $patchRes = curl_exec($ch);
+                $patchCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if ($patchCode >= 200 && $patchCode < 300) {
+                    $updatedRows = json_decode($patchRes, true);
+                    if (is_array($updatedRows) && count($updatedRows) === 1) {
+                        return $prefix . $nextSeq;
+                    }
+                }
+
+                // Concurrency collision - backoff with randomized jitter
+                usleep(random_int(15000, 45000) * ($attempt % 4 + 1));
+            }
+        }
+
+        // Fallback: Local collection proxy
+        $counterCol = getCollection("Counters");
+        $current = $counterCol ? $counterCol->findOne(['_id' => $counterKey]) : null;
+        $nextSeq = ($current && isset($current['seq'])) ? ((int)$current['seq'] + 1) : 1001;
         if ($counterCol) {
-            $counterCol->updateOne(
-                ['_id' => $counterKey],
-                ['$set' => ['seq' => $nextSeq]],
-                ['upsert' => true]
-            );
+            $counterCol->updateOne(['_id' => $counterKey], ['$set' => ['seq' => $nextSeq]], ['upsert' => true]);
         }
         return $prefix . $nextSeq;
+    } finally {
+        if ($lockHandle) {
+            @flock($lockHandle, LOCK_UN);
+            @fclose($lockHandle);
+        }
+    }
+}
+
+/**
+ * Centralized Safe Redirect Validator (Prevents Open Redirects)
+ * Rejects external schemes, protocol-relative URLs, javascript:, and CRLF injection.
+ */
+function getSafeRedirectUrl($targetUrl, string $default = '/'): string {
+    if (!is_string($targetUrl) || trim($targetUrl) === '') {
+        return $default;
+    }
+    $targetUrl = trim($targetUrl);
+
+    // Reject CRLF header injection and null-byte poison
+    if (preg_match('/[\r\n\0]/', $targetUrl)) {
+        return $default;
     }
 
-    $nextSeq = (int)$current['seq'] + 1;
-    if ($counterCol) {
-        $counterCol->updateOne(
-            ['_id' => $counterKey],
-            ['$set' => ['seq' => $nextSeq]],
-            ['upsert' => true]
-        );
+    // Reject backslashes (prevents /\evil.com browser normalization bypass)
+    if (str_contains($targetUrl, '\\')) {
+        return $default;
     }
-    return $prefix . $nextSeq;
+
+    // Reject protocol-relative URLs (//evil.com)
+    if (str_starts_with($targetUrl, '//')) {
+        return $default;
+    }
+
+    // Reject URL schemes (http:, https:, javascript:, data:, vbscript:)
+    if (preg_match('/^[a-z][a-z0-9+.-]*:/i', $targetUrl)) {
+        return $default;
+    }
+
+    // Ensure no host or scheme parsed
+    $parsed = @parse_url($targetUrl);
+    if ($parsed === false || !empty($parsed['scheme']) || !empty($parsed['host'])) {
+        return $default;
+    }
+
+    // Must be a relative path starting with /
+    if (!str_starts_with($targetUrl, '/')) {
+        return $default;
+    }
+
+    // Reject double slashes
+    if (strlen($targetUrl) > 1 && $targetUrl[1] === '/') {
+        return $default;
+    }
+
+    return $targetUrl;
 }
+
+function safeRedirect(string $url, string $default = '/'): void {
+    $safeUrl = getSafeRedirectUrl($url, $default);
+    header("Location: " . $safeUrl);
+    exit();
+}
+
+/**
+ * Environment helpers
+ */
+function getAppEnvironment(): string {
+    $env = getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? ($_SERVER['APP_ENV'] ?? ''));
+    if (empty($env)) {
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+        if (strpos($host, 'localhost') !== false || strpos($host, '127.0.0.1') !== false) {
+            return 'development';
+        }
+        return 'production';
+    }
+    return strtolower(trim($env));
+}
+
+function isDevelopment(): bool {
+    return getAppEnvironment() === 'development';
+}
+
+function isProduction(): bool {
+    return getAppEnvironment() === 'production';
+}
+
+/**
+ * Standardized, Sensitive-Data-Safe Application Error Logger
+ */
+function logAppError(string $operation, \Throwable $e, array $context = []): void {
+    $now = date('Y-m-d H:i:s');
+    $reqId = $_SERVER['HTTP_X_REQUEST_ID'] ?? ($_SERVER['REQUEST_ID'] ?? substr(md5(microtime(true) . rand()), 0, 8));
+    $user = function_exists('getCurrentUser') ? getCurrentUser() : null;
+    $userId = $user['id'] ?? 'guest';
+    $role = $user['role'] ?? 'NONE';
+
+    // Redact sensitive credentials
+    $sensitiveKeys = ['password', 'password_hash', 'token', 'jwt', 'secret', 'key', 'cookie', 'authorization', 'api_key', 'apikey'];
+    $cleanContext = [];
+    foreach ($context as $k => $v) {
+        $lowerK = strtolower($k);
+        $isSensitive = false;
+        foreach ($sensitiveKeys as $sk) {
+            if (strpos($lowerK, $sk) !== false) {
+                $isSensitive = true;
+                break;
+            }
+        }
+        if ($isSensitive) {
+            $cleanContext[$k] = '[REDACTED]';
+        } else {
+            $cleanContext[$k] = is_scalar($v) ? $v : json_encode($v);
+        }
+    }
+
+    $logMsg = sprintf(
+        "[%s] [REQ:%s] [USER:%s|%s] [OP:%s] Error: %s in %s:%d | Context: %s",
+        $now,
+        $reqId,
+        $userId,
+        $role,
+        $operation,
+        $e->getMessage(),
+        basename($e->getFile()),
+        $e->getLine(),
+        json_encode($cleanContext)
+    );
+
+    error_log($logMsg);
+}
+
+/**
+ * Centralized Document Authorization Resolver (Prevents IDOR across Preview/Download)
+ *
+ * @param mixed $docIdOrUrl Document _id or file URL
+ * @param array|null $currentUser Current session user
+ * @return array|null The authorized document document or null if unauthorized/not found
+ */
+function resolveAuthorizedDocument($docIdOrUrl, ?array $currentUser): ?array {
+    if (empty($currentUser) || empty($currentUser['id'])) {
+        return null;
+    }
+
+    $docCol = getCollection("Document");
+    $trainerCol = getCollection("Trainer");
+    $docDoc = null;
+
+    $docIdOrUrl = trim((string)$docIdOrUrl);
+    if (empty($docIdOrUrl)) {
+        return null;
+    }
+
+    // 1. Try Document collection by _id
+    if ($docCol) {
+        if (preg_match('/^[a-f\d]{24}$/i', $docIdOrUrl)) {
+            try {
+                $docDoc = $docCol->findOne(['_id' => new MongoDB\BSON\ObjectId($docIdOrUrl)]);
+            } catch (\Throwable $e) {}
+        }
+        if (!$docDoc) {
+            $docDoc = $docCol->findOne(['_id' => $docIdOrUrl]);
+        }
+    }
+
+    // 2. If not found by ID, try matching fileUrl
+    if (!$docDoc && $docCol) {
+        $cleanBase = basename(parse_url($docIdOrUrl, PHP_URL_PATH) ?? '');
+        $docDoc = $docCol->findOne([
+            '$or' => [
+                ['fileUrl' => $docIdOrUrl],
+                ['fileUrl' => '/' . ltrim(parse_url($docIdOrUrl, PHP_URL_PATH) ?? '', '/')],
+                ['fileUrl' => ['$regex' => preg_quote($cleanBase, '/') . '$']]
+            ]
+        ]);
+    }
+
+    // 3. If still not found, check Trainer collection for resumeUrl
+    if (!$docDoc && $trainerCol) {
+        $cleanBase = basename(parse_url($docIdOrUrl, PHP_URL_PATH) ?? '');
+        $tRecord = $trainerCol->findOne([
+            '$or' => [
+                ['resumeUrl' => $docIdOrUrl],
+                ['resumeUrl' => '/' . ltrim(parse_url($docIdOrUrl, PHP_URL_PATH) ?? '', '/')],
+                ['resumeUrl' => ['$regex' => preg_quote($cleanBase, '/') . '$']]
+            ]
+        ]);
+        if ($tRecord) {
+            $docDoc = [
+                '_id' => (string)$tRecord['_id'],
+                'trainerId' => (string)$tRecord['_id'],
+                'userId' => (string)($tRecord['userId'] ?? ''),
+                'fileUrl' => $tRecord['resumeUrl'],
+                'originalName' => ($tRecord['name'] ?? 'Trainer') . '_Resume.pdf',
+                'title' => 'Resume',
+                'type' => 'RESUME'
+            ];
+        }
+    }
+
+    if (!$docDoc) {
+        return null;
+    }
+
+    // 4. Centralized Ownership & Authorization Verification
+    $role = $currentUser['role'] ?? '';
+    // Admins and Staff have full administrative access to review trainer resumes and documents
+    if (in_array($role, ['ADMIN', 'SUPER_ADMIN', 'STAFF'])) {
+        return $docDoc;
+    }
+
+    $myTrainerId = (string)($currentUser['trainerId'] ?? ($_SESSION['user']['trainerId'] ?? ''));
+    $myUserId = (string)$currentUser['id'];
+    $docTrainerId = (string)($docDoc['trainerId'] ?? '');
+    $docUserId = (string)($docDoc['userId'] ?? '');
+
+    // Owner check: trainer accessing their own documents
+    if ((!empty($docTrainerId) && $docTrainerId === $myTrainerId) || (!empty($docUserId) && $docUserId === $myUserId)) {
+        return $docDoc;
+    }
+
+    // If myTrainerId was not in session, check Trainer record for this user
+    if (empty($myTrainerId) && $trainerCol) {
+        $tr = $trainerCol->findOne(['userId' => $myUserId]);
+        if ($tr) {
+            $myTrainerId = (string)$tr['_id'];
+            if (!empty($docTrainerId) && $docTrainerId === $myTrainerId) {
+                return $docDoc;
+            }
+        }
+    }
+
+    // Partner access: College / Vendor can view documents for trainers applying to their requirements/opportunities
+    if ($role === 'COLLEGE' || $role === 'VENDOR') {
+        $appCol = getCollection("Application");
+        $oppCol = getCollection("Opportunity");
+        if ($appCol && $oppCol && !empty($docTrainerId)) {
+            $trainerApps = $appCol->find(['trainerId' => $docTrainerId])->toArray();
+            foreach ($trainerApps as $app) {
+                $opp = null;
+                $oppIdStr = (string)($app['opportunityId'] ?? '');
+                if (preg_match('/^[a-f\d]{24}$/i', $oppIdStr)) {
+                    try {
+                        $opp = $oppCol->findOne(['_id' => new MongoDB\BSON\ObjectId($oppIdStr)]);
+                    } catch (\Throwable $e) {}
+                }
+                if (!$opp) {
+                    $opp = $oppCol->findOne(['_id' => $oppIdStr]);
+                }
+                if ($opp && ((string)($opp['vendorId'] ?? '') === $myUserId || (string)($opp['collegeId'] ?? '') === $myUserId)) {
+                    return $docDoc;
+                }
+            }
+        }
+    }
+
+    // Denied
+    return null;
+}
+
 
 /**
  * Standardized Mentry Unique ID Formatter
