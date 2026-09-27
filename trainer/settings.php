@@ -124,18 +124,8 @@ $prefs = array_merge([
     'system_announcements' => true
 ], is_array($savedPrefs) ? $savedPrefs : []);
 
-// Query device push subscriptions for user
-$subCol = getCollection("PushSubscription");
-$userPushSubs = [];
-if ($subCol && !empty($user['id'])) {
-    $userPushSubs = $subCol->find([
-        'userId' => (string)$user['id'],
-        'isActive' => ['$ne' => false]
-    ], ['sort' => ['lastActiveAt' => -1]])->toArray();
-}
-$activeDeviceCount = count($userPushSubs);
-$primaryDeviceName = !empty($userPushSubs) ? ($userPushSubs[0]['device'] ?? 'Mobile') . ' • ' . ($userPushSubs[0]['browser'] ?? 'Browser') : 'This Device';
 ?>
+
 
 <div class="max-w-4xl mx-auto space-y-6 pb-12">
     <!-- Header Title -->
@@ -463,90 +453,7 @@ function getAppBaseUrl() {
     return '';
 }
 
-function updateSettingsDeviceStatus() {
-    const badge = document.getElementById('settingsPushStatusBadge');
-    const text = document.getElementById('settingsPushStatusText');
-    const devLabel = document.getElementById('settingsPushDeviceName');
-
-    const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
-    const browser = /Edg/i.test(navigator.userAgent) ? 'Edge' : (/Chrome/i.test(navigator.userAgent) ? 'Chrome' : (/Safari/i.test(navigator.userAgent) ? 'Safari' : (/Firefox/i.test(navigator.userAgent) ? 'Firefox' : 'Browser')));
-    const platform = isMobile ? 'Android' : 'Desktop';
-    if (devLabel) {
-        devLabel.textContent = platform + ' • ' + browser;
-    }
-
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-        if (text) text.textContent = '○ Unsupported';
-        if (badge) badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700';
-    } else if (Notification.permission === 'granted') {
-        if (text) text.textContent = '● Enabled';
-        if (badge) badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-    } else if (Notification.permission === 'denied') {
-        if (text) text.textContent = '○ Blocked';
-        if (badge) badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30';
-    } else {
-        if (text) text.textContent = '○ Action Needed';
-        if (badge) badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30';
-    }
-}
-
-async function triggerSettingsPushTest() {
-    const btn = document.getElementById('btnSettingsTestPush');
-    const res = document.getElementById('settingsTestResult');
-    if (!btn || !res) return;
-
-    if (!('Notification' in window)) {
-        res.classList.remove('hidden');
-        res.className = 'text-xs text-rose-300 font-medium';
-        res.textContent = 'Push notifications are not supported on this browser.';
-        return;
-    }
-
-    if (Notification.permission !== 'granted') {
-        if (window.MentryPush && typeof window.MentryPush.enable === 'function') {
-            await window.MentryPush.enable();
-            updateSettingsDeviceStatus();
-        }
-        if (Notification.permission !== 'granted') {
-            res.classList.remove('hidden');
-            res.className = 'text-xs text-amber-300 font-medium';
-            res.textContent = 'Notifications are blocked in browser settings. Please allow notifications for Mentry to receive alerts.';
-            return;
-        }
-    }
-
-    res.classList.remove('hidden');
-    res.className = 'text-xs text-slate-300 font-mono';
-    res.textContent = 'Sending test notification...';
-
-    try {
-        const base = getAppBaseUrl();
-        const fd = new FormData();
-        fd.append('title', 'Mentry Alert Test');
-        fd.append('message', 'Test notification successfully delivered to your device!');
-
-        const response = await fetch(base + '/actions/send-test-trainer-notification.php', {
-            method: 'POST',
-            body: fd
-        });
-        const data = await response.json();
-
-        if (data.success) {
-            res.className = 'text-xs text-emerald-400 font-mono font-bold';
-            res.textContent = '✓ Push service accepted notification (HTTP ' + (data.statusCode || 201) + ')';
-        } else {
-            res.className = 'text-xs text-amber-400 font-mono';
-            res.textContent = 'Notice: ' + (data.error || 'Notification saved to dashboard.');
-        }
-    } catch(e) {
-        res.className = 'text-xs text-amber-400 font-mono';
-        res.textContent = 'Could not send test alert. Please try again later.';
-    }
-}
-
-document.addEventListener('DOMContentLoaded', updateSettingsDeviceStatus);
 </script>
-<script src="/assets/js/push-notifications.js" defer></script>
 
 </main>
 </div>

@@ -149,15 +149,7 @@ function notifyAdmin($type, $title, $message, $link = '', $metadata = []) {
             $notifDoc['_id'] = $idempotencyKey;
         }
 
-        $insertRes = $notifCol->insertOne($notifDoc);
-        $adminNotifId = (string)$insertRes->getInsertedId();
-        @dispatchWebPushNotification(
-            ['userRole' => ['$in' => ['ADMIN', 'SUPER_ADMIN', 'STAFF']]], 
-            $title, 
-            $message, 
-            $link,
-            ['id' => $adminNotifId, 'type' => $type]
-        );
+        $notifCol->insertOne($notifDoc);
         return true;
     } catch (\Throwable $e) {
         error_log("Failed to dispatch admin notification: " . $e->getMessage());

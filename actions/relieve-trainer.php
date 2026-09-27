@@ -242,7 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $notifMsg = "You have been officially relieved from the faculty assignment for {$oppTitle}{$collegeSuffix}. Your schedule and availability status have been restored to Available Now.";
 
                     if ($notifCol) {
-                        $insRes = $notifCol->insertOne([
+                        $notifCol->insertOne([
                             'userId' => $trainerUserId,
                             'trainerId' => $trainerId,
                             'opportunityId' => $oppId,
@@ -253,22 +253,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'read' => false,
                             'createdAt' => new MongoDB\BSON\UTCDateTime()
                         ]);
-                        $notifId = (string)$insRes->getInsertedId();
-
-                        if (function_exists('dispatchWebPushNotification')) {
-                            @dispatchWebPushNotification(
-                                ['userId' => $trainerUserId],
-                                $notifTitle,
-                                $notifMsg,
-                                '/trainer/assignments.php',
-                                [
-                                    'id' => $notifId,
-                                    'type' => 'ASSIGNMENT_UPDATE',
-                                    'opportunityId' => $oppId,
-                                    'priority' => 'high'
-                                ]
-                            );
-                        }
                     }
                 } catch (\Throwable $e) {
                     error_log("Relief notification error: " . $e->getMessage());

@@ -136,67 +136,7 @@ $isNewSignup = isset($_GET['new_signup']) && $isProfileIncomplete;
         </div>
     <?php endif; ?>
 
-    <!-- Real-Time Device / Mobile Push Notification Banner (One-time prompt, hidden once granted or dismissed) -->
-    <div id="dashboardMobilePushBanner" style="display: none;" class="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-700/80 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative">
-        <button type="button" onclick="dismissDashboardPushBanner()" class="absolute top-3 right-3 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer" title="Dismiss">
-            <span class="material-symbols-outlined text-[18px]">close</span>
-        </button>
-        <div class="flex items-center gap-3.5 min-w-0 pr-8 sm:pr-0">
-            <div id="dashboardMobilePushIconBox" data-push-icon="1" class="w-10 h-10 rounded-2xl bg-orange-500/20 text-[#FE5E04] border border-orange-500/30 flex items-center justify-center shrink-0">
-                <span class="material-symbols-outlined text-2xl">notifications_active</span>
-            </div>
-            <div class="min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <h3 class="font-extrabold text-sm text-white">Mobile Device Push Alerts</h3>
-                    <span id="dashboardMobilePushBadge" data-push-badge="1" class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Action Required</span>
-                </div>
-                <p id="dashboardMobilePushDesc" data-push-desc="1" class="text-xs text-slate-300 mt-0.5 leading-relaxed">
-                    Receive instant alerts on your phone screen outside the app when selected or matched.
-                </p>
-            </div>
-        </div>
-        <div class="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-            <button id="dashboardEnableMobilePushBtn" data-push-enable-btn="1" type="button" onclick="enableDashboardPush()" class="bg-[#FE5E04] hover:bg-[#E04E00] text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
-                <span class="material-symbols-outlined text-[16px]">notifications</span>
-                <span>Enable Mobile Alerts</span>
-            </button>
-        </div>
-    </div>
-    <script>
-    function dismissDashboardPushBanner() {
-        try {
-            localStorage.setItem('mentry_dashboard_push_banner_dismissed', '1');
-        } catch(e) {}
-        var banner = document.getElementById('dashboardMobilePushBanner');
-        if (banner) banner.style.display = 'none';
-    }
 
-    function enableDashboardPush() {
-        dismissDashboardPushBanner();
-        if (window.MentryPush && typeof window.MentryPush.enable === 'function') {
-            window.MentryPush.enable();
-        } else if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
-    }
-
-    (function() {
-        try {
-            var isDismissed = localStorage.getItem('mentry_dashboard_push_banner_dismissed') === '1';
-            var isGranted = ('Notification' in window) && Notification.permission === 'granted';
-            var isDenied = ('Notification' in window) && Notification.permission === 'denied';
-            var banner = document.getElementById('dashboardMobilePushBanner');
-
-            // If already granted, denied, or dismissed once by the user: DO NOT SHOW
-            if (isGranted || isDenied || isDismissed) {
-                if (banner) banner.style.display = 'none';
-            } else if ('Notification' in window && Notification.permission === 'default') {
-                // Show strictly one time for users who haven't enabled or dismissed yet
-                if (banner) banner.style.display = 'flex';
-            }
-        } catch(e) {}
-    })();
-    </script>
 
     <!-- Welcome Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 min-w-0">

@@ -1,43 +1,38 @@
 <?php
-// includes/PushNotificationService.php - Clean Adapter delegating to includes/push/ module
-// Retained strictly for backwards-compatibility with any lingering call sites.
-
-require_once __DIR__ . '/push/PushConfig.php';
-require_once __DIR__ . '/push/PushSubscriptionRepository.php';
-require_once __DIR__ . '/push/PushService.php';
+// includes/PushNotificationService.php - Retired Push Notification Adapter
+// Retained strictly as a safe no-op stub for backwards-compatibility.
 
 class PushNotificationService {
     public static function getPublicKey(): string {
-        return PushConfig::getPublicKey();
+        return '';
     }
 
     public static function initKeys(): array {
-        return PushConfig::load();
+        return [];
     }
 
     public static function isValidPushEndpoint(string $endpoint): bool {
-        return PushSubscriptionRepository::isValidEndpoint($endpoint);
+        return false;
     }
 
     public static function sendToSubscription($subscription, array $payloadData, string $priority = 'high'): array {
-        $res = PushService::sendToSubscription($subscription, $payloadData, $priority);
         return [
-            'success' => $res['accepted'],
-            'accepted' => $res['accepted'],
-            'statusCode' => $res['statusCode'],
-            'reason' => $res['reason'],
-            'deliveryStatus' => $res['accepted'] ? 'accepted' : 'failed',
-            'endpoint' => $res['endpoint']
+            'success' => false,
+            'accepted' => false,
+            'statusCode' => 200,
+            'reason' => 'Push notifications retired in favor of In-App notifications.',
+            'deliveryStatus' => 'retired',
+            'endpoint' => ''
         ];
     }
 
     public static function sendToUser(string $userId, array $payloadData, string $priority = 'high'): array {
-        $res = PushService::sendToUser($userId, $payloadData, $priority);
         return [
-            'success' => $res['sent'],
-            'acceptedCount' => $res['acceptedCount'],
-            'failedCount' => $res['failedCount'],
-            'subscriptionCount' => $res['subscriptionCount']
+            'success' => false,
+            'sent' => false,
+            'acceptedCount' => 0,
+            'failedCount' => 0,
+            'subscriptionCount' => 0
         ];
     }
 }

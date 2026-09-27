@@ -93,42 +93,14 @@ if (!empty($_SESSION['user']['id'])) {
     </div>
 </div>
 
-<!-- Push Notification Permission Banner -->
-<div id="mentryPushBanner" class="fixed bottom-6 right-4 sm:right-6 max-w-sm w-[calc(100%-2rem)] z-[80] bg-slate-950/95 text-white p-5 rounded-3xl border border-slate-800/90 shadow-2xl backdrop-blur-xl hidden select-none animate-in fade-in slide-in-from-bottom-4 duration-300">
-    <div class="flex items-start gap-3.5">
-        <div class="w-11 h-11 rounded-2xl bg-[#FE5E04]/20 border border-[#FE5E04]/30 text-[#FE5E04] flex items-center justify-center shrink-0 shadow-sm">
-            <span class="material-symbols-outlined text-[24px] animate-pulse">notifications_active</span>
-        </div>
-        <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-                <h4 class="font-extrabold text-sm text-white tracking-tight">🔔 Stay Updated</h4>
-                <button type="button" onclick="dismissPushBanner()" class="text-slate-400 hover:text-white p-1 -mr-1 rounded-lg hover:bg-slate-800/60 transition-colors cursor-pointer" aria-label="Dismiss">
-                    <span class="material-symbols-outlined text-[18px]">close</span>
-                </button>
-            </div>
-            <p class="text-xs font-semibold text-slate-200 mt-1">Never Miss a Training Opportunity</p>
-            <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">Get instant alerts for new opportunities, selections, interviews and important updates.</p>
-            <div class="flex items-center gap-2 mt-4">
-                <button type="button" onclick="enablePushNotifications()" class="flex-1 bg-[#FE5E04] hover:bg-[#e04e00] text-white font-bold text-xs py-2.5 px-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-[16px]">notifications</span>
-                    <span>Enable Notifications</span>
-                </button>
-                <button type="button" onclick="dismissPushBanner()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs py-2.5 px-3.5 rounded-xl transition-colors cursor-pointer">
-                    Maybe later
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <script>
 (function() {
     const MENTRY_CURRENT_USER_ID = <?= json_encode($pwaUserId) ?>;
     let deferredPrompt = null;
     let activeSwReg = null;
-    const banner = document.getElementById('mentryPwaBanner');
     const iosModal = document.getElementById('mentryIosModal');
-    const pushBanner = document.getElementById('mentryPushBanner');
 
     const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -155,7 +127,12 @@ if (!empty($_SESSION['user']['id'])) {
         return '';
     }
 
-    // Service worker registration is handled authoritatively by push-notifications.js
+    // Service worker registration for PWA offline caching & app shell
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register((getPwaBaseUrl() || '') + '/sw.js', { scope: '/' }).catch(() => {});
+        });
+    }
 
     // 2. Capture Chrome/Android/Edge beforeinstallprompt
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -250,47 +227,5 @@ if (!empty($_SESSION['user']['id'])) {
         }
     };
 
-    // 3. Native Web Push Notification Integration
-    window.enablePushNotifications = async function() {
-        if (pushBanner) {
-            pushBanner.classList.add('hidden');
-            pushBanner.classList.remove('block');
-        }
-        if (window.MentryPush && typeof window.MentryPush.enable === 'function') {
-            const success = await window.MentryPush.enable();
-            if (!success && Notification.permission === 'denied') {
-                localStorage.setItem('mentry_push_dismissed', Date.now().toString());
-            }
-        }
-    };
-
-    window.showPushBanner = function(force = false) {
-        if (!pushBanner) return;
-        if (!('Notification' in window)) return;
-        if (Notification.permission === 'granted' && !force) return;
-        pushBanner.classList.remove('hidden');
-        pushBanner.classList.add('block');
-    };
-
-    window.dismissPushBanner = function() {
-        if (pushBanner) {
-            pushBanner.classList.add('hidden');
-            pushBanner.classList.remove('block');
-        }
-        localStorage.setItem('mentry_push_dismissed', Date.now().toString());
-    };
-
-    // Auto-prompt banner if default and not dismissed
-    if ('Notification' in window && Notification.permission === 'default') {
-        const pushDismissed = localStorage.getItem('mentry_push_dismissed');
-        const dismissedTime = parseInt(pushDismissed || '0', 10);
-        if (!pushDismissed || (Date.now() - dismissedTime > 24 * 60 * 60 * 1000)) {
-            setTimeout(() => {
-                showPushBanner();
-            }, 3000);
-        }
-    }
 })();
 </script>
-
-<script src="/assets/js/push-notifications.js" defer></script>

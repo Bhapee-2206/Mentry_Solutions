@@ -1116,36 +1116,6 @@ function closeAdminDocViewer() {
     if (modal) modal.classList.add('hidden');
 }
 
-function sendAdminTestAlertToTrainer(trainerId, trainerName) {
-    if (!confirm('Send an instant live push alert to ' + trainerName + '\'s phone and account?')) return;
-    const base = '<?= defined("APP_URL") ? rtrim(APP_URL, "/") : "" ?>';
-    const csrfToken = '<?= getCsrfToken() ?>';
-    
-    fetch((base || '') + '/actions/send-test-trainer-notification.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRF-Token': csrfToken
-        },
-        body: 'csrf_token=' + encodeURIComponent(csrfToken) + '&trainerId=' + encodeURIComponent(trainerId)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            const accepted = data.pushAcceptedCount !== undefined ? data.pushAcceptedCount : data.pushDeliveredCount;
-            if (accepted > 0) {
-                alert('✓ Success! Live notification delivered to ' + trainerName + ' (' + accepted + ' device accepted).\nIt will pop on their device and appear in their notifications.');
-            } else {
-                alert('In-app notification created for ' + trainerName + '.\nNote: ' + (data.details || data.message || 'No active device accepted the push.'));
-            }
-        } else {
-            alert('Notice: ' + (data.error || 'Failed to dispatch alert.'));
-        }
-    })
-    .catch(err => {
-        alert('Could not dispatch alert: ' + err.message);
-    });
-}
 
 function openReliefModal(asgId, trainerName, trainerId, oppId) {
     const modal = document.getElementById('reliefModal');

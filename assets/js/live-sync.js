@@ -27,7 +27,7 @@
 
     const basePath = getAppBasePath();
 
-    // Service Worker registration is authoritatively handled by push-notifications.js with scope '/'
+    // In-app notifications & live sync engine
 
     let lastSyncTs = Date.now() - 30000; // Baseline: last 30 seconds
     let pollTimer = null;
@@ -108,21 +108,6 @@
                     this.dismissCurrent('escape');
                 }
             });
-
-            // Listen for Service Worker message (when push arrives and notifies page)
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.addEventListener('message', (event) => {
-                    if (!event.data) return;
-                    if ((event.data.type === 'PUSH_RECEIVED' || event.data.type === 'PUSH_FOREGROUND_EVENT' || event.data.type === 'PUSH_RECEIVED_IN_APP' || event.data.type === 'PUSH_NOTIFICATION_DELIVERED') && event.data.notification) {
-                        console.log('[PUSH] foreground page received message:', event.data.notification.notification_id || event.data.notification.id);
-                        const notifData = event.data.notification;
-                        this.handleIncomingNotification(notifData, 'push');
-                        if (typeof this.fetchUnreadCount === 'function') {
-                            this.fetchUnreadCount();
-                        }
-                    }
-                });
-            }
         },
 
         persist() {
@@ -706,99 +691,10 @@
     window.triggerLiveSyncCheck = pollLiveSync;
     window.triggerNativeNotification = triggerNativeSystemNotification;
 
-    window.updateDeviceNotificationUI = function() {
-        const badges = document.querySelectorAll('#mobilePushBadge, [data-push-badge]');
-        const descs = document.querySelectorAll('#mobilePushDesc, [data-push-desc]');
-        const enableBtns = document.querySelectorAll('#enableMobilePushBtn, [data-push-enable-btn]');
-        const testBtns = document.querySelectorAll('#testMobilePushBtn, [data-push-test-btn]');
-        const iconBoxes = document.querySelectorAll('#mobilePushIconBox, [data-push-icon-box]');
-        const dashBanner = document.getElementById('dashboardMobilePushBanner');
-        if (dashBanner) {
-            const isDismissed = localStorage.getItem('mentry_dashboard_push_banner_dismissed') === '1';
-            if (Notification.permission === 'granted' || Notification.permission === 'denied' || isDismissed) {
-                dashBanner.style.display = 'none';
-            }
-        }
-
-        if (badges.length === 0) return;
-
-        if (!('Notification' in window)) {
-            badges.forEach(b => {
-                b.textContent = 'NOT SUPPORTED';
-                b.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-slate-700 text-slate-300';
-            });
-            descs.forEach(d => d.textContent = 'This browser does not support web notifications.');
-            enableBtns.forEach(btn => btn.classList.add('hidden'));
-            testBtns.forEach(btn => btn.classList.add('hidden'));
-            return;
-        }
-
-        if (Notification.permission === 'granted') {
-            badges.forEach(b => {
-                b.textContent = '✓ ACTIVE ON THIS DEVICE';
-                b.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-            });
-            descs.forEach(d => d.textContent = 'Mobile push alerts are active! Real-time notifications will pop on your phone screen outside the app.');
-            enableBtns.forEach(btn => btn.classList.add('hidden'));
-            testBtns.forEach(btn => btn.classList.remove('hidden'));
-            iconBoxes.forEach(box => {
-                box.className = 'w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0';
-            });
-        } else if (Notification.permission === 'denied') {
-            badges.forEach(b => {
-                b.textContent = 'BLOCKED IN BROWSER';
-                b.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30';
-            });
-            descs.forEach(d => d.textContent = 'Notifications are blocked in your browser settings. Please tap your browser address bar to allow notifications.');
-            enableBtns.forEach(btn => btn.classList.add('hidden'));
-            testBtns.forEach(btn => btn.classList.add('hidden'));
-        } else {
-            badges.forEach(b => {
-                b.textContent = 'ACTION REQUIRED';
-                b.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
-            });
-            descs.forEach(d => d.textContent = 'Tap Enable to receive alerts on your phone lock screen & notification bar outside the app.');
-            enableBtns.forEach(btn => btn.classList.remove('hidden'));
-            testBtns.forEach(btn => btn.classList.add('hidden'));
-        }
-    };
-
-    window.requestMentryDeviceNotifications = async function() {
-        if (window.MentryPush && typeof window.MentryPush.enable === 'function') {
-            await window.MentryPush.enable();
-            if (typeof window.updateDeviceNotificationUI === 'function') {
-                window.updateDeviceNotificationUI();
-            }
-            return;
-        }
-
-        if (!('Notification' in window)) {
-            console.warn('[Mentry LiveSync] Notifications are not supported on this browser.');
-            return;
-        }
-
-        if (Notification.permission === 'default') {
-            Notification.requestPermission().then(() => {
-                if (typeof window.updateDeviceNotificationUI === 'function') {
-                    window.updateDeviceNotificationUI();
-                }
-            });
-        }
-    };
-
+    window.updateDeviceNotificationUI = function() {};
+    window.requestMentryDeviceNotifications = async function() {};
     window.sendTestDeviceNotification = async function() {
-        if (!('Notification' in window)) {
-            console.warn('[Mentry LiveSync] Notifications not supported by this browser.');
-            return;
-        }
-
-        if (Notification.permission !== 'granted') {
-            window.requestMentryDeviceNotifications();
-            return;
-        }
-
         try {
-            // Trigger genuine server-side Web Push
             const csrfToken = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').content) || '';
             const formData = new FormData();
             if (csrfToken) formData.append('csrf_token', csrfToken);
@@ -812,28 +708,19 @@
 
             NotificationManager.handleIncomingNotification({
                 id: 'toast_' + Date.now(),
-                title: data.success ? '🎉 Web Push Dispatched' : 'Notification Note',
-                message: data.message || 'Check your phone notification drawer or lock screen outside the app!',
+                title: data.success ? '🔔 In-App Alert Dispatched' : 'Notification Note',
+                message: data.message || 'In-app notifications are active and working!',
                 link: basePath + '/trainer/notifications.php',
                 type: 'SYSTEM_ALERT'
             }, 'test');
         } catch (e) {
-            console.warn('[Mentry LiveSync] Test dispatch exception:', e);
             NotificationManager.handleIncomingNotification({
                 id: 'toast_' + Date.now(),
                 title: 'Alert Dispatched',
-                message: 'Check your phone notification drawer or lock screen outside the app!',
+                message: 'In-app notification test dispatched successfully.',
                 link: basePath + '/trainer/notifications.php',
                 type: 'SYSTEM_ALERT'
             }, 'test');
         }
     };
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof window.updateDeviceNotificationUI === 'function') window.updateDeviceNotificationUI();
-        });
-    } else {
-        if (typeof window.updateDeviceNotificationUI === 'function') window.updateDeviceNotificationUI();
-    }
 })();
